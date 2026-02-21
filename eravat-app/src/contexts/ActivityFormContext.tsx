@@ -13,11 +13,11 @@ export interface ActivityFormData {
     // Step 2: Observation Type
     observation_type: ObservationType | null;
     total_elephants: number;
-    male_elephants: number;
-    female_elephants: number;
-    unknown_elephants: number;
-    calves: number;
-    indirect_sighting_type: IndirectSightingType | null;
+    male_count: number;
+    female_count: number;
+    unknown_count: number;
+    calf_count: number;
+    indirect_sign_details: IndirectSightingType | null;
     loss_type: LossType | null;
 
     // Step 3: Compass Bearing
@@ -25,6 +25,7 @@ export interface ActivityFormData {
 
     // Step 4: Photo
     photo_url: string | null;
+    notes: string | null;
 }
 
 interface ActivityFormContextValue {
@@ -48,14 +49,15 @@ const DEFAULT_FORM: ActivityFormData = {
     longitude: null,
     observation_type: null,
     total_elephants: 0,
-    male_elephants: 0,
-    female_elephants: 0,
-    unknown_elephants: 0,
-    calves: 0,
-    indirect_sighting_type: null,
+    male_count: 0,
+    female_count: 0,
+    unknown_count: 0,
+    calf_count: 0,
+    indirect_sign_details: null,
     loss_type: null,
     compass_bearing: null,
     photo_url: null,
+    notes: null,
 };
 
 const ActivityFormContext = createContext<ActivityFormContextValue | null>(null);
@@ -74,7 +76,7 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
                 return !!(formData.activity_date && formData.activity_time && formData.latitude && formData.longitude);
             case 'observationType':
                 if (!formData.observation_type) return false;
-                if (formData.observation_type === 'indirect') return !!formData.indirect_sighting_type;
+                if (formData.observation_type === 'indirect') return !!formData.indirect_sign_details;
                 if (formData.observation_type === 'loss') return !!formData.loss_type;
                 return true; // direct sighting - just type is enough
             case 'compassBearing':

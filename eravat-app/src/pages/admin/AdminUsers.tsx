@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, UserPlus, Loader2, AlertTriangle, MapPin, ChevronRight, Shield } from 'lucide-react';
+import { Search, UserPlus, Loader2, AlertTriangle, MapPin, ChevronRight, Shield, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '../../supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Profile {
     id: string;
@@ -17,6 +18,7 @@ interface Profile {
     beat_name?: string;
     range_name?: string;
     division_name?: string;
+    user_region_assignments?: any[];
 }
 
 interface GeoEntity { id: string; name: string; code?: string; }
@@ -42,7 +44,28 @@ const ROLES = [
 
 const GEOGRAPHIC_ROLES = ['dfo', 'rrt', 'range_officer', 'beat_guard'];
 
+const ROLE_HIERARCHY: Record<string, string[]> = {
+    admin: ['*'],
+    ccf: ['*'],
+    biologist: [],
+    veterinarian: [],
+    dfo: ['range_officer', 'beat_guard'],
+    rrt: ['beat_guard'],
+    range_officer: ['beat_guard'],
+    beat_guard: [],
+    volunteer: []
+};
+
+const canManageRole = (callerRole?: string, targetRole?: string) => {
+    if (!callerRole || !targetRole) return false;
+    const allowed = ROLE_HIERARCHY[callerRole];
+    if (!allowed) return false;
+    if (allowed.includes('*')) return true;
+    return allowed.includes(targetRole);
+};
+
 export default function AdminUsers() {
+    const { profile: currentUserProfile } = useAuth();
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [divisions, setDivisions] = useState<GeoEntity[]>([]);
     const [ranges, setRanges] = useState<GeoRange[]>([]);
@@ -51,6 +74,8 @@ export default function AdminUsers() {
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [showModal, setShowModal] = useState(false);
+    const [editUser, setEditUser] = useState<Profile & { password?: string, division_id?: string, range_id?: string, beat_id?: string } | null>(null);
+    const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [newUser, setNewUser] = useState(DEFAULT_NEW_USER);
     const [toast, setToast] = useState<string | null>(null);
@@ -130,13 +155,71 @@ export default function AdminUsers() {
         }
     };
 
+    const handleUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editUser) return;
+        setIsSubmitting(true);
+        setError(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('Not authenticated');
+
+            const { data, error: fnErr } = await supabase.functions.invoke('update-user', {
+                body: editUser,
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+
+            if (fnErr) throw fnErr;
+            if (data?.error) throw new Error(data.error);
+
+            setEditUser(null);
+            setToast('Personnel updated successfully');
+            setTimeout(() => setToast(null), 3000);
+            await fetchData();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to update personnel');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!deleteUserId) return;
+        setIsSubmitting(true);
+        setError(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('Not authenticated');
+
+            const { data, error: fnErr } = await supabase.functions.invoke('delete-user', {
+                body: { id: deleteUserId },
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+
+            if (fnErr) throw fnErr;
+            if (data?.error) throw new Error(data.error);
+
+            setDeleteUserId(null);
+            setToast('Personnel deleted successfully');
+            setTimeout(() => setToast(null), 3000);
+            await fetchData();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to delete personnel');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const filtered = useMemo(() =>
         profiles.filter(p => `${p.first_name} ${p.last_name}`.toLowerCase().includes(search.toLowerCase())),
         [profiles, search]
     );
 
-    const filteredRanges = ranges.filter(r => r.division_id === newUser.division_id);
-    const filteredBeats = beats.filter(b => b.range_id === newUser.range_id);
+    const filteredRanges = ranges.filter(r => r.division_id === (editUser ? editUser.division_id : newUser.division_id));
+    const filteredBeats = beats.filter(b => b.range_id === (editUser ? editUser.range_id : newUser.range_id));
+
+    // Determine if the current user can create ANY user types based on their role
+    const canCreateAnyUser = currentUserProfile?.role && Object.values(ROLES).some(r => canManageRole(currentUserProfile.role, r.value));
 
     return (
         <div className="space-y-6">
@@ -145,10 +228,12 @@ export default function AdminUsers() {
                     <h1 className="text-3xl font-bold tracking-tight">Personnel & Hierarchy</h1>
                     <p className="text-sm text-muted-foreground mt-1">Manage forest department staff and territorial assignments.</p>
                 </div>
-                <button onClick={() => setShowModal(true)}
-                    className="bg-primary text-primary-foreground h-11 px-6 rounded-xl flex items-center gap-2 font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
-                    <UserPlus size={18} /> Register Personnel
-                </button>
+                {canCreateAnyUser && (
+                    <button onClick={() => setShowModal(true)}
+                        className="bg-primary text-primary-foreground h-11 px-6 rounded-xl flex items-center gap-2 font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                        <UserPlus size={18} /> Register Personnel
+                    </button>
+                )}
             </div>
 
             {error && (
@@ -185,6 +270,7 @@ export default function AdminUsers() {
                                     <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Role</th>
                                     <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Territory</th>
                                     <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border/40">
@@ -230,6 +316,28 @@ export default function AdminUsers() {
                                             <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${p.is_active ? 'bg-emerald-500/15 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
                                                 {p.is_active ? 'Active' : 'Inactive'}
                                             </span>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            {canManageRole(currentUserProfile?.role, p.role) && (
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button onClick={() => setEditUser({
+                                                        ...p,
+                                                        division_id: p.user_region_assignments?.[0]?.division_id || '',
+                                                        range_id: p.user_region_assignments?.[0]?.range_id || '',
+                                                        beat_id: p.user_region_assignments?.[0]?.beat_id || '',
+                                                        password: '' // empty indicates no password change
+                                                    } as any)}
+                                                        className="p-2 text-muted-foreground hover:text-primary bg-muted/30 hover:bg-primary/10 rounded-lg transition-colors"
+                                                        title="Edit">
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button onClick={() => setDeleteUserId(p.id)}
+                                                        className="p-2 text-muted-foreground hover:text-destructive bg-muted/30 hover:bg-destructive/10 rounded-lg transition-colors"
+                                                        title="Delete">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </td>
                                     </motion.tr>
                                 ))}
@@ -321,6 +429,121 @@ export default function AdminUsers() {
                                 </button>
                             </div>
                         </form>
+                    </motion.div>
+                </div>
+            )}
+
+            {editUser && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <motion.div initial={{ scale: 0.93, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                        className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+                        <h2 className="text-xl font-bold mb-1">Edit Personnel</h2>
+                        <p className="text-sm text-muted-foreground mb-6">Modify details and territorial assignment.</p>
+
+                        <form onSubmit={handleUpdate} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">First Name</label>
+                                    <input required value={editUser.first_name || ''} onChange={e => setEditUser({ ...editUser, first_name: e.target.value })}
+                                        className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">Last Name</label>
+                                    <input required value={editUser.last_name || ''} onChange={e => setEditUser({ ...editUser, last_name: e.target.value })}
+                                        className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">Email (Cannot edit)</label>
+                                    <input type="email" disabled value={editUser.email || ''}
+                                        className="w-full p-3 rounded-xl bg-muted border border-border text-sm opacity-60 cursor-not-allowed" />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">New Password</label>
+                                    <input type="password" minLength={6} value={editUser.password || ''} onChange={e => setEditUser({ ...editUser, password: e.target.value })}
+                                        placeholder="Leave blank to keep"
+                                        className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">Phone Number</label>
+                                <input type="tel" value={editUser.phone || ''} onChange={e => setEditUser({ ...editUser, phone: e.target.value })} placeholder="Optional"
+                                    className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">System Role</label>
+                                <select value={editUser.role || ''} onChange={e => setEditUser({ ...editUser, role: e.target.value, division_id: '', range_id: '', beat_id: '' })}
+                                    className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm">
+                                    {ROLES.filter(r => canManageRole(currentUserProfile?.role, r.value)).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                                </select>
+                            </div>
+
+                            {GEOGRAPHIC_ROLES.includes(editUser.role) && (
+                                <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                                    <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> Assign Territory</p>
+                                    <select required value={editUser.division_id || ''} onChange={e => setEditUser({ ...editUser, division_id: e.target.value, range_id: '', beat_id: '' })}
+                                        className="w-full p-3 rounded-xl bg-background border border-border text-sm">
+                                        <option value="">Select Division</option>
+                                        {divisions.map(d => <option key={d.id} value={d.id}>{d.name} {d.code ? `(${d.code})` : ''}</option>)}
+                                    </select>
+                                    {['range_officer', 'beat_guard'].includes(editUser.role) && (
+                                        <select required value={editUser.range_id || ''} disabled={!editUser.division_id} onChange={e => setEditUser({ ...editUser, range_id: e.target.value, beat_id: '' })}
+                                            className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
+                                            <option value="">Select Range</option>
+                                            {filteredRanges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                        </select>
+                                    )}
+                                    {editUser.role === 'beat_guard' && (
+                                        <select required value={editUser.beat_id || ''} disabled={!editUser.range_id} onChange={e => setEditUser({ ...editUser, beat_id: e.target.value })}
+                                            className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
+                                            <option value="">Select Beat</option>
+                                            {filteredBeats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                        </select>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="flex gap-3 pt-2">
+                                <button type="button" onClick={() => setEditUser(null)}
+                                    className="flex-1 h-12 rounded-xl border border-border font-semibold hover:bg-muted transition-colors text-sm">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={isSubmitting}
+                                    className="flex-1 h-12 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
+                                    {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                                    {isSubmitting ? 'Updating...' : 'Save Changes'}
+                                </button>
+                            </div>
+                        </form>
+                    </motion.div>
+                </div>
+            )}
+
+            {deleteUserId && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                        className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+                        <div className="flex justify-center mb-4">
+                            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                                <Trash2 className="text-destructive" size={24} />
+                            </div>
+                        </div>
+                        <h2 className="text-xl font-bold text-center mb-2">Delete Personnel?</h2>
+                        <p className="text-sm text-center text-muted-foreground mb-6">
+                            This action cannot be undone. This will permanently delete the user account and revoke their access.
+                        </p>
+                        <div className="flex gap-3">
+                            <button type="button" onClick={() => setDeleteUserId(null)}
+                                className="flex-1 h-11 rounded-xl border border-border font-semibold hover:bg-muted transition-colors text-sm">
+                                Cancel
+                            </button>
+                            <button type="button" onClick={handleDelete} disabled={isSubmitting}
+                                className="flex-1 h-11 bg-destructive text-destructive-foreground rounded-xl font-bold hover:bg-destructive/90 transition-colors shadow-lg shadow-destructive/20 disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
+                                {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                                Delete
+                            </button>
+                        </div>
                     </motion.div>
                 </div>
             )}

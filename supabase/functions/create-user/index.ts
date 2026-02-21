@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { canManageRole } from '../_shared/rbac.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,15 +37,15 @@ serve(async (req) => {
       })
     }
 
-    // Verify caller has admin role in profiles table
+    // Get the caller's profile to determine their role
     const { data: callerProfile, error: profileErr } = await callerClient
       .from('profiles')
       .select('role')
       .eq('id', callerUser.id)
       .single()
 
-    if (profileErr || callerProfile?.role !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Forbidden: admin role required' }), {
+    if (profileErr || !callerProfile) {
+      return new Response(JSON.stringify({ error: 'Forbidden: caller profile not found' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -61,6 +62,13 @@ serve(async (req) => {
       range_id,
       beat_id,
     } = await req.json()
+
+    // ── 2.5 Verify RBAC permissions ───────────────────────────────────────────
+    if (!canManageRole(callerProfile.role, role)) {
+      return new Response(JSON.stringify({ error: `Forbidden: role '${callerProfile.role}' cannot create user with role '${role}'` }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     if (!email || !password || !first_name || !last_name || !role) {
       return new Response(JSON.stringify({ error: 'Missing required fields: email, password, first_name, last_name, role' }), {

@@ -8,6 +8,8 @@ import Dexie, { type Table } from 'dexie';
 export interface LocalReport {
   id: string;
   user_id: string | null;
+  division_id: string | null;
+  range_id: string | null;
   beat_id: string | null;
 
   // Location stored as lat/lng locally; converted to PostGIS on sync

@@ -52,9 +52,6 @@ export default function UserProfile() {
                         {roleLabel}
                     </span>
                 </div>
-                {profile?.position && (
-                    <p className="text-sm font-medium text-primary/80">{profile.position}</p>
-                )}
 
                 {(profile as any)?.divisions?.name || (profile as any)?.ranges?.name || (profile as any)?.beats?.name ? (
                     <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground bg-muted/50 py-2 px-4 rounded-xl border border-border/50">

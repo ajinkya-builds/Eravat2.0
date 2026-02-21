@@ -1,13 +1,17 @@
 import { motion } from 'framer-motion';
-import { MapPin, Users, Activity, Bell, CloudOff, RefreshCw } from 'lucide-react';
+import { ShieldCheck, History, User, Activity, CloudOff, RefreshCw, ChevronRight } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { syncData } from '../services/syncService';
 import { cn } from '../lib/utils';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Dashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
+    const navigate = useNavigate();
+    const { profile } = useAuth();
 
     const pendingCount = useLiveQuery(
         () => db.reports.where('sync_status').equals('pending').count(),
@@ -23,138 +27,134 @@ export default function Dashboard() {
             setIsSyncing(false);
         }
     };
+
+    const hasAdminAccess = ['admin', 'ccf', 'dfo'].includes(profile?.role || '');
+
     return (
-        <div className="relative h-screen w-full bg-muted/30 overflow-hidden flex flex-col pt-10 px-4">
+        <div className="relative min-h-screen w-full bg-background overflow-hidden flex flex-col pt-10 px-6 pb-24">
+            {/* Dynamic Background Elements */}
+            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[100px] pointer-events-none" />
+            <div className="absolute bottom-[20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-500/10 blur-[100px] pointer-events-none" />
 
-            {/* Top Glass Header Area */}
-            <motion.div
-                initial={{ y: -20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.1 }}
-                className="flex justify-between items-center mb-6 z-10"
-            >
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Overview</h1>
-                    <p className="text-sm text-muted-foreground">Ooty Beat Map 01</p>
-                </div>
-                <button className="relative p-2 rounded-full glass-card hover:bg-white/50 transition-colors">
-                    <Bell className="w-5 h-5 text-foreground" />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full" />
-                </button>
-            </motion.div>
+            <div className="max-w-2xl mx-auto w-full relative z-10 flex flex-col h-full">
+                <motion.div
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="mb-8 space-y-2"
+                >
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome Back</h1>
+                    <p className="text-muted-foreground">What would you like to do today?</p>
+                </motion.div>
 
-            {/* Floating Status Cards Carousel */}
-            <div className="z-10 mb-6 -mx-4 px-4 overflow-x-auto no-scrollbar">
-                <div className="flex gap-4 w-max pb-4">
-                    <StatusCard
-                        delay={0.2}
-                        icon={MapPin}
-                        title="Active Patrols"
-                        value="12"
-                        trend="+2 since yesterday"
-                        trendUp
-                    />
-
-                    {/* Offline Sync Status Indicator */}
-                    <div className="shrink-0">
-                        <motion.div
-                            initial={{ x: 20, opacity: 0 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            transition={{ delay: 0.25, type: "spring", stiffness: 200, damping: 20 }}
-                            className={cn(
-                                "glass-card rounded-2xl p-4 w-44 flex flex-col gap-3 transition-colors",
-                                pendingCount && pendingCount > 0 ? "border border-warning/50 bg-warning/5" : ""
-                            )}
-                        >
-                            <div className="flex justify-between items-start">
-                                <div className={cn(
-                                    "p-2 rounded-xl",
-                                    pendingCount && pendingCount > 0 ? "bg-warning/20 text-warning" : "bg-emerald-500/10 text-emerald-500"
-                                )}>
-                                    <CloudOff className="w-5 h-5" />
+                {/* Offline Sync Status Indicator (Only shows if there are pending items) */}
+                {pendingCount ? (
+                    <motion.div
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="mb-8 z-10"
+                    >
+                        <div className="glass-card rounded-2xl p-4 flex items-center justify-between border border-warning/30 bg-warning/10">
+                            <div className="flex items-center gap-4">
+                                <div className="p-2.5 bg-warning/20 text-warning rounded-xl">
+                                    <CloudOff size={20} />
                                 </div>
-                                {pendingCount && pendingCount > 0 ? (
-                                    <button
-                                        onClick={handleManualSync}
-                                        disabled={isSyncing}
-                                        className="p-1.5 bg-background rounded-lg hover:bg-muted transition-colors disabled:opacity-50 text-foreground"
-                                    >
-                                        <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
-                                    </button>
-                                ) : null}
+                                <div>
+                                    <p className="font-bold text-foreground">{pendingCount} Pending Reports</p>
+                                    <p className="text-xs text-muted-foreground">Waiting for internet connection</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleManualSync}
+                                disabled={isSyncing}
+                                className="bg-background/50 hover:bg-background border border-border p-2.5 rounded-xl transition-all"
+                            >
+                                <RefreshCw size={18} className={cn("text-foreground", isSyncing && "animate-spin")} />
+                            </button>
+                        </div>
+                    </motion.div>
+                ) : null}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 z-10">
+                    {/* Primary Action Button */}
+                    <motion.button
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.1 }}
+                        onClick={() => navigate('/report')}
+                        className="group relative overflow-hidden rounded-3xl p-6 text-left flex flex-col justify-between h-48 border border-primary/20 bg-gradient-to-br from-primary/10 to-emerald-500/5 hover:from-primary/20 hover:to-emerald-500/10 transition-colors shadow-lg shadow-primary/5"
+                    >
+                        <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                            <Activity size={100} />
+                        </div>
+                        <div className="p-3 bg-primary text-primary-foreground rounded-2xl w-max shadow-md shadow-primary/30">
+                            <Activity size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-foreground mb-1">Report Activity</h2>
+                            <p className="text-sm text-muted-foreground font-medium flex items-center gap-1 group-hover:text-primary transition-colors">
+                                Log sightings or conflicts <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                            </p>
+                        </div>
+                    </motion.button>
+
+                    {/* Secondary Action Buttons */}
+                    <div className="grid grid-cols-2 gap-4 h-48">
+                        <motion.button
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                            onClick={() => navigate('/profile')}
+                            className="group glass-card rounded-3xl p-5 text-left flex flex-col justify-between hover:bg-muted/40 transition-colors border border-border/50"
+                        >
+                            <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl w-max">
+                                <User size={20} />
                             </div>
                             <div>
-                                <p className="text-3xl font-bold text-foreground mb-1">{pendingCount || 0}</p>
-                                <p className="text-xs font-medium text-muted-foreground mb-1 break-words">Pending Sync</p>
-                                <p className={cn("text-[10px]", pendingCount && pendingCount > 0 ? "text-warning" : "text-emerald-500")}>
-                                    {pendingCount && pendingCount > 0 ? "Tap to push data" : "All data verified"}
-                                </p>
+                                <h3 className="font-bold text-foreground">My Profile</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">View details</p>
                             </div>
-                        </motion.div>
+                        </motion.button>
+
+                        <motion.button
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            onClick={() => navigate('/history')}
+                            className="group glass-card rounded-3xl p-5 text-left flex flex-col justify-between hover:bg-muted/40 transition-colors border border-border/50"
+                        >
+                            <div className="p-2.5 bg-amber-500/10 text-amber-500 rounded-xl w-max">
+                                <History size={20} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-foreground">History</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">Past reports</p>
+                            </div>
+                        </motion.button>
                     </div>
 
-                    <StatusCard
-                        delay={0.3}
-                        icon={Activity}
-                        title="Recent Sightings"
-                        value="4"
-                        trend="Elephant herds"
-                    />
-                    <StatusCard
-                        delay={0.4}
-                        icon={Users}
-                        title="Team Members"
-                        value="8"
-                        trend="On duty"
-                    />
+                    {hasAdminAccess && (
+                        <motion.button
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.4 }}
+                            onClick={() => navigate('/admin')}
+                            className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border-2 border-primary/20 overflow-hidden relative"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
+                            <div className="flex items-center gap-5 relative z-10">
+                                <div className="p-4 bg-primary text-primary-foreground rounded-2xl shadow-lg shadow-primary/20">
+                                    <ShieldCheck size={28} />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-foreground">Command Center</h2>
+                                    <p className="text-sm text-muted-foreground">Access state-wide administration</p>
+                                </div>
+                            </div>
+                            <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all relative z-10" />
+                        </motion.button>
+                    )}
                 </div>
             </div>
-
-            {/* Main Map Container Placeholder */}
-            <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.5, duration: 0.5, ease: "easeOut" }}
-                className="flex-1 w-full bg-slate-200 dark:bg-slate-800 rounded-3xl overflow-hidden relative premium-shadow border border-white/20 mb-20"
-            >
-                {/* We will embed react-leaflet here soon */}
-                <div className="absolute inset-0 flex items-center justify-center flex-col gap-3 text-muted-foreground/60">
-                    <MapPin size={48} />
-                    <p className="font-medium">Map View Loading...</p>
-                </div>
-
-                {/* Floating Map Controls */}
-                <div className="absolute right-4 top-4 flex flex-col gap-2">
-                    <div className="glass-card rounded-xl p-2 flex flex-col gap-2">
-                        <div className="w-8 h-8 rounded bg-white/50 flex items-center justify-center font-bold text-lg cursor-pointer hover:bg-white transition-colors">+</div>
-                        <div className="w-8 h-[1px] bg-border mx-auto" />
-                        <div className="w-8 h-8 rounded bg-white/50 flex items-center justify-center font-bold text-lg cursor-pointer hover:bg-white transition-colors">-</div>
-                    </div>
-                </div>
-            </motion.div>
-
         </div>
-    );
-}
-
-function StatusCard({ icon: Icon, title, value, trend, trendUp, delay }: { icon: React.ElementType, title: string, value: string, trend: string, trendUp?: boolean, delay: number }) {
-    return (
-        <motion.div
-            initial={{ x: 20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay, type: "spring", stiffness: 200, damping: 20 }}
-            className="glass-card rounded-2xl p-4 w-44 flex flex-col gap-3 shrink-0"
-        >
-            <div className="flex justify-between items-start">
-                <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                    <Icon className="w-5 h-5" />
-                </div>
-            </div>
-            <div>
-                <p className="text-3xl font-bold text-foreground mb-1">{value}</p>
-                <p className="text-xs font-medium text-muted-foreground mb-1 break-words">{title}</p>
-                <p className={cn("text-[10px]", trendUp ? "text-emerald-500" : "text-muted-foreground")}>{trend}</p>
-            </div>
-        </motion.div>
     );
 }

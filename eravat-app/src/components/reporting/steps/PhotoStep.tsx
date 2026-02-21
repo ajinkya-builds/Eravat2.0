@@ -50,24 +50,26 @@ export function PhotoStep() {
                     <p className="text-xs text-emerald-600 mt-2 text-center">✓ Photo captured and stored locally</p>
                 </div>
             ) : (
-                <div className="glass-card rounded-2xl p-8 flex flex-col items-center gap-4 border-2 border-dashed border-border">
-                    <div className="p-4 rounded-full bg-muted">
-                        <ImageIcon className="w-10 h-10 text-muted-foreground" />
+                <div className="glass-card rounded-3xl p-10 flex flex-col items-center gap-6 border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors">
+                    <div className="p-5 rounded-full bg-background shadow-sm border border-border/50">
+                        <ImageIcon className="w-12 h-12 text-primary" />
                     </div>
-                    <div className="text-center">
-                        <p className="text-sm font-medium text-foreground mb-1">No photo attached</p>
-                        <p className="text-xs text-muted-foreground">Photo is optional but helps verify the report</p>
+                    <div className="text-center space-y-1">
+                        <p className="text-lg font-bold text-foreground">Attach a Photo</p>
+                        <p className="text-sm text-muted-foreground max-w-[250px]">
+                            A clear picture helps officials verify the details of your report quickly.
+                        </p>
                     </div>
                     <button
                         type="button"
                         onClick={handleCapture}
                         disabled={loading}
-                        className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                        className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 shadow-lg shadow-primary/20"
                     >
-                        <Camera className="w-4 h-4" />
-                        {loading ? 'Opening Camera...' : 'Take Photo'}
+                        <Camera className="w-5 h-5" />
+                        {loading ? 'Opening Camera...' : 'Take Photo Now'}
                     </button>
-                    {error && <p className="text-xs text-destructive">⚠ {error}</p>}
+                    {error && <p className="text-sm font-medium text-destructive mt-2 bg-destructive/10 px-4 py-2 rounded-lg">⚠ {error}</p>}
                 </div>
             )}
         </motion.div>

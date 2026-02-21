@@ -21,17 +21,31 @@ const LOSS_TYPES: { value: LossType; label: string }[] = [
     { value: 'Other', label: 'Other' },
 ];
 
-function NumberInput({ label, field, value, onChange }: { label: string; field: string; value: number; onChange: (f: string, v: number) => void }) {
+import { Plus, Minus } from 'lucide-react';
+
+function CounterInput({ label, field, value, onChange }: { label: string; field: string; value: number; onChange: (f: string, v: number) => void }) {
     return (
-        <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">{label}</label>
-            <input
-                type="number"
-                min={0}
-                value={value || ''}
-                onChange={e => onChange(field, parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
+        <div className="flex flex-col gap-2 p-3 rounded-2xl bg-muted/30 border border-border/50">
+            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">{label}</span>
+            <div className="flex items-center justify-between gap-3">
+                <button
+                    type="button"
+                    onClick={() => onChange(field, Math.max(0, (value || 0) - 1))}
+                    className="p-3 rounded-xl bg-background border-2 border-border/50 text-foreground hover:bg-muted active:scale-95 transition-all w-12 h-12 flex items-center justify-center flex-shrink-0"
+                >
+                    <Minus className="w-5 h-5" />
+                </button>
+                <div className="flex-1 text-center">
+                    <span className="text-2xl font-bold tabular-nums text-foreground">{value || 0}</span>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => onChange(field, (value || 0) + 1)}
+                    className="p-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all w-12 h-12 flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary/20"
+                >
+                    <Plus className="w-5 h-5" />
+                </button>
+            </div>
         </div>
     );
 }
@@ -65,7 +79,7 @@ export function ObservationTypeStep() {
                             <button
                                 key={value}
                                 type="button"
-                                onClick={() => updateFormData({ observation_type: value, indirect_sighting_type: null, loss_type: null })}
+                                onClick={() => updateFormData({ observation_type: value, indirect_sign_details: null, loss_type: null })}
                                 className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all ${isSelected ? colorMap[color] : 'border-border bg-muted/20 hover:bg-muted/50'}`}
                             >
                                 <div className={`p-2 rounded-xl ${isSelected ? `bg-white/20` : 'bg-muted'}`}>
@@ -87,12 +101,14 @@ export function ObservationTypeStep() {
                     <motion.div key="direct" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                         className="glass-card rounded-2xl p-4 space-y-4">
                         <h4 className="font-semibold text-sm">Elephant Count Details</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <NumberInput label="Total" field="total_elephants" value={formData.total_elephants} onChange={handleNumberChange} />
-                            <NumberInput label="Adult Male" field="male_elephants" value={formData.male_elephants} onChange={handleNumberChange} />
-                            <NumberInput label="Adult Female" field="female_elephants" value={formData.female_elephants} onChange={handleNumberChange} />
-                            <NumberInput label="Unknown" field="unknown_elephants" value={formData.unknown_elephants} onChange={handleNumberChange} />
-                            <NumberInput label="Calves" field="calves" value={formData.calves} onChange={handleNumberChange} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <CounterInput label="Total" field="total_elephants" value={formData.total_elephants} onChange={handleNumberChange} />
+                            <CounterInput label="Adult Male" field="male_count" value={formData.male_count} onChange={handleNumberChange} />
+                            <CounterInput label="Adult Female" field="female_count" value={formData.female_count} onChange={handleNumberChange} />
+                            <CounterInput label="Calves" field="calf_count" value={formData.calf_count} onChange={handleNumberChange} />
+                            <div className="md:col-span-2">
+                                <CounterInput label="Unknown / Unidentified" field="unknown_count" value={formData.unknown_count} onChange={handleNumberChange} />
+                            </div>
                         </div>
                     </motion.div>
                 )}
@@ -106,8 +122,8 @@ export function ObservationTypeStep() {
                                 <button
                                     key={type}
                                     type="button"
-                                    onClick={() => updateFormData({ indirect_sighting_type: type })}
-                                    className={`px-3 py-2 rounded-xl text-sm font-medium border transition-all ${formData.indirect_sighting_type === type ? 'bg-amber-500/20 border-amber-500 text-amber-600' : 'border-border hover:bg-muted'}`}
+                                    onClick={() => updateFormData({ indirect_sign_details: type })}
+                                    className={`px-3 py-2 rounded-xl text-sm font-medium border transition-all ${formData.indirect_sign_details === type ? 'bg-amber-500/20 border-amber-500 text-amber-600' : 'border-border hover:bg-muted'}`}
                                 >
                                     {type}
                                 </button>

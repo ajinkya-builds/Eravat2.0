@@ -17,7 +17,11 @@ export function AdminLayout() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     return (
-        <div className="min-h-screen bg-background flex flex-col md:flex-row overflow-hidden">
+        <div className="h-screen bg-background flex flex-col md:flex-row overflow-hidden relative">
+
+            {/* Decorative ambient background glows */}
+            <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[100px] pointer-events-none z-0" />
+            <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-[100px] pointer-events-none z-0" />
 
             {/* Mobile Header */}
             <div className="md:hidden flex items-center justify-between p-4 bg-card border-b border-border z-30 relative">

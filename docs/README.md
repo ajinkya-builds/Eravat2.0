@@ -260,7 +260,18 @@ npm run dev         # → http://localhost:5173
 
 ## 🚧 Known Issues / Notes
 
-1. **Email Confirmation** — New users created via `supabase.auth.signUp()` may need email confirmation disabled in Supabase Auth settings for dev.
-2. **Profile trigger** — There is no DB trigger auto-creating profile rows yet. After creating auth user, you must `UPDATE public.profiles SET role = 'admin' ...` manually.
-3. **Geography data** — `geo_divisions`, `geo_ranges`, `geo_beats` are currently empty. Need to be seeded with actual Maharashtra forest department territory data.
-4. **Mobile build** — Capacitor Android build had JDK path issues (see session 2026-02-21). Configure `JAVA_HOME` in Android Studio.
+1. **Email Confirmation** — New users created via `supabase.auth.signUp()` normally need email confirmation disabled in Supabase Auth settings for dev. Our custom Edge function logic automatically unpads this.
+2. **User Management** — Handled entirely by the Edge Functions (`create-user`, `update-user`, `delete-user`) to securely operate on `auth.users` with Role-Based Access Control.
+3. **Geography data** — `geo_divisions`, `geo_ranges`, `geo_beats` have been seeded with initial Madhya Pradesh forest department territory data.
+4. **Mobile build** — Fixed Android Capacitor build and initialized location permissions. Requires JDK 21.
+
+---
+
+## 🌎 Deployment
+
+### GitHub Pages
+The application is configured to deploy to GitHub Pages.
+1. `npm run build`
+2. `npx gh-pages -d dist`
+
+> **Note:** Ensure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are accessible during build time.

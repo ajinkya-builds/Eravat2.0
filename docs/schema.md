@@ -43,18 +43,23 @@ auth.users  (Supabase managed)
 4. Observation counts are in `observations` child table — NOT on `reports`
 5. `user_region_assignments` maps a user to ONE division+range+beat assignment
 
----
+## Creating and Managing Users
 
-## Creating a New Admin User
+> ⚠️ **CRITICAL:** Because `auth.users` requires the Supabase Service Role Key for mutations, **all user management MUST go through the Edge Functions.** 
 
-```sql
--- Step 1: Create via Supabase Dashboard → Auth → Users → Add User
+The front-end `AdminUsers.tsx` component calls these functions.
 
--- Step 2: Grant admin role
-UPDATE public.profiles
-SET role = 'admin', first_name = 'First', last_name = 'Last', is_active = true
-WHERE id = (SELECT id FROM auth.users WHERE email = 'user@example.com');
-```
+### Edge Functions
+1. **`create-user`**: Creates the `auth.user`, inserts the `profile` row, and inserts the `user_region_assignments` row.
+2. **`update-user`**: Safely updates `auth.users` (password), `profiles` (name, phone, role), and `user_region_assignments`. 
+3. **`delete-user`**: Deletes references in `user_region_assignments`, `profiles`, and ultimately the user from `auth.users`.
+
+### Role-Based Access Control (RBAC)
+All Edge Functions strictly enforce RBAC using `supabase/functions/_shared/rbac.ts`:
+- **Admin / CCF**: Can manage any role
+- **DFO**: Can manage Range Officers & Beat Guards
+- **Range Officer / RRT**: Can manage Beat Guards
+- **Others**: Cannot manage anyone.
 
 ---
 

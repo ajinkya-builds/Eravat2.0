@@ -36,6 +36,12 @@ function StepperContent() {
                 id: reportId,
                 user_id: profile?.id || null,
                 ...formData,
+                male_count: formData.male_count || 0,
+                female_count: formData.female_count || 0,
+                calf_count: formData.calf_count || 0,
+                unknown_count: formData.unknown_count || 0,
+                indirect_sign_details: formData.indirect_sign_details || null,
+                loss_type: formData.loss_type || null,
                 division_id: profile?.division_id || null,
                 range_id: profile?.range_id || null,
                 beat_id: profile?.beat_id || null,
@@ -84,82 +90,104 @@ function StepperContent() {
     }
 
     return (
-        <div className="space-y-6">
-            {/* Progress bar */}
-            <div className="space-y-3">
-                <div className="flex gap-2">
-                    {STEPS.map((step, i) => (
-                        <div
-                            key={step.type}
-                            className={cn(
-                                'flex-1 h-1.5 rounded-full transition-colors',
-                                i <= currentStepIndex ? 'bg-primary' : 'bg-muted'
-                            )}
-                        />
-                    ))}
+        <div className="flex flex-col min-h-[calc(100vh-4rem)] max-w-2xl mx-auto w-full relative">
+
+            {/* Main Content Area */}
+            <div className="flex-1 space-y-6 pb-28">
+                {/* Progress Header */}
+                <div className="space-y-4 px-2">
+                    {/* Animated Progress Bar */}
+                    <div className="flex gap-2">
+                        {STEPS.map((step, i) => (
+                            <div key={step.type} className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                <motion.div
+                                    initial={false}
+                                    animate={{
+                                        width: i < currentStepIndex ? '100%' : i === currentStepIndex ? '100%' : '0%'
+                                    }}
+                                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                    className={cn(
+                                        "h-full rounded-full",
+                                        i === currentStepIndex ? "bg-primary" : "bg-primary/50"
+                                    )}
+                                />
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Step Tabs Horizontal Scroll */}
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mask-linear-fade">
+                        {STEPS.map((step, i) => (
+                            <div
+                                key={step.type}
+                                className={cn(
+                                    'flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-300',
+                                    i === currentStepIndex
+                                        ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-100'
+                                        : i < currentStepIndex
+                                            ? 'bg-primary/10 text-primary border border-primary/20 scale-95 opacity-80'
+                                            : 'bg-muted text-muted-foreground border border-transparent scale-95 opacity-50'
+                                )}
+                            >
+                                {step.icon} {step.label}
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                {/* Step tabs */}
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                    {STEPS.map((step, i) => (
-                        <div
-                            key={step.type}
-                            className={cn(
-                                'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-all',
-                                i === currentStepIndex
-                                    ? 'bg-primary text-primary-foreground border-primary'
-                                    : i < currentStepIndex
-                                        ? 'bg-primary/10 text-primary border-primary/20'
-                                        : 'bg-muted text-muted-foreground border-transparent'
-                            )}
+
+                {/* Current Step Content */}
+                <div className="px-2">
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={currentStep}
+                            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                            transition={{ duration: 0.2 }}
+                            className="bg-card/50 backdrop-blur-xl border border-border/50 rounded-3xl p-5 md:p-8 shadow-sm"
                         >
-                            {step.icon} {step.label}
-                        </div>
-                    ))}
+                            {currentStep === 'dateTimeLocation' && <DateTimeLocationStep />}
+                            {currentStep === 'observationType' && <ObservationTypeStep />}
+                            {currentStep === 'compassBearing' && <CompassBearingStep />}
+                            {currentStep === 'photo' && <PhotoStep />}
+                        </motion.div>
+                    </AnimatePresence>
                 </div>
-                <p className="text-xs text-muted-foreground">Step {currentStepIndex + 1} of {STEPS.length}</p>
             </div>
 
-            {/* Current Step */}
-            <AnimatePresence mode="wait">
-                <motion.div key={currentStep}>
-                    {currentStep === 'dateTimeLocation' && <DateTimeLocationStep />}
-                    {currentStep === 'observationType' && <ObservationTypeStep />}
-                    {currentStep === 'compassBearing' && <CompassBearingStep />}
-                    {currentStep === 'photo' && <PhotoStep />}
-                </motion.div>
-            </AnimatePresence>
-
-            {/* Navigation */}
-            <div className="flex justify-between pt-4 border-t border-border">
-                <button
-                    type="button"
-                    onClick={goToPreviousStep}
-                    disabled={currentStepIndex === 0}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-40"
-                >
-                    <ChevronLeft className="w-4 h-4" /> Back
-                </button>
-
-                {isLastStep() ? (
+            {/* Sticky Bottom Navigation Bar */}
+            <div className="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6 pb-safe border-t border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+                <div className="max-w-2xl mx-auto flex justify-between gap-4">
                     <button
                         type="button"
-                        onClick={handleSubmit}
-                        disabled={isSubmitting}
-                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                        onClick={goToPreviousStep}
+                        disabled={currentStepIndex === 0}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
                     >
-                        <CheckCircle2 className="w-4 h-4" />
-                        {isSubmitting ? 'Saving...' : 'Submit Offline'}
+                        <ChevronLeft className="w-5 h-5" /> Back
                     </button>
-                ) : (
-                    <button
-                        type="button"
-                        onClick={goToNextStep}
-                        disabled={!isStepValid(currentStep)}
-                        className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-                    >
-                        Continue →
-                    </button>
-                )}
+
+                    {isLastStep() ? (
+                        <button
+                            type="button"
+                            onClick={handleSubmit}
+                            disabled={isSubmitting}
+                            className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-emerald-500 text-white text-sm font-bold shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                            <CheckCircle2 className="w-5 h-5" />
+                            {isSubmitting ? 'Saving...' : 'Submit Offline'}
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={goToNextStep}
+                            disabled={!isStepValid(currentStep)}
+                            className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-primary text-primary-foreground text-sm font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                            Continue <ChevronLeft className="w-5 h-5 rotate-180" />
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );

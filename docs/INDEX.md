@@ -21,7 +21,10 @@ docs/
 ├── INDEX.md                    ← This file
 ├── schema.md                   ← Database schema quick reference
 └── sessions/
-    └── 2026-02-21-database-setup-and-login.md
+    ├── 2026-02-21-database-setup-and-login.md
+    ├── 2026-02-21-ui-ux-centralization.md
+    ├── 2026-02-21-interactive-dashboard-map.md
+    └── 2026-02-21-mobile-ux-refinements.md
 ```
 
 ---
@@ -31,6 +34,10 @@ docs/
 | Date | Topic | Key Outcomes |
 |---|---|---|
 | 2026-02-21 | Database Setup & First Login | Discovered real schema, fixed Login.tsx, wired Supabase auth |
+| 2026-02-21 | User Management & RBAC | Created Edit/Delete user flows, built Edge Functions for strict Role-Based Access Control |
+| 2026-02-21 | UI/UX Centralization & Cleanup | Unified App/Admin layouts, reused MapComponent to fix Dashboard map, removed legacy views |
+| 2026-02-21 | Interactive Dashboard & Map | Added Live Metrics, Recent Alerts feed, and layered color-coded Beat/Range/Division highlighting |
+| 2026-02-21 | Mobile UX & Android | Overhauled data collection stepper, added Counter components, and fixed native Android location permissions |
 
 ---
 

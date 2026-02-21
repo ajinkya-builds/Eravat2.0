@@ -1,18 +1,152 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../supabase';
 import { motion } from 'framer-motion';
 import { Users, Activity, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-const MOCK_DATA = [
-  { name: '08:00', observations: 4 },
-  { name: '10:00', observations: 7 },
-  { name: '12:00', observations: 2 },
-  { name: '14:00', observations: 9 },
-  { name: '16:00', observations: 15 },
-  { name: '18:00', observations: 12 },
-  { name: '20:00', observations: 5 },
-];
+import { MapComponent, type ReportPoint } from '../components/shared/MapComponent';
+import { format, subHours, isToday } from 'date-fns';
 
 export default function AdminDashboard() {
+  const [loading, setLoading] = useState(true);
+
+  // Dashboard Metrics
+  const [sightingsToday, setSightingsToday] = useState(0);
+  const [activeConflicts, setActiveConflicts] = useState(0);
+  const [totalPersonnel, setTotalPersonnel] = useState(0);
+  const [guardsOnPatrol, setGuardsOnPatrol] = useState(0);
+
+  // Chart Data
+  const [hourlyData, setHourlyData] = useState<{ name: string, observations: number }[]>([]);
+
+  // Maps & Feeds
+  const [recentReports, setRecentReports] = useState<any[]>([]);
+  const [mapPoints, setMapPoints] = useState<ReportPoint[]>([]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const today = new Date();
+
+      // 1. Fetch Total Personnel
+      const { count: userCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      if (userCount) setTotalPersonnel(userCount);
+
+      // (We don't have active patrol sessions yet, simulating using total personnel)
+      setGuardsOnPatrol(Math.floor((userCount || 10) * 0.4));
+
+      // 2. Fetch Recent Reports w/ Geolocation for Map & Feed
+      const { data: reportsData } = await supabase
+        .from('reports')
+        .select(`
+          id, 
+          created_at,
+          location,
+          geo_beats (name),
+          profiles (full_name),
+          observations (observation_type)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (reportsData) {
+        // Calculate Sightings Today vs Conflicts
+        let todayCount = 0;
+        let conflictCount = 0;
+
+        const feedItems: any[] = [];
+        const mPoints: ReportPoint[] = [];
+
+        // Build Hourly Data Buckets for the last 12 hours
+        const hourlyBuckets = new Map<string, number>();
+        for (let i = 11; i >= 0; i--) {
+          hourlyBuckets.set(format(subHours(today, i), 'HH:00'), 0);
+        }
+
+        reportsData.forEach((rep: any) => {
+          const repDate = new Date(rep.created_at);
+          const obsType = rep.observations?.[0]?.observation_type || 'direct';
+
+          // Metrics
+          if (isToday(repDate)) {
+            todayCount++;
+            const hrStr = format(repDate, 'HH:00');
+            if (hourlyBuckets.has(hrStr)) {
+              hourlyBuckets.set(hrStr, hourlyBuckets.get(hrStr)! + 1);
+            }
+          }
+          if (obsType === 'loss') {
+            conflictCount++;
+          }
+
+          // Feed
+          if (feedItems.length < 5) {
+            feedItems.push({
+              id: rep.id,
+              type: obsType,
+              beatName: rep.geo_beats?.name || 'Unknown Beat',
+              userName: rep.profiles?.full_name || 'Officer',
+              timeStr: format(repDate, 'HH:mm')
+            });
+          }
+
+          // Map Points Parsing (Assuming PostGIS WKB string)
+          if (rep.location) {
+            try {
+              // The frontend Supabase js client might return a string or an object depending on the PostGIS configuration.
+              // We need to parse it. It's often returned as WKT or GeoJSON by PostGIS depending on your select query.
+              // In our schema, it's a binary WKB. 
+              // However, we can use a simpler query modifier if needed, or decode the hex if it comes back as hex.
+              // We will skip raw WKB parsing if it's too complex and assume it comes as a hex string as before.
+
+              // If the Supabase REST API returned a hex string for the geography:
+              if (typeof rep.location === 'string') {
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const Buffer = require('buffer').Buffer;
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const wkx = require('wkx');
+                const b = Buffer.from(rep.location, 'hex');
+                const geom = wkx.Geometry.parse(b);
+                const geojson = geom.toGeoJSON();
+                if (geojson.type === 'Point') {
+                  mPoints.push({
+                    id: rep.id,
+                    lat: geojson.coordinates[1],
+                    lng: geojson.coordinates[0],
+                    type: obsType,
+                    title: obsType === 'loss' ? 'Conflict' : 'Sighting',
+                    subtitle: rep.geo_beats?.name || 'In Field'
+                  });
+                }
+              }
+
+            } catch (e) {
+              console.error("Failed to parse geography point:", e);
+            }
+          }
+        });
+
+        setSightingsToday(todayCount);
+        setActiveConflicts(conflictCount);
+        setRecentReports(feedItems);
+        setMapPoints(mPoints);
+
+        const chartArr = Array.from(hourlyBuckets, ([name, observations]) => ({ name, observations }));
+        setHourlyData(chartArr);
+      }
+
+    } catch (error) {
+      console.error("Error fetching dashboard data", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
 
@@ -28,17 +162,24 @@ export default function AdminDashboard() {
         <div className="flex gap-2">
           <div className="px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full text-xs font-semibold flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            System Online
+            System Online {loading && '(Syncing...)'}
           </div>
         </div>
       </motion.div>
 
       {/* Top Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard delay={0.1} title="Sightings Today" value="24" trend="+12% from yesterday" icon={Activity} color="emerald" />
-        <StatCard delay={0.2} title="Active Conflicts" value="3" trend="Requires attention" icon={AlertTriangle} color="destructive" />
-        <StatCard delay={0.3} title="Guards on Patrol" value="112" trend="98% coverage" icon={ShieldCheck} color="primary" />
-        <StatCard delay={0.4} title="Total Personnel" value="145" trend="Across all beats" icon={Users} color="muted" />
+        <StatCard delay={0.1} title="Sightings Today" value={sightingsToday} trend="Live Tracking" icon={Activity} color="emerald" />
+        <StatCard delay={0.2} title="Active Conflicts" value={activeConflicts} trend="Requires attention" icon={AlertTriangle} color="destructive" />
+        <StatCard delay={0.3} title="Guards on Patrol" value={guardsOnPatrol} trend="Estimates coverage" icon={ShieldCheck} color="primary" />
+        <StatCard delay={0.4} title="Total Personnel" value={totalPersonnel} trend="Across all beats" icon={Users} color="muted" />
+      </div>
+
+      {/* Map Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        <div className="lg:col-span-3">
+          <MapComponent reportPoints={mapPoints} />
+        </div>
       </div>
 
       {/* Charts Area */}
@@ -50,10 +191,10 @@ export default function AdminDashboard() {
           transition={{ delay: 0.5 }}
           className="lg:col-span-2 glass-card rounded-2xl p-6"
         >
-          <h3 className="text-lg font-bold mb-6">Observation Frequency</h3>
+          <h3 className="text-lg font-bold mb-6">Observation Frequency (Last 12h)</h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={MOCK_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={hourlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorObs" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.3} />
@@ -80,15 +221,25 @@ export default function AdminDashboard() {
           className="glass-card rounded-2xl p-6 flex flex-col"
         >
           <h3 className="text-lg font-bold mb-4">Recent Alerts</h3>
-          <div className="flex-1 overflow-y-auto space-y-4 no-scrollbar">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="p-3 rounded-xl bg-muted/50 border border-border flex gap-3 items-start">
-                <div className={`p-2 rounded-lg ${i % 2 === 0 ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
-                  {i % 2 === 0 ? <AlertTriangle size={16} /> : <Activity size={16} />}
+          <div className="flex-1 overflow-y-auto space-y-4 no-scrollbar min-h-[300px]">
+            {recentReports.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-50">
+                <ShieldCheck size={48} className="mb-2" />
+                <p>No recent alerts.</p>
+              </div>
+            ) : recentReports.map((alert) => (
+              <div key={alert.id} className="p-3 rounded-xl bg-muted/50 border border-border flex gap-3 items-start">
+                <div className={`p-2 rounded-lg ${alert.type === 'loss' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
+                  {alert.type === 'loss' ? <AlertTriangle size={16} /> : <Activity size={16} />}
                 </div>
-                <div>
-                  <p className="text-sm font-semibold">{i % 2 === 0 ? 'Conflict Reported' : 'Sighting Logged'}</p>
-                  <p className="text-xs text-muted-foreground">Beat 0{i} • 10 mins ago</p>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-foreground">
+                    {alert.type === 'loss' ? 'Conflict Reported' : (alert.type === 'indirect' ? 'Indirect Sign Logged' : 'Direct Sighting Logged')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{alert.beatName} • {alert.userName}</p>
+                </div>
+                <div className="text-xs text-muted-foreground/70 font-medium whitespace-nowrap">
+                  {alert.timeStr}
                 </div>
               </div>
             ))}

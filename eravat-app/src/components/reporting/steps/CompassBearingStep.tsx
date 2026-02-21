@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Compass, Navigation, RefreshCw, Lock, Unlock } from 'lucide-react';
 import { useActivityForm } from '../../../contexts/ActivityFormContext';
+import { cn } from '../../../lib/utils';
 
 export function CompassBearingStep() {
     const { formData, updateFormData } = useActivityForm();
@@ -74,14 +75,19 @@ export function CompassBearingStep() {
             </div>
 
             {/* Compass Rose */}
-            <div className="flex justify-center">
+            <div className="flex justify-center my-8">
                 <div className="relative">
                     <div
-                        className="w-48 h-48 rounded-full border-4 border-border bg-muted/20 flex items-center justify-center transition-transform duration-200"
+                        className={cn(
+                            "w-56 h-56 rounded-full border-[6px] flex items-center justify-center transition-all duration-300",
+                            isTracking && !isLocked
+                                ? "border-primary/50 bg-primary/10 shadow-[0_0_40px_rgba(var(--primary),0.3)]"
+                                : "border-border bg-muted/20"
+                        )}
                         style={{ transform: `rotate(${displayHeading}deg)` }}
                     >
-                        <Navigation className="w-16 h-16 text-primary" />
-                        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary rounded-full" />
+                        <Navigation className={cn("w-20 h-20 transition-colors", isTracking && !isLocked ? "text-primary" : "text-muted-foreground")} />
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-primary rounded-full shadow-lg shadow-primary/40 border-4 border-background" />
                     </div>
                     {/* N E S W labels */}
                     <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-foreground">N</span>

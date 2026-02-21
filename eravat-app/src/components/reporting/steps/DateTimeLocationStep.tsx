@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, MapPin, RefreshCw, Loader2 } from 'lucide-react';
 import { useActivityForm } from '../../../contexts/ActivityFormContext';
@@ -12,14 +13,27 @@ export function DateTimeLocationStep() {
         const now = new Date();
         const date = now.toISOString().split('T')[0];
         const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-        updateFormData({ activity_date: date, activity_time: time });
 
-        // Get GPS
-        const pos = await fetchLocation();
-        if (pos) {
-            updateFormData({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        // Only override if they are empty
+        if (!formData.activity_date) updateFormData({ activity_date: date });
+        if (!formData.activity_time) updateFormData({ activity_time: time });
+
+        // Get GPS only if not already filled
+        if (!formData.latitude || !formData.longitude) {
+            const pos = await fetchLocation();
+            if (pos) {
+                updateFormData({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+            }
         }
     };
+
+    // Auto-trigger on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => {
+        if (!formData.latitude || !formData.activity_date) {
+            handleAutofill();
+        }
+    }, []);
 
     return (
         <motion.div
@@ -32,9 +46,9 @@ export function DateTimeLocationStep() {
                     type="button"
                     onClick={handleAutofill}
                     disabled={gpsLoading}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium glass-card rounded-xl hover:bg-primary/10 text-primary disabled:opacity-50 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-6 py-4 text-sm font-semibold glass-card border-primary/20 bg-primary/5 rounded-2xl hover:bg-primary/10 text-primary disabled:opacity-50 transition-colors shadow-sm"
                 >
-                    {gpsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                    {gpsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
                     Get Location, Date &amp; Time
                 </button>
             </div>
@@ -50,7 +64,7 @@ export function DateTimeLocationStep() {
                         type="date"
                         value={formData.activity_date}
                         onChange={e => updateFormData({ activity_date: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        className="w-full px-4 py-3.5 rounded-2xl bg-muted/30 border-2 border-border/50 text-base font-medium focus:outline-none focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all"
                         required
                     />
                 </div>
@@ -65,7 +79,7 @@ export function DateTimeLocationStep() {
                         type="time"
                         value={formData.activity_time}
                         onChange={e => updateFormData({ activity_time: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        className="w-full px-4 py-3.5 rounded-2xl bg-muted/30 border-2 border-border/50 text-base font-medium focus:outline-none focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all"
                         required
                     />
                 </div>
