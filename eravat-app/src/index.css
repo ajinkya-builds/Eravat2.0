@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colors - Premium Dynamic HSL System */
+  
+  /* Backgrounds */
+  --color-background: hsl(0, 0%, 100%);
+  --color-foreground: hsl(222.2, 84%, 4.9%);
+  
+  --color-card: hsl(0, 0%, 100%);
+  --color-card-foreground: hsl(222.2, 84%, 4.9%);
+  
+  --color-popover: hsl(0, 0%, 100%);
+  --color-popover-foreground: hsl(222.2, 84%, 4.9%);
+  
+  /* Primary Action - Beautiful Vibrant Emerald/Teal matching the elephant/nature vibe */
+  --color-primary: hsl(152, 60%, 46%);
+  --color-primary-foreground: hsl(210, 40%, 98%);
+  
+  /* Secondary Actions - Deep Forest Blue */
+  --color-secondary: hsl(214, 30%, 32%);
+  --color-secondary-foreground: hsl(210, 40%, 98%);
+  
+  /* Accents */
+  --color-accent: hsl(152, 60%, 96%);
+  --color-accent-foreground: hsl(152, 60%, 36%);
+  
+  /* Muteds & Borders */
+  --color-muted: hsl(210, 40%, 96.1%);
+  --color-muted-foreground: hsl(215.4, 16.3%, 46.9%);
+  
+  --color-border: hsl(214.3, 31.8%, 91.4%);
+  --color-input: hsl(214.3, 31.8%, 91.4%);
+  --color-ring: hsl(152, 60%, 46%);
+  
+  /* Statuses */
+  --color-destructive: hsl(0, 84.2%, 60.2%);
+  --color-destructive-foreground: hsl(210, 40%, 98%);
+
+  --color-warning: hsl(38, 92%, 50%);
+  --color-warning-foreground: hsl(210, 40%, 98%);
+  
+  --color-success: hsl(144, 60%, 46%);
+  --color-success-foreground: hsl(210, 40%, 98%);
+
+  /* Border Radii (Premium Smoothness) */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+
+  /* Font Families - Modern System sans */
+  --font-sans: "Inter", "Outfit", ui-sans-serif, system-ui, sans-serif;
+
+  /* Animations */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-fade-out: fade-out 0.3s ease-in;
+  --animate-slide-in-bottom: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-scale-in: scale-in 0.2s ease-out;
+  
+  @keyframes accordion-down {
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
+  }
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height); }
+    to { height: 0; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @keyframes slide-in-bottom {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes scale-in {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+}
+
+/* Base Global Styles */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    /* Soft premium background pattern */
+    background-image: radial-gradient(circle at 50% 0%, hsla(152, 60%, 46%, 0.05) 0%, transparent 70%);
+    background-attachment: fixed;
+  }
+}
+
+/* Utility Layout Classes (Glassmorphism & Shadows) */
+@layer utilities {
+  .glass {
+    @apply bg-background/70 backdrop-blur-xl border border-white/20 shadow-sm dark:bg-card/60 dark:border-white/10;
+  }
+  
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-lg border border-border shadow-sm transition-all duration-300 hover:shadow-md hover:border-primary/30;
+  }
+
+  .premium-shadow {
+    box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.02);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-[#059669];
+  }
+  
+  /* Hide scrollbar for clean horizontal lists but preserve functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

@@ -1,0 +1,138 @@
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import type { Session, User } from '@supabase/supabase-js';
+import { supabase } from '../supabase';
+
+// Matches the `profiles` table + joined user_region_assignments
+export interface UserProfile {
+    id: string;             // = auth.users.id
+    role: string;
+    first_name: string;
+    last_name: string;
+    phone?: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    // Joined from user_region_assignments
+    division_id?: string | null;
+    range_id?: string | null;
+    beat_id?: string | null;
+    // Joined geo names for display
+    division_name?: string | null;
+    range_name?: string | null;
+    beat_name?: string | null;
+}
+
+interface AuthContextValue {
+    session: Session | null;
+    user: User | null;
+    profile: UserProfile | null;
+    loading: boolean;
+    signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+    signOut: () => Promise<void>;
+    refreshProfile: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+    const [session, setSession] = useState<Session | null>(null);
+    const [profile, setProfile] = useState<UserProfile | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    const fetchProfile = async (userId: string) => {
+        try {
+            // profiles.id = auth.users.id (no auth_id column)
+            const { data: profileData } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+
+            if (!profileData) {
+                console.warn('No profile found for user:', userId);
+                setProfile(null);
+                return;
+            }
+
+            // Fetch regional assignment separately
+            const { data: assignment } = await supabase
+                .from('user_region_assignments')
+                .select(`
+                    division_id,
+                    range_id,
+                    beat_id,
+                    geo_divisions (name),
+                    geo_ranges (name),
+                    geo_beats (name)
+                `)
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            setProfile({
+                ...profileData,
+                division_id: assignment?.division_id ?? null,
+                range_id: assignment?.range_id ?? null,
+                beat_id: assignment?.beat_id ?? null,
+                division_name: (assignment?.geo_divisions as any)?.name ?? null,
+                range_name: (assignment?.geo_ranges as any)?.name ?? null,
+                beat_name: (assignment?.geo_beats as any)?.name ?? null,
+            } as UserProfile);
+        } catch (err) {
+            console.error('Error fetching profile:', err);
+        }
+    };
+
+    const refreshProfile = async () => {
+        if (session?.user?.id) await fetchProfile(session.user.id);
+    };
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            if (session?.user) fetchProfile(session.user.id);
+            setLoading(false);
+        });
+
+        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+            if (session?.user) {
+                fetchProfile(session.user.id);
+            } else {
+                setProfile(null);
+            }
+            setLoading(false);
+        });
+
+        return () => listener.subscription.unsubscribe();
+    }, []);
+
+    const signIn = async (email: string, password: string) => {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        return { error: error as Error | null };
+    };
+
+    const signOut = async () => {
+        await supabase.auth.signOut();
+        setProfile(null);
+    };
+
+    return (
+        <AuthContext.Provider value={{
+            session,
+            user: session?.user ?? null,
+            profile,
+            loading,
+            signIn,
+            signOut,
+            refreshProfile,
+        }}>
+            {children}
+        </AuthContext.Provider>
+    );
+}
+
+export function useAuth() {
+    const ctx = useContext(AuthContext);
+    if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+    return ctx;
+}

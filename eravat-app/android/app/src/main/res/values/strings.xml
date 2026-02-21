@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Eravat</string>
+    <string name="title_activity_main">Eravat</string>
+    <string name="package_name">com.forestdept.eravat</string>
+    <string name="custom_url_scheme">com.forestdept.eravat</string>
+</resources>

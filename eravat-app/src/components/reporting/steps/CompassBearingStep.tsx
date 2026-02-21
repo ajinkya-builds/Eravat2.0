@@ -1,0 +1,160 @@
+import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { Compass, Navigation, RefreshCw, Lock, Unlock } from 'lucide-react';
+import { useActivityForm } from '../../../contexts/ActivityFormContext';
+
+export function CompassBearingStep() {
+    const { formData, updateFormData } = useActivityForm();
+    const [heading, setHeading] = useState<number | null>(formData.compass_bearing ?? null);
+    const [isTracking, setIsTracking] = useState(false);
+    const [isLocked, setIsLocked] = useState(false);
+    const [permissionError, setPermissionError] = useState<string | null>(null);
+    const listenerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
+
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+        if (isLocked) return;
+        let deg: number | null = null;
+
+        // iOS: webkitCompassHeading gives true north bearing
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const webkit = (event as any).webkitCompassHeading;
+        if (webkit !== undefined && webkit !== null) {
+            deg = Math.round(webkit);
+        } else if (event.alpha !== null) {
+            // Android fallback
+            deg = Math.round((360 - event.alpha) % 360);
+        }
+
+        if (deg !== null) {
+            setHeading(deg);
+            if (!isLocked) updateFormData({ compass_bearing: deg });
+        }
+    };
+
+    const startTracking = async () => {
+        // iOS 13+ requires permission
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const DeviceOrientationEventTyped = DeviceOrientationEvent as any;
+        if (typeof DeviceOrientationEventTyped.requestPermission === 'function') {
+            try {
+                const perm = await DeviceOrientationEventTyped.requestPermission();
+                if (perm !== 'granted') {
+                    setPermissionError('Compass access denied. Please allow motion sensor access.');
+                    return;
+                }
+            } catch {
+                setPermissionError('Could not request compass permission.');
+                return;
+            }
+        }
+        setPermissionError(null);
+        listenerRef.current = handleOrientation;
+        window.addEventListener('deviceorientation', handleOrientation, true);
+        setIsTracking(true);
+    };
+
+    const stopTracking = () => {
+        if (listenerRef.current) {
+            window.removeEventListener('deviceorientation', listenerRef.current, true);
+            listenerRef.current = null;
+        }
+        setIsTracking(false);
+        setIsLocked(false);
+    };
+
+    useEffect(() => () => { if (listenerRef.current) window.removeEventListener('deviceorientation', listenerRef.current, true); }, []);
+
+    const displayHeading = heading ?? formData.compass_bearing ?? 0;
+
+    return (
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+            <div className="text-center space-y-2">
+                <h3 className="font-semibold text-foreground">Compass Bearing</h3>
+                <p className="text-xs text-muted-foreground">Record the direction toward the observed elephant</p>
+            </div>
+
+            {/* Compass Rose */}
+            <div className="flex justify-center">
+                <div className="relative">
+                    <div
+                        className="w-48 h-48 rounded-full border-4 border-border bg-muted/20 flex items-center justify-center transition-transform duration-200"
+                        style={{ transform: `rotate(${displayHeading}deg)` }}
+                    >
+                        <Navigation className="w-16 h-16 text-primary" />
+                        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary rounded-full" />
+                    </div>
+                    {/* N E S W labels */}
+                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-foreground">N</span>
+                    <span className="absolute top-1/2 -right-6 -translate-y-1/2 text-xs font-bold text-foreground">E</span>
+                    <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-bold text-foreground">S</span>
+                    <span className="absolute top-1/2 -left-6 -translate-y-1/2 text-xs font-bold text-foreground">W</span>
+                </div>
+            </div>
+
+            {/* Bearing value */}
+            <div className="text-center">
+                <span className="text-5xl font-bold text-foreground tabular-nums">{displayHeading}°</span>
+                <p className="text-xs text-muted-foreground mt-1">
+                    {isTracking ? (isLocked ? 'Bearing locked' : 'Live tracking...') : 'Manual or device tracking'}
+                </p>
+            </div>
+
+            {/* Controls */}
+            <div className="flex gap-3 justify-center flex-wrap">
+                {!isTracking ? (
+                    <button
+                        type="button"
+                        onClick={startTracking}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
+                    >
+                        <Compass className="w-4 h-4" /> Start Live Tracking
+                    </button>
+                ) : (
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => { setIsLocked((l: boolean) => !l); if (!isLocked) updateFormData({ compass_bearing: heading ?? 0 }); }}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl glass-card border border-border text-sm font-medium"
+                        >
+                            {isLocked ? <><Unlock className="w-4 h-4" /> Unlock</> : <><Lock className="w-4 h-4" /> Lock</>}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={stopTracking}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/70 transition-colors"
+                        >
+                            Stop
+                        </button>
+                    </>
+                )}
+            </div>
+
+            {/* Manual entry */}
+            <div className="glass-card rounded-2xl p-4 space-y-2">
+                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4" /> Manual Entry (0–360°)
+                </label>
+                <input
+                    type="number"
+                    min={0}
+                    max={360}
+                    step={1}
+                    value={formData.compass_bearing ?? ''}
+                    onChange={e => {
+                        const v = parseInt(e.target.value);
+                        if (!isNaN(v) && v >= 0 && v <= 360) {
+                            setHeading(v);
+                            updateFormData({ compass_bearing: v });
+                        }
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder="Enter degrees 0–360"
+                />
+            </div>
+
+            {permissionError && (
+                <p className="text-xs text-destructive text-center">⚠ {permissionError}</p>
+            )}
+        </motion.div>
+    );
+}
