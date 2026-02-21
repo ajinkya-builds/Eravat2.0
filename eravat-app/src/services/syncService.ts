@@ -47,7 +47,7 @@ export async function syncData() {
                         .from('observations')
                         .upsert({
                             report_id: report.id,
-                            observation_type: report.observation_type,
+                            type: report.observation_type,
                             male_count: report.male_count ?? 0,
                             female_count: report.female_count ?? 0,
                             calf_count: report.calf_count ?? 0,
