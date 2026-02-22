@@ -28,6 +28,16 @@
 
 ---
 
+## 🎨 Branding & UI
+
+### Logo Assets
+*   **Primary Logo**: `elephant-logo.png` (sourced from legacy Android `ic_launcher_foreground.png`).
+*   **Scaling Fix**: Due to Android "safe zone" padding, the logo is wrapped in a CSS container (`overflow-visible`) and scaled to `150%` to ensure the elephant fills the intended bounding box.
+*   **Localized Typography**: Both "Wild Elephant Monitoring System" and "जंगली हाथी निगरानी प्रणाली (2025)" are prominently displayed on the Login and Dashboard entry screens.
+*   **Dynamic Styling**: Branding headers use a `from-primary to-emerald-500` gradient for a modern, field-friendly look.
+
+---
+
 ## 📁 Project Structure
 
 ```

@@ -27,7 +27,8 @@ docs/
     ├── 2026-02-21-mobile-ux-refinements.md
     ├── 2026-02-21-notifications-and-multi-select.md  <-- NEW
     ├── 2026-02-21-observation-sync-fix.md
-    └── 2026-02-21-user-management-rbac.md
+    ├── 2026-02-21-user-management-rbac.md
+    └── 2026-02-22-branding-logo-and-typography.md
 ```
 
 ---
@@ -43,6 +44,7 @@ docs/
 | 2026-02-21 | Mobile UX & Android | Overhauled data collection stepper, added Counter components, and fixed native Android location permissions |
 | 2026-02-21 | Observation Sync Fix & UI | Debugged persistence issues, added exit navigation, and refined Stepper UI alignment |
 | 2026-02-21 | Notifications & Multi-Select | Enriched notifications, added Territory History feed, and implemented multi-select arrays/multi-row sync |
+| 2026-02-22 | Branding & UI Refinements | Fixed corrupted logo file, implemented CSS scaling for Android icons, and added localized (Hindi/English) typography |
 
 ---
 
