@@ -7,6 +7,7 @@ import { cn } from '../lib/utils';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import elephantLogo from '../../public/elephant-logo.png';
 
 export default function Dashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -37,6 +38,12 @@ export default function Dashboard() {
             <div className="absolute bottom-[20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-500/10 blur-[100px] pointer-events-none" />
 
             <div className="max-w-2xl mx-auto w-full relative z-10 flex flex-col h-full">
+                <div className="flex flex-col items-center mb-8 mt-2 text-center">
+                    <img src={elephantLogo} alt="ERAVAT Logo" className="w-16 h-16 object-contain mb-3 drop-shadow-md" />
+                    <h2 className="text-xl font-bold tracking-tight text-foreground bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">Wild Elephant Monitoring System</h2>
+                    <p className="text-muted-foreground mt-1 text-sm font-medium">जंगली हाथी निगरानी प्रणाली (2025)</p>
+                </div>
+
                 <motion.div
                     initial={{ y: -20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}

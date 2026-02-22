@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Map, Plus, Settings, User } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { NotificationBell } from '../components/shared/NotificationBell';
-import elephantLogo from '../../public/elephant-logo.svg';
+import elephantLogo from '../../public/elephant-logo.png';
 
 const NAV_ITEMS = [
     { id: 'dashboard', path: '/', icon: Home, label: 'Home' },

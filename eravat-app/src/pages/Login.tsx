@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import elephantLogo from '../../public/elephant-logo.svg';
+import elephantLogo from '../../public/elephant-logo.png';
 
 export default function Login() {
     const navigate = useNavigate();
@@ -42,19 +42,30 @@ export default function Login() {
                 className="relative z-10 w-full max-w-md p-8"
             >
                 <div className="glass-card rounded-[2rem] p-10 premium-shadow">
-                    <motion.div
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
-                        className="w-20 h-20 mx-auto bg-gradient-to-br from-primary to-emerald-600 rounded-3xl flex items-center justify-center shadow-lg shadow-primary/30 mb-8 overflow-hidden"
-                    >
-                        <img src={elephantLogo} alt="App Logo" className="w-12 h-12 object-contain" />
-                    </motion.div>
+                    <div className="flex flex-col flex-center items-center -mt-2">
+                        <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
+                            className="w-20 h-20 mb-4"
+                        >
+                            <img src={elephantLogo} alt="App Logo" className="w-full h-full object-contain" />
+                        </motion.div>
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="text-center mb-10"
+                        >
+                            <h2 className="text-xl font-bold tracking-tight text-foreground bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">Wild Elephant Monitoring System</h2>
+                            <p className="text-muted-foreground mt-1">जंगली हाथी निगरानी प्रणाली (2025)</p>
+                        </motion.div>
+                    </div>
 
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
+                        transition={{ delay: 0.4 }}
                         className="text-center mb-8"
                     >
                         <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">Welcome Back</h1>

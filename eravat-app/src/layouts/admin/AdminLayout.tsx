@@ -4,7 +4,7 @@ import { LayoutDashboard, Users, Activity, Settings, LogOut, Menu, X } from 'luc
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
 import { NotificationBell } from '../../components/shared/NotificationBell';
-import elephantLogo from '../../../public/elephant-logo.svg';
+import elephantLogo from '../../../public/elephant-logo.png';
 
 const ADMIN_NAV = [
     { id: 'overview', path: '/admin', icon: LayoutDashboard, label: 'Overview' },
