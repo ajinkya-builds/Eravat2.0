@@ -7,7 +7,6 @@ import { cn } from '../lib/utils';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { NotificationBell } from '../components/shared/NotificationBell';
 
 export default function Dashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -32,7 +31,7 @@ export default function Dashboard() {
     const hasAdminAccess = ['admin', 'ccf', 'dfo'].includes(profile?.role || '');
 
     return (
-        <div className="relative min-h-screen w-full bg-background overflow-hidden flex flex-col pt-10 px-6 pb-24">
+        <div className="relative min-h-screen w-full bg-background overflow-hidden flex flex-col pt-6 px-6 pb-24">
             {/* Dynamic Background Elements */}
             <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[100px] pointer-events-none" />
             <div className="absolute bottom-[20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-500/10 blur-[100px] pointer-events-none" />
@@ -41,13 +40,12 @@ export default function Dashboard() {
                 <motion.div
                     initial={{ y: -20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    className="mb-8 flex justify-between items-start"
+                    className="mb-8"
                 >
                     <div className="space-y-2">
                         <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome Back</h1>
                         <p className="text-muted-foreground">What would you like to do today?</p>
                     </div>
-                    <NotificationBell />
                 </motion.div>
 
                 {/* Offline Sync Status Indicator (Only shows if there are pending items) */}

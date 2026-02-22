@@ -1,8 +1,9 @@
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutDashboard, Users, Activity, Settings, LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
+import { NotificationBell } from '../../components/shared/NotificationBell';
 
 const ADMIN_NAV = [
     { id: 'overview', path: '/admin', icon: LayoutDashboard, label: 'Overview' },
@@ -25,10 +26,16 @@ export function AdminLayout() {
 
             {/* Mobile Header */}
             <div className="md:hidden flex items-center justify-between p-4 bg-card border-b border-border z-30 relative">
-                <h1 className="font-bold text-lg text-primary">ERAVAT Admin</h1>
-                <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 bg-muted rounded-md text-foreground">
-                    {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-                </button>
+                <Link to="/" className="flex items-center gap-2 active:scale-95 transition-transform">
+                    <img src="/elephant-logo.svg" alt="ERAVAT Logo" className="w-8 h-8 object-contain drop-shadow-md" />
+                    <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT Admin</h1>
+                </Link>
+                <div className="flex items-center gap-2">
+                    <NotificationBell />
+                    <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 bg-muted rounded-md text-foreground">
+                        {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                    </button>
+                </div>
             </div>
 
             {/* Sidebar Navigation */}
@@ -36,9 +43,16 @@ export function AdminLayout() {
                 "fixed md:relative z-20 top-0 left-0 h-full w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out flex flex-col premium-shadow",
                 isMobileMenuOpen ? "translate-x-0 pt-16 md:pt-0" : "-translate-x-full md:translate-x-0 pt-0"
             )}>
-                <div className="p-6 hidden md:block">
-                    <h1 className="text-2xl font-bold text-foreground">ERAVAT <span className="text-primary font-light">2.0</span></h1>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mt-1">Command Center</p>
+                <div className="p-6 hidden md:block border-b border-border/50">
+                    <Link to="/" className="flex items-center gap-3 active:scale-95 transition-transform group">
+                        <div className="p-1 bg-gradient-to-br from-primary/20 to-emerald-500/20 rounded-xl group-hover:shadow-md transition-all">
+                            <img src="/elephant-logo.svg" alt="ERAVAT Logo" className="w-10 h-10 object-contain drop-shadow-md" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold leading-tight bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT <span className="text-primary font-light">2.0</span></h1>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Command Center</p>
+                        </div>
+                    </Link>
                 </div>
 
                 <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto no-scrollbar">

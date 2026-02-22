@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
@@ -45,9 +45,9 @@ export default function Login() {
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
-                        className="w-20 h-20 mx-auto bg-gradient-to-br from-primary to-emerald-600 rounded-3xl flex items-center justify-center shadow-lg shadow-primary/30 mb-8"
+                        className="w-20 h-20 mx-auto bg-gradient-to-br from-primary to-emerald-600 rounded-3xl flex items-center justify-center shadow-lg shadow-primary/30 mb-8 overflow-hidden"
                     >
-                        <Leaf className="text-white w-10 h-10" />
+                        <img src="/elephant-logo.svg" alt="App Logo" className="w-12 h-12 object-contain" />
                     </motion.div>
 
                     <motion.div

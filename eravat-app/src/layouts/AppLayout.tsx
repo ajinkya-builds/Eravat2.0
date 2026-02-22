@@ -1,7 +1,8 @@
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Map, Plus, Settings, User } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { NotificationBell } from '../components/shared/NotificationBell';
 
 const NAV_ITEMS = [
     { id: 'dashboard', path: '/', icon: Home, label: 'Home' },
@@ -31,8 +32,17 @@ export function AppLayout() {
             <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[100px] pointer-events-none" />
             <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-[100px] pointer-events-none" />
 
+            {/* Global Header with Logo */}
+            <header className="fixed top-0 left-0 right-0 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 flex items-center justify-between px-4 md:px-6 shadow-sm">
+                <Link to="/" className="flex items-center gap-3 active:scale-95 transition-transform">
+                    <img src="/elephant-logo.svg" alt="ERAVAT Logo" className="w-8 h-8 object-contain drop-shadow-md" />
+                    <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT</span>
+                </Link>
+                <NotificationBell />
+            </header>
+
             {/* Main Content Area */}
-            <main className="flex-1 w-full pb-20 relative z-10">
+            <main className="flex-1 w-full pt-16 pb-20 relative z-10">
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={location.pathname}
