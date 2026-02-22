@@ -1,11 +1,13 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, User, Settings, HelpCircle, Lock, ChevronRight, Shield, AlertTriangle, MapPin } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function UserProfile() {
     const { user, profile, signOut } = useAuth();
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     const initials = profile
         ? `${profile.first_name?.charAt(0) ?? ''}${profile.last_name?.charAt(0) ?? ''}`.toUpperCase() || 'U'
@@ -20,10 +22,10 @@ export default function UserProfile() {
         : 'User';
 
     const menuItems = [
-        { id: 'profile', label: 'Edit Profile', icon: User, onClick: () => { } },
-        { id: 'settings', label: 'App Settings', icon: Settings, onClick: () => navigate('/settings') },
-        { id: 'privacy', label: 'Privacy & Security', icon: Lock, onClick: () => navigate('/privacy') },
-        { id: 'help', label: 'Help & Support', icon: HelpCircle, onClick: () => navigate('/help') },
+        { id: 'profile', label: t('profile.editProfile'), icon: User, onClick: () => navigate('/profile/edit') },
+        { id: 'settings', label: t('profile.appSettings'), icon: Settings, onClick: () => navigate('/settings') },
+        { id: 'privacy', label: t('profile.privacySecurity'), icon: Lock, onClick: () => navigate('/privacy') },
+        { id: 'help', label: t('profile.helpSupport'), icon: HelpCircle, onClick: () => navigate('/help') },
     ];
 
     const handleLogout = async () => {
@@ -95,7 +97,7 @@ export default function UserProfile() {
                     <div className="w-10 h-10 rounded-2xl bg-destructive/10 flex items-center justify-center">
                         <LogOut size={20} />
                     </div>
-                    <span className="flex-1 text-sm font-semibold">Sign Out</span>
+                    <span className="flex-1 text-sm font-semibold">{t('profile.logout')}</span>
                 </button>
             </motion.div>
         </div>

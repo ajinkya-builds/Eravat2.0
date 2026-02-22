@@ -94,11 +94,48 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
-    /* Soft premium background pattern */
-    background-image: radial-gradient(circle at 50% 0%, hsla(152, 60%, 46%, 0.05) 0%, transparent 70%);
-    background-attachment: fixed;
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary transition-colors duration-300;
   }
+  
+  /* Soft premium background pattern */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: -1;
+    background-image: radial-gradient(circle at 50% 0%, hsla(152, 60%, 46%, 0.05) 0%, transparent 70%);
+  }
+}
+
+/* Dark Mode Overrides */
+.dark {
+  --color-background: hsl(224, 71%, 4%);
+  --color-foreground: hsl(213, 31%, 91%);
+  
+  --color-card: hsl(224, 71%, 6%);
+  --color-card-foreground: hsl(213, 31%, 91%);
+  
+  --color-popover: hsl(224, 71%, 4%);
+  --color-popover-foreground: hsl(215, 20.2%, 65.1%);
+  
+  --color-primary: hsl(152, 60%, 40%);
+  --color-primary-foreground: hsl(0, 0%, 100%);
+  
+  --color-secondary: hsl(222.2, 47.4%, 11.2%);
+  --color-secondary-foreground: hsl(210, 40%, 98%);
+  
+  --color-muted: hsl(223, 47%, 11%);
+  --color-muted-foreground: hsl(215.4, 16.3%, 56.9%);
+  
+  --color-accent: hsl(152, 60%, 15%);
+  --color-accent-foreground: hsl(152, 60%, 90%);
+  
+  --color-border: hsl(216, 34%, 17%);
+  --color-input: hsl(216, 34%, 17%);
+  
+  --color-destructive: hsl(0, 62.8%, 40.6%);
+  --color-destructive-foreground: hsl(210, 40%, 98%);
 }
 
 /* Utility Layout Classes (Glassmorphism & Shadows) */
@@ -126,5 +163,13 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Custom Toggle CSS */
+  .toggle-checkbox:checked {
+    @apply right-0 border-primary;
+  }
+  .toggle-checkbox {
+    @apply right-6 transition-all duration-300;
   }
 }

@@ -28,6 +28,7 @@ interface AuthContextValue {
     profile: UserProfile | null;
     loading: boolean;
     signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+    signInWithPhone: (phone: string, password: string) => Promise<{ error: Error | null }>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
@@ -111,6 +112,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: error as Error | null };
     };
 
+    const signInWithPhone = async (phone: string, password: string) => {
+        // Step 1: resolve email from phone via Postgres function
+        const { data: email, error: rpcError } = await supabase
+            .rpc('get_email_by_phone', { p_phone: phone });
+
+        if (rpcError) return { error: rpcError as Error };
+        if (!email) return { error: new Error('Phone number not registered. Please contact your administrator.') };
+
+        // Step 2: sign in with the resolved email + password
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        return { error: error as Error | null };
+    };
+
     const signOut = async () => {
         await supabase.auth.signOut();
         setProfile(null);
@@ -123,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             profile,
             loading,
             signIn,
+            signInWithPhone,
             signOut,
             refreshProfile,
         }}>

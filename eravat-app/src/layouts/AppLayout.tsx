@@ -1,23 +1,26 @@
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Map, Plus, Settings, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
 import { NotificationBell } from '../components/shared/NotificationBell';
 import elephantLogo from '../../public/elephant-logo.png';
 
-const NAV_ITEMS = [
-    { id: 'dashboard', path: '/', icon: Home, label: 'Home' },
-    { id: 'map', path: '/map', icon: Map, label: 'Map' },
-    { id: 'report', path: '/report', icon: Plus, label: 'Report', isFloating: true },
-    { id: 'profile', path: '/profile', icon: User, label: 'Profile' },
-    { id: 'settings', path: '/settings', icon: Settings, label: 'Settings' },
-];
+// Replaced static array with a function below so it can access the translation context
 
 export function AppLayout() {
     const location = useLocation();
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
-    // We hide nav on auth pages
+    const NAV_ITEMS = [
+        { id: 'dashboard', path: '/', icon: Home, label: t('nav.dashboard') },
+        { id: 'map', path: '/map', icon: Map, label: t('nav.map') },
+        { id: 'report', path: '/report', icon: Plus, label: t('nav.report'), isFloating: true },
+        { id: 'profile', path: '/profile', icon: User, label: t('nav.profile') },
+        { id: 'settings', path: '/settings', icon: Settings, label: 'Settings' },
+    ];
+
     // We hide nav on auth pages
     if (location.pathname === '/login') {
         return <Outlet />;

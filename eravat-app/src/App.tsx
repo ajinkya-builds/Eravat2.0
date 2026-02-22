@@ -4,6 +4,12 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ReportActivityPage from './pages/ReportActivityPage';
 import UserProfile from './pages/UserProfile';
+import EditProfile from './pages/profile/EditProfile';
+import AppSettings from './pages/profile/AppSettings';
+import PrivacySecurity from './pages/profile/PrivacySecurity';
+import HelpSupport from './pages/profile/HelpSupport';
+import FAQ from './pages/profile/FAQ';
+import PrivacyPolicy from './pages/profile/PrivacyPolicy';
 import { AdminLayout } from './layouts/admin/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
@@ -15,6 +21,8 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { useEffect } from 'react';
 import { Network } from '@capacitor/network';
 import { syncData } from './services/syncService';
+import './i18n'; // Initialize i18n
+import i18n from './i18n';
 
 function NetworkSync() {
   useEffect(() => {
@@ -29,9 +37,38 @@ function NetworkSync() {
   return null;
 }
 
+// Applies theme and language on boot globally
+function AppPreferences() {
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('eravat_app_settings');
+      if (saved) {
+        const { theme, language } = JSON.parse(saved);
+
+        // Apply Theme
+        const root = document.documentElement;
+        if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
+
+        // Apply Language (Basic HTML lang tag, actual translation framework requires i18next)
+        if (language) {
+          const langCode = language === 'hindi' ? 'hi' : 'en';
+          document.documentElement.lang = langCode;
+          i18n.changeLanguage(langCode);
+        }
+      }
+    } catch (e) { }
+  }, []);
+  return null;
+}
+
 function App() {
   return (
     <AuthProvider>
+      <AppPreferences />
       <NetworkSync />
       <BrowserRouter>
         <Routes>
@@ -44,11 +81,14 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/report" element={<ReportActivityPage />} />
               <Route path="/profile" element={<UserProfile />} />
+              <Route path="/profile/edit" element={<EditProfile />} />
               <Route path="/history" element={<TerritoryHistory />} />
               <Route path="/map" element={<div className="p-8 text-center text-muted-foreground mt-20">Map Component Coming Soon</div>} />
-              <Route path="/settings" element={<div className="p-8 text-center text-muted-foreground mt-20">Settings Coming Soon</div>} />
-              <Route path="/privacy" element={<div className="p-8 text-center text-muted-foreground mt-20">Privacy Policy Coming Soon</div>} />
-              <Route path="/help" element={<div className="p-8 text-center text-muted-foreground mt-20">Help & Support Coming Soon</div>} />
+              <Route path="/settings" element={<AppSettings />} />
+              <Route path="/privacy" element={<PrivacySecurity />} />
+              <Route path="/help" element={<HelpSupport />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             </Route>
 
             {/* Admin Navigation Branch */}
