@@ -50,13 +50,25 @@ export function CompassBearingStep() {
         }
         setPermissionError(null);
         listenerRef.current = handleOrientation;
-        window.addEventListener('deviceorientation', handleOrientation, true);
+
+        // Try deviceorientationabsolute first (for Android Chrome), fallback to deviceorientation
+        if ('ondeviceorientationabsolute' in window) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (window as any).addEventListener('deviceorientationabsolute', handleOrientation, true);
+        } else {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (window as any).addEventListener('deviceorientation', handleOrientation, true);
+        }
+
         setIsTracking(true);
     };
 
     const stopTracking = () => {
         if (listenerRef.current) {
-            window.removeEventListener('deviceorientation', listenerRef.current, true);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (window as any).removeEventListener('deviceorientationabsolute', listenerRef.current, true);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (window as any).removeEventListener('deviceorientation', listenerRef.current, true);
             listenerRef.current = null;
         }
         setIsTracking(false);

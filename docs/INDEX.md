@@ -43,8 +43,9 @@ docs/
 | 2026-02-21 | Interactive Dashboard & Map | Added Live Metrics, Recent Alerts feed, and layered color-coded Beat/Range/Division highlighting |
 | 2026-02-21 | Mobile UX & Android | Overhauled data collection stepper, added Counter components, and fixed native Android location permissions |
 | 2026-02-21 | Observation Sync Fix & UI | Debugged persistence issues, added exit navigation, and refined Stepper UI alignment |
-| 2026-02-21 | Notifications & Multi-Select | Enriched notifications, added Territory History feed, and implemented multi-select arrays/multi-row sync |
+| 2026-02-21 | Notification & Multi-Select | Enriched notifications, added Territory History feed, and implemented multi-select arrays/multi-row sync |
 | 2026-02-22 | Branding & UI Refinements | Fixed corrupted logo file, implemented CSS scaling for Android icons, and added localized (Hindi/English) typography |
+| 2026-02-22 | Geolocation, PWA & Android APK | Added PWA manifests, Web-fallback Geolocation plugins, fixed web compass, and built native debug Android APK |
 
 ---
 
