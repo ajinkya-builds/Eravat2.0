@@ -24,7 +24,10 @@ docs/
     ├── 2026-02-21-database-setup-and-login.md
     ├── 2026-02-21-ui-ux-centralization.md
     ├── 2026-02-21-interactive-dashboard-map.md
-    └── 2026-02-21-mobile-ux-refinements.md
+    ├── 2026-02-21-mobile-ux-refinements.md
+    ├── 2026-02-21-notifications-and-multi-select.md  <-- NEW
+    ├── 2026-02-21-observation-sync-fix.md
+    └── 2026-02-21-user-management-rbac.md
 ```
 
 ---
@@ -38,6 +41,8 @@ docs/
 | 2026-02-21 | UI/UX Centralization & Cleanup | Unified App/Admin layouts, reused MapComponent to fix Dashboard map, removed legacy views |
 | 2026-02-21 | Interactive Dashboard & Map | Added Live Metrics, Recent Alerts feed, and layered color-coded Beat/Range/Division highlighting |
 | 2026-02-21 | Mobile UX & Android | Overhauled data collection stepper, added Counter components, and fixed native Android location permissions |
+| 2026-02-21 | Observation Sync Fix & UI | Debugged persistence issues, added exit navigation, and refined Stepper UI alignment |
+| 2026-02-21 | Notifications & Multi-Select | Enriched notifications, added Territory History feed, and implemented multi-select arrays/multi-row sync |
 
 ---
 

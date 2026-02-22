@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, MapPin, FileText, Compass, Camera, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, MapPin, FileText, Compass, Camera, CheckCircle2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ActivityFormProvider, useActivityForm, type FormStep } from '../../contexts/ActivityFormContext';
 import { DateTimeLocationStep } from './steps/DateTimeLocationStep';
@@ -90,16 +90,28 @@ function StepperContent() {
     }
 
     return (
-        <div className="flex flex-col min-h-[calc(100vh-4rem)] max-w-2xl mx-auto w-full relative">
+        <div className="flex flex-col min-h-screen bg-background relative overflow-hidden">
+            {/* Premium Header with Exit Button */}
+            <header className="sticky top-0 z-50 px-4 py-4 flex items-center justify-between bg-background/80 backdrop-blur-xl border-b border-border/50">
+                <button
+                    onClick={() => navigate('/')}
+                    className="p-2 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    aria-label="Close and go back"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+                <h1 className="text-sm font-bold text-foreground">Report Activity</h1>
+                <div className="w-10" /> {/* Spacer for centering */}
+            </header>
 
             {/* Main Content Area */}
-            <div className="flex-1 space-y-6 pb-28">
+            <div className="flex-1 space-y-6 pb-32 pt-6 max-w-2xl mx-auto w-full">
                 {/* Progress Header */}
-                <div className="space-y-4 px-2">
-                    {/* Animated Progress Bar */}
-                    <div className="flex gap-2">
+                <div className="space-y-6 px-4">
+                    {/* Animated Progress Bar - Centered and Padded */}
+                    <div className="flex gap-2 max-w-md mx-auto">
                         {STEPS.map((step, i) => (
-                            <div key={step.type} className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                            <div key={step.type} className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                                 <motion.div
                                     initial={false}
                                     animate={{
@@ -115,28 +127,30 @@ function StepperContent() {
                         ))}
                     </div>
 
-                    {/* Step Tabs Horizontal Scroll */}
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mask-linear-fade">
-                        {STEPS.map((step, i) => (
-                            <div
-                                key={step.type}
-                                className={cn(
-                                    'flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-300',
-                                    i === currentStepIndex
-                                        ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-100'
-                                        : i < currentStepIndex
-                                            ? 'bg-primary/10 text-primary border border-primary/20 scale-95 opacity-80'
-                                            : 'bg-muted text-muted-foreground border border-transparent scale-95 opacity-50'
-                                )}
-                            >
-                                {step.icon} {step.label}
-                            </div>
-                        ))}
+                    {/* Step Tabs Horizontal Scroll - Centered Layout */}
+                    <div className="flex justify-start md:justify-center">
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-4 mask-linear-fade">
+                            {STEPS.map((step, i) => (
+                                <div
+                                    key={step.type}
+                                    className={cn(
+                                        'flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] md:text-xs font-semibold whitespace-nowrap transition-all duration-300',
+                                        i === currentStepIndex
+                                            ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-100'
+                                            : i < currentStepIndex
+                                                ? 'bg-primary/10 text-primary border border-primary/20 scale-95 opacity-80'
+                                                : 'bg-muted text-muted-foreground border border-transparent scale-95 opacity-50'
+                                    )}
+                                >
+                                    {step.icon} {step.label}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
                 {/* Current Step Content */}
-                <div className="px-2">
+                <div className="px-4">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={currentStep}

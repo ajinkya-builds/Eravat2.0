@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import type { ObservationType, IndirectSightingType, LossType } from '../types/activity-report';
+import type { ObservationType } from '../types/activity-report';
 
 export type FormStep = 'dateTimeLocation' | 'observationType' | 'compassBearing' | 'photo';
 
@@ -17,8 +17,8 @@ export interface ActivityFormData {
     female_count: number;
     unknown_count: number;
     calf_count: number;
-    indirect_sign_details: IndirectSightingType | null;
-    loss_type: LossType | null;
+    indirect_sign_details: string[];
+    loss_type: string[];
 
     // Step 3: Compass Bearing
     compass_bearing: number | null;
@@ -53,8 +53,8 @@ const DEFAULT_FORM: ActivityFormData = {
     female_count: 0,
     unknown_count: 0,
     calf_count: 0,
-    indirect_sign_details: null,
-    loss_type: null,
+    indirect_sign_details: [],
+    loss_type: [],
     compass_bearing: null,
     photo_url: null,
     notes: null,
@@ -76,8 +76,8 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
                 return !!(formData.activity_date && formData.activity_time && formData.latitude && formData.longitude);
             case 'observationType':
                 if (!formData.observation_type) return false;
-                if (formData.observation_type === 'indirect') return !!formData.indirect_sign_details;
-                if (formData.observation_type === 'loss') return !!formData.loss_type;
+                if (formData.observation_type === 'indirect') return formData.indirect_sign_details.length > 0;
+                if (formData.observation_type === 'loss') return formData.loss_type.length > 0;
                 return true; // direct sighting - just type is enough
             case 'compassBearing':
                 return true; // Optional step - always valid

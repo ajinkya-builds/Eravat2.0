@@ -79,7 +79,7 @@ export function ObservationTypeStep() {
                             <button
                                 key={value}
                                 type="button"
-                                onClick={() => updateFormData({ observation_type: value, indirect_sign_details: null, loss_type: null })}
+                                onClick={() => updateFormData({ observation_type: value, indirect_sign_details: [], loss_type: [] })}
                                 className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all ${isSelected ? colorMap[color] : 'border-border bg-muted/20 hover:bg-muted/50'}`}
                             >
                                 <div className={`p-2 rounded-xl ${isSelected ? `bg-white/20` : 'bg-muted'}`}>
@@ -118,16 +118,25 @@ export function ObservationTypeStep() {
                         className="glass-card rounded-2xl p-4 space-y-3">
                         <h4 className="font-semibold text-sm">Type of Indirect Sign <span className="text-destructive">*</span></h4>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {INDIRECT_TYPES.map(type => (
-                                <button
-                                    key={type}
-                                    type="button"
-                                    onClick={() => updateFormData({ indirect_sign_details: type })}
-                                    className={`px-3 py-2 rounded-xl text-sm font-medium border transition-all ${formData.indirect_sign_details === type ? 'bg-amber-500/20 border-amber-500 text-amber-600' : 'border-border hover:bg-muted'}`}
-                                >
-                                    {type}
-                                </button>
-                            ))}
+                            {INDIRECT_TYPES.map(type => {
+                                const isSelected = formData.indirect_sign_details.includes(type);
+                                return (
+                                    <button
+                                        key={type}
+                                        type="button"
+                                        onClick={() => {
+                                            const current = [...formData.indirect_sign_details];
+                                            const next = current.includes(type)
+                                                ? current.filter(t => t !== type)
+                                                : [...current, type];
+                                            updateFormData({ indirect_sign_details: next });
+                                        }}
+                                        className={`px-3 py-2 rounded-xl text-sm font-medium border transition-all ${isSelected ? 'bg-amber-500/20 border-amber-500 text-amber-600 shadow-sm shadow-amber-500/20 scale-100' : 'border-border bg-background hover:bg-muted scale-[0.98]'}`}
+                                    >
+                                        {type}
+                                    </button>
+                                )
+                            })}
                         </div>
                     </motion.div>
                 )}
@@ -137,16 +146,25 @@ export function ObservationTypeStep() {
                         className="glass-card rounded-2xl p-4 space-y-3">
                         <h4 className="font-semibold text-sm">Type of Loss <span className="text-destructive">*</span></h4>
                         <div className="grid grid-cols-2 gap-2">
-                            {LOSS_TYPES.map(({ value, label }) => (
-                                <button
-                                    key={value}
-                                    type="button"
-                                    onClick={() => updateFormData({ loss_type: value })}
-                                    className={`px-3 py-2 rounded-xl text-sm font-medium border text-left transition-all ${formData.loss_type === value ? 'bg-destructive/10 border-destructive text-destructive' : 'border-border hover:bg-muted'}`}
-                                >
-                                    {label}
-                                </button>
-                            ))}
+                            {LOSS_TYPES.map(({ value, label }) => {
+                                const isSelected = formData.loss_type.includes(value);
+                                return (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => {
+                                            const current = [...formData.loss_type];
+                                            const next = current.includes(value)
+                                                ? current.filter(t => t !== value)
+                                                : [...current, value];
+                                            updateFormData({ loss_type: next });
+                                        }}
+                                        className={`px-3 py-2 rounded-xl text-sm font-medium border text-left transition-all ${isSelected ? 'bg-destructive/10 border-destructive text-destructive shadow-sm shadow-destructive/20 scale-100' : 'border-border bg-background hover:bg-muted scale-[0.98]'}`}
+                                    >
+                                        {label}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </motion.div>
                 )}

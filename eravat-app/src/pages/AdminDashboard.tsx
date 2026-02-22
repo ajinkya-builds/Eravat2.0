@@ -5,6 +5,7 @@ import { Users, Activity, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { MapComponent, type ReportPoint } from '../components/shared/MapComponent';
 import { format, subHours, isToday } from 'date-fns';
+import { NotificationBell } from '../components/shared/NotificationBell';
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -49,7 +50,7 @@ export default function AdminDashboard() {
           location,
           geo_beats (name),
           profiles (full_name),
-          observations (observation_type)
+          observations (type)
         `)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -70,7 +71,10 @@ export default function AdminDashboard() {
 
         reportsData.forEach((rep: any) => {
           const repDate = new Date(rep.created_at);
-          const obsType = rep.observations?.[0]?.observation_type || 'direct';
+          const rawObsType = rep.observations?.[0]?.type || 'direct';
+          const obsType = rawObsType === 'direct_sighting' ? 'direct' :
+            (rawObsType === 'indirect_sign' ? 'indirect' :
+              (rawObsType === 'conflict_loss' ? 'loss' : rawObsType));
 
           // Metrics
           if (isToday(repDate)) {
@@ -159,11 +163,14 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Overview</h1>
           <p className="text-muted-foreground mt-1 text-sm">Real-time pulse of patrol activity and sightings.</p>
         </div>
-        <div className="flex gap-2">
-          <div className="px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full text-xs font-semibold flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            System Online {loading && '(Syncing...)'}
+        <div className="flex items-center gap-4">
+          <div className="flex gap-2">
+            <div className="px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full text-xs font-semibold flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              System Online {loading && '(Syncing...)'}
+            </div>
           </div>
+          <NotificationBell />
         </div>
       </motion.div>
 

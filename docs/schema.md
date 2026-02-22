@@ -9,7 +9,7 @@
 
 ```sql
 user_role:    admin | ccf | biologist | veterinarian | dfo | rrt | range_officer | beat_guard | volunteer
-obs_type:     direct | indirect | loss
+obs_type:     direct_sighting | indirect_sign | conflict_loss
 sync_status:  pending | synced | reviewed
 ```
 

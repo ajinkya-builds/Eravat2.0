@@ -7,6 +7,7 @@ import { cn } from '../lib/utils';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { NotificationBell } from '../components/shared/NotificationBell';
 
 export default function Dashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -40,10 +41,13 @@ export default function Dashboard() {
                 <motion.div
                     initial={{ y: -20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    className="mb-8 space-y-2"
+                    className="mb-8 flex justify-between items-start"
                 >
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome Back</h1>
-                    <p className="text-muted-foreground">What would you like to do today?</p>
+                    <div className="space-y-2">
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome Back</h1>
+                        <p className="text-muted-foreground">What would you like to do today?</p>
+                    </div>
+                    <NotificationBell />
                 </motion.div>
 
                 {/* Offline Sync Status Indicator (Only shows if there are pending items) */}

@@ -93,7 +93,7 @@ Project URL: `https://mnytrlcmdpkfhrzrtesf.supabase.co`
 
 ```sql
 user_role  -- admin, ccf, biologist, veterinarian, dfo, rrt, range_officer, beat_guard, volunteer
-obs_type   -- direct, indirect, loss
+obs_type   -- direct_sighting, indirect_sign, conflict_loss
 loss_category -- (for conflict_damages)
 sync_status   -- pending, synced, reviewed
 ```
@@ -147,7 +147,7 @@ Links directly to `auth.users` by `id` (same UUID, no separate `auth_id` column)
 |---|---|
 | `id` | uuid PK |
 | `user_id` | uuid → profiles |
-| `division_id` | uuid → geo_divisions |
+| `division_id" | uuid → geo_divisions |
 | `range_id` | uuid → geo_ranges |
 | `beat_id` | uuid → geo_beats |
 | `assigned_at` | timestamptz |
@@ -169,13 +169,13 @@ Links directly to `auth.users` by `id` (same UUID, no separate `auth_id` column)
 |---|---|---|
 | `id` | uuid PK | |
 | `report_id` | uuid → reports | |
-| `type` | obs_type | direct/indirect/loss |
+| `type` | obs_type | direct_sighting/indirect_sign/conflict_loss |
 | `male_count` | int4 | |
 | `female_count` | int4 | |
 | `calf_count` | int4 | |
 | `unknown_count` | int4 | |
 | `compass_bearing` | numeric | 0–360° |
-| `indirect_sign_details` | text | |
+| `indirect_sign_details` | text[] | Array of sign types |
 
 #### `conflict_damages` — Damage Reports (child of reports)
 | Column | Type |
@@ -192,7 +192,7 @@ Links directly to `auth.users` by `id` (same UUID, no separate `auth_id` column)
 | `id` | uuid PK |
 | `report_id` | uuid → reports |
 | `file_path` | text (Storage path) |
-| `content_type` | text |
+| `content_type" | text |
 | `created_at` | timestamptz |
 
 ---
@@ -238,8 +238,8 @@ SyncService.ts (runs on connect)
         ↓
   ┌─────────────────┐
   │ reports table   │ ← location as PostGIS POINT
-  │ observations    │ ← normalized counts
-  │ conflict_damages│ ← if loss type
+  │ observations    │ ← normalized counts + signs array
+  │ conflict_damages│ ← multi-row insert (one per loss type)
   │ report_media    │ ← via Supabase Storage bucket
   └─────────────────┘
         ↓
@@ -264,6 +264,8 @@ npm run dev         # → http://localhost:5173
 2. **User Management** — Handled entirely by the Edge Functions (`create-user`, `update-user`, `delete-user`) to securely operate on `auth.users` with Role-Based Access Control.
 3. **Geography data** — `geo_divisions`, `geo_ranges`, `geo_beats` have been seeded with initial Madhya Pradesh forest department territory data.
 4. **Mobile build** — Fixed Android Capacitor build and initialized location permissions. Requires JDK 21.
+5. **Notifications** — Enriched notifications are dispatched to Range Officers and DFOs via SQL triggers after data insertion.
+6. **Multi-Select** — Supporting true multi-row conflict reporting and array-based indirect signs.
 
 ---
 

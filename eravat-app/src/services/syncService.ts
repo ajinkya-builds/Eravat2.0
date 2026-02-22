@@ -43,31 +43,50 @@ export async function syncData() {
 
                 // 2. Upsert to `observations` table
                 if (report.observation_type) {
+                    // Map local types to database enum values
+                    const typeMapping: Record<string, string> = {
+                        'direct': 'direct_sighting',
+                        'indirect': 'indirect_sign',
+                        'loss': 'conflict_loss',
+                    };
+
                     const { error: obsError } = await supabase
                         .from('observations')
                         .upsert({
+                            id: crypto.randomUUID(),
                             report_id: report.id,
-                            type: report.observation_type,
+                            type: typeMapping[report.observation_type] || report.observation_type,
                             male_count: report.male_count ?? 0,
                             female_count: report.female_count ?? 0,
                             calf_count: report.calf_count ?? 0,
                             unknown_count: report.unknown_count ?? 0,
                             compass_bearing: report.compass_bearing,
-                            indirect_sign_details: report.indirect_sign_details,
+                            indirect_sign_details: report.indirect_sign_details, // Now an array
                         });
 
                     if (obsError) {
                         console.error(`Error syncing observation for report ${report.id}:`, obsError);
+                        // If observation fails, we should probably not mark the report as synced
+                        // so it can be retried.
+                        await db.reports.update(report.id, { sync_status: 'failed' });
+                        continue; 
                     }
                 }
 
                 // 3. Upsert to `conflict_damages` if applicable
-                if (report.loss_type) {
-                    await supabase.from('conflict_damages').upsert({
-                        report_id: report.id,
-                        category: 'property', // default; refine as needed
-                        description: report.loss_type,
-                    });
+                if (report.loss_type && report.loss_type.length > 0) {
+                    for (const loss of report.loss_type) {
+                        let category = 'property';
+                        if (loss === 'No loss') category = 'none';
+                        else if (loss === 'crop') category = 'crop';
+                        else if (loss === 'livestock') category = 'livestock';
+
+                        await supabase.from('conflict_damages').upsert({
+                            report_id: report.id,
+                            category: category,
+                            description: loss,
+                        });
+                    }
                 }
 
                 // 4. Upload media if exists

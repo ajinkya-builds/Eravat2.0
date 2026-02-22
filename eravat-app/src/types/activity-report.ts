@@ -24,8 +24,8 @@ export interface ActivityReport {
     female_elephants?: number;
     unknown_elephants?: number;
     calves?: number;
-    indirect_sighting_type?: IndirectSightingType;
-    loss_type?: LossType;
+    indirect_sign_details?: string[];
+    loss_type?: string[];
     photo_url?: string;
     created_at?: string;
     updated_at?: string;

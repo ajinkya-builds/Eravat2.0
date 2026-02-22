@@ -9,6 +9,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminObservations from './pages/admin/AdminObservations';
 import AdminSettings from './pages/admin/AdminSettings';
+import TerritoryHistory from './pages/TerritoryHistory';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useEffect } from 'react';
@@ -43,7 +44,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/report" element={<ReportActivityPage />} />
               <Route path="/profile" element={<UserProfile />} />
-              <Route path="/history" element={<div className="p-8 text-center text-muted-foreground mt-20">History Coming Soon</div>} />
+              <Route path="/history" element={<TerritoryHistory />} />
               <Route path="/map" element={<div className="p-8 text-center text-muted-foreground mt-20">Map Component Coming Soon</div>} />
               <Route path="/settings" element={<div className="p-8 text-center text-muted-foreground mt-20">Settings Coming Soon</div>} />
               <Route path="/privacy" element={<div className="p-8 text-center text-muted-foreground mt-20">Privacy Policy Coming Soon</div>} />

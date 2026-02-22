@@ -26,10 +26,10 @@ export interface LocalReport {
   calf_count: number;
   unknown_count: number;
   compass_bearing: number | null;
-  indirect_sign_details: string | null;
+  indirect_sign_details: string[];
 
   // Conflict damage (maps to `conflict_damages` table)
-  loss_type: string | null;
+  loss_type: string[];
 
   // Photo (maps to `report_media` on sync)
   photo_url: string | null;
