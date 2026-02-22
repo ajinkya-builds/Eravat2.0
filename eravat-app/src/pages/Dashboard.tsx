@@ -39,9 +39,11 @@ export default function Dashboard() {
 
             <div className="max-w-2xl mx-auto w-full relative z-10 flex flex-col h-full">
                 <div className="flex flex-col items-center mb-8 mt-2 text-center">
-                    <img src={elephantLogo} alt="ERAVAT Logo" className="w-16 h-16 object-contain mb-3 drop-shadow-md" />
-                    <h2 className="text-xl font-bold tracking-tight text-foreground bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">Wild Elephant Monitoring System</h2>
-                    <p className="text-muted-foreground mt-1 text-sm font-medium">जंगली हाथी निगरानी प्रणाली (2025)</p>
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 mb-4 relative flex items-center justify-center overflow-visible">
+                        <img src={elephantLogo} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
+                    </div>
+                    <h2 className="text-xl font-bold tracking-tight text-foreground z-10 relative">Wild Elephant Monitoring System</h2>
+                    <p className="text-muted-foreground mt-2 text-[15px] font-medium z-10 relative">जंगली हाथी निगरानी प्रणाली (2025)</p>
                 </div>
 
                 <motion.div

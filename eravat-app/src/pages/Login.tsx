@@ -47,18 +47,18 @@ export default function Login() {
                             initial={{ scale: 0.8, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
-                            className="w-20 h-20 mb-4"
+                            className="w-24 h-24 sm:w-28 sm:h-28 mb-4 relative flex items-center justify-center overflow-visible"
                         >
-                            <img src={elephantLogo} alt="App Logo" className="w-full h-full object-contain" />
+                            <img src={elephantLogo} alt="App Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
                         </motion.div>
                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.3 }}
-                            className="text-center mb-10"
+                            className="text-center mb-10 z-10 relative"
                         >
-                            <h2 className="text-xl font-bold tracking-tight text-foreground bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">Wild Elephant Monitoring System</h2>
-                            <p className="text-muted-foreground mt-1">जंगली हाथी निगरानी प्रणाली (2025)</p>
+                            <h2 className="text-xl font-bold tracking-tight text-foreground">Wild Elephant Monitoring System</h2>
+                            <p className="text-muted-foreground mt-2 text-[15px] font-medium">जंगली हाथी निगरानी प्रणाली (2025)</p>
                         </motion.div>
                     </div>
 
