@@ -260,11 +260,29 @@ sync_status = 'synced'
 
 ## 🚀 Running Locally
 
+### Web Development
 ```bash
 cd "eravat-app"
 npm install
 npm run dev         # → http://localhost:5173
 ```
+
+### Android Development
+1. **Prerequisites**: Requires **JDK 21** and **Android Studio**.
+2. **Environment**: Set `JAVA_HOME` to your JDK 21 path (e.g., `export JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-21.jdk/Contents/Home`).
+3. **Run in Emulator**:
+   ```bash
+   npm run build
+   npx cap sync
+   npx cap run android --target <emulator_id>
+   ```
+4. **Generate APK**:
+   ```bash
+   npm run build
+   npx cap sync
+   cd android && ./gradlew assembleDebug
+   # Output: android/app/build/outputs/apk/debug/app-debug.apk
+   ```
 
 ---
 
@@ -273,7 +291,7 @@ npm run dev         # → http://localhost:5173
 1. **Email Confirmation** — New users created via `supabase.auth.signUp()` normally need email confirmation disabled in Supabase Auth settings for dev. Our custom Edge function logic automatically unpads this.
 2. **User Management** — Handled entirely by the Edge Functions (`create-user`, `update-user`, `delete-user`) to securely operate on `auth.users` with Role-Based Access Control.
 3. **Geography data** — `geo_divisions`, `geo_ranges`, `geo_beats` have been seeded with initial Madhya Pradesh forest department territory data.
-4. **Mobile build** — Fixed Android Capacitor build and initialized location permissions. Requires JDK 21.
+4. **Mobile build** — Fixed Android Capacitor build and initialized location permissions. Requires JDK 21. Ensures assets are served from `/` (localhost) for native Capacitor compatibility.
 5. **Notifications** — Enriched notifications are dispatched to Range Officers and DFOs via SQL triggers after data insertion.
 6. **Multi-Select** — Supporting true multi-row conflict reporting and array-based indirect signs.
 
@@ -282,8 +300,7 @@ npm run dev         # → http://localhost:5173
 ## 🌎 Deployment
 
 ### GitHub Pages
-The application is configured to deploy to GitHub Pages.
-1. `npm run build`
-2. `npx gh-pages -d dist`
+The application is configured to deploy to GitHub Pages with a specific base path override.
+1. `npm run deploy`
 
-> **Note:** Ensure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are accessible during build time.
+> **Note:** The `predeploy` script automatically runs `vite build --base=/Eravat2.0/` to ensure asset paths are correct for GitHub Pages, while the standard `npm run build` is kept clean for Capacitor/Native compatibility.

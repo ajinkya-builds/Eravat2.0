@@ -28,7 +28,8 @@ docs/
     ├── 2026-02-21-notifications-and-multi-select.md  <-- NEW
     ├── 2026-02-21-observation-sync-fix.md
     ├── 2026-02-21-user-management-rbac.md
-    └── 2026-02-22-branding-logo-and-typography.md
+    ├── 2026-02-22-branding-logo-and-typography.md
+    └── 2026-02-22-android-emulator-apk-deployment.md
 ```
 
 ---
@@ -45,7 +46,7 @@ docs/
 | 2026-02-21 | Observation Sync Fix & UI | Debugged persistence issues, added exit navigation, and refined Stepper UI alignment |
 | 2026-02-21 | Notification & Multi-Select | Enriched notifications, added Territory History feed, and implemented multi-select arrays/multi-row sync |
 | 2026-02-22 | Branding & UI Refinements | Fixed corrupted logo file, implemented CSS scaling for Android icons, and added localized (Hindi/English) typography |
-| 2026-02-22 | Geolocation, PWA & Android APK | Added PWA manifests, Web-fallback Geolocation plugins, fixed web compass, and built native debug Android APK |
+| 2026-02-22 | Android, PWA & Deployment | Fixed white screen by decapitating base path from main config, built native APK, and streamlined GitHub Pages deployment |
 
 ---
 
