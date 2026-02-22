@@ -6,17 +6,20 @@ import { cn } from '../../lib/utils';
 import { NotificationBell } from '../../components/shared/NotificationBell';
 import elephantLogo from '../../../public/elephant-logo.png';
 
-const ADMIN_NAV = [
-    { id: 'overview', path: '/admin', icon: LayoutDashboard, label: 'Overview' },
-    { id: 'users', path: '/admin/users', icon: Users, label: 'Manage Personnel' },
-    { id: 'observations', path: '/admin/observations', icon: Activity, label: 'Observations' },
-    { id: 'settings', path: '/admin/settings', icon: Settings, label: 'System Settings' },
+import { useTranslation } from 'react-i18next';
+
+const getAdminNav = (t: any) => [
+    { id: 'overview', path: '/admin', icon: LayoutDashboard, label: t('admin.nav.overview') },
+    { id: 'users', path: '/admin/users', icon: Users, label: t('admin.nav.users') },
+    { id: 'observations', path: '/admin/observations', icon: Activity, label: t('admin.nav.observations') },
+    { id: 'settings', path: '/admin/settings', icon: Settings, label: t('admin.nav.settings') },
 ];
 
 export function AdminLayout() {
     const location = useLocation();
     const navigate = useNavigate();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const { t } = useTranslation();
 
     return (
         <div className="h-screen bg-background flex flex-col md:flex-row overflow-hidden relative">
@@ -53,13 +56,13 @@ export function AdminLayout() {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold leading-tight bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT <span className="text-primary font-light">2.0</span></h1>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Command Center</p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('admin.commandCenter')}</p>
                         </div>
                     </Link>
                 </div>
 
                 <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto no-scrollbar">
-                    {ADMIN_NAV.map((item) => {
+                    {getAdminNav(t).map((item) => {
                         const isActive = location.pathname === item.path || (item.path !== '/admin' && location.pathname.startsWith(item.path));
                         const Icon = item.icon;
 
@@ -98,7 +101,7 @@ export function AdminLayout() {
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 transition-colors font-medium text-sm"
                     >
                         <LogOut size={18} />
-                        Exit Dashboard
+                        {t('admin.nav.exit')}
                     </button>
                 </div>
             </aside>

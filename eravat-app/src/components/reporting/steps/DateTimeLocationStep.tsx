@@ -3,10 +3,12 @@ import { motion } from 'framer-motion';
 import { Clock, MapPin, RefreshCw, Loader2 } from 'lucide-react';
 import { useActivityForm } from '../../../contexts/ActivityFormContext';
 import { useGeolocation } from '../../../hooks/useGeolocation';
+import { useTranslation } from 'react-i18next';
 
 export function DateTimeLocationStep() {
     const { formData, updateFormData } = useActivityForm();
     const { fetchLocation, loading: gpsLoading, error: gpsError } = useGeolocation();
+    const { t } = useTranslation();
 
     const handleAutofill = async () => {
         // Set current date and time
@@ -49,7 +51,7 @@ export function DateTimeLocationStep() {
                     className="w-full flex items-center justify-center gap-2 px-6 py-4 text-sm font-semibold glass-card border-primary/20 bg-primary/5 rounded-2xl hover:bg-primary/10 text-primary disabled:opacity-50 transition-colors shadow-sm"
                 >
                     {gpsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                    Get Location, Date &amp; Time
+                    {t('report.getLocationBtn')}
                 </button>
             </div>
 
@@ -58,7 +60,7 @@ export function DateTimeLocationStep() {
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                         <Clock className="w-4 h-4 text-muted-foreground" />
-                        Date <span className="text-destructive">*</span>
+                        {t('report.date')} <span className="text-destructive">*</span>
                     </label>
                     <input
                         type="date"
@@ -73,7 +75,7 @@ export function DateTimeLocationStep() {
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                         <Clock className="w-4 h-4 text-muted-foreground" />
-                        Time <span className="text-destructive">*</span>
+                        {t('report.time')} <span className="text-destructive">*</span>
                     </label>
                     <input
                         type="time"
@@ -89,26 +91,26 @@ export function DateTimeLocationStep() {
             <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
-                    GPS Location <span className="text-destructive">*</span>
+                    {t('report.gpsLocation')} <span className="text-destructive">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Latitude</label>
+                        <label className="text-xs text-muted-foreground mb-1 block">{t('report.latitude')}</label>
                         <input
                             type="number"
                             step="any"
-                            placeholder="e.g. 11.4589"
+                            placeholder={`${t('report.eg')} 11.4589`}
                             value={formData.latitude ?? ''}
                             onChange={e => updateFormData({ latitude: parseFloat(e.target.value) || null })}
                             className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         />
                     </div>
                     <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Longitude</label>
+                        <label className="text-xs text-muted-foreground mb-1 block">{t('report.longitude')}</label>
                         <input
                             type="number"
                             step="any"
-                            placeholder="e.g. 76.5491"
+                            placeholder={`${t('report.eg')} 76.5491`}
                             value={formData.longitude ?? ''}
                             onChange={e => updateFormData({ longitude: parseFloat(e.target.value) || null })}
                             className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -122,7 +124,7 @@ export function DateTimeLocationStep() {
                 )}
                 {formData.latitude && formData.longitude && (
                     <p className="text-xs text-emerald-600 mt-1">
-                        ✓ Location acquired: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
+                        ✓ {t('report.locationAcquired')}: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
                     </p>
                 )}
             </div>

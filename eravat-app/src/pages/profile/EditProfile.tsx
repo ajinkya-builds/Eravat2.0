@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, User, Phone, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../supabase';
+import { useTranslation } from 'react-i18next';
 
 export default function EditProfile() {
     const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function EditProfile() {
     const [lastName, setLastName] = useState(profile?.last_name || '');
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const { t } = useTranslation();
 
     const initials = profile
         ? `${profile.first_name?.charAt(0) ?? ''}${profile.last_name?.charAt(0) ?? ''}`.toUpperCase() || 'U'
@@ -39,7 +41,7 @@ export default function EditProfile() {
             if (error) throw error;
 
             await refreshProfile();
-            setMessage({ type: 'success', text: 'Profile updated successfully.' });
+            setMessage({ type: 'success', text: t('profile.updateSuccess') });
 
             // Auto close after 2 seconds on success
             setTimeout(() => navigate(-1), 2000);
@@ -62,7 +64,7 @@ export default function EditProfile() {
                 >
                     <ArrowLeft size={20} className="text-foreground" />
                 </button>
-                <h1 className="text-lg font-bold text-foreground">Edit Profile</h1>
+                <h1 className="text-lg font-bold text-foreground">{t('profile.editProfile')}</h1>
             </div>
 
             <div className="p-6 max-w-lg mx-auto space-y-8">
@@ -76,7 +78,7 @@ export default function EditProfile() {
                         {initials}
                     </div>
                     <div className="px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
-                        {profile?.role ? profile.role.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'User'}
+                        {profile?.role ? profile.role.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : t('profile.user')}
                     </div>
                 </motion.div>
 
@@ -85,8 +87,8 @@ export default function EditProfile() {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         className={`p-4 rounded-xl text-sm font-medium ${message.type === 'success'
-                                ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-                                : 'bg-destructive/10 text-destructive border border-destructive/20'
+                            ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                            : 'bg-destructive/10 text-destructive border border-destructive/20'
                             }`}
                     >
                         {message.text}
@@ -103,7 +105,7 @@ export default function EditProfile() {
                 >
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground ml-1">First Name</label>
+                            <label className="text-sm font-medium text-foreground ml-1">{t('profile.firstName')}</label>
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                     <User className="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
@@ -114,13 +116,12 @@ export default function EditProfile() {
                                     value={firstName}
                                     onChange={(e) => setFirstName(e.target.value)}
                                     className="w-full bg-white/50 dark:bg-black/20 border border-border rounded-xl py-3 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                                    placeholder="Enter first name"
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground ml-1">Last Name</label>
+                            <label className="text-sm font-medium text-foreground ml-1">{t('profile.lastName')}</label>
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                     <User className="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
@@ -131,13 +132,12 @@ export default function EditProfile() {
                                     value={lastName}
                                     onChange={(e) => setLastName(e.target.value)}
                                     className="w-full bg-white/50 dark:bg-black/20 border border-border rounded-xl py-3 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                                    placeholder="Enter last name"
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground ml-1">Phone Number</label>
+                            <label className="text-sm font-medium text-foreground ml-1">{t('profile.phoneNumber')}</label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                     <Phone className="h-4 w-4 text-muted-foreground" />
@@ -153,7 +153,7 @@ export default function EditProfile() {
                                 </div>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 ml-1 leading-relaxed">
-                                Phone number is used for login and cannot be changed here. Contact an administrator if you need to update it.
+                                {t('profile.phoneWarning')}
                             </p>
                         </div>
                     </div>
@@ -164,11 +164,14 @@ export default function EditProfile() {
                         className="w-full bg-primary text-primary-foreground font-semibold rounded-xl py-3.5 px-4 flex items-center justify-center gap-2 mt-8 shadow-lg shadow-primary/25 disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed group transition-all"
                     >
                         {isLoading ? (
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                {t('profile.updating')}
+                            </div>
                         ) : (
                             <>
                                 <Save className="w-4 h-4" />
-                                Save Changes
+                                {t('profile.saveChanges')}
                             </>
                         )}
                     </button>

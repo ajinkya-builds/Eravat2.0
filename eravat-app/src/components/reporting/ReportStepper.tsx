@@ -10,13 +10,9 @@ import { PhotoStep } from './steps/PhotoStep';
 import { db } from '../../db';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
-
-const STEPS: { type: FormStep; label: string; icon: ReactNode }[] = [
-    { type: 'dateTimeLocation', label: 'Date & Location', icon: <MapPin className="w-4 h-4" /> },
-    { type: 'observationType', label: 'Observation', icon: <FileText className="w-4 h-4" /> },
-    { type: 'compassBearing', label: 'Compass', icon: <Compass className="w-4 h-4" /> },
-    { type: 'photo', label: 'Photo', icon: <Camera className="w-4 h-4" /> },
-];
+import { useTranslation } from 'react-i18next';
+import { Network } from '@capacitor/network';
+import { syncData } from '../../services/syncService';
 
 function StepperContent() {
     const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm } = useActivityForm();
@@ -24,6 +20,14 @@ function StepperContent() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const navigate = useNavigate();
+    const { t } = useTranslation();
+
+    const STEPS: { type: FormStep; label: string; icon: ReactNode }[] = [
+        { type: 'dateTimeLocation', label: t('report.location'), icon: <MapPin className="w-4 h-4" /> },
+        { type: 'observationType', label: t('report.observationType'), icon: <FileText className="w-4 h-4" /> },
+        { type: 'compassBearing', label: 'Compass', icon: <Compass className="w-4 h-4" /> },
+        { type: 'photo', label: t('report.addPhoto'), icon: <Camera className="w-4 h-4" /> },
+    ];
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
@@ -66,6 +70,15 @@ function StepperContent() {
 
             setSubmitted(true);
             resetForm();
+
+            // Auto-sync immediately if online
+            Network.getStatus().then(status => {
+                if (status.connected) {
+                    // Slight delay to ensure Dexie write is flushed
+                    setTimeout(() => syncData().catch(console.error), 500);
+                }
+            });
+
             setTimeout(() => navigate('/'), 2000);
         } catch (err) {
             console.error('Failed to save report:', err);
@@ -82,7 +95,7 @@ function StepperContent() {
                     <CheckCircle2 className="w-10 h-10 text-emerald-500" />
                 </div>
                 <div className="text-center">
-                    <h2 className="text-xl font-bold text-foreground mb-2">Report Saved!</h2>
+                    <h2 className="text-xl font-bold text-foreground mb-2">{t('report.success')}</h2>
                     <p className="text-muted-foreground text-sm">Stored locally. Will sync when online.</p>
                 </div>
             </motion.div>
@@ -100,7 +113,7 @@ function StepperContent() {
                 >
                     <X className="w-5 h-5" />
                 </button>
-                <h1 className="text-sm font-bold text-foreground">Report Activity</h1>
+                <h1 className="text-sm font-bold text-foreground">{t('report.title')}</h1>
                 <div className="w-10" /> {/* Spacer for centering */}
             </header>
 
@@ -189,7 +202,7 @@ function StepperContent() {
                             className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-emerald-500 text-white text-sm font-bold shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
                         >
                             <CheckCircle2 className="w-5 h-5" />
-                            {isSubmitting ? 'Saving...' : 'Submit Offline'}
+                            {isSubmitting ? t('report.submitting') : t('report.submit')}
                         </button>
                     ) : (
                         <button

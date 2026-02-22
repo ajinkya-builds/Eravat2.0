@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { RefreshCw, Download, Trash2, Pencil, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
 import { supabase } from '../../supabase';
+import { useTranslation } from 'react-i18next';
 
 type ObsType = 'direct' | 'indirect' | 'loss';
 
@@ -67,6 +68,7 @@ export default function AdminObservations() {
     const [totalCount, setTotalCount] = useState(0);
     const [selected, setSelected] = useState<string[]>([]);
     const [editTarget, setEditTarget] = useState<ReportWithObs | null>(null);
+    const { t } = useTranslation();
 
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -166,17 +168,17 @@ export default function AdminObservations() {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Observations</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{totalCount} total reports</p>
+                    <h1 className="text-3xl font-bold tracking-tight">{t('admin.obs.title')}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{totalCount} {t('admin.obs.totalReports')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     {selected.length > 0 && (
                         <button onClick={handleBulkDelete} className="px-4 py-2 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium">
-                            Delete {selected.length}
+                            {t('admin.obs.deleteReport')} ({selected.length})
                         </button>
                     )}
                     <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 rounded-xl glass-card border border-border text-sm font-medium hover:bg-muted transition-colors">
-                        <Download size={16} /> Export CSV
+                        <Download size={16} /> {t('admin.obs.exportCSV')}
                     </button>
                     <button onClick={() => fetchObservations(currentPage)} disabled={loading} className="p-2.5 rounded-xl glass-card border border-border hover:bg-muted transition-colors">
                         <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -199,14 +201,14 @@ export default function AdminObservations() {
                                             onChange={e => setSelected(e.target.checked ? observations.map(o => o.id) : [])}
                                             checked={selected.length === observations.length && observations.length > 0} />
                                     </th>
-                                    {['Timestamp', 'Territory', 'Type', 'Count', 'Details', 'Status', 'Actions'].map(h => (
+                                    {[t('admin.obs.timestamp'), t('admin.users.territory'), t('admin.obs.type'), t('admin.obs.count'), t('admin.obs.details'), t('admin.users.status'), t('admin.users.actions')].map(h => (
                                         <th key={h} className="p-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {observations.length === 0 ? (
-                                    <tr><td colSpan={8} className="text-center py-12 text-muted-foreground">No observations yet.</td></tr>
+                                    <tr><td colSpan={8} className="text-center py-12 text-muted-foreground">{t('admin.obs.noObs')}</td></tr>
                                 ) : observations.map((obs, i) => {
                                     const o = obs.observations?.[0];
                                     const d = obs.conflict_damages?.[0];
@@ -257,7 +259,7 @@ export default function AdminObservations() {
             {totalPages > 1 && (
                 <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">
-                        Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, totalCount)}–{Math.min(currentPage * PAGE_SIZE, totalCount)} of {totalCount}
+                        {t('admin.obs.showing')} {Math.min((currentPage - 1) * PAGE_SIZE + 1, totalCount)}–{Math.min(currentPage * PAGE_SIZE, totalCount)} {t('admin.obs.of')} {totalCount}
                     </span>
                     <div className="flex gap-2">
                         <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
@@ -273,17 +275,17 @@ export default function AdminObservations() {
                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                         className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
                         <div className="flex justify-between items-center">
-                            <h2 className="text-lg font-bold">Edit Report</h2>
+                            <h2 className="text-lg font-bold">{t('admin.obs.editReport')}</h2>
                             <button onClick={() => setEditTarget(null)} className="p-2 rounded-lg hover:bg-muted"><X size={18} /></button>
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes</label>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('report.notes')}</label>
                             <textarea rows={3} value={editTarget.notes ?? ''}
                                 onChange={e => setEditTarget({ ...editTarget, notes: e.target.value })}
                                 className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('admin.users.status')}</label>
                             <select value={editTarget.status}
                                 onChange={e => setEditTarget({ ...editTarget, status: e.target.value })}
                                 className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
@@ -293,8 +295,8 @@ export default function AdminObservations() {
                             </select>
                         </div>
                         <div className="flex gap-3 pt-2">
-                            <button onClick={() => setEditTarget(null)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">Cancel</button>
-                            <button onClick={handleSaveEdit} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">Save Changes</button>
+                            <button onClick={() => setEditTarget(null)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">{t('profile.cancel')}</button>
+                            <button onClick={handleSaveEdit} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">{t('admin.settings.saveChanges')}</button>
                         </div>
                     </motion.div>
                 </div>

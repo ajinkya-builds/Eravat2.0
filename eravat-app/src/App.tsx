@@ -20,6 +20,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useEffect } from 'react';
 import { Network } from '@capacitor/network';
+import { I18nextProvider } from 'react-i18next';
 import { syncData } from './services/syncService';
 import './i18n'; // Initialize i18n
 import i18n from './i18n';
@@ -67,44 +68,46 @@ function AppPreferences() {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppPreferences />
-      <NetworkSync />
-      <BrowserRouter>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
+    <I18nextProvider i18n={i18n}>
+      <AuthProvider>
+        <AppPreferences />
+        <NetworkSync />
+        <BrowserRouter>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={<Login />} />
 
-          {/* Protected App Shell */}
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/report" element={<ReportActivityPage />} />
-              <Route path="/profile" element={<UserProfile />} />
-              <Route path="/profile/edit" element={<EditProfile />} />
-              <Route path="/history" element={<TerritoryHistory />} />
-              <Route path="/map" element={<div className="p-8 text-center text-muted-foreground mt-20">Map Component Coming Soon</div>} />
-              <Route path="/settings" element={<AppSettings />} />
-              <Route path="/privacy" element={<PrivacySecurity />} />
-              <Route path="/help" element={<HelpSupport />} />
-              <Route path="/faq" element={<FAQ />} />
-              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            {/* Protected App Shell */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/report" element={<ReportActivityPage />} />
+                <Route path="/profile" element={<UserProfile />} />
+                <Route path="/profile/edit" element={<EditProfile />} />
+                <Route path="/history" element={<TerritoryHistory />} />
+                <Route path="/map" element={<div className="p-8 text-center text-muted-foreground mt-20">Map Component Coming Soon</div>} />
+                <Route path="/settings" element={<AppSettings />} />
+                <Route path="/privacy" element={<PrivacySecurity />} />
+                <Route path="/help" element={<HelpSupport />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              </Route>
+
+              {/* Admin Navigation Branch */}
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="observations" element={<AdminObservations />} />
+                <Route path="settings" element={<AdminSettings />} />
+              </Route>
             </Route>
 
-            {/* Admin Navigation Branch */}
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="observations" element={<AdminObservations />} />
-              <Route path="settings" element={<AdminSettings />} />
-            </Route>
-          </Route>
-
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </I18nextProvider>
   );
 }
 

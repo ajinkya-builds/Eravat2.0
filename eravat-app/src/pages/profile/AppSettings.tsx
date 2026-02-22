@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Moon, Sun, Smartphone, Wifi, Globe, Map, Languages } from 'lucide-react';
 import i18n from '../../i18n';
@@ -7,27 +6,23 @@ import i18n from '../../i18n';
 export default function AppSettings() {
     const navigate = useNavigate();
 
-    // Local state for settings. In a real app these sync to localStorage or a central settings context.
-    const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system');
-    const [autoSync, setAutoSync] = useState(true);
-    const [wifiOnly, setWifiOnly] = useState(false);
-    const [mapStyle, setMapStyle] = useState<'terrain' | 'satellite'>('terrain');
-    const [language, setLanguage] = useState<'english' | 'hindi'>('english');
-
-    // Load from local storage
-    useEffect(() => {
+    // Load from local storage synchronously
+    const getInitialState = () => {
         try {
             const saved = localStorage.getItem('eravat_app_settings');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (parsed.theme) setTheme(parsed.theme);
-                if (parsed.autoSync !== undefined) setAutoSync(parsed.autoSync);
-                if (parsed.wifiOnly !== undefined) setWifiOnly(parsed.wifiOnly);
-                if (parsed.mapStyle) setMapStyle(parsed.mapStyle);
-                if (parsed.language) setLanguage(parsed.language);
-            }
+            if (saved) return JSON.parse(saved);
         } catch (e) { }
-    }, []);
+        return {};
+    };
+
+    const initial = getInitialState();
+
+    // Local state for settings.
+    const [theme, setTheme] = useState<'system' | 'light' | 'dark'>(initial.theme || 'system');
+    const [autoSync, setAutoSync] = useState(initial.autoSync !== undefined ? initial.autoSync : true);
+    const [wifiOnly, setWifiOnly] = useState(initial.wifiOnly !== undefined ? initial.wifiOnly : false);
+    const [mapStyle, setMapStyle] = useState<'terrain' | 'satellite'>(initial.mapStyle || 'terrain');
+    const [language, setLanguage] = useState<'english' | 'hindi'>(initial.language || 'english');
 
     // Save on change
     useEffect(() => {
@@ -91,12 +86,7 @@ export default function AppSettings() {
             <div className="p-6 max-w-lg mx-auto space-y-8">
 
                 {/* Theme & Appearance */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="space-y-3"
-                >
+                <div className="space-y-3 animate-fade-in">
                     <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t.appearance}</h2>
                     <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
                         <div className="p-4 flex items-center justify-between">
@@ -145,15 +135,10 @@ export default function AppSettings() {
                             </select>
                         </div>
                     </div>
-                </motion.div>
+                </div>
 
                 {/* Offline Sync Behavior */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="space-y-3"
-                >
+                <div className="space-y-3 animate-fade-in" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
                     <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t.sync}</h2>
                     <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
                         <label className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/20 transition-colors">
@@ -188,15 +173,10 @@ export default function AppSettings() {
                             </div>
                         </label>
                     </div>
-                </motion.div>
+                </div>
 
                 {/* Map Settings */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="space-y-3"
-                >
+                <div className="space-y-3 animate-fade-in" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
                     <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t.mapOptions}</h2>
                     <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
                         <div className="p-4 flex items-center justify-between">
@@ -216,7 +196,7 @@ export default function AppSettings() {
                             </select>
                         </div>
                     </div>
-                </motion.div>
+                </div>
 
             </div>
         </div>

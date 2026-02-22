@@ -1,14 +1,16 @@
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export default function FAQ() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     const faqs = [
-        { q: "How do I report a wild elephant sighting?", a: "Go to the Dashboard and tap 'Report Activity'. Fill in the location, number of elephants, and add an optional photo." },
-        { q: "Do I need internet to submit a report?", a: "No! The app works offline. Reports are saved locally and will automatically sync once you regain internet connection." },
-        { q: "What should I do in case of a direct encounter?", a: "Maintain a safe distance, do not panic, and slowly back away. Never try to feed or flash the camera at wild elephants." },
-        { q: "How is my location data used?", a: "Your location is only captured when submitting a report to accurately map animal movements and conflict zones." }
+        { q: t('faq.q1'), a: t('faq.a1') },
+        { q: t('faq.q2'), a: t('faq.a2') },
+        { q: t('faq.q3'), a: t('faq.a3') },
+        { q: t('faq.q4'), a: t('faq.a4') }
     ];
 
     return (
@@ -17,7 +19,7 @@ export default function FAQ() {
                 <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-muted/50 transition-colors">
                     <ArrowLeft size={20} className="text-foreground" />
                 </button>
-                <h1 className="text-lg font-bold text-foreground">Frequently Asked Questions</h1>
+                <h1 className="text-lg font-bold text-foreground">{t('faq.title')}</h1>
             </div>
             <div className="p-6 max-w-lg mx-auto space-y-4">
                 {faqs.map((faq, index) => (

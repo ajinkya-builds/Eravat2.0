@@ -19,7 +19,7 @@ export default function UserProfile() {
 
     const roleLabel = profile?.role
         ? profile.role.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-        : 'User';
+        : t('profile.user');
 
     const menuItems = [
         { id: 'profile', label: t('profile.editProfile'), icon: User, onClick: () => navigate('/profile/edit') },
@@ -63,12 +63,12 @@ export default function UserProfile() {
                         </span>
                         <span className="opacity-50">•</span>
                         <span>
-                            {(profile as any)?.beats ? 'Beat' : (profile as any)?.ranges ? 'Range' : 'Division'}
+                            {(profile as any)?.beats ? t('profile.beat') : (profile as any)?.ranges ? t('profile.range') : t('profile.division')}
                         </span>
                     </div>
                 ) : profile?.role && profile.role !== 'admin' && profile.role !== 'volunteer' ? (
                     <div className="text-xs text-destructive font-medium flex items-center justify-center gap-1">
-                        <AlertTriangle size={12} /> Territory Not Assigned
+                        <AlertTriangle size={12} /> {t('profile.territoryNotAssigned')}
                     </div>
                 ) : null}
             </motion.div>

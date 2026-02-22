@@ -18,7 +18,7 @@ export function AppLayout() {
         { id: 'map', path: '/map', icon: Map, label: t('nav.map') },
         { id: 'report', path: '/report', icon: Plus, label: t('nav.report'), isFloating: true },
         { id: 'profile', path: '/profile', icon: User, label: t('nav.profile') },
-        { id: 'settings', path: '/settings', icon: Settings, label: 'Settings' },
+        { id: 'settings', path: '/settings', icon: Settings, label: t('nav.settings') },
     ];
 
     // We hide nav on auth pages
