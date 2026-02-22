@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Eravat2.0/sw.js', { scope: '/Eravat2.0/' })})}
