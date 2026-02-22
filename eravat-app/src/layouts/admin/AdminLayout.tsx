@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, Activity, Settings, LogOut, Menu, X } from 'luc
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
 import { NotificationBell } from '../../components/shared/NotificationBell';
+import elephantLogo from '../../../public/elephant-logo.svg';
 
 const ADMIN_NAV = [
     { id: 'overview', path: '/admin', icon: LayoutDashboard, label: 'Overview' },
@@ -27,7 +28,7 @@ export function AdminLayout() {
             {/* Mobile Header */}
             <div className="md:hidden flex items-center justify-between p-4 bg-card border-b border-border z-30 relative">
                 <Link to="/" className="flex items-center gap-2 active:scale-95 transition-transform">
-                    <img src="/elephant-logo.svg" alt="ERAVAT Logo" className="w-8 h-8 object-contain drop-shadow-md" />
+                    <img src={elephantLogo} alt="ERAVAT Logo" className="w-8 h-8 object-contain drop-shadow-md" />
                     <h1 className="font-bold text-lg bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT Admin</h1>
                 </Link>
                 <div className="flex items-center gap-2">
@@ -46,7 +47,7 @@ export function AdminLayout() {
                 <div className="p-6 hidden md:block border-b border-border/50">
                     <Link to="/" className="flex items-center gap-3 active:scale-95 transition-transform group">
                         <div className="p-1 bg-gradient-to-br from-primary/20 to-emerald-500/20 rounded-xl group-hover:shadow-md transition-all">
-                            <img src="/elephant-logo.svg" alt="ERAVAT Logo" className="w-10 h-10 object-contain drop-shadow-md" />
+                            <img src={elephantLogo} alt="ERAVAT Logo" className="w-10 h-10 object-contain drop-shadow-md" />
                         </div>
                         <div>
                             <h1 className="text-xl font-bold leading-tight bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT <span className="text-primary font-light">2.0</span></h1>

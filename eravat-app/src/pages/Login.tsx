@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import elephantLogo from '../../public/elephant-logo.svg';
 
 export default function Login() {
     const navigate = useNavigate();
@@ -47,7 +48,7 @@ export default function Login() {
                         transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
                         className="w-20 h-20 mx-auto bg-gradient-to-br from-primary to-emerald-600 rounded-3xl flex items-center justify-center shadow-lg shadow-primary/30 mb-8 overflow-hidden"
                     >
-                        <img src="/elephant-logo.svg" alt="App Logo" className="w-12 h-12 object-contain" />
+                        <img src={elephantLogo} alt="App Logo" className="w-12 h-12 object-contain" />
                     </motion.div>
 
                     <motion.div
