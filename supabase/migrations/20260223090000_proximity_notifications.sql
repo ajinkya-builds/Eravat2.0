@@ -14,19 +14,23 @@
 --   2d. Inserts a notification row for every user within the radius
 -- ==============================================================================
 
+-- PostGIS lives in the `extensions` schema in Supabase.
+-- Make it visible for this migration session.
+SET search_path TO public, extensions;
+
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- PHASE 1A: Add centroid columns
 -- ─────────────────────────────────────────────────────────────────────────────
 
 ALTER TABLE public.geo_divisions
-  ADD COLUMN IF NOT EXISTS centroid GEOGRAPHY(POINT, 4326);
+  ADD COLUMN IF NOT EXISTS centroid extensions.geography(POINT, 4326);
 
 ALTER TABLE public.geo_ranges
-  ADD COLUMN IF NOT EXISTS centroid GEOGRAPHY(POINT, 4326);
+  ADD COLUMN IF NOT EXISTS centroid extensions.geography(POINT, 4326);
 
 ALTER TABLE public.geo_beats
-  ADD COLUMN IF NOT EXISTS centroid GEOGRAPHY(POINT, 4326);
+  ADD COLUMN IF NOT EXISTS centroid extensions.geography(POINT, 4326);
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -36,15 +40,15 @@ ALTER TABLE public.geo_beats
 -- compute the centroid, then cast back to geography for storage.
 
 UPDATE public.geo_divisions
-SET centroid = ST_Centroid(boundary::geometry)::geography
+SET centroid = ST_Centroid(boundary::geometry)::extensions.geography
 WHERE boundary IS NOT NULL;
 
 UPDATE public.geo_ranges
-SET centroid = ST_Centroid(boundary::geometry)::geography
+SET centroid = ST_Centroid(boundary::geometry)::extensions.geography
 WHERE boundary IS NOT NULL;
 
 UPDATE public.geo_beats
-SET centroid = ST_Centroid(boundary::geometry)::geography
+SET centroid = ST_Centroid(boundary::geometry)::extensions.geography
 WHERE boundary IS NOT NULL;
 
 
@@ -88,7 +92,7 @@ CREATE OR REPLACE FUNCTION public.notify_proximity_on_report()
 RETURNS TRIGGER AS $$
 DECLARE
   rec RECORD;
-  region_centroid GEOGRAPHY;
+  region_centroid extensions.geography;
   radius_m DOUBLE PRECISION;
   beat_name   text;
   range_name  text;
@@ -151,8 +155,8 @@ BEGIN
 
     -- ST_DWithin on geography columns uses metres as the distance unit
     IF ST_DWithin(
-         NEW.location::geography,
-         rec.region_centroid::geography,
+         NEW.location::extensions.geography,
+         rec.region_centroid::extensions.geography,
          radius_m
       )
     THEN
@@ -164,7 +168,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 
 -- Drop old trigger if re-running this migration

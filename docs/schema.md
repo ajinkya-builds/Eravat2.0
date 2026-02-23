@@ -1,7 +1,7 @@
 # Eravat 2.0 — Database Schema Quick Reference
 
 > Supabase Project: `mnytrlcmdpkfhrzrtesf`\
-> Last updated: 2026-02-21
+> Last updated: 2026-02-23
 
 ---
 
@@ -44,6 +44,12 @@ auth.users  (Supabase managed)
 5. `user_region_assignments` maps users to territories. A boolean
    `is_primary_contact` flag designates the primary officer (DFO/Range
    Officer/Beat Guard) for a division, range, or beat.
+6. All geo tables (`geo_divisions`, `geo_ranges`, `geo_beats`) now have a
+   `centroid extensions.geography(POINT, 4326)` column auto-populated from their
+   `boundary` polygon via `ST_Centroid`.
+7. `profiles.notification_radius_km` (integer, default 10, range 1–500) controls
+   how far from a user's region centroid a report must be to trigger a proximity
+   notification.
 
 ## Creating and Managing Users
 
@@ -120,3 +126,33 @@ VALUES (
 | `observations`            | **ON** | Inherits from reports                                       |
 | `conflict_damages`        | OFF    | Should enable                                               |
 | `report_media`            | OFF    | Should enable                                               |
+| `notifications`           | **ON** | Users read/update own; Admins manage all                    |
+
+---
+
+## Proximity Notification System
+
+Added in migration `20260223090000_proximity_notifications.sql`.
+
+### New Columns
+
+| Table           | Column                   | Type                                | Notes                        |
+| --------------- | ------------------------ | ----------------------------------- | ---------------------------- |
+| `geo_divisions` | `centroid`               | `extensions.geography(POINT, 4326)` | Auto-populated from boundary |
+| `geo_ranges`    | `centroid`               | `extensions.geography(POINT, 4326)` | Auto-populated from boundary |
+| `geo_beats`     | `centroid`               | `extensions.geography(POINT, 4326)` | Auto-populated from boundary |
+| `profiles`      | `notification_radius_km` | `integer DEFAULT 10`                | User-configurable (1–500 km) |
+
+### Trigger: `trigger_notify_proximity_on_report`
+
+Fires `AFTER INSERT` on `reports`. For each user with a region assignment, uses
+`ST_DWithin` to check if the new report's `location` is within
+`notification_radius_km * 1000` metres of their region's **centroid** (beat →
+range → division, most specific wins). Inserts a row into `notifications` for
+every matching user.
+
+### Settings UI
+
+Users configure their radius at `/settings` via the `Settings.tsx` page
+(slider + number input, 1–100 km range). Changes are written directly to
+`profiles.notification_radius_km` via a debounced Supabase JS update.
