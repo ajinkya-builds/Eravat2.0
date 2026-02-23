@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ReportActivityPage from './pages/ReportActivityPage';
 import UserProfile from './pages/UserProfile';
+import Settings from './pages/Settings';
 import { AdminLayout } from './layouts/admin/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
@@ -47,7 +48,7 @@ function App() {
               <Route path="/profile" element={<UserProfile />} />
               <Route path="/history" element={<TerritoryHistory />} />
               <Route path="/map" element={<div className="p-8 text-center text-muted-foreground mt-20">Map Component Coming Soon</div>} />
-              <Route path="/settings" element={<div className="p-8 text-center text-muted-foreground mt-20">Settings Coming Soon</div>} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="/privacy" element={<div className="p-8 text-center text-muted-foreground mt-20">Privacy Policy Coming Soon</div>} />
               <Route path="/help" element={<div className="p-8 text-center text-muted-foreground mt-20">Help & Support Coming Soon</div>} />
             </Route>
