@@ -1,6 +1,6 @@
 # Eravat 2.0 — Database Schema Quick Reference
 
-> Supabase Project: `mnytrlcmdpkfhrzrtesf`  
+> Supabase Project: `mnytrlcmdpkfhrzrtesf`\
 > Last updated: 2026-02-21
 
 ---
@@ -41,21 +41,31 @@ auth.users  (Supabase managed)
 2. Geographic tables are prefixed `geo_` — NOT `divisions/ranges/beats`
 3. `reports.location` is a PostGIS `geography` POINT — NOT lat/lng columns
 4. Observation counts are in `observations` child table — NOT on `reports`
-5. `user_region_assignments` maps a user to ONE division+range+beat assignment
+5. `user_region_assignments` maps users to territories. A boolean
+   `is_primary_contact` flag designates the primary officer (DFO/Range
+   Officer/Beat Guard) for a division, range, or beat.
 
 ## Creating and Managing Users
 
-> ⚠️ **CRITICAL:** Because `auth.users` requires the Supabase Service Role Key for mutations, **all user management MUST go through the Edge Functions.** 
+> ⚠️ **CRITICAL:** Because `auth.users` requires the Supabase Service Role Key
+> for mutations, **all user management MUST go through the Edge Functions.**
 
 The front-end `AdminUsers.tsx` component calls these functions.
 
 ### Edge Functions
-1. **`create-user`**: Creates the `auth.user`, inserts the `profile` row, and inserts the `user_region_assignments` row.
-2. **`update-user`**: Safely updates `auth.users` (password), `profiles` (name, phone, role), and `user_region_assignments`. 
-3. **`delete-user`**: Deletes references in `user_region_assignments`, `profiles`, and ultimately the user from `auth.users`.
+
+1. **`create-user`**: Creates the `auth.user`, inserts the `profile` row, and
+   inserts the `user_region_assignments` row.
+2. **`update-user`**: Safely updates `auth.users` (password), `profiles` (name,
+   phone, role), and `user_region_assignments`.
+3. **`delete-user`**: Deletes references in `user_region_assignments`,
+   `profiles`, and ultimately the user from `auth.users`.
 
 ### Role-Based Access Control (RBAC)
-All Edge Functions strictly enforce RBAC using `supabase/functions/_shared/rbac.ts`:
+
+All Edge Functions strictly enforce RBAC using
+`supabase/functions/_shared/rbac.ts`:
+
 - **Admin / CCF**: Can manage any role
 - **DFO**: Can manage Range Officers & Beat Guards
 - **Range Officer / RRT**: Can manage Beat Guards
@@ -99,14 +109,14 @@ VALUES (
 
 ## RLS Status
 
-| Table | RLS | Notes |
-|---|---|---|
-| `profiles` | OFF | Consider enabling for production |
-| `geo_divisions` | OFF | Public read is fine |
-| `geo_ranges` | OFF | Public read is fine |
-| `geo_beats` | OFF | Public read is fine |
-| `user_region_assignments` | OFF | Should enable in production |
-| `reports` | **ON** | Geographic + role-based policies |
-| `observations` | **ON** | Inherits from reports |
-| `conflict_damages` | OFF | Should enable |
-| `report_media` | OFF | Should enable |
+| Table                     | RLS    | Notes                                                       |
+| ------------------------- | ------ | ----------------------------------------------------------- |
+| `profiles`                | OFF    | Consider enabling for production                            |
+| `geo_divisions`           | OFF    | Public read is fine                                         |
+| `geo_ranges`              | OFF    | Public read is fine                                         |
+| `geo_beats`               | OFF    | Public read is fine                                         |
+| `user_region_assignments` | OFF    | Marks territory and primary contacts (`is_primary_contact`) |
+| `reports`                 | **ON** | Geographic + role-based policies                            |
+| `observations`            | **ON** | Inherits from reports                                       |
+| `conflict_damages`        | OFF    | Should enable                                               |
+| `report_media`            | OFF    | Should enable                                               |

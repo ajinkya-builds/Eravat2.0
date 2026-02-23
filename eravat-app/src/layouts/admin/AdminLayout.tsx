@@ -1,6 +1,6 @@
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Users, Activity, Settings, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Activity, Settings, LogOut, Menu, X, Layers } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
 import { NotificationBell } from '../../components/shared/NotificationBell';
@@ -9,6 +9,7 @@ import elephantLogo from '../../../public/elephant-logo.png';
 const ADMIN_NAV = [
     { id: 'overview', path: '/admin', icon: LayoutDashboard, label: 'Overview' },
     { id: 'users', path: '/admin/users', icon: Users, label: 'Manage Personnel' },
+    { id: 'divisions', path: '/admin/divisions', icon: Layers, label: 'Divisions & Contacts' },
     { id: 'observations', path: '/admin/observations', icon: Activity, label: 'Observations' },
     { id: 'settings', path: '/admin/settings', icon: Settings, label: 'System Settings' },
 ];

@@ -9,6 +9,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminObservations from './pages/admin/AdminObservations';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminDivisions from './pages/admin/AdminDivisions';
 import TerritoryHistory from './pages/TerritoryHistory';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -55,6 +56,7 @@ function App() {
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="users" element={<AdminUsers />} />
+              <Route path="divisions" element={<AdminDivisions />} />
               <Route path="observations" element={<AdminObservations />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
