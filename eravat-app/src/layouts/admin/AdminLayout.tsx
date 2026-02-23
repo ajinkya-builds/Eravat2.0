@@ -1,6 +1,6 @@
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Users, Activity, Settings, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Activity, Settings, LogOut, Menu, X, Layers } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
 import { NotificationBell } from '../../components/shared/NotificationBell';
@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 const getAdminNav = (t: any) => [
     { id: 'overview', path: '/admin', icon: LayoutDashboard, label: t('admin.nav.overview') },
     { id: 'users', path: '/admin/users', icon: Users, label: t('admin.nav.users') },
+    { id: 'divisions', path: '/admin/divisions', icon: Layers, label: t('admin.nav.divisions') || 'Divisions & Contacts' },
     { id: 'observations', path: '/admin/observations', icon: Activity, label: t('admin.nav.observations') },
     { id: 'settings', path: '/admin/settings', icon: Settings, label: t('admin.nav.settings') },
 ];
