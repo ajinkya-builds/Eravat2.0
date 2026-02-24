@@ -17,18 +17,18 @@ centralised Supabase backend when online.
 
 ## 🛠 Tech Stack
 
-| Layer      | Technology                                |
-| ---------- | ----------------------------------------- |
-| Frontend   | React 18, TypeScript, Vite                |
-| Styling    | Tailwind CSS v4 (via `@tailwindcss/vite`) |
-| Animation  | Framer Motion                             |
-| Icons      | Lucide React                              |
-| Routing    | React Router DOM v6                       |
-| Database   | Supabase (PostgreSQL + PostGIS)           |
-| Auth       | Supabase Auth (Email/Password)            |
-| Offline DB | Dexie.js (IndexedDB wrapper)              |
-| PWA        | Service Worker + Vite PWA Plugin          |
-| Mobile     | Capacitor (Android/iOS build target)      |
+| Layer      | Technology                                 |
+| ---------- | ------------------------------------------ |
+| Frontend   | React 18, TypeScript, Vite                 |
+| Styling    | Tailwind CSS v4 (via `@tailwindcss/vite`)  |
+| Animation  | Framer Motion                              |
+| Icons      | Lucide React                               |
+| Routing    | React Router DOM v6                        |
+| Database   | Supabase (PostgreSQL + PostGIS)            |
+| Auth       | Supabase Auth (Email/Phone via conversion) |
+| Offline DB | Dexie.js (IndexedDB wrapper)               |
+| PWA        | Service Worker + Vite PWA Plugin           |
+| Mobile     | Capacitor (Android/iOS build target)       |
 
 ---
 
@@ -331,6 +331,8 @@ npm run dev         # → http://localhost:5173
    and DFOs via SQL triggers after data insertion.
 6. **Multi-Select** — Supporting true multi-row conflict reporting and
    array-based indirect signs.
+7. **Auth Diagnostics** — `signInWithPhone` now emits console logs to help debug
+   "Phone not found" errors in the field.
 
 ---
 
