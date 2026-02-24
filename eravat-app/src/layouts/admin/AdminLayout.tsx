@@ -7,12 +7,12 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { NotificationBell } from '../../components/shared/NotificationBell';
 import elephantLogo from '../../../public/elephant-logo.png';
 
-const ADMIN_NAV = [
-    { id: 'overview', path: '/admin', icon: LayoutDashboard, label: 'admin_overview' },
-    { id: 'users', path: '/admin/users', icon: Users, label: 'admin_manage_personnel' },
-    { id: 'divisions', path: '/admin/divisions', icon: Layers, label: 'admin_divisions_contacts' },
-    { id: 'observations', path: '/admin/observations', icon: Activity, label: 'admin_observations' },
-    { id: 'settings', path: '/admin/settings', icon: Settings, label: 'admin_system_settings' },
+const getAdminNav = () => [
+    { id: 'overview', path: '/admin', icon: LayoutDashboard, label: 'admin.nav.overview' },
+    { id: 'users', path: '/admin/users', icon: Users, label: 'admin.nav.users' },
+    { id: 'divisions', path: '/admin/divisions', icon: Layers, label: 'admin.nav.divisions' },
+    { id: 'observations', path: '/admin/observations', icon: Activity, label: 'admin.nav.observations' },
+    { id: 'settings', path: '/admin/settings', icon: Settings, label: 'admin.nav.settings' },
 ];
 
 export function AdminLayout() {
@@ -56,13 +56,13 @@ export function AdminLayout() {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold leading-tight bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT <span className="text-primary font-light">2.0</span></h1>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('command_center')}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('admin.commandCenter')}</p>
                         </div>
                     </Link>
                 </div>
 
                 <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto no-scrollbar">
-                    {ADMIN_NAV.map((item) => {
+                    {getAdminNav().map((item) => {
                         const isActive = location.pathname === item.path || (item.path !== '/admin' && location.pathname.startsWith(item.path));
                         const Icon = item.icon;
 
@@ -101,7 +101,7 @@ export function AdminLayout() {
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 transition-colors font-medium text-sm"
                     >
                         <LogOut size={18} />
-                        {t('exit_dashboard')}
+                        {t('admin.nav.exit')}
                     </button>
                 </div>
             </aside>

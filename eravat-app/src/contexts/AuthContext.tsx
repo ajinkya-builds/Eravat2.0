@@ -28,6 +28,7 @@ interface AuthContextValue {
     profile: UserProfile | null;
     loading: boolean;
     signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+    signInWithPhone: (phone: string, password: string) => Promise<{ error: Error | null }>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
@@ -111,6 +112,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: error as Error | null };
     };
 
+    const signInWithPhone = async (phone: string, password: string) => {
+        const trimmedPhone = phone.trim();
+        console.log('Attempting phone login for:', trimmedPhone);
+
+        // Step 1: resolve email from phone via Postgres function
+        const { data: email, error: rpcError } = await supabase
+            .rpc('get_email_by_phone', { p_phone: trimmedPhone });
+
+        if (rpcError) {
+            console.error('RPC Error resolving phone:', rpcError);
+            return { error: rpcError as Error };
+        }
+
+        if (!email) {
+            console.warn('Phone number not found in system:', trimmedPhone);
+            return { error: new Error('Phone number not registered. Please contact your administrator.') };
+        }
+
+        console.log('Resolved email for login:', email);
+
+        // Step 2: sign in with the resolved email + password
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            console.error('Auth error for resolved email:', error.message);
+        }
+        return { error: error as Error | null };
+    };
+
     const signOut = async () => {
         await supabase.auth.signOut();
         setProfile(null);
@@ -123,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             profile,
             loading,
             signIn,
+            signInWithPhone,
             signOut,
             refreshProfile,
         }}>

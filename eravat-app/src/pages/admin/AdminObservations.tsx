@@ -68,7 +68,6 @@ export default function AdminObservations() {
     const [totalCount, setTotalCount] = useState(0);
     const [selected, setSelected] = useState<string[]>([]);
     const [editTarget, setEditTarget] = useState<ReportWithObs | null>(null);
-
     const { t } = useLanguage();
 
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -169,17 +168,17 @@ export default function AdminObservations() {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">{t('ao_observations')}</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{totalCount} {t('ao_total_reports')}</p>
+                    <h1 className="text-3xl font-bold tracking-tight">{t('admin.obs.title')}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{totalCount} {t('admin.obs.totalReports')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     {selected.length > 0 && (
                         <button onClick={handleBulkDelete} className="px-4 py-2 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium">
-                            {t('ao_delete')} {selected.length}
+                            {t('admin.obs.deleteReport')} ({selected.length})
                         </button>
                     )}
                     <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 rounded-xl glass-card border border-border text-sm font-medium hover:bg-muted transition-colors">
-                        <Download size={16} /> {t('ao_export_csv')}
+                        <Download size={16} /> {t('admin.obs.exportCSV')}
                     </button>
                     <button onClick={() => fetchObservations(currentPage)} disabled={loading} className="p-2.5 rounded-xl glass-card border border-border hover:bg-muted transition-colors">
                         <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -202,14 +201,14 @@ export default function AdminObservations() {
                                             onChange={e => setSelected(e.target.checked ? observations.map(o => o.id) : [])}
                                             checked={selected.length === observations.length && observations.length > 0} />
                                     </th>
-                                    {[t('ao_timestamp'), t('ao_territory'), t('ao_type'), t('ao_count'), t('ao_details'), t('ao_status'), t('ao_actions')].map(h => (
+                                    {[t('admin.obs.timestamp'), t('admin.users.territory'), t('admin.obs.type'), t('admin.obs.count'), t('admin.obs.details'), t('admin.users.status'), t('admin.users.actions')].map(h => (
                                         <th key={h} className="p-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {observations.length === 0 ? (
-                                    <tr><td colSpan={8} className="text-center py-12 text-muted-foreground">{t('ao_no_observations')}</td></tr>
+                                    <tr><td colSpan={8} className="text-center py-12 text-muted-foreground">{t('admin.obs.noObs')}</td></tr>
                                 ) : observations.map((obs, i) => {
                                     const o = obs.observations?.[0];
                                     const d = obs.conflict_damages?.[0];
@@ -260,7 +259,7 @@ export default function AdminObservations() {
             {totalPages > 1 && (
                 <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">
-                        {t('ao_showing')} {Math.min((currentPage - 1) * PAGE_SIZE + 1, totalCount)}–{Math.min(currentPage * PAGE_SIZE, totalCount)} {t('ao_of')} {totalCount}
+                        {t('admin.obs.showing')} {Math.min((currentPage - 1) * PAGE_SIZE + 1, totalCount)}–{Math.min(currentPage * PAGE_SIZE, totalCount)} {t('admin.obs.of')} {totalCount}
                     </span>
                     <div className="flex gap-2">
                         <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
@@ -276,28 +275,28 @@ export default function AdminObservations() {
                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                         className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
                         <div className="flex justify-between items-center">
-                            <h2 className="text-lg font-bold">{t('ao_edit_report')}</h2>
+                            <h2 className="text-lg font-bold">{t('admin.obs.editReport')}</h2>
                             <button onClick={() => setEditTarget(null)} className="p-2 rounded-lg hover:bg-muted"><X size={18} /></button>
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('ao_notes')}</label>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('report.notes')}</label>
                             <textarea rows={3} value={editTarget.notes ?? ''}
                                 onChange={e => setEditTarget({ ...editTarget, notes: e.target.value })}
                                 className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('ao_status')}</label>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('admin.users.status')}</label>
                             <select value={editTarget.status}
                                 onChange={e => setEditTarget({ ...editTarget, status: e.target.value })}
                                 className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                                <option value="pending">{t('ao_pending')}</option>
-                                <option value="synced">{t('ao_synced')}</option>
-                                <option value="reviewed">{t('ao_reviewed')}</option>
+                                <option value="pending">{t('admin.obs.pending')}</option>
+                                <option value="synced">{t('admin.obs.synced')}</option>
+                                <option value="reviewed">{t('admin.obs.reviewed')}</option>
                             </select>
                         </div>
                         <div className="flex gap-3 pt-2">
-                            <button onClick={() => setEditTarget(null)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">{t('cancel')}</button>
-                            <button onClick={handleSaveEdit} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">{t('save_changes')}</button>
+                            <button onClick={() => setEditTarget(null)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">{t('profile.cancel')}</button>
+                            <button onClick={handleSaveEdit} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">{t('admin.settings.saveChanges')}</button>
                         </div>
                     </motion.div>
                 </div>

@@ -14,6 +14,7 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
     return (
         <button
             onClick={onToggle}
+            type="button"
             className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${enabled ? 'bg-primary' : 'bg-muted border border-border'}`}
         >
             <motion.div
@@ -30,10 +31,10 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
 type Tab = 'security' | 'data' | 'notifications' | 'versions';
 
 const TABS: { id: Tab; icon: React.ElementType; label: string }[] = [
-    { id: 'security', icon: Shield, label: 'as_security' },
-    { id: 'data', icon: Database, label: 'as_data_sync' },
-    { id: 'notifications', icon: Bell, label: 'as_notifications' },
-    { id: 'versions', icon: Smartphone, label: 'as_app_versions' },
+    { id: 'security', icon: Shield, label: 'admin.settings.security' },
+    { id: 'data', icon: Database, label: 'admin.settings.dataSync' },
+    { id: 'notifications', icon: Bell, label: 'admin.settings.notifications' },
+    { id: 'versions', icon: Smartphone, label: 'admin.settings.appVersions' },
 ];
 
 const DEBOUNCE_MS = 800;
@@ -94,8 +95,8 @@ export default function AdminSettings() {
         <div className="space-y-6 max-w-4xl">
 
             <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('admin_system_settings')}</h1>
-                <p className="text-muted-foreground mt-1 text-sm">{t('as_configure_desc')}</p>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('admin.settings.title')}</h1>
+                <p className="text-muted-foreground mt-1 text-sm">{t('admin.settings.subtitle')}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
@@ -130,29 +131,25 @@ export default function AdminSettings() {
                                 exit={{ opacity: 0, x: -20 }}
                                 className="glass-card rounded-2xl p-6"
                             >
-                                <h3 className="text-lg font-bold mb-4 border-b border-border pb-2">{t('as_session_security')}</h3>
+                                <h3 className="text-lg font-bold mb-4 border-b border-border pb-2">{t('admin.settings.sessionSecurity')}</h3>
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <p className="font-medium text-sm">{t('as_force_reauth')}</p>
-                                            <p className="text-xs text-muted-foreground">{t('as_force_reauth_desc')}</p>
+                                            <p className="font-medium text-sm">{t('admin.settings.forceReauth')}</p>
+                                            <p className="text-xs text-muted-foreground">{t('admin.settings.forceReauthDesc')}</p>
                                         </div>
-                                        <div className="w-12 h-6 bg-primary rounded-full relative cursor-pointer">
-                                            <div className="w-4 h-4 rounded-full bg-white absolute top-1 right-1 shadow" />
-                                        </div>
+                                        <Toggle enabled={true} onToggle={() => {}} />
                                     </div>
                                     <div className="flex items-center justify-between pt-4 border-t border-border">
                                         <div>
-                                            <p className="font-medium text-sm">{t('as_two_factor')}</p>
-                                            <p className="text-xs text-muted-foreground">{t('as_two_factor_desc')}</p>
+                                            <p className="font-medium text-sm">{t('admin.settings.twoFactor')}</p>
+                                            <p className="text-xs text-muted-foreground">{t('admin.settings.twoFactorDesc')}</p>
                                         </div>
-                                        <div className="w-12 h-6 bg-muted rounded-full relative cursor-pointer border border-border">
-                                            <div className="w-4 h-4 rounded-full bg-muted-foreground absolute top-[3px] left-1 shadow" />
-                                        </div>
+                                        <Toggle enabled={false} onToggle={() => {}} />
                                     </div>
                                 </div>
                                 <button className="mt-8 bg-foreground text-background px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
-                                    <Save size={16} /> {t('save_changes')}
+                                    <Save size={16} /> {t('admin.settings.saveChanges')}
                                 </button>
                             </motion.div>
                         )}
@@ -166,16 +163,14 @@ export default function AdminSettings() {
                                 exit={{ opacity: 0, x: -20 }}
                                 className="glass-card rounded-2xl p-6"
                             >
-                                <h3 className="text-lg font-bold mb-4 border-b border-border pb-2">{t('as_data_sync')}</h3>
+                                <h3 className="text-lg font-bold mb-4 border-b border-border pb-2">{t('admin.settings.dataSync')}</h3>
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <p className="font-medium text-sm">{t('as_auto_sync')}</p>
                                             <p className="text-xs text-muted-foreground">{t('as_auto_sync_desc')}</p>
                                         </div>
-                                        <div className="w-12 h-6 bg-primary rounded-full relative cursor-pointer">
-                                            <div className="w-4 h-4 rounded-full bg-white absolute top-1 right-1 shadow" />
-                                        </div>
+                                        <Toggle enabled={true} onToggle={() => {}} />
                                     </div>
                                     <div className="flex items-center justify-between pt-4 border-t border-border">
                                         <div>
@@ -185,6 +180,9 @@ export default function AdminSettings() {
                                         <span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-lg">High</span>
                                     </div>
                                 </div>
+                                <button className="mt-8 bg-foreground text-background px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
+                                    <Save size={16} /> {t('admin.settings.saveChanges')}
+                                </button>
                             </motion.div>
                         )}
 
@@ -199,7 +197,7 @@ export default function AdminSettings() {
                             >
                                 {/* Master Toggle */}
                                 <div className="glass-card rounded-2xl p-6">
-                                    <h3 className="text-lg font-bold mb-4 border-b border-border pb-2">{t('as_global_notification')}</h3>
+                                    <h3 className="text-lg font-bold mb-4 border-b border-border pb-2">{t('admin.settings.notifications')}</h3>
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <p className="font-medium text-sm">{t('as_enable_proximity')}</p>
@@ -236,6 +234,7 @@ export default function AdminSettings() {
                                                 <div className="flex items-center gap-1 bg-primary/10 rounded-xl px-3 py-1">
                                                     <input
                                                         type="number"
+                                                        id="radius-input"
                                                         min={MIN_KM}
                                                         max={MAX_KM}
                                                         value={globalRadius}
@@ -269,7 +268,7 @@ export default function AdminSettings() {
                                 exit={{ opacity: 0, x: -20 }}
                                 className="glass-card rounded-2xl p-6"
                             >
-                                <h3 className="text-lg font-bold mb-4 border-b border-border pb-2">{t('as_app_versions')}</h3>
+                                <h3 className="text-lg font-bold mb-4 border-b border-border pb-2">{t('admin.settings.appVersions')}</h3>
                                 <div className="space-y-4">
                                     {[
                                         { label: 'Web App', version: '2.0.0', status: 'Current' },

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, HelpCircle, Lock, ChevronRight, Shield, AlertTriangle, MapPin } from 'lucide-react';
+import { LogOut, User, Settings, HelpCircle, Lock, ChevronRight, Shield, AlertTriangle, MapPin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -19,12 +19,13 @@ export default function UserProfile() {
 
     const roleLabel = profile?.role
         ? profile.role.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-        : 'User';
+        : t('profile.user');
 
     const menuItems = [
-        { id: 'profile', label: t('edit_profile'), icon: User, onClick: () => navigate('/edit-profile') },
-        { id: 'privacy', label: t('privacy_security'), icon: Lock, onClick: () => navigate('/privacy') },
-        { id: 'help', label: t('help_support'), icon: HelpCircle, onClick: () => navigate('/help') },
+        { id: 'profile', label: t('profile.editProfile'), icon: User, onClick: () => navigate('/profile/edit') },
+        { id: 'settings', label: t('profile.appSettings'), icon: Settings, onClick: () => navigate('/settings') },
+        { id: 'privacy', label: t('profile.privacySecurity'), icon: Lock, onClick: () => navigate('/privacy') },
+        { id: 'help', label: t('profile.helpSupport'), icon: HelpCircle, onClick: () => navigate('/help') },
     ];
 
     const handleLogout = async () => {
@@ -62,12 +63,12 @@ export default function UserProfile() {
                         </span>
                         <span className="opacity-50">•</span>
                         <span>
-                            {(profile as any)?.beats ? 'Beat' : (profile as any)?.ranges ? 'Range' : 'Division'}
+                            {(profile as any)?.beats ? t('profile.beat') : (profile as any)?.ranges ? t('profile.range') : t('profile.division')}
                         </span>
                     </div>
                 ) : profile?.role && profile.role !== 'admin' && profile.role !== 'volunteer' ? (
                     <div className="text-xs text-destructive font-medium flex items-center justify-center gap-1">
-                        <AlertTriangle size={12} /> {t('territory_not_assigned')}
+                        <AlertTriangle size={12} /> {t('profile.territoryNotAssigned')}
                     </div>
                 ) : null}
             </motion.div>
@@ -96,7 +97,7 @@ export default function UserProfile() {
                     <div className="w-10 h-10 rounded-2xl bg-destructive/10 flex items-center justify-center">
                         <LogOut size={20} />
                     </div>
-                    <span className="flex-1 text-sm font-semibold">{t('sign_out')}</span>
+                    <span className="flex-1 text-sm font-semibold">{t('profile.logout')}</span>
                 </button>
             </motion.div>
         </div>

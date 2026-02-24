@@ -54,8 +54,8 @@ export default function Dashboard() {
                     className="mb-8"
                 >
                     <div className="space-y-2">
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('welcome_back')}</h1>
-                        <p className="text-muted-foreground">{t('what_to_do')}</p>
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('dashboard.welcomeMsg')}</h1>
+                        <p className="text-muted-foreground">{t('dashboard.welcomeSub')}</p>
                     </div>
                 </motion.div>
 
@@ -72,8 +72,8 @@ export default function Dashboard() {
                                     <CloudOff size={20} />
                                 </div>
                                 <div>
-                                    <p className="font-bold text-foreground">{pendingCount} {t('pending_reports')}</p>
-                                    <p className="text-xs text-muted-foreground">{t('waiting_network')}</p>
+                                    <p className="font-bold text-foreground">{pendingCount} {t('dashboard.pendingStatus')}</p>
+                                    <p className="text-xs text-muted-foreground">{t('dashboard.waitingSync')}</p>
                                 </div>
                             </div>
                             <button
@@ -103,9 +103,9 @@ export default function Dashboard() {
                             <Activity size={24} />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-foreground mb-1">{t('report_activity')}</h2>
+                            <h2 className="text-2xl font-bold text-foreground mb-1">{t('dashboard.reportAction')}</h2>
                             <p className="text-sm text-muted-foreground font-medium flex items-center gap-1 group-hover:text-primary transition-colors">
-                                {t('log_sightings')} <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                                {t('dashboard.reportDesc')} <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                             </p>
                         </div>
                     </motion.button>
@@ -123,8 +123,8 @@ export default function Dashboard() {
                                 <User size={20} />
                             </div>
                             <div>
-                                <h3 className="font-bold text-foreground">{t('my_profile')}</h3>
-                                <p className="text-xs text-muted-foreground mt-0.5">{t('view_details')}</p>
+                                <h3 className="font-bold text-foreground">{t('dashboard.profileAction')}</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.profileDesc')}</p>
                             </div>
                         </motion.button>
 
@@ -139,8 +139,8 @@ export default function Dashboard() {
                                 <History size={20} />
                             </div>
                             <div>
-                                <h3 className="font-bold text-foreground">{t('history')}</h3>
-                                <p className="text-xs text-muted-foreground mt-0.5">{t('past_reports')}</p>
+                                <h3 className="font-bold text-foreground">{t('dashboard.historyAction')}</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.historyDesc')}</p>
                             </div>
                         </motion.button>
                     </div>
@@ -159,8 +159,8 @@ export default function Dashboard() {
                                     <ShieldCheck size={28} />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-foreground">{t('command_center')}</h2>
-                                    <p className="text-sm text-muted-foreground">{t('access_admin')}</p>
+                                    <h2 className="text-xl font-bold text-foreground">{t('dashboard.commandCenter')}</h2>
+                                    <p className="text-sm text-muted-foreground">{t('dashboard.commandDesc')}</p>
                                 </div>
                             </div>
                             <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all relative z-10" />

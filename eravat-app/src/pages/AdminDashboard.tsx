@@ -10,6 +10,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
 
   // Dashboard Metrics
   const [sightingsToday, setSightingsToday] = useState(0);
@@ -23,8 +24,6 @@ export default function AdminDashboard() {
   // Maps & Feeds
   const [recentReports, setRecentReports] = useState<any[]>([]);
   const [mapPoints, setMapPoints] = useState<ReportPoint[]>([]);
-
-  const { t } = useLanguage();
 
   useEffect(() => {
     fetchDashboardData();
@@ -169,8 +168,7 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-4">
           <div className="flex gap-2">
             <div className="px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full text-xs font-semibold flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              {t('system_online')} {loading && '(Syncing...)'}
+              {t('system_online')} {loading && (t('loading') || '(Syncing...)')}
             </div>
           </div>
           <NotificationBell />

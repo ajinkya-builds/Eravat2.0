@@ -11,13 +11,8 @@ import { db } from '../../db';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-
-const STEPS: { type: FormStep; label: string; icon: ReactNode }[] = [
-    { type: 'dateTimeLocation', label: 'rs_date_location', icon: <MapPin className="w-4 h-4" /> },
-    { type: 'observationType', label: 'rs_observation', icon: <FileText className="w-4 h-4" /> },
-    { type: 'compassBearing', label: 'rs_compass', icon: <Compass className="w-4 h-4" /> },
-    { type: 'photo', label: 'rs_photo', icon: <Camera className="w-4 h-4" /> },
-];
+import { Network } from '@capacitor/network';
+import { syncData } from '../../services/syncService';
 
 function StepperContent() {
     const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm } = useActivityForm();
@@ -26,6 +21,13 @@ function StepperContent() {
     const [submitted, setSubmitted] = useState(false);
     const navigate = useNavigate();
     const { t } = useLanguage();
+
+    const STEPS: { type: FormStep; label: string; icon: ReactNode }[] = [
+        { type: 'dateTimeLocation', label: t('rs_date_location'), icon: <MapPin className="w-4 h-4" /> },
+        { type: 'observationType', label: t('rs_observation'), icon: <FileText className="w-4 h-4" /> },
+        { type: 'compassBearing', label: t('rs_compass'), icon: <Compass className="w-4 h-4" /> },
+        { type: 'photo', label: t('rs_photo'), icon: <Camera className="w-4 h-4" /> },
+    ];
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
@@ -68,6 +70,15 @@ function StepperContent() {
 
             setSubmitted(true);
             resetForm();
+
+            // Auto-sync immediately if online
+            Network.getStatus().then(status => {
+                if (status.connected) {
+                    // Slight delay to ensure Dexie write is flushed
+                    setTimeout(() => syncData().catch(console.error), 500);
+                }
+            });
+
             setTimeout(() => navigate('/'), 2000);
         } catch (err) {
             console.error('Failed to save report:', err);
@@ -180,7 +191,7 @@ function StepperContent() {
                         disabled={currentStepIndex === 0}
                         className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
                     >
-                        <ChevronLeft className="w-5 h-5" /> {t('rs_back')}
+                        <ChevronLeft className="w-5 h-5" /> {t('back')}
                     </button>
 
                     {isLastStep() ? (
@@ -200,7 +211,7 @@ function StepperContent() {
                             disabled={!isStepValid(currentStep)}
                             className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-primary text-primary-foreground text-sm font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
                         >
-                            {t('rs_continue')} <ChevronLeft className="w-5 h-5 rotate-180" />
+                            {t('continue_btn')} <ChevronLeft className="w-5 h-5 rotate-180" />
                         </button>
                     )}
                 </div>

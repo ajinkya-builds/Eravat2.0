@@ -4,10 +4,12 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ReportActivityPage from './pages/ReportActivityPage';
 import UserProfile from './pages/UserProfile';
-import EditProfile from './pages/EditProfile';
-import Settings from './pages/Settings';
-import PrivacySecurity from './pages/PrivacySecurity';
-import HelpSupport from './pages/HelpSupport';
+import EditProfile from './pages/profile/EditProfile';
+import AppSettings from './pages/profile/AppSettings';
+import PrivacySecurity from './pages/profile/PrivacySecurity';
+import HelpSupport from './pages/profile/HelpSupport';
+import FAQ from './pages/profile/FAQ';
+import PrivacyPolicy from './pages/profile/PrivacyPolicy';
 import { AdminLayout } from './layouts/admin/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
@@ -39,44 +41,46 @@ function NetworkSync() {
 function App() {
   return (
     <ThemeProvider>
-    <LanguageProvider>
-    <AuthProvider>
-      <NetworkSync />
-      <BrowserRouter>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
+      <LanguageProvider>
+        <AuthProvider>
+          <NetworkSync />
+          <BrowserRouter>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={<Login />} />
 
-          {/* Protected App Shell */}
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/report" element={<ReportActivityPage />} />
-              <Route path="/profile" element={<UserProfile />} />
-              <Route path="/history" element={<TerritoryHistory />} />
-              <Route path="/map" element={<div className="p-8 text-center text-muted-foreground mt-20">Map Component Coming Soon</div>} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/edit-profile" element={<EditProfile />} />
-              <Route path="/privacy" element={<PrivacySecurity />} />
-              <Route path="/help" element={<HelpSupport />} />
-            </Route>
+              {/* Protected App Shell */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/report" element={<ReportActivityPage />} />
+                  <Route path="/profile" element={<UserProfile />} />
+                  <Route path="/profile/edit" element={<EditProfile />} />
+                  <Route path="/history" element={<TerritoryHistory />} />
+                  <Route path="/map" element={<div className="p-8 text-center text-muted-foreground mt-20">Map Component Coming Soon</div>} />
+                  <Route path="/settings" element={<AppSettings />} />
+                  <Route path="/privacy" element={<PrivacySecurity />} />
+                  <Route path="/help" element={<HelpSupport />} />
+                  <Route path="/faq" element={<FAQ />} />
+                  <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                </Route>
 
-            {/* Admin Navigation Branch */}
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="divisions" element={<AdminDivisions />} />
-              <Route path="observations" element={<AdminObservations />} />
-              <Route path="settings" element={<AdminSettings />} />
-            </Route>
-          </Route>
+                {/* Admin Navigation Branch */}
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="users" element={<AdminUsers />} />
+                  <Route path="divisions" element={<AdminDivisions />} />
+                  <Route path="observations" element={<AdminObservations />} />
+                  <Route path="settings" element={<AdminSettings />} />
+                </Route>
+              </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-    </LanguageProvider>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 }

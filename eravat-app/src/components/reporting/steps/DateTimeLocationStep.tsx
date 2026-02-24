@@ -99,7 +99,7 @@ export function DateTimeLocationStep() {
                         <input
                             type="number"
                             step="any"
-                            placeholder="e.g. 11.4589"
+                            placeholder={`${t('report.eg')} 11.4589`}
                             value={formData.latitude ?? ''}
                             onChange={e => updateFormData({ latitude: parseFloat(e.target.value) || null })}
                             className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -110,7 +110,7 @@ export function DateTimeLocationStep() {
                         <input
                             type="number"
                             step="any"
-                            placeholder="e.g. 76.5491"
+                            placeholder={`${t('report.eg')} 76.5491`}
                             value={formData.longitude ?? ''}
                             onChange={e => updateFormData({ longitude: parseFloat(e.target.value) || null })}
                             className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"

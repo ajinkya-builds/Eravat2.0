@@ -227,13 +227,13 @@ export default function AdminUsers() {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">{t('au_personnel_hierarchy')}</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{t('au_manage_staff')}</p>
+                    <h1 className="text-3xl font-bold tracking-tight">{t('admin.users.title')}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{t('admin.users.subtitle')}</p>
                 </div>
                 {canCreateAnyUser && (
                     <button onClick={() => setShowModal(true)}
                         className="bg-primary text-primary-foreground h-11 px-6 rounded-xl flex items-center gap-2 font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
-                        <UserPlus size={18} /> {t('au_register_personnel')}
+                        <UserPlus size={18} /> {t('admin.users.registerPersonnel')}
                     </button>
                 )}
             </div>
@@ -251,7 +251,7 @@ export default function AdminUsers() {
 
             <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                <input placeholder={t('au_search_placeholder')} value={search}
+                <input placeholder={t('admin.users.searchPlaceholder')} value={search}
                     onChange={e => setSearch(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20" />
             </div>
@@ -267,17 +267,17 @@ export default function AdminUsers() {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-muted/40 border-b border-border">
-                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('au_name')}</th>
-                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('au_contact')}</th>
-                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('au_role')}</th>
-                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('au_territory')}</th>
-                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('au_status')}</th>
-                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">{t('au_actions')}</th>
+                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.name')}</th>
+                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.contact')}</th>
+                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.role')}</th>
+                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.territory')}</th>
+                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.status')}</th>
+                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">{t('admin.users.actions')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border/40">
                                 {filtered.length === 0 ? (
-                                    <tr><td colSpan={5} className="text-center py-16 text-muted-foreground">{t('au_no_personnel')}</td></tr>
+                                    <tr><td colSpan={5} className="text-center py-16 text-muted-foreground">{t('admin.users.noPersonnel')}</td></tr>
                                 ) : filtered.map((p, i) => (
                                     <motion.tr key={p.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: i * 0.04 }} className="hover:bg-muted/20 group transition-colors">
@@ -316,7 +316,7 @@ export default function AdminUsers() {
                                         </td>
                                         <td className="p-4">
                                             <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${p.is_active ? 'bg-emerald-500/15 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
-                                                {p.is_active ? t('au_active') : t('au_inactive')}
+                                                {p.is_active ? t('admin.users.active') : t('admin.users.inactive')}
                                             </span>
                                         </td>
                                         <td className="p-4 text-right">
@@ -353,41 +353,41 @@ export default function AdminUsers() {
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <motion.div initial={{ scale: 0.93, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                         className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-xl font-bold mb-1">{t('au_register_personnel')}</h2>
-                        <p className="text-sm text-muted-foreground mb-6">{t('au_create_account')}</p>
+                        <h2 className="text-xl font-bold mb-1">{t('admin.users.registerPersonnel')}</h2>
+                        <p className="text-sm text-muted-foreground mb-6">{t('admin.users.registerDesc')}</p>
 
                         <form onSubmit={handleCreate} className="space-y-4">
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('first_name')}</label>
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.firstName')}</label>
                                     <input required value={newUser.first_name} onChange={e => setNewUser({ ...newUser, first_name: e.target.value })}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('last_name')}</label>
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.lastName')}</label>
                                     <input required value={newUser.last_name} onChange={e => setNewUser({ ...newUser, last_name: e.target.value })}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('email')}</label>
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('login.email')}</label>
                                     <input type="email" required value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('au_password')}</label>
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('login.password')}</label>
                                     <input type="password" required minLength={6} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                             </div>
                             <div>
-                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('phone_number')}</label>
+                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.phoneNumber')}</label>
                                 <input type="tel" value={newUser.phone} onChange={e => setNewUser({ ...newUser, phone: e.target.value })} placeholder="Optional"
                                     className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                             </div>
                             <div>
-                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('au_system_role')}</label>
+                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.systemRole')}</label>
                                 <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value, division_id: '', range_id: '', beat_id: '' })}
                                     className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm">
                                     {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -396,23 +396,23 @@ export default function AdminUsers() {
 
                             {GEOGRAPHIC_ROLES.includes(newUser.role) && (
                                 <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                                    <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('au_assign_territory')}</p>
+                                    <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
                                     <select required value={newUser.division_id} onChange={e => setNewUser({ ...newUser, division_id: e.target.value, range_id: '', beat_id: '' })}
                                         className="w-full p-3 rounded-xl bg-background border border-border text-sm">
-                                        <option value="">{t('au_select_division')}</option>
+                                        <option value="">{t('admin.users.selectDivision')}</option>
                                         {divisions.map(d => <option key={d.id} value={d.id}>{d.name} {d.code ? `(${d.code})` : ''}</option>)}
                                     </select>
                                     {['range_officer', 'beat_guard'].includes(newUser.role) && (
                                         <select required value={newUser.range_id} disabled={!newUser.division_id} onChange={e => setNewUser({ ...newUser, range_id: e.target.value, beat_id: '' })}
                                             className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
-                                            <option value="">{t('au_select_range')}</option>
+                                            <option value="">{t('admin.users.selectRange')}</option>
                                             {filteredRanges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                         </select>
                                     )}
                                     {newUser.role === 'beat_guard' && (
                                         <select required value={newUser.beat_id} disabled={!newUser.range_id} onChange={e => setNewUser({ ...newUser, beat_id: e.target.value })}
                                             className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
-                                            <option value="">{t('au_select_beat')}</option>
+                                            <option value="">{t('admin.users.selectBeat')}</option>
                                             {filteredBeats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                         </select>
                                     )}
@@ -422,12 +422,12 @@ export default function AdminUsers() {
                             <div className="flex gap-3 pt-2">
                                 <button type="button" onClick={() => setShowModal(false)}
                                     className="flex-1 h-12 rounded-xl border border-border font-semibold hover:bg-muted transition-colors text-sm">
-                                    {t('cancel')}
+                                    {t('profile.cancel')}
                                 </button>
                                 <button type="submit" disabled={isSubmitting}
                                     className="flex-1 h-12 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
                                     {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-                                    {isSubmitting ? t('au_registering') : t('au_register_assign')}
+                                    {isSubmitting ? t('admin.users.registering') : t('admin.users.registerBtn')}
                                 </button>
                             </div>
                         </form>
@@ -439,42 +439,42 @@ export default function AdminUsers() {
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <motion.div initial={{ scale: 0.93, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                         className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-xl font-bold mb-1">{t('au_edit_personnel')}</h2>
-                        <p className="text-sm text-muted-foreground mb-6">{t('au_modify_details')}</p>
+                        <h2 className="text-xl font-bold mb-1">{t('admin.users.editPersonnel')}</h2>
+                        <p className="text-sm text-muted-foreground mb-6">{t('admin.users.editDesc')}</p>
 
                         <form onSubmit={handleUpdate} className="space-y-4">
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('first_name')}</label>
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.firstName')}</label>
                                     <input required value={editUser.first_name || ''} onChange={e => setEditUser({ ...editUser, first_name: e.target.value })}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('last_name')}</label>
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.lastName')}</label>
                                     <input required value={editUser.last_name || ''} onChange={e => setEditUser({ ...editUser, last_name: e.target.value })}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('au_email_no_edit')}</label>
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.emailNoEdit')}</label>
                                     <input type="email" disabled value={editUser.email || ''}
                                         className="w-full p-3 rounded-xl bg-muted border border-border text-sm opacity-60 cursor-not-allowed" />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('au_new_password')}</label>
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.newPassword')}</label>
                                     <input type="password" minLength={6} value={editUser.password || ''} onChange={e => setEditUser({ ...editUser, password: e.target.value })}
-                                        placeholder={t('au_leave_blank')}
+                                        placeholder={t('admin.users.leaveBlank')}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                             </div>
                             <div>
-                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('phone_number')}</label>
+                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.phoneNumber')}</label>
                                 <input type="tel" value={editUser.phone || ''} onChange={e => setEditUser({ ...editUser, phone: e.target.value })} placeholder="Optional"
                                     className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                             </div>
                             <div>
-                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('au_system_role')}</label>
+                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.systemRole')}</label>
                                 <select value={editUser.role || ''} onChange={e => setEditUser({ ...editUser, role: e.target.value, division_id: '', range_id: '', beat_id: '' })}
                                     className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm">
                                     {ROLES.filter(r => canManageRole(currentUserProfile?.role, r.value)).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -483,23 +483,23 @@ export default function AdminUsers() {
 
                             {GEOGRAPHIC_ROLES.includes(editUser.role) && (
                                 <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                                    <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('au_assign_territory')}</p>
+                                    <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
                                     <select required value={editUser.division_id || ''} onChange={e => setEditUser({ ...editUser, division_id: e.target.value, range_id: '', beat_id: '' })}
                                         className="w-full p-3 rounded-xl bg-background border border-border text-sm">
-                                        <option value="">{t('au_select_division')}</option>
+                                        <option value="">{t('admin.users.selectDivision')}</option>
                                         {divisions.map(d => <option key={d.id} value={d.id}>{d.name} {d.code ? `(${d.code})` : ''}</option>)}
                                     </select>
                                     {['range_officer', 'beat_guard'].includes(editUser.role) && (
                                         <select required value={editUser.range_id || ''} disabled={!editUser.division_id} onChange={e => setEditUser({ ...editUser, range_id: e.target.value, beat_id: '' })}
                                             className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
-                                            <option value="">{t('au_select_range')}</option>
+                                            <option value="">{t('admin.users.selectRange')}</option>
                                             {filteredRanges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                         </select>
                                     )}
                                     {editUser.role === 'beat_guard' && (
                                         <select required value={editUser.beat_id || ''} disabled={!editUser.range_id} onChange={e => setEditUser({ ...editUser, beat_id: e.target.value })}
                                             className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
-                                            <option value="">{t('au_select_beat')}</option>
+                                            <option value="">{t('admin.users.selectBeat')}</option>
                                             {filteredBeats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                         </select>
                                     )}
@@ -509,12 +509,12 @@ export default function AdminUsers() {
                             <div className="flex gap-3 pt-2">
                                 <button type="button" onClick={() => setEditUser(null)}
                                     className="flex-1 h-12 rounded-xl border border-border font-semibold hover:bg-muted transition-colors text-sm">
-                                    {t('cancel')}
+                                    {t('profile.cancel')}
                                 </button>
                                 <button type="submit" disabled={isSubmitting}
                                     className="flex-1 h-12 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
                                     {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-                                    {isSubmitting ? t('au_updating') : t('save_changes')}
+                                    {isSubmitting ? t('admin.users.updating') : t('admin.settings.saveChanges')}
                                 </button>
                             </div>
                         </form>
@@ -531,19 +531,19 @@ export default function AdminUsers() {
                                 <Trash2 className="text-destructive" size={24} />
                             </div>
                         </div>
-                        <h2 className="text-xl font-bold text-center mb-2">{t('au_delete_title')}</h2>
+                        <h2 className="text-xl font-bold text-center mb-2">{t('admin.users.deleteTitle')}</h2>
                         <p className="text-sm text-center text-muted-foreground mb-6">
-                            {t('au_delete_desc')}
+                            {t('admin.users.deleteDesc')}
                         </p>
                         <div className="flex gap-3">
                             <button type="button" onClick={() => setDeleteUserId(null)}
                                 className="flex-1 h-11 rounded-xl border border-border font-semibold hover:bg-muted transition-colors text-sm">
-                                {t('cancel')}
+                                {t('profile.cancel')}
                             </button>
                             <button type="button" onClick={handleDelete} disabled={isSubmitting}
                                 className="flex-1 h-11 bg-destructive text-destructive-foreground rounded-xl font-bold hover:bg-destructive/90 transition-colors shadow-lg shadow-destructive/20 disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
                                 {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-                                {t('ao_delete')}
+                                {t('admin.users.deleteBtn')}
                             </button>
                         </div>
                     </motion.div>

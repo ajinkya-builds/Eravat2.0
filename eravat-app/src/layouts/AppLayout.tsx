@@ -1,25 +1,27 @@
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Map, Plus, Settings, User } from 'lucide-react';
+
 import { cn } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
 import { NotificationBell } from '../components/shared/NotificationBell';
 import elephantLogo from '../../public/elephant-logo.png';
 
-const NAV_ITEMS = [
-    { id: 'dashboard', path: '/', icon: Home, label: 'home' },
-    { id: 'map', path: '/map', icon: Map, label: 'map' },
-    { id: 'report', path: '/report', icon: Plus, label: 'report', isFloating: true },
-    { id: 'profile', path: '/profile', icon: User, label: 'profile' },
-    { id: 'settings', path: '/settings', icon: Settings, label: 'settings' },
-];
+
 
 export function AppLayout() {
     const location = useLocation();
     const navigate = useNavigate();
     const { t } = useLanguage();
 
-    // We hide nav on auth pages
+    const NAV_ITEMS = [
+        { id: 'dashboard', path: '/', icon: Home, label: 'nav.dashboard' },
+        { id: 'map', path: '/map', icon: Map, label: 'nav.map' },
+        { id: 'report', path: '/report', icon: Plus, label: 'nav.report', isFloating: true },
+        { id: 'profile', path: '/profile', icon: User, label: 'nav.profile' },
+        { id: 'settings', path: '/settings', icon: Settings, label: 'nav.settings' },
+    ];
+
     // We hide nav on auth pages
     if (location.pathname === '/login') {
         return <Outlet />;

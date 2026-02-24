@@ -12,7 +12,7 @@ import { supabase } from '../supabase';
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function PrivacySecurity() {
-    const { user, session } = useAuth();
+    const { user } = useAuth();
     const navigate = useNavigate();
     const { t } = useLanguage();
 

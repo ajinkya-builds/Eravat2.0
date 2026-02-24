@@ -38,15 +38,6 @@ const typeColors: Record<string, string> = {
     'conflict_loss': 'bg-destructive/15 text-destructive border-destructive/20',
 };
 
-const typeLabels: Record<string, string> = {
-    'direct': 'direct_sighting_label',
-    'direct_sighting': 'direct_sighting_label',
-    'indirect': 'indirect_sign_label',
-    'indirect_sign': 'indirect_sign_label',
-    'loss': 'conflict_damage_label',
-    'conflict_loss': 'conflict_damage_label',
-};
-
 export default function TerritoryHistory() {
     const navigate = useNavigate();
     const { t } = useLanguage();
@@ -80,12 +71,12 @@ export default function TerritoryHistory() {
             <div className="max-w-md mx-auto relative relative z-10 font-sans">
 
                 <button onClick={() => navigate(-1)} className="mb-6 p-2 rounded-full glass-card border border-border hover:bg-muted transition-colors inline-flex items-center gap-2 pr-4 text-sm font-medium">
-                    <ArrowLeft size={18} /> {t('back_to_dashboard')}
+                    <ArrowLeft size={18} /> {t('history.backToDashboard')}
                 </button>
 
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('territory_activity')}</h1>
-                    <p className="text-muted-foreground mt-1 text-sm">{t('recent_reports_regions')}</p>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('history.title')}</h1>
+                    <p className="text-muted-foreground mt-1 text-sm">{t('history.subtitle')}</p>
                 </div>
 
                 {loading ? (
@@ -95,8 +86,8 @@ export default function TerritoryHistory() {
                 ) : history.length === 0 ? (
                     <div className="text-center py-16 glass-card rounded-3xl border border-border">
                         <Clock className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-4" />
-                        <h3 className="text-lg font-bold text-foreground">{t('no_recent_activity')}</h3>
-                        <p className="text-muted-foreground text-sm mt-1">{t('activities_appear_here')}</p>
+                        <h3 className="text-lg font-bold text-foreground">{t('history.noActivity')}</h3>
+                        <p className="text-muted-foreground text-sm mt-1">{t('history.noActivityDesc')}</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -105,18 +96,22 @@ export default function TerritoryHistory() {
                             const d = item.conflict_damages?.[0];
                             const oType = o?.type ?? (d ? 'loss' : null);
 
-                            const title = oType ? t(typeLabels[oType] || 'unknown_activity') : t('activity_logged');
+                            const typeLabel = oType === 'direct' ? t('admin.dashboard.directSighting')
+                                : oType === 'indirect' || oType === 'indirect_sign' ? t('admin.dashboard.indirectSign')
+                                    : oType === 'loss' ? t('admin.dashboard.conflictReported') : t('history.unknownActivity');
+
+                            const title = oType ? typeLabel : t('history.activityLogged');
 
                             let details = '';
                             if (['direct', 'direct_sighting'].includes(oType || '')) {
                                 const total = (o?.male_count || 0) + (o?.female_count || 0) + (o?.calf_count || 0) + (o?.unknown_count || 0);
-                                details = `${total} ${t('elephants_sighted')}`;
+                                details = `${total} ${t('history.elephantsSighted')}`;
                             } else if (['indirect', 'indirect_sign'].includes(oType || '')) {
                                 const signs = Array.isArray(o?.indirect_sign_details) ? o.indirect_sign_details.join(', ') : (o?.indirect_sign_details || 'Unspecified');
-                                details = `${t('signs')}: ${signs}`;
+                                details = `${t('history.signs')}${signs}`;
                             } else if (['loss', 'conflict_loss'].includes(oType || '')) {
                                 const damages = item.conflict_damages.map(d => d.description).join(', ') || 'Unspecified';
-                                details = `${t('damages')}: ${damages}`;
+                                details = `${t('history.damages')}${damages}`;
                             }
 
                             const territory = [item.geo_beats?.name, item.geo_beats?.geo_ranges?.name]
@@ -152,7 +147,7 @@ export default function TerritoryHistory() {
                                     </div>
 
                                     <div className="glass-card rounded-xl p-3 border border-border/50 bg-background/50">
-                                        <p className="text-sm font-medium text-foreground">{details || t('no_details')}</p>
+                                        <p className="text-sm font-medium text-foreground">{details || t('history.detailsNone')}</p>
                                     </div>
 
                                     {territory && (

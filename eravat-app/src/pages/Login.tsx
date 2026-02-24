@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
+import { Lock, Phone, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import elephantLogo from '../../public/elephant-logo.png';
 
 export default function Login() {
     const navigate = useNavigate();
-    const { signIn } = useAuth();
-    const [email, setEmail] = useState('');
+    const { signInWithPhone } = useAuth();
+    const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -20,10 +20,10 @@ export default function Login() {
         setIsLoading(true);
         setError(null);
 
-        const { error } = await signIn(email, password);
+        const { error } = await signInWithPhone(phone.trim(), password);
 
         if (error) {
-            setError(error.message || 'Invalid email or password. Please try again.');
+            setError(error.message || 'Invalid phone number or password. Please try again.');
             setIsLoading(false);
         } else {
             navigate('/');
@@ -93,15 +93,15 @@ export default function Login() {
                         >
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <Mail className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                    <Phone className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                 </div>
                                 <input
-                                    type="email"
+                                    type="tel"
                                     required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
                                     className="w-full bg-white/50 dark:bg-black/20 border border-border rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                                    placeholder="name@example.com"
+                                    placeholder="+91 98765 43210"
                                 />
                             </div>
                         </motion.div>
