@@ -10,12 +10,13 @@ import { PhotoStep } from './steps/PhotoStep';
 import { db } from '../../db';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 const STEPS: { type: FormStep; label: string; icon: ReactNode }[] = [
-    { type: 'dateTimeLocation', label: 'Date & Location', icon: <MapPin className="w-4 h-4" /> },
-    { type: 'observationType', label: 'Observation', icon: <FileText className="w-4 h-4" /> },
-    { type: 'compassBearing', label: 'Compass', icon: <Compass className="w-4 h-4" /> },
-    { type: 'photo', label: 'Photo', icon: <Camera className="w-4 h-4" /> },
+    { type: 'dateTimeLocation', label: 'rs_date_location', icon: <MapPin className="w-4 h-4" /> },
+    { type: 'observationType', label: 'rs_observation', icon: <FileText className="w-4 h-4" /> },
+    { type: 'compassBearing', label: 'rs_compass', icon: <Compass className="w-4 h-4" /> },
+    { type: 'photo', label: 'rs_photo', icon: <Camera className="w-4 h-4" /> },
 ];
 
 function StepperContent() {
@@ -24,6 +25,7 @@ function StepperContent() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const navigate = useNavigate();
+    const { t } = useLanguage();
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
@@ -82,8 +84,8 @@ function StepperContent() {
                     <CheckCircle2 className="w-10 h-10 text-emerald-500" />
                 </div>
                 <div className="text-center">
-                    <h2 className="text-xl font-bold text-foreground mb-2">Report Saved!</h2>
-                    <p className="text-muted-foreground text-sm">Stored locally. Will sync when online.</p>
+                    <h2 className="text-xl font-bold text-foreground mb-2">{t('rs_report_saved')}</h2>
+                    <p className="text-muted-foreground text-sm">{t('rs_stored_locally')}</p>
                 </div>
             </motion.div>
         );
@@ -100,7 +102,7 @@ function StepperContent() {
                 >
                     <X className="w-5 h-5" />
                 </button>
-                <h1 className="text-sm font-bold text-foreground">Report Activity</h1>
+                <h1 className="text-sm font-bold text-foreground">{t('report_activity')}</h1>
                 <div className="w-10" /> {/* Spacer for centering */}
             </header>
 
@@ -142,7 +144,7 @@ function StepperContent() {
                                                 : 'bg-muted text-muted-foreground border border-transparent scale-95 opacity-50'
                                     )}
                                 >
-                                    {step.icon} {step.label}
+                                    {step.icon} {t(step.label)}
                                 </div>
                             ))}
                         </div>
@@ -178,7 +180,7 @@ function StepperContent() {
                         disabled={currentStepIndex === 0}
                         className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
                     >
-                        <ChevronLeft className="w-5 h-5" /> Back
+                        <ChevronLeft className="w-5 h-5" /> {t('rs_back')}
                     </button>
 
                     {isLastStep() ? (
@@ -189,7 +191,7 @@ function StepperContent() {
                             className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-emerald-500 text-white text-sm font-bold shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
                         >
                             <CheckCircle2 className="w-5 h-5" />
-                            {isSubmitting ? 'Saving...' : 'Submit Offline'}
+                            {isSubmitting ? t('rs_saving') : t('rs_submit_offline')}
                         </button>
                     ) : (
                         <button
@@ -198,7 +200,7 @@ function StepperContent() {
                             disabled={!isStepValid(currentStep)}
                             className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-primary text-primary-foreground text-sm font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
                         >
-                            Continue <ChevronLeft className="w-5 h-5 rotate-180" />
+                            {t('rs_continue')} <ChevronLeft className="w-5 h-5 rotate-180" />
                         </button>
                     )}
                 </div>

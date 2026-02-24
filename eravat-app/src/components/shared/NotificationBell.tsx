@@ -5,6 +5,7 @@ import { NotificationService, type Notification } from '../../services/Notificat
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '../../lib/utils';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export function NotificationBell() {
     const { profile, user } = useAuth();
@@ -12,6 +13,7 @@ export function NotificationBell() {
     const [isOpen, setIsOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const { t } = useLanguage();
 
     useEffect(() => {
         if (!profile || !user) return;
@@ -118,10 +120,10 @@ export function NotificationBell() {
                     >
                         <div className="p-4 border-b border-border/30 flex justify-between items-center bg-background/80 backdrop-blur-md sticky top-0 z-10">
                             <h3 className="font-bold text-foreground flex items-center gap-2">
-                                Notifications
+                                {t('nb_notifications')}
                                 {unreadCount > 0 && (
                                     <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full font-medium">
-                                        {unreadCount} new
+                                        {unreadCount} {t('nb_new')}
                                     </span>
                                 )}
                             </h3>
@@ -130,7 +132,7 @@ export function NotificationBell() {
                                     onClick={handleMarkAllAsRead}
                                     className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
                                 >
-                                    Mark all read
+                                    {t('nb_mark_all_read')}
                                 </button>
                             )}
                         </div>
@@ -139,8 +141,8 @@ export function NotificationBell() {
                             {notifications.length === 0 ? (
                                 <div className="p-8 text-center flex flex-col items-center justify-center text-muted-foreground opacity-60">
                                     <Bell size={32} className="mb-3 opacity-50" />
-                                    <p className="text-sm font-medium">No notifications yet</p>
-                                    <p className="text-xs mt-1">You're all caught up!</p>
+                                    <p className="text-sm font-medium">{t('nb_no_notifications')}</p>
+                                    <p className="text-xs mt-1">{t('nb_all_caught_up')}</p>
                                 </div>
                             ) : (
                                 <div className="divide-y divide-border/20">

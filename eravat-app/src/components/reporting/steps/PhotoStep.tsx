@@ -2,10 +2,12 @@ import { motion } from 'framer-motion';
 import { Camera, X, RefreshCw, ImageIcon } from 'lucide-react';
 import { useActivityForm } from '../../../contexts/ActivityFormContext';
 import { useCamera } from '../../../hooks/useCamera';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 export function PhotoStep() {
     const { formData, updateFormData } = useActivityForm();
     const { takePhoto, isCapturing: loading, error } = useCamera();
+    const { t } = useLanguage();
 
     const handleCapture = async () => {
         const result = await takePhoto();
@@ -19,8 +21,8 @@ export function PhotoStep() {
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
             <div className="text-center space-y-2">
-                <h3 className="font-semibold text-foreground">Photo Evidence</h3>
-                <p className="text-xs text-muted-foreground">Optional — attach a photo of the sighting or evidence</p>
+                <h3 className="font-semibold text-foreground">{t('ps_photo_evidence')}</h3>
+                <p className="text-xs text-muted-foreground">{t('ps_optional_photo')}</p>
             </div>
 
             {formData.photo_url ? (
@@ -47,7 +49,7 @@ export function PhotoStep() {
                             <X className="w-4 h-4" />
                         </button>
                     </div>
-                    <p className="text-xs text-emerald-600 mt-2 text-center">✓ Photo captured and stored locally</p>
+                    <p className="text-xs text-emerald-600 mt-2 text-center">{t('ps_photo_captured')}</p>
                 </div>
             ) : (
                 <div className="glass-card rounded-3xl p-10 flex flex-col items-center gap-6 border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors">
@@ -55,9 +57,9 @@ export function PhotoStep() {
                         <ImageIcon className="w-12 h-12 text-primary" />
                     </div>
                     <div className="text-center space-y-1">
-                        <p className="text-lg font-bold text-foreground">Attach a Photo</p>
+                        <p className="text-lg font-bold text-foreground">{t('ps_attach_photo')}</p>
                         <p className="text-sm text-muted-foreground max-w-[250px]">
-                            A clear picture helps officials verify the details of your report quickly.
+                            {t('ps_photo_desc')}
                         </p>
                     </div>
                     <button
@@ -67,7 +69,7 @@ export function PhotoStep() {
                         className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 shadow-lg shadow-primary/20"
                     >
                         <Camera className="w-5 h-5" />
-                        {loading ? 'Opening Camera...' : 'Take Photo Now'}
+                        {loading ? t('ps_opening_camera') : t('ps_take_photo')}
                     </button>
                     {error && <p className="text-sm font-medium text-destructive mt-2 bg-destructive/10 px-4 py-2 rounded-lg">⚠ {error}</p>}
                 </div>

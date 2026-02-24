@@ -1,11 +1,13 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Settings, HelpCircle, Lock, ChevronRight, Shield, AlertTriangle, MapPin } from 'lucide-react';
+import { LogOut, User, HelpCircle, Lock, ChevronRight, Shield, AlertTriangle, MapPin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function UserProfile() {
     const { user, profile, signOut } = useAuth();
     const navigate = useNavigate();
+    const { t } = useLanguage();
 
     const initials = profile
         ? `${profile.first_name?.charAt(0) ?? ''}${profile.last_name?.charAt(0) ?? ''}`.toUpperCase() || 'U'
@@ -20,10 +22,9 @@ export default function UserProfile() {
         : 'User';
 
     const menuItems = [
-        { id: 'profile', label: 'Edit Profile', icon: User, onClick: () => { } },
-        { id: 'settings', label: 'App Settings', icon: Settings, onClick: () => navigate('/settings') },
-        { id: 'privacy', label: 'Privacy & Security', icon: Lock, onClick: () => navigate('/privacy') },
-        { id: 'help', label: 'Help & Support', icon: HelpCircle, onClick: () => navigate('/help') },
+        { id: 'profile', label: t('edit_profile'), icon: User, onClick: () => navigate('/edit-profile') },
+        { id: 'privacy', label: t('privacy_security'), icon: Lock, onClick: () => navigate('/privacy') },
+        { id: 'help', label: t('help_support'), icon: HelpCircle, onClick: () => navigate('/help') },
     ];
 
     const handleLogout = async () => {
@@ -66,7 +67,7 @@ export default function UserProfile() {
                     </div>
                 ) : profile?.role && profile.role !== 'admin' && profile.role !== 'volunteer' ? (
                     <div className="text-xs text-destructive font-medium flex items-center justify-center gap-1">
-                        <AlertTriangle size={12} /> Territory Not Assigned
+                        <AlertTriangle size={12} /> {t('territory_not_assigned')}
                     </div>
                 ) : null}
             </motion.div>
@@ -95,7 +96,7 @@ export default function UserProfile() {
                     <div className="w-10 h-10 rounded-2xl bg-destructive/10 flex items-center justify-center">
                         <LogOut size={20} />
                     </div>
-                    <span className="flex-1 text-sm font-semibold">Sign Out</span>
+                    <span className="flex-1 text-sm font-semibold">{t('sign_out')}</span>
                 </button>
             </motion.div>
         </div>

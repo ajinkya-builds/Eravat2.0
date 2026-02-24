@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Compass, Navigation, RefreshCw, Lock, Unlock } from 'lucide-react';
 import { useActivityForm } from '../../../contexts/ActivityFormContext';
 import { cn } from '../../../lib/utils';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 export function CompassBearingStep() {
     const { formData, updateFormData } = useActivityForm();
@@ -10,6 +11,7 @@ export function CompassBearingStep() {
     const [isTracking, setIsTracking] = useState(false);
     const [isLocked, setIsLocked] = useState(false);
     const [permissionError, setPermissionError] = useState<string | null>(null);
+    const { t } = useLanguage();
     const listenerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
 
     const handleOrientation = (event: DeviceOrientationEvent) => {
@@ -82,8 +84,8 @@ export function CompassBearingStep() {
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
             <div className="text-center space-y-2">
-                <h3 className="font-semibold text-foreground">Compass Bearing</h3>
-                <p className="text-xs text-muted-foreground">Record the direction toward the observed elephant</p>
+                <h3 className="font-semibold text-foreground">{t('cb_compass_bearing')}</h3>
+                <p className="text-xs text-muted-foreground">{t('cb_record_direction')}</p>
             </div>
 
             {/* Compass Rose */}
@@ -113,7 +115,7 @@ export function CompassBearingStep() {
             <div className="text-center">
                 <span className="text-5xl font-bold text-foreground tabular-nums">{displayHeading}°</span>
                 <p className="text-xs text-muted-foreground mt-1">
-                    {isTracking ? (isLocked ? 'Bearing locked' : 'Live tracking...') : 'Manual or device tracking'}
+                    {isTracking ? (isLocked ? t('cb_bearing_locked') : t('cb_live_tracking')) : t('cb_manual_tracking')}
                 </p>
             </div>
 
@@ -125,7 +127,7 @@ export function CompassBearingStep() {
                         onClick={startTracking}
                         className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
                     >
-                        <Compass className="w-4 h-4" /> Start Live Tracking
+                        <Compass className="w-4 h-4" /> {t('cb_start_tracking')}
                     </button>
                 ) : (
                     <>
@@ -134,14 +136,14 @@ export function CompassBearingStep() {
                             onClick={() => { setIsLocked((l: boolean) => !l); if (!isLocked) updateFormData({ compass_bearing: heading ?? 0 }); }}
                             className="flex items-center gap-2 px-4 py-2 rounded-xl glass-card border border-border text-sm font-medium"
                         >
-                            {isLocked ? <><Unlock className="w-4 h-4" /> Unlock</> : <><Lock className="w-4 h-4" /> Lock</>}
+                            {isLocked ? <><Unlock className="w-4 h-4" /> {t('cb_unlock')}</> : <><Lock className="w-4 h-4" /> {t('cb_lock')}</>}
                         </button>
                         <button
                             type="button"
                             onClick={stopTracking}
                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/70 transition-colors"
                         >
-                            Stop
+                            {t('cb_stop')}
                         </button>
                     </>
                 )}
@@ -150,7 +152,7 @@ export function CompassBearingStep() {
             {/* Manual entry */}
             <div className="glass-card rounded-2xl p-4 space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4" /> Manual Entry (0–360°)
+                    <RefreshCw className="w-4 h-4" /> {t('cb_manual_entry')}
                 </label>
                 <input
                     type="number"
@@ -166,7 +168,7 @@ export function CompassBearingStep() {
                         }
                     }}
                     className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    placeholder="Enter degrees 0–360"
+                    placeholder={t('cb_enter_degrees')}
                 />
             </div>
 

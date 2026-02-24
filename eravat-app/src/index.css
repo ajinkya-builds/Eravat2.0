@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* Colors - Premium Dynamic HSL System */
   
@@ -88,6 +90,43 @@
   }
 }
 
+/* ─── Dark Theme Overrides ─────────────────────────────────────────────────── */
+.dark {
+  --color-background: hsl(222, 47%, 6%);
+  --color-foreground: hsl(210, 40%, 96%);
+
+  --color-card: hsl(222, 47%, 10%);
+  --color-card-foreground: hsl(210, 40%, 96%);
+
+  --color-popover: hsl(222, 47%, 10%);
+  --color-popover-foreground: hsl(210, 40%, 96%);
+
+  --color-primary: hsl(152, 60%, 46%);
+  --color-primary-foreground: hsl(210, 40%, 98%);
+
+  --color-secondary: hsl(214, 30%, 55%);
+  --color-secondary-foreground: hsl(210, 40%, 98%);
+
+  --color-accent: hsl(152, 40%, 14%);
+  --color-accent-foreground: hsl(152, 60%, 70%);
+
+  --color-muted: hsl(217, 33%, 14%);
+  --color-muted-foreground: hsl(215, 20%, 60%);
+
+  --color-border: hsl(217, 33%, 20%);
+  --color-input: hsl(217, 33%, 20%);
+  --color-ring: hsl(152, 60%, 46%);
+
+  --color-destructive: hsl(0, 62%, 50%);
+  --color-destructive-foreground: hsl(210, 40%, 98%);
+
+  --color-warning: hsl(38, 92%, 50%);
+  --color-warning-foreground: hsl(210, 40%, 98%);
+
+  --color-success: hsl(144, 60%, 46%);
+  --color-success-foreground: hsl(210, 40%, 98%);
+}
+
 /* Base Global Styles */
 @layer base {
   * {
@@ -98,6 +137,10 @@
     /* Soft premium background pattern */
     background-image: radial-gradient(circle at 50% 0%, hsla(152, 60%, 46%, 0.05) 0%, transparent 70%);
     background-attachment: fixed;
+  }
+  .dark body,
+  body:where(.dark *) {
+    background-image: radial-gradient(circle at 50% 0%, hsla(152, 60%, 46%, 0.03) 0%, transparent 70%);
   }
 }
 

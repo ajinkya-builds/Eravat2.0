@@ -7,12 +7,14 @@ import { cn } from '../lib/utils';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import elephantLogo from '../../public/elephant-logo.png';
 
 export default function Dashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
     const navigate = useNavigate();
     const { profile } = useAuth();
+    const { t } = useLanguage();
 
     const pendingCount = useLiveQuery(
         () => db.reports.where('sync_status').equals('pending').count(),
@@ -42,7 +44,7 @@ export default function Dashboard() {
                     <div className="w-24 h-24 sm:w-28 sm:h-28 mb-4 relative flex items-center justify-center overflow-visible">
                         <img src={elephantLogo} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
                     </div>
-                    <h2 className="text-xl font-bold tracking-tight text-foreground z-10 relative">Wild Elephant Monitoring System</h2>
+                    <h2 className="text-xl font-bold tracking-tight text-foreground z-10 relative">{t('wild_elephant_monitoring')}</h2>
                     <p className="text-muted-foreground mt-2 text-[15px] font-medium z-10 relative">जंगली हाथी निगरानी प्रणाली (2025)</p>
                 </div>
 
@@ -52,8 +54,8 @@ export default function Dashboard() {
                     className="mb-8"
                 >
                     <div className="space-y-2">
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome Back</h1>
-                        <p className="text-muted-foreground">What would you like to do today?</p>
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('welcome_back')}</h1>
+                        <p className="text-muted-foreground">{t('what_to_do')}</p>
                     </div>
                 </motion.div>
 
@@ -70,8 +72,8 @@ export default function Dashboard() {
                                     <CloudOff size={20} />
                                 </div>
                                 <div>
-                                    <p className="font-bold text-foreground">{pendingCount} Pending Reports</p>
-                                    <p className="text-xs text-muted-foreground">Waiting for internet connection</p>
+                                    <p className="font-bold text-foreground">{pendingCount} {t('pending_reports')}</p>
+                                    <p className="text-xs text-muted-foreground">{t('waiting_network')}</p>
                                 </div>
                             </div>
                             <button
@@ -101,9 +103,9 @@ export default function Dashboard() {
                             <Activity size={24} />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-foreground mb-1">Report Activity</h2>
+                            <h2 className="text-2xl font-bold text-foreground mb-1">{t('report_activity')}</h2>
                             <p className="text-sm text-muted-foreground font-medium flex items-center gap-1 group-hover:text-primary transition-colors">
-                                Log sightings or conflicts <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                                {t('log_sightings')} <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                             </p>
                         </div>
                     </motion.button>
@@ -121,8 +123,8 @@ export default function Dashboard() {
                                 <User size={20} />
                             </div>
                             <div>
-                                <h3 className="font-bold text-foreground">My Profile</h3>
-                                <p className="text-xs text-muted-foreground mt-0.5">View details</p>
+                                <h3 className="font-bold text-foreground">{t('my_profile')}</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">{t('view_details')}</p>
                             </div>
                         </motion.button>
 
@@ -137,8 +139,8 @@ export default function Dashboard() {
                                 <History size={20} />
                             </div>
                             <div>
-                                <h3 className="font-bold text-foreground">History</h3>
-                                <p className="text-xs text-muted-foreground mt-0.5">Past reports</p>
+                                <h3 className="font-bold text-foreground">{t('history')}</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">{t('past_reports')}</p>
                             </div>
                         </motion.button>
                     </div>
@@ -157,8 +159,8 @@ export default function Dashboard() {
                                     <ShieldCheck size={28} />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-foreground">Command Center</h2>
-                                    <p className="text-sm text-muted-foreground">Access state-wide administration</p>
+                                    <h2 className="text-xl font-bold text-foreground">{t('command_center')}</h2>
+                                    <p className="text-sm text-muted-foreground">{t('access_admin')}</p>
                                 </div>
                             </div>
                             <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all relative z-10" />

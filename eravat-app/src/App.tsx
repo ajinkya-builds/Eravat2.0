@@ -4,7 +4,10 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ReportActivityPage from './pages/ReportActivityPage';
 import UserProfile from './pages/UserProfile';
+import EditProfile from './pages/EditProfile';
 import Settings from './pages/Settings';
+import PrivacySecurity from './pages/PrivacySecurity';
+import HelpSupport from './pages/HelpSupport';
 import { AdminLayout } from './layouts/admin/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
@@ -13,6 +16,8 @@ import AdminSettings from './pages/admin/AdminSettings';
 import AdminDivisions from './pages/admin/AdminDivisions';
 import TerritoryHistory from './pages/TerritoryHistory';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useEffect } from 'react';
 import { Network } from '@capacitor/network';
@@ -33,6 +38,8 @@ function NetworkSync() {
 
 function App() {
   return (
+    <ThemeProvider>
+    <LanguageProvider>
     <AuthProvider>
       <NetworkSync />
       <BrowserRouter>
@@ -49,8 +56,9 @@ function App() {
               <Route path="/history" element={<TerritoryHistory />} />
               <Route path="/map" element={<div className="p-8 text-center text-muted-foreground mt-20">Map Component Coming Soon</div>} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/privacy" element={<div className="p-8 text-center text-muted-foreground mt-20">Privacy Policy Coming Soon</div>} />
-              <Route path="/help" element={<div className="p-8 text-center text-muted-foreground mt-20">Help & Support Coming Soon</div>} />
+              <Route path="/edit-profile" element={<EditProfile />} />
+              <Route path="/privacy" element={<PrivacySecurity />} />
+              <Route path="/help" element={<HelpSupport />} />
             </Route>
 
             {/* Admin Navigation Branch */}
@@ -68,6 +76,8 @@ function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </LanguageProvider>
+    </ThemeProvider>
   );
 }
 

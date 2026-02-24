@@ -5,6 +5,7 @@ import {
     AlertTriangle, Check, Building2, TreePine, Shield, Search, X
 } from 'lucide-react';
 import { supabase } from '../../supabase';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -247,6 +248,7 @@ export default function AdminDivisions() {
     const [expandedRanges, setExpandedRanges] = useState<Set<string>>(new Set());
     const [savingState, setSavingState] = useState<SaveState>({});
     const [globalSearch, setGlobalSearch] = useState('');
+    const { t } = useLanguage();
 
     // ── Fetch ────────────────────────────────────────────────────────────────
 
@@ -431,8 +433,8 @@ export default function AdminDivisions() {
                         <Layers size={20} className="text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground">Divisions & Contacts</h1>
-                        <p className="text-muted-foreground text-xs mt-0.5">Assign primary officers to each Division, Range, and Beat.</p>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground">{t('admin_divisions_contacts')}</h1>
+                        <p className="text-muted-foreground text-xs mt-0.5">{t('ad_assign_officers')}</p>
                     </div>
                 </div>
 
@@ -442,7 +444,7 @@ export default function AdminDivisions() {
                     <input
                         value={globalSearch}
                         onChange={e => setGlobalSearch(e.target.value)}
-                        placeholder="Filter territories…"
+                        placeholder={t('ad_filter_territories')}
                         className="w-full pl-9 pr-3 py-2 text-sm bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                     {globalSearch && (
@@ -456,9 +458,9 @@ export default function AdminDivisions() {
             {/* Legend pills */}
             <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
                 {[
-                    { icon: Building2, label: 'Division → DFO', cls: 'bg-violet-500/10 text-violet-600' },
-                    { icon: MapPin, label: 'Range → Range Officer', cls: 'bg-blue-500/10 text-blue-600' },
-                    { icon: TreePine, label: 'Beat → Beat Guard', cls: 'bg-emerald-500/10 text-emerald-600' },
+                    { icon: Building2, label: t('ad_division_dfo'), cls: 'bg-violet-500/10 text-violet-600' },
+                    { icon: MapPin, label: t('ad_range_officer'), cls: 'bg-blue-500/10 text-blue-600' },
+                    { icon: TreePine, label: t('ad_beat_guard'), cls: 'bg-emerald-500/10 text-emerald-600' },
                 ].map(({ icon: Icon, label, cls }) => (
                     <span key={label} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${cls}`}>
                         <Icon size={11} /> {label}
@@ -477,21 +479,21 @@ export default function AdminDivisions() {
             {loading ? (
                 <div className="flex flex-col items-center gap-3 py-20">
                     <Loader2 className="animate-spin text-primary" size={28} />
-                    <p className="text-sm text-muted-foreground">Loading territory data…</p>
+                    <p className="text-sm text-muted-foreground">{t('ad_loading')}</p>
                 </div>
             ) : filteredDivisions.length === 0 ? (
                 <div className="glass-card rounded-2xl p-12 text-center text-muted-foreground">
                     <Layers size={36} className="mx-auto mb-3 opacity-30" />
-                    <p className="font-medium">{globalSearch ? 'No territories match your search.' : 'No divisions found.'}</p>
+                    <p className="font-medium">{globalSearch ? t('ad_no_match') : t('ad_no_divisions')}</p>
                 </div>
             ) : (
                 <div className="glass-card rounded-2xl overflow-hidden border border-border/50">
                     <table className="w-full border-collapse text-sm">
                         <thead>
                             <tr className="bg-muted/50 border-b border-border">
-                                <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Territory</th>
-                                <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-32">Role</th>
-                                <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-64">Primary Contact</th>
+                                <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{t('au_territory')}</th>
+                                <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-32">{t('au_role')}</th>
+                                <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-64">{t('ad_primary_contact')}</th>
                                 <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-20"></th>
                             </tr>
                         </thead>

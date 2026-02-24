@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import elephantLogo from '../../public/elephant-logo.png';
 
 export default function Login() {
@@ -12,6 +13,7 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { t } = useLanguage();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -57,7 +59,7 @@ export default function Login() {
                             transition={{ delay: 0.3 }}
                             className="text-center mb-10 z-10 relative"
                         >
-                            <h2 className="text-xl font-bold tracking-tight text-foreground">Wild Elephant Monitoring System</h2>
+                            <h2 className="text-xl font-bold tracking-tight text-foreground">{t('wild_elephant_monitoring')}</h2>
                             <p className="text-muted-foreground mt-2 text-[15px] font-medium">जंगली हाथी निगरानी प्रणाली (2025)</p>
                         </motion.div>
                     </div>
@@ -68,8 +70,8 @@ export default function Login() {
                         transition={{ delay: 0.4 }}
                         className="text-center mb-8"
                     >
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">Welcome Back</h1>
-                        <p className="text-muted-foreground text-sm">Enter your credentials to access the field dashboard.</p>
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">{t('welcome_back')}</h1>
+                        <p className="text-muted-foreground text-sm">{t('login_subtitle')}</p>
                     </motion.div>
 
                     {error && (
@@ -138,7 +140,7 @@ export default function Login() {
                                 <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                             ) : (
                                 <>
-                                    Sign In
+                                    {t('sign_in')}
                                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                 </>
                             )}

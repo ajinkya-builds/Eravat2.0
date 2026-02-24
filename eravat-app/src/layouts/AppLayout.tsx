@@ -2,20 +2,22 @@ import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Map, Plus, Settings, User } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useLanguage } from '../contexts/LanguageContext';
 import { NotificationBell } from '../components/shared/NotificationBell';
 import elephantLogo from '../../public/elephant-logo.png';
 
 const NAV_ITEMS = [
-    { id: 'dashboard', path: '/', icon: Home, label: 'Home' },
-    { id: 'map', path: '/map', icon: Map, label: 'Map' },
-    { id: 'report', path: '/report', icon: Plus, label: 'Report', isFloating: true },
-    { id: 'profile', path: '/profile', icon: User, label: 'Profile' },
-    { id: 'settings', path: '/settings', icon: Settings, label: 'Settings' },
+    { id: 'dashboard', path: '/', icon: Home, label: 'home' },
+    { id: 'map', path: '/map', icon: Map, label: 'map' },
+    { id: 'report', path: '/report', icon: Plus, label: 'report', isFloating: true },
+    { id: 'profile', path: '/profile', icon: User, label: 'profile' },
+    { id: 'settings', path: '/settings', icon: Settings, label: 'settings' },
 ];
 
 export function AppLayout() {
     const location = useLocation();
     const navigate = useNavigate();
+    const { t } = useLanguage();
 
     // We hide nav on auth pages
     // We hide nav on auth pages
@@ -110,7 +112,7 @@ export function AppLayout() {
                                                 isActive ? "text-primary opacity-100" : "text-muted-foreground opacity-70"
                                             )}
                                         >
-                                            {item.label}
+                                            {t(item.label)}
                                         </span>
                                     </button>
                                 );

@@ -3,21 +3,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutDashboard, Users, Activity, Settings, LogOut, Menu, X, Layers } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { NotificationBell } from '../../components/shared/NotificationBell';
 import elephantLogo from '../../../public/elephant-logo.png';
 
 const ADMIN_NAV = [
-    { id: 'overview', path: '/admin', icon: LayoutDashboard, label: 'Overview' },
-    { id: 'users', path: '/admin/users', icon: Users, label: 'Manage Personnel' },
-    { id: 'divisions', path: '/admin/divisions', icon: Layers, label: 'Divisions & Contacts' },
-    { id: 'observations', path: '/admin/observations', icon: Activity, label: 'Observations' },
-    { id: 'settings', path: '/admin/settings', icon: Settings, label: 'System Settings' },
+    { id: 'overview', path: '/admin', icon: LayoutDashboard, label: 'admin_overview' },
+    { id: 'users', path: '/admin/users', icon: Users, label: 'admin_manage_personnel' },
+    { id: 'divisions', path: '/admin/divisions', icon: Layers, label: 'admin_divisions_contacts' },
+    { id: 'observations', path: '/admin/observations', icon: Activity, label: 'admin_observations' },
+    { id: 'settings', path: '/admin/settings', icon: Settings, label: 'admin_system_settings' },
 ];
 
 export function AdminLayout() {
     const location = useLocation();
     const navigate = useNavigate();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const { t } = useLanguage();
 
     return (
         <div className="h-screen bg-background flex flex-col md:flex-row overflow-hidden relative">
@@ -54,7 +56,7 @@ export function AdminLayout() {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold leading-tight bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT <span className="text-primary font-light">2.0</span></h1>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Command Center</p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('command_center')}</p>
                         </div>
                     </Link>
                 </div>
@@ -79,7 +81,7 @@ export function AdminLayout() {
                                 )}
                             >
                                 <Icon size={18} className={cn(isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground")} />
-                                <span className="relative z-10">{item.label}</span>
+                                <span className="relative z-10">{t(item.label)}</span>
 
                                 {isActive && (
                                     <motion.div
@@ -99,7 +101,7 @@ export function AdminLayout() {
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 transition-colors font-medium text-sm"
                     >
                         <LogOut size={18} />
-                        Exit Dashboard
+                        {t('exit_dashboard')}
                     </button>
                 </div>
             </aside>

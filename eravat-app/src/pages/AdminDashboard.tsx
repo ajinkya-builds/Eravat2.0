@@ -6,6 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { MapComponent, type ReportPoint } from '../components/shared/MapComponent';
 import { format, subHours, isToday } from 'date-fns';
 import { NotificationBell } from '../components/shared/NotificationBell';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,8 @@ export default function AdminDashboard() {
   // Maps & Feeds
   const [recentReports, setRecentReports] = useState<any[]>([]);
   const [mapPoints, setMapPoints] = useState<ReportPoint[]>([]);
+
+  const { t } = useLanguage();
 
   useEffect(() => {
     fetchDashboardData();
@@ -160,14 +163,14 @@ export default function AdminDashboard() {
         className="flex flex-col md:flex-row md:items-end justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Overview</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Real-time pulse of patrol activity and sightings.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('admin_overview')}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{t('realtime_pulse')}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex gap-2">
             <div className="px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full text-xs font-semibold flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              System Online {loading && '(Syncing...)'}
+              {t('system_online')} {loading && '(Syncing...)'}
             </div>
           </div>
           <NotificationBell />
@@ -176,10 +179,10 @@ export default function AdminDashboard() {
 
       {/* Top Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard delay={0.1} title="Sightings Today" value={sightingsToday} trend="Live Tracking" icon={Activity} color="emerald" />
-        <StatCard delay={0.2} title="Active Conflicts" value={activeConflicts} trend="Requires attention" icon={AlertTriangle} color="destructive" />
-        <StatCard delay={0.3} title="Guards on Patrol" value={guardsOnPatrol} trend="Estimates coverage" icon={ShieldCheck} color="primary" />
-        <StatCard delay={0.4} title="Total Personnel" value={totalPersonnel} trend="Across all beats" icon={Users} color="muted" />
+        <StatCard delay={0.1} title={t('sightings_today')} value={sightingsToday} trend={t('live_tracking')} icon={Activity} color="emerald" />
+        <StatCard delay={0.2} title={t('active_conflicts')} value={activeConflicts} trend={t('requires_attention')} icon={AlertTriangle} color="destructive" />
+        <StatCard delay={0.3} title={t('guards_on_patrol')} value={guardsOnPatrol} trend={t('estimates_coverage')} icon={ShieldCheck} color="primary" />
+        <StatCard delay={0.4} title={t('total_personnel')} value={totalPersonnel} trend={t('across_all_beats')} icon={Users} color="muted" />
       </div>
 
       {/* Map Area */}
@@ -198,7 +201,7 @@ export default function AdminDashboard() {
           transition={{ delay: 0.5 }}
           className="lg:col-span-2 glass-card rounded-2xl p-6"
         >
-          <h3 className="text-lg font-bold mb-6">Observation Frequency (Last 12h)</h3>
+          <h3 className="text-lg font-bold mb-6">{t('observation_frequency')}</h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={hourlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -227,12 +230,12 @@ export default function AdminDashboard() {
           transition={{ delay: 0.6 }}
           className="glass-card rounded-2xl p-6 flex flex-col"
         >
-          <h3 className="text-lg font-bold mb-4">Recent Alerts</h3>
+          <h3 className="text-lg font-bold mb-4">{t('recent_alerts')}</h3>
           <div className="flex-1 overflow-y-auto space-y-4 no-scrollbar min-h-[300px]">
             {recentReports.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-50">
                 <ShieldCheck size={48} className="mb-2" />
-                <p>No recent alerts.</p>
+                <p>{t('no_recent_alerts')}</p>
               </div>
             ) : recentReports.map((alert) => (
               <div key={alert.id} className="p-3 rounded-xl bg-muted/50 border border-border flex gap-3 items-start">
@@ -241,7 +244,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-foreground">
-                    {alert.type === 'loss' ? 'Conflict Reported' : (alert.type === 'indirect' ? 'Indirect Sign Logged' : 'Direct Sighting Logged')}
+                    {alert.type === 'loss' ? t('conflict_reported') : (alert.type === 'indirect' ? t('indirect_sign_logged') : t('direct_sighting_logged'))}
                   </p>
                   <p className="text-xs text-muted-foreground">{alert.beatName} • {alert.userName}</p>
                 </div>

@@ -2,23 +2,31 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, TreePine, AlertTriangle } from 'lucide-react';
 import { useActivityForm } from '../../../contexts/ActivityFormContext';
 import type { ObservationType, IndirectSightingType, LossType } from '../../../types/activity-report';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 const OBSERVATION_TYPES = [
-    { value: 'direct' as ObservationType, label: 'Direct Sighting', description: 'You directly saw elephants', icon: Eye, color: 'emerald' },
-    { value: 'indirect' as ObservationType, label: 'Indirect Sign', description: 'Evidence of elephant presence', icon: TreePine, color: 'amber' },
-    { value: 'loss' as ObservationType, label: 'Loss / Damage', description: 'Reported damage or loss', icon: AlertTriangle, color: 'destructive' },
+    { value: 'direct' as ObservationType, label: 'ot_direct_sighting', description: 'ot_direct_desc', icon: Eye, color: 'emerald' },
+    { value: 'indirect' as ObservationType, label: 'ot_indirect_sign', description: 'ot_indirect_desc', icon: TreePine, color: 'amber' },
+    { value: 'loss' as ObservationType, label: 'ot_loss_damage', description: 'ot_loss_desc', icon: AlertTriangle, color: 'destructive' },
 ];
 
 const INDIRECT_TYPES: IndirectSightingType[] = ['Pugmark', 'Dung', 'Broken Branches', 'Sound', 'Eyewitness'];
+const INDIRECT_TYPE_KEYS: Record<string, string> = {
+    'Pugmark': 'it_pugmark',
+    'Dung': 'it_dung',
+    'Broken Branches': 'it_broken_branches',
+    'Sound': 'it_sound',
+    'Eyewitness': 'it_eyewitness',
+};
 const LOSS_TYPES: { value: LossType; label: string }[] = [
-    { value: 'No loss', label: 'No Loss' },
-    { value: 'crop', label: 'Crop Damage' },
-    { value: 'livestock', label: 'Livestock Loss' },
-    { value: 'property', label: 'Property Damage' },
-    { value: 'fencing', label: 'Fencing Damage' },
-    { value: 'solar panels', label: 'Solar Panel Damage' },
-    { value: 'FD establishment', label: 'FD Establishment' },
-    { value: 'Other', label: 'Other' },
+    { value: 'No loss', label: 'lt_no_loss' },
+    { value: 'crop', label: 'lt_crop' },
+    { value: 'livestock', label: 'lt_livestock' },
+    { value: 'property', label: 'lt_property' },
+    { value: 'fencing', label: 'lt_fencing' },
+    { value: 'solar panels', label: 'lt_solar' },
+    { value: 'FD establishment', label: 'lt_fd' },
+    { value: 'Other', label: 'lt_other' },
 ];
 
 import { Plus, Minus } from 'lucide-react';
@@ -52,6 +60,7 @@ function CounterInput({ label, field, value, onChange }: { label: string; field:
 
 export function ObservationTypeStep() {
     const { formData, updateFormData } = useActivityForm();
+    const { t } = useLanguage();
 
     const handleNumberChange = (field: string, value: number) => {
         updateFormData({ [field]: value } as never);
@@ -61,7 +70,7 @@ export function ObservationTypeStep() {
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
             {/* Type Selection */}
             <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Type of Observation <span className="text-destructive">*</span></label>
+                <label className="text-sm font-medium text-foreground">{t('ot_type_of_observation')} <span className="text-destructive">*</span></label>
                 <div className="grid grid-cols-1 gap-3">
                     {OBSERVATION_TYPES.map(({ value, label, description, icon: Icon, color }) => {
                         const isSelected = formData.observation_type === value;
@@ -86,8 +95,8 @@ export function ObservationTypeStep() {
                                     <Icon className={`w-5 h-5 ${isSelected ? iconColorMap[color] : 'text-muted-foreground'}`} />
                                 </div>
                                 <div>
-                                    <p className="font-semibold text-sm">{label}</p>
-                                    <p className="text-xs text-muted-foreground">{description}</p>
+                                    <p className="font-semibold text-sm">{t(label)}</p>
+                                    <p className="text-xs text-muted-foreground">{t(description)}</p>
                                 </div>
                             </button>
                         );
@@ -100,14 +109,14 @@ export function ObservationTypeStep() {
                 {formData.observation_type === 'direct' && (
                     <motion.div key="direct" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                         className="glass-card rounded-2xl p-4 space-y-4">
-                        <h4 className="font-semibold text-sm">Elephant Count Details</h4>
+                        <h4 className="font-semibold text-sm">{t('ot_elephant_count')}</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <CounterInput label="Total" field="total_elephants" value={formData.total_elephants} onChange={handleNumberChange} />
-                            <CounterInput label="Adult Male" field="male_count" value={formData.male_count} onChange={handleNumberChange} />
-                            <CounterInput label="Adult Female" field="female_count" value={formData.female_count} onChange={handleNumberChange} />
-                            <CounterInput label="Calves" field="calf_count" value={formData.calf_count} onChange={handleNumberChange} />
+                            <CounterInput label={t('ot_total')} field="total_elephants" value={formData.total_elephants} onChange={handleNumberChange} />
+                            <CounterInput label={t('ot_adult_male')} field="male_count" value={formData.male_count} onChange={handleNumberChange} />
+                            <CounterInput label={t('ot_adult_female')} field="female_count" value={formData.female_count} onChange={handleNumberChange} />
+                            <CounterInput label={t('ot_calves')} field="calf_count" value={formData.calf_count} onChange={handleNumberChange} />
                             <div className="md:col-span-2">
-                                <CounterInput label="Unknown / Unidentified" field="unknown_count" value={formData.unknown_count} onChange={handleNumberChange} />
+                                <CounterInput label={t('ot_unknown')} field="unknown_count" value={formData.unknown_count} onChange={handleNumberChange} />
                             </div>
                         </div>
                     </motion.div>
@@ -116,7 +125,7 @@ export function ObservationTypeStep() {
                 {formData.observation_type === 'indirect' && (
                     <motion.div key="indirect" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                         className="glass-card rounded-2xl p-4 space-y-3">
-                        <h4 className="font-semibold text-sm">Type of Indirect Sign <span className="text-destructive">*</span></h4>
+                        <h4 className="font-semibold text-sm">{t('ot_indirect_sign_type')} <span className="text-destructive">*</span></h4>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                             {INDIRECT_TYPES.map(type => {
                                 const isSelected = formData.indirect_sign_details.includes(type);
@@ -133,7 +142,7 @@ export function ObservationTypeStep() {
                                         }}
                                         className={`px-3 py-2 rounded-xl text-sm font-medium border transition-all ${isSelected ? 'bg-amber-500/20 border-amber-500 text-amber-600 shadow-sm shadow-amber-500/20 scale-100' : 'border-border bg-background hover:bg-muted scale-[0.98]'}`}
                                     >
-                                        {type}
+                                        {t(INDIRECT_TYPE_KEYS[type] || type)}
                                     </button>
                                 )
                             })}
@@ -144,7 +153,7 @@ export function ObservationTypeStep() {
                 {formData.observation_type === 'loss' && (
                     <motion.div key="loss" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                         className="glass-card rounded-2xl p-4 space-y-3">
-                        <h4 className="font-semibold text-sm">Type of Loss <span className="text-destructive">*</span></h4>
+                        <h4 className="font-semibold text-sm">{t('ot_loss_type')} <span className="text-destructive">*</span></h4>
                         <div className="grid grid-cols-2 gap-2">
                             {LOSS_TYPES.map(({ value, label }) => {
                                 const isSelected = formData.loss_type.includes(value);
@@ -155,13 +164,13 @@ export function ObservationTypeStep() {
                                         onClick={() => {
                                             const current = [...formData.loss_type];
                                             const next = current.includes(value)
-                                                ? current.filter(t => t !== value)
+                                                ? current.filter(v => v !== value)
                                                 : [...current, value];
                                             updateFormData({ loss_type: next });
                                         }}
                                         className={`px-3 py-2 rounded-xl text-sm font-medium border text-left transition-all ${isSelected ? 'bg-destructive/10 border-destructive text-destructive shadow-sm shadow-destructive/20 scale-100' : 'border-border bg-background hover:bg-muted scale-[0.98]'}`}
                                     >
-                                        {label}
+                                        {t(label)}
                                     </button>
                                 );
                             })}

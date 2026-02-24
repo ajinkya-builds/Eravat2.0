@@ -3,10 +3,12 @@ import { motion } from 'framer-motion';
 import { Clock, MapPin, RefreshCw, Loader2 } from 'lucide-react';
 import { useActivityForm } from '../../../contexts/ActivityFormContext';
 import { useGeolocation } from '../../../hooks/useGeolocation';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 export function DateTimeLocationStep() {
     const { formData, updateFormData } = useActivityForm();
     const { fetchLocation, loading: gpsLoading, error: gpsError } = useGeolocation();
+    const { t } = useLanguage();
 
     const handleAutofill = async () => {
         // Set current date and time
@@ -49,7 +51,7 @@ export function DateTimeLocationStep() {
                     className="w-full flex items-center justify-center gap-2 px-6 py-4 text-sm font-semibold glass-card border-primary/20 bg-primary/5 rounded-2xl hover:bg-primary/10 text-primary disabled:opacity-50 transition-colors shadow-sm"
                 >
                     {gpsLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                    Get Location, Date &amp; Time
+                    {t('dtl_get_location')}
                 </button>
             </div>
 
@@ -58,7 +60,7 @@ export function DateTimeLocationStep() {
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                         <Clock className="w-4 h-4 text-muted-foreground" />
-                        Date <span className="text-destructive">*</span>
+                        {t('dtl_date')} <span className="text-destructive">*</span>
                     </label>
                     <input
                         type="date"
@@ -73,7 +75,7 @@ export function DateTimeLocationStep() {
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                         <Clock className="w-4 h-4 text-muted-foreground" />
-                        Time <span className="text-destructive">*</span>
+                        {t('dtl_time')} <span className="text-destructive">*</span>
                     </label>
                     <input
                         type="time"
@@ -89,11 +91,11 @@ export function DateTimeLocationStep() {
             <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
-                    GPS Location <span className="text-destructive">*</span>
+                    {t('dtl_gps_location')} <span className="text-destructive">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Latitude</label>
+                        <label className="text-xs text-muted-foreground mb-1 block">{t('dtl_latitude')}</label>
                         <input
                             type="number"
                             step="any"
@@ -104,7 +106,7 @@ export function DateTimeLocationStep() {
                         />
                     </div>
                     <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Longitude</label>
+                        <label className="text-xs text-muted-foreground mb-1 block">{t('dtl_longitude')}</label>
                         <input
                             type="number"
                             step="any"
@@ -122,7 +124,7 @@ export function DateTimeLocationStep() {
                 )}
                 {formData.latitude && formData.longitude && (
                     <p className="text-xs text-emerald-600 mt-1">
-                        ✓ Location acquired: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
+                        ✓ {t('dtl_location_acquired')}: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
                     </p>
                 )}
             </div>

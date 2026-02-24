@@ -1,262 +1,228 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, MapPin, CheckCircle, AlertCircle, Loader2, Radio } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../supabase';
+import { useNavigate } from 'react-router-dom';
+import {
+    ArrowLeft, Palette, Globe, HardDrive, Bell, Sun, Moon, Monitor,
+    ChevronDown, Trash2,
+} from 'lucide-react';
+import { useTheme, type Theme } from '../contexts/ThemeContext';
+import { useLanguage, LANGUAGES } from '../contexts/LanguageContext';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Toggle Switch ───────────────────────────────────────────────────────────
 
-type SaveState = 'idle' | 'saving' | 'saved' | 'error';
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const MIN_KM = 1;
-const MAX_KM = 100;
-const DEBOUNCE_MS = 800;
-
-function clamp(v: number) {
-    return Math.min(MAX_KM, Math.max(MIN_KM, v));
-}
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-function RadiusSlider({
-    value,
-    onChange,
-}: {
-    value: number;
-    onChange: (v: number) => void;
-}) {
-    const pct = ((value - MIN_KM) / (MAX_KM - MIN_KM)) * 100;
-
+function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
     return (
-        <div className="space-y-3">
-            {/* Track */}
-            <div className="relative h-2 rounded-full bg-muted overflow-visible">
-                {/* Filled portion */}
-                <div
-                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-emerald-400 transition-all duration-150"
-                    style={{ width: `${pct}%` }}
-                />
-                {/* Native input for accessibility & drag */}
-                <input
-                    id="radius-slider"
-                    type="range"
-                    min={MIN_KM}
-                    max={MAX_KM}
-                    step={1}
-                    value={value}
-                    onChange={e => onChange(Number(e.target.value))}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    aria-label="Alert radius in kilometres"
-                />
-                {/* Thumb */}
-                <div
-                    className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white border-2 border-primary shadow-lg shadow-primary/30 transition-all duration-150 pointer-events-none"
-                    style={{ left: `calc(${pct}% - 10px)` }}
-                />
-            </div>
-
-            {/* Min / Max labels */}
-            <div className="flex justify-between text-xs text-muted-foreground select-none">
-                <span>{MIN_KM} km</span>
-                <span>{MAX_KM} km</span>
-            </div>
-        </div>
-    );
-}
-
-function SaveIndicator({ state }: { state: SaveState }) {
-    if (state === 'idle') return null;
-
-    const config = {
-        saving: { icon: <Loader2 size={14} className="animate-spin" />, text: 'Saving…', cls: 'text-primary' },
-        saved:  { icon: <CheckCircle size={14} />,                       text: 'Saved',   cls: 'text-success' },
-        error:  { icon: <AlertCircle size={14} />,                       text: 'Failed to save', cls: 'text-destructive' },
-    }[state];
-
-    return (
-        <motion.span
-            key={state}
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className={`flex items-center gap-1 text-xs font-medium ${config.cls}`}
+        <button
+            onClick={onToggle}
+            className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${enabled ? 'bg-primary' : 'bg-muted border border-border'}`}
         >
-            {config.icon}
-            {config.text}
-        </motion.span>
+            <motion.div
+                animate={{ x: enabled ? 20 : 2 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className={`absolute top-[3px] w-5 h-5 rounded-full shadow ${enabled ? 'bg-white' : 'bg-muted-foreground/60'}`}
+            />
+        </button>
     );
 }
 
-// ─── Map preview: a simple concentric-circle visualisation ───────────────────
-
-function RadiusPreview({ km }: { km: number }) {
-    // Outer ring maps 1–100 km → 30–120px radius for the preview circle
-    const r = 30 + (km / MAX_KM) * 90;
-    return (
-        <div
-            className="relative mx-auto flex items-center justify-center"
-            style={{ width: 260, height: 260 }}
-            aria-hidden
-        >
-            {/* Pulse rings */}
-            {[1, 0.65, 0.35].map((scale, i) => (
-                <div
-                    key={i}
-                    className="absolute rounded-full border border-primary/20 bg-primary/5 transition-all duration-500"
-                    style={{
-                        width: r * 2 * scale,
-                        height: r * 2 * scale,
-                    }}
-                />
-            ))}
-
-            {/* Centre dot */}
-            <div className="relative z-10 flex flex-col items-center gap-1">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-emerald-400 shadow-lg shadow-primary/40 flex items-center justify-center">
-                    <MapPin size={14} className="text-white" />
-                </div>
-                <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                    {km} km
-                </span>
-            </div>
-        </div>
-    );
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function Settings() {
-    const { user, profile } = useAuth();
+    const navigate = useNavigate();
+    const { theme, setTheme } = useTheme();
+    const { language, setLanguage, t } = useLanguage();
 
-    // Initialise from profile's existing radius (falls back to 10 if column not yet present)
-    const [radius, setRadius] = useState<number>((profile as any)?.notification_radius_km ?? 10);
-    const [saveState, setSaveState] = useState<SaveState>('idle');
+    const [pushEnabled, setPushEnabled] = useState(false);
+    const [langOpen, setLangOpen] = useState(false);
+    const [clearing, setClearing] = useState(false);
+    const [cleared, setCleared] = useState(false);
 
-    // Keep local state in sync if profile reloads
-    useEffect(() => {
-        const r = (profile as any)?.notification_radius_km;
-        if (typeof r === 'number') setRadius(r);
-    }, [profile]);
-
-    // Debounced Supabase write
-    const persist = useCallback(
-        async (newRadius: number) => {
-            if (!user?.id) return;
-            setSaveState('saving');
-            const { error } = await supabase
-                .from('profiles')
-                .update({ notification_radius_km: newRadius })
-                .eq('id', user.id);
-
-            setSaveState(error ? 'error' : 'saved');
-
-            // Auto-reset to idle after 2.5 s
-            setTimeout(() => setSaveState('idle'), 2500);
-        },
-        [user?.id],
-    );
-
-    // Debounce slider changes so we don't spam Supabase on every pixel
-    useEffect(() => {
-        const timer = setTimeout(() => persist(radius), DEBOUNCE_MS);
-        return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [radius]);
-
-    const handleRadiusChange = (v: number) => {
-        setRadius(clamp(v));
-        setSaveState('idle');
+    const handleClearCache = async () => {
+        setClearing(true);
+        try {
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.filter(k => k.includes('map')).map(k => caches.delete(k)));
+            }
+        } catch { /* no-op */ }
+        setTimeout(() => {
+            setClearing(false);
+            setCleared(true);
+            setTimeout(() => setCleared(false), 2500);
+        }, 800);
     };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const parsed = parseInt(e.target.value, 10);
-        if (!isNaN(parsed)) handleRadiusChange(parsed);
-    };
+    const themeOptions: { value: Theme; icon: React.ElementType; label: string }[] = [
+        { value: 'light', icon: Sun, label: t('light') },
+        { value: 'dark', icon: Moon, label: t('dark') },
+        { value: 'system', icon: Monitor, label: t('system') },
+    ];
+
+    const selectedLang = LANGUAGES.find(l => l.value === language)!;
 
     return (
         <div className="min-h-screen p-6 space-y-6 max-w-lg mx-auto">
 
             {/* Header */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-                <p className="text-sm text-muted-foreground mt-1">Manage your notification preferences</p>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-3">
+                <button onClick={() => navigate(-1)}
+                    className="w-10 h-10 rounded-2xl bg-muted/50 flex items-center justify-center text-foreground hover:bg-muted transition-colors">
+                    <ArrowLeft size={20} />
+                </button>
+                <div>
+                    <h1 className="text-2xl font-bold text-foreground">{t('settings')}</h1>
+                    <p className="text-sm text-muted-foreground">{t('app_preferences')}</p>
+                </div>
             </motion.div>
 
-            {/* Notification Settings card */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.08 }}
-                className="glass-card rounded-3xl p-6 space-y-6"
-            >
-                {/* Section title */}
+            {/* Theme Card */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}
+                className="glass-card rounded-3xl p-6 space-y-5">
+
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                        <Bell size={20} />
+                        <Palette size={20} />
                     </div>
                     <div>
-                        <h2 className="text-base font-semibold text-foreground">Proximity Alerts</h2>
-                        <p className="text-xs text-muted-foreground">Get notified when activity occurs near your region</p>
+                        <h2 className="text-base font-semibold text-foreground">{t('appearance')}</h2>
+                        <p className="text-xs text-muted-foreground">{t('choose_theme')}</p>
                     </div>
                 </div>
 
-                {/* Visual radius preview */}
-                <RadiusPreview km={radius} />
-
-                {/* Slider row */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <label htmlFor="radius-slider" className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <Radio size={15} className="text-primary" />
-                            Alert Radius
-                        </label>
-                        <div className="flex items-center gap-2">
-                            <SaveIndicator state={saveState} />
-                            {/* Editable number badge */}
-                            <div className="flex items-center gap-1 bg-primary/10 rounded-xl px-3 py-1">
-                                <input
-                                    type="number"
-                                    min={MIN_KM}
-                                    max={MAX_KM}
-                                    value={radius}
-                                    onChange={handleInputChange}
-                                    className="w-10 bg-transparent text-center text-sm font-bold text-primary focus:outline-none"
-                                    aria-label="Alert radius value"
-                                />
-                                <span className="text-xs font-semibold text-primary/70">km</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <RadiusSlider value={radius} onChange={handleRadiusChange} />
+                {/* Segmented Control */}
+                <div className="flex bg-muted/50 rounded-2xl p-1 border border-border/50">
+                    {themeOptions.map((opt) => {
+                        const active = theme === opt.value;
+                        const Icon = opt.icon;
+                        return (
+                            <button
+                                key={opt.value}
+                                onClick={() => setTheme(opt.value)}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${active ? 'bg-card shadow-sm text-foreground border border-border/50' : 'text-muted-foreground hover:text-foreground'}`}
+                            >
+                                <Icon size={15} />
+                                {opt.label}
+                            </button>
+                        );
+                    })}
                 </div>
-
-                {/* Explainer */}
-                <p className="text-xs text-muted-foreground leading-relaxed bg-muted/50 rounded-2xl px-4 py-3 border border-border/50">
-                    You'll receive a notification whenever a new field report is filed within{' '}
-                    <span className="font-semibold text-foreground">{radius} km</span> of the
-                    centroid of your assigned territory. Drag the slider or type a value (1–100 km).
-                </p>
             </motion.div>
 
-            {/* Future settings placeholder */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.16 }}
-                className="glass-card rounded-3xl p-6 space-y-3 opacity-50 pointer-events-none select-none"
-            >
+            {/* Language Card — z-20 so dropdown renders above subsequent cards */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
+                className="glass-card rounded-3xl p-6 space-y-5 relative z-20">
+
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center text-muted-foreground">
-                        <Bell size={20} />
+                    <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                        <Globe size={20} />
                     </div>
                     <div>
-                        <h2 className="text-base font-semibold text-foreground">Push Notifications</h2>
-                        <p className="text-xs text-muted-foreground">Coming soon</p>
+                        <h2 className="text-base font-semibold text-foreground">{t('language')}</h2>
+                        <p className="text-xs text-muted-foreground">{t('select_language')}</p>
                     </div>
                 </div>
+
+                {/* Dropdown */}
+                <div className="relative">
+                    <button
+                        onClick={() => setLangOpen(!langOpen)}
+                        className="w-full flex items-center justify-between bg-muted/50 border border-border/50 rounded-2xl px-4 py-3 text-sm font-medium text-foreground hover:border-primary/30 transition-colors"
+                    >
+                        <span>{selectedLang.label} ({selectedLang.native})</span>
+                        <motion.div animate={{ rotate: langOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                            <ChevronDown size={16} className="text-muted-foreground" />
+                        </motion.div>
+                    </button>
+
+                    {langOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-2xl shadow-lg overflow-hidden z-50"
+                        >
+                            {LANGUAGES.map((lang) => (
+                                <button
+                                    key={lang.value}
+                                    onClick={() => { setLanguage(lang.value); setLangOpen(false); }}
+                                    className={`w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-muted/50 transition-colors ${language === lang.value ? 'text-primary font-semibold' : 'text-foreground'}`}
+                                >
+                                    <span>{lang.label}</span>
+                                    <span className="text-muted-foreground text-xs">{lang.native}</span>
+                                </button>
+                            ))}
+                        </motion.div>
+                    )}
+                </div>
+            </motion.div>
+
+            {/* Push Notifications Card */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
+                className="glass-card rounded-3xl p-6 relative z-10">
+
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                            <Bell size={20} />
+                        </div>
+                        <div>
+                            <h2 className="text-base font-semibold text-foreground">{t('push_notifications')}</h2>
+                            <p className="text-xs text-muted-foreground">{t('receive_alerts')}</p>
+                        </div>
+                    </div>
+                    <Toggle enabled={pushEnabled} onToggle={() => setPushEnabled(!pushEnabled)} />
+                </div>
+
+                {pushEnabled && (
+                    <motion.p
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="text-xs text-muted-foreground leading-relaxed bg-muted/50 rounded-2xl px-4 py-3 border border-border/50 mt-4"
+                    >
+                        {t('push_desc')}
+                    </motion.p>
+                )}
+            </motion.div>
+
+            {/* Offline Storage Card */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24 }}
+                className="glass-card rounded-3xl p-6 space-y-5">
+
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                        <HardDrive size={20} />
+                    </div>
+                    <div>
+                        <h2 className="text-base font-semibold text-foreground">{t('offline_storage')}</h2>
+                        <p className="text-xs text-muted-foreground">{t('manage_cached')}</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border/30">
+                    <div>
+                        <p className="text-sm font-medium text-foreground">{t('clear_cache')}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{t('clear_cache_desc')}</p>
+                    </div>
+                    <button
+                        onClick={handleClearCache}
+                        disabled={clearing}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${cleared ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive hover:bg-destructive/20'}`}
+                    >
+                        {clearing ? (
+                            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}>
+                                <Trash2 size={14} />
+                            </motion.div>
+                        ) : cleared ? (
+                            t('cleared')
+                        ) : (
+                            <><Trash2 size={14} /> {t('clear')}</>
+                        )}
+                    </button>
+                </div>
+
+                <p className="text-xs text-muted-foreground leading-relaxed bg-muted/50 rounded-2xl px-4 py-3 border border-border/50">
+                    {t('offline_note')}
+                </p>
             </motion.div>
         </div>
     );
