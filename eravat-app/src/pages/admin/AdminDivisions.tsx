@@ -300,7 +300,15 @@ export default function AdminDivisions() {
                 if (p.role === 'range_officer') roList.push(entry);
                 if (p.role === 'beat_guard') bgList.push(entry);
 
-                (p.user_region_assignments || []).forEach((a: any) => {
+                // Normalize: PostgREST returns a single object (not array) when the FK has a UNIQUE constraint
+                const rawAssignments = p.user_region_assignments;
+                const assignments: any[] = Array.isArray(rawAssignments)
+                    ? rawAssignments
+                    : rawAssignments
+                        ? [rawAssignments]
+                        : [];
+
+                assignments.forEach((a: any) => {
                     const isPrimary = Boolean(a.is_primary_contact);
 
                     // Division-level assignment (dfo with only division_id set)
