@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 
+const ALLOWED_FORMATS = ['jpeg', 'jpg', 'png', 'webp'];
+const MAX_BASE64_SIZE = 5 * 1024 * 1024; // ~5MB in base64 characters
+
 export function useCamera() {
     const [photoUrl, setPhotoUrl] = useState<string | null>(null);
     const [base64String, setBase64String] = useState<string | null>(null);
@@ -11,20 +14,32 @@ export function useCamera() {
         setIsCapturing(true);
         setError(null);
         try {
-            // By using Base64, we can immediately store to Dexie for offline-first sync
             const image = await Camera.getPhoto({
                 quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Base64,
-                source: CameraSource.Prompt, // Let user choose between Camera & Gallery
+                source: CameraSource.Prompt,
             });
 
             if (image.base64String) {
+                // Validate format against whitelist
+                const format = (image.format || 'jpeg').toLowerCase();
+                if (!ALLOWED_FORMATS.includes(format)) {
+                    setError(`Unsupported image format: ${format}. Use JPEG, PNG, or WebP.`);
+                    return null;
+                }
+
+                // Validate file size
+                if (image.base64String.length > MAX_BASE64_SIZE) {
+                    setError('Image is too large. Please use a smaller image (max 5MB).');
+                    return null;
+                }
+
                 setBase64String(image.base64String);
-                // We render it immediately using standard data URL
-                const dataUrl = `data:image/${image.format};base64,${image.base64String}`;
+                const safeFormat = ALLOWED_FORMATS.includes(format) ? format : 'jpeg';
+                const dataUrl = `data:image/${safeFormat};base64,${image.base64String}`;
                 setPhotoUrl(dataUrl);
-                return { base64: image.base64String, format: image.format, dataUrl };
+                return { base64: image.base64String, format: safeFormat, dataUrl };
             }
             return null;
         } catch (err: unknown) {

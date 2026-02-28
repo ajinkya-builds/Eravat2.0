@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, Download, Trash2, Pencil, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
+import { RefreshCw, Download, Trash2, Pencil, ChevronLeft, ChevronRight, Loader2, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -68,6 +68,8 @@ export default function AdminObservations() {
     const [totalCount, setTotalCount] = useState(0);
     const [selected, setSelected] = useState<string[]>([]);
     const [editTarget, setEditTarget] = useState<ReportWithObs | null>(null);
+    const [editCounts, setEditCounts] = useState<{ male: number; female: number; calf: number; unknown: number } | null>(null);
+    const [confirmState, setConfirmState] = useState<{ ids: string[]; label: string } | null>(null);
     const { t } = useLanguage();
 
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -96,22 +98,23 @@ export default function AdminObservations() {
     useEffect(() => { fetchObservations(currentPage); }, [currentPage]);
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Delete this report permanently?')) return;
-        try {
-            const { error } = await supabase.from('reports').delete().eq('id', id);
-            if (error) throw error;
-            fetchObservations(currentPage);
-        } catch (err) { setError(err instanceof Error ? err.message : 'Delete failed'); }
+        setConfirmState({ ids: [id], label: 'Delete this report permanently?' });
     };
 
     const handleBulkDelete = async () => {
-        if (!selected.length || !confirm(`Delete ${selected.length} selected reports?`)) return;
+        if (!selected.length) return;
+        setConfirmState({ ids: selected, label: `Delete ${selected.length} selected report${selected.length !== 1 ? 's' : ''} permanently?` });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!confirmState) return;
         try {
-            const { error } = await supabase.from('reports').delete().in('id', selected);
+            const { error } = await supabase.from('reports').delete().in('id', confirmState.ids);
             if (error) throw error;
-            setSelected([]);
+            setSelected(prev => prev.filter(id => !confirmState.ids.includes(id)));
+            setConfirmState(null);
             fetchObservations(currentPage);
-        } catch (err) { setError(err instanceof Error ? err.message : 'Bulk delete failed'); }
+        } catch (err) { setError(err instanceof Error ? err.message : 'Delete failed'); setConfirmState(null); }
     };
 
     const handleSync = async (id: string) => {
@@ -155,7 +158,23 @@ export default function AdminObservations() {
                 status: editTarget.status,
             }).eq('id', editTarget.id);
             if (error) throw error;
+
+            const obs = editTarget.observations?.[0];
+            if (obs && editCounts && ['direct', 'direct_sighting'].includes(obs.type)) {
+                const { error: obsErr } = await supabase
+                    .from('observations')
+                    .update({
+                        male_count: editCounts.male,
+                        female_count: editCounts.female,
+                        calf_count: editCounts.calf,
+                        unknown_count: editCounts.unknown,
+                    })
+                    .eq('report_id', editTarget.id);
+                if (obsErr) throw obsErr;
+            }
+
             setEditTarget(null);
+            setEditCounts(null);
             fetchObservations(currentPage);
         } catch (err) { setError(err instanceof Error ? err.message : 'Save failed'); }
     };
@@ -276,8 +295,40 @@ export default function AdminObservations() {
                         className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
                         <div className="flex justify-between items-center">
                             <h2 className="text-lg font-bold">{t('admin.obs.editReport')}</h2>
-                            <button onClick={() => setEditTarget(null)} className="p-2 rounded-lg hover:bg-muted"><X size={18} /></button>
+                            <button onClick={() => { setEditTarget(null); setEditCounts(null); }} className="p-2 rounded-lg hover:bg-muted"><X size={18} /></button>
                         </div>
+
+                        {editTarget.observations?.[0] && ['direct', 'direct_sighting'].includes(editTarget.observations[0].type) && (
+                            <div className="space-y-2 p-3 bg-primary/5 rounded-xl border border-primary/10">
+                                <p className="text-xs font-semibold text-primary">Elephant Counts</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {(['male', 'female', 'calf', 'unknown'] as const).map(key => (
+                                        <div key={key}>
+                                            <label className="text-xs text-muted-foreground capitalize">{key}</label>
+                                            <input
+                                                type="number" min={0}
+                                                value={(editCounts ?? {
+                                                    male: editTarget.observations[0].male_count,
+                                                    female: editTarget.observations[0].female_count,
+                                                    calf: editTarget.observations[0].calf_count,
+                                                    unknown: editTarget.observations[0].unknown_count,
+                                                })[key]}
+                                                onChange={e => setEditCounts(prev => ({
+                                                    male: editTarget.observations[0].male_count,
+                                                    female: editTarget.observations[0].female_count,
+                                                    calf: editTarget.observations[0].calf_count,
+                                                    unknown: editTarget.observations[0].unknown_count,
+                                                    ...(prev ?? {}),
+                                                    [key]: parseInt(e.target.value) || 0,
+                                                }))}
+                                                className="w-full mt-0.5 px-2 py-1.5 rounded-lg bg-muted/50 border border-border text-sm"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div>
                             <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('report.notes')}</label>
                             <textarea rows={3} value={editTarget.notes ?? ''}
@@ -295,8 +346,33 @@ export default function AdminObservations() {
                             </select>
                         </div>
                         <div className="flex gap-3 pt-2">
-                            <button onClick={() => setEditTarget(null)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">{t('profile.cancel')}</button>
+                            <button onClick={() => { setEditTarget(null); setEditCounts(null); }} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">{t('profile.cancel')}</button>
                             <button onClick={handleSaveEdit} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">{t('admin.settings.saveChanges')}</button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {confirmState && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                        className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 rounded-xl bg-destructive/10">
+                                <AlertTriangle className="text-destructive" size={20} />
+                            </div>
+                            <h2 className="text-base font-bold">Confirm Deletion</h2>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{confirmState.label}</p>
+                        <div className="flex gap-3 pt-1">
+                            <button onClick={() => setConfirmState(null)}
+                                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">
+                                Cancel
+                            </button>
+                            <button onClick={handleConfirmDelete}
+                                className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-semibold hover:opacity-90 transition-opacity">
+                                Delete
+                            </button>
                         </div>
                     </motion.div>
                 </div>

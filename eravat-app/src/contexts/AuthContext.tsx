@@ -27,6 +27,8 @@ interface AuthContextValue {
     user: User | null;
     profile: UserProfile | null;
     loading: boolean;
+    sessionExpired: boolean;
+    clearSessionExpired: () => void;
     signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
     signInWithPhone: (phone: string, password: string) => Promise<{ error: Error | null }>;
     signOut: () => Promise<void>;
@@ -35,10 +37,23 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Strip spaces, dashes, dots; remove +91 or 91 country prefix → 10-digit string */
+function normalisePhone(raw: string): string {
+    const digits = raw.replace(/\D/g, '');
+    // Remove leading 91 (India country code) if number is 12 digits
+    if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+    // Remove leading 0 if 11 digits (some users type 0XXXXXXXXXX)
+    if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
+    return digits;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [sessionExpired, setSessionExpired] = useState(false);
+    // Track whether user was previously authenticated so we can detect expiry
+    const wasAuthenticated = useState({ current: false });
 
     const fetchProfile = async (userId: string) => {
         try {
@@ -50,7 +65,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .single();
 
             if (!profileData) {
-                console.warn('No profile found for user:', userId);
                 setProfile(null);
                 return;
             }
@@ -78,8 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 range_name: (assignment?.geo_ranges as any)?.name ?? null,
                 beat_name: (assignment?.geo_beats as any)?.name ?? null,
             } as UserProfile);
-        } catch (err) {
-            console.error('Error fetching profile:', err);
+        } catch {
+            // Profile fetch failed
         }
     };
 
@@ -90,22 +104,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
-            if (session?.user) fetchProfile(session.user.id);
+            if (session?.user) {
+                wasAuthenticated[0].current = true;
+                fetchProfile(session.user.id);
+            }
             setLoading(false);
         });
 
-        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
             setSession(session);
             if (session?.user) {
+                wasAuthenticated[0].current = true;
                 fetchProfile(session.user.id);
             } else {
+                // If we had a session before and now it's gone (not an explicit sign-out)
+                if (wasAuthenticated[0].current && event !== 'SIGNED_OUT') {
+                    setSessionExpired(true);
+                }
                 setProfile(null);
             }
             setLoading(false);
         });
 
         return () => listener.subscription.unsubscribe();
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const signIn = async (email: string, password: string) => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -113,37 +135,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const signInWithPhone = async (phone: string, password: string) => {
-        const trimmedPhone = phone.trim();
-        console.log('Attempting phone login for:', trimmedPhone);
+        const normalisedPhone = normalisePhone(phone);
 
         // Step 1: resolve email from phone via Postgres function
         const { data: email, error: rpcError } = await supabase
-            .rpc('get_email_by_phone', { p_phone: trimmedPhone });
+            .rpc('get_email_by_phone', { p_phone: normalisedPhone });
 
-        if (rpcError) {
-            console.error('RPC Error resolving phone:', rpcError);
-            return { error: rpcError as Error };
+        // Use generic error messages to prevent user enumeration
+        if (rpcError || !email) {
+            return { error: new Error('Invalid credentials. Please try again.') };
         }
-
-        if (!email) {
-            console.warn('Phone number not found in system:', trimmedPhone);
-            return { error: new Error('Phone number not registered. Please contact your administrator.') };
-        }
-
-        console.log('Resolved email for login:', email);
 
         // Step 2: sign in with the resolved email + password
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-            console.error('Auth error for resolved email:', error.message);
+        if (!error) {
+            setSessionExpired(false);
         }
-        return { error: error as Error | null };
+        return { error: error ? new Error('Invalid credentials. Please try again.') : null };
     };
 
     const signOut = async () => {
+        wasAuthenticated[0].current = false; // explicit sign-out, not expiry
         await supabase.auth.signOut();
         setProfile(null);
+        setSessionExpired(false);
     };
+
+    const clearSessionExpired = () => setSessionExpired(false);
 
     return (
         <AuthContext.Provider value={{
@@ -151,6 +169,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user: session?.user ?? null,
             profile,
             loading,
+            sessionExpired,
+            clearSessionExpired,
             signIn,
             signInWithPhone,
             signOut,

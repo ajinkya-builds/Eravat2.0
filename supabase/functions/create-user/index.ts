@@ -1,13 +1,27 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { canManageRole } from '../_shared/rbac.ts'
+import { canManageRole, VALID_ROLES } from '../_shared/rbac.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').map(o => o.trim()).filter(Boolean)
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('Origin') || ''
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || '')
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  }
 }
 
+const MAX_NAME_LENGTH = 100
+const MAX_PHONE_LENGTH = 20
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req)
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -63,16 +77,41 @@ serve(async (req) => {
       beat_id,
     } = await req.json()
 
-    // ── 2.5 Verify RBAC permissions ───────────────────────────────────────────
-    if (!canManageRole(callerProfile.role, role)) {
-      return new Response(JSON.stringify({ error: `Forbidden: role '${callerProfile.role}' cannot create user with role '${role}'` }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
+    // ── 2.5 Validate inputs ─────────────────────────────────────────────────
     if (!email || !password || !first_name || !last_name || !role) {
       return new Response(JSON.stringify({ error: 'Missing required fields: email, password, first_name, last_name, role' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return new Response(JSON.stringify({ error: 'Invalid email format' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (!VALID_ROLES.includes(role)) {
+      return new Response(JSON.stringify({ error: 'Invalid role specified' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (first_name.length > MAX_NAME_LENGTH || last_name.length > MAX_NAME_LENGTH) {
+      return new Response(JSON.stringify({ error: `Name fields must be ${MAX_NAME_LENGTH} characters or fewer` }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (phone && phone.length > MAX_PHONE_LENGTH) {
+      return new Response(JSON.stringify({ error: `Phone must be ${MAX_PHONE_LENGTH} characters or fewer` }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // ── 2.6 Verify RBAC permissions ───────────────────────────────────────────
+    if (!canManageRole(callerProfile.role, role)) {
+      return new Response(JSON.stringify({ error: 'Forbidden: insufficient permissions to create user with this role' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -86,7 +125,7 @@ serve(async (req) => {
     const { data: authData, error: createErr } = await adminClient.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,  // Skip email verification for admin-created users
+      email_confirm: true,
       user_metadata: { first_name, last_name, role },
     })
 
@@ -104,9 +143,9 @@ serve(async (req) => {
       .upsert({
         id: newUserId,
         role,
-        first_name,
-        last_name,
-        phone: phone || null,
+        first_name: first_name.trim().slice(0, MAX_NAME_LENGTH),
+        last_name: last_name.trim().slice(0, MAX_NAME_LENGTH),
+        phone: phone ? phone.trim().slice(0, MAX_PHONE_LENGTH) : null,
         is_active: true,
       })
 
@@ -119,11 +158,6 @@ serve(async (req) => {
     }
 
     // ── 5. Create region assignment for geographic roles ─────────────────────
-    // Geographic roles that get a territory assignment:
-    // dfo → division only
-    // rrt → division only
-    // range_officer → division + range
-    // beat_guard → division + range + beat
     const GEOGRAPHIC_ROLES = ['dfo', 'rrt', 'range_officer', 'beat_guard']
 
     if (GEOGRAPHIC_ROLES.includes(role) && division_id) {
@@ -137,8 +171,14 @@ serve(async (req) => {
         })
 
       if (assignErr) {
-        // Non-fatal: user and profile exist, just log the error
-        console.error('Region assignment failed:', assignErr.message)
+        return new Response(JSON.stringify({
+          success: true,
+          warning: `User created but region assignment failed: ${assignErr.message}`,
+          user: { id: newUserId, email: authData.user.email, first_name, last_name, role },
+        }), {
+          status: 207,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
       }
     }
 
@@ -159,7 +199,7 @@ serve(async (req) => {
     })
 
   } catch (err) {
-    console.error('Unexpected error:', err)
+    console.error('create-user error:', err)
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

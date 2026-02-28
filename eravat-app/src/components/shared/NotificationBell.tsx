@@ -29,7 +29,6 @@ export function NotificationBell() {
 
         // Subscribe to new notifications
         const channel = NotificationService.subscribeToNotifications(user.id, (payload) => {
-            console.log('New notification received:', payload);
             setNotifications(prev => {
                 const newNotification = payload.new as Notification;
                 // avoid duplicates

@@ -360,12 +360,12 @@ export default function AdminUsers() {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.firstName')}</label>
-                                    <input required value={newUser.first_name} onChange={e => setNewUser({ ...newUser, first_name: e.target.value })}
+                                    <input required maxLength={100} value={newUser.first_name} onChange={e => setNewUser({ ...newUser, first_name: e.target.value })}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.lastName')}</label>
-                                    <input required value={newUser.last_name} onChange={e => setNewUser({ ...newUser, last_name: e.target.value })}
+                                    <input required maxLength={100} value={newUser.last_name} onChange={e => setNewUser({ ...newUser, last_name: e.target.value })}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                             </div>
@@ -377,13 +377,13 @@ export default function AdminUsers() {
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('login.password')}</label>
-                                    <input type="password" required minLength={6} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                                    <input type="password" required minLength={12} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                             </div>
                             <div>
                                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.phoneNumber')}</label>
-                                <input type="tel" value={newUser.phone} onChange={e => setNewUser({ ...newUser, phone: e.target.value })} placeholder="Optional"
+                                <input type="tel" maxLength={20} value={newUser.phone} onChange={e => setNewUser({ ...newUser, phone: e.target.value })} placeholder="Optional"
                                     className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                             </div>
                             <div>
@@ -446,12 +446,12 @@ export default function AdminUsers() {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.firstName')}</label>
-                                    <input required value={editUser.first_name || ''} onChange={e => setEditUser({ ...editUser, first_name: e.target.value })}
+                                    <input required maxLength={100} value={editUser.first_name || ''} onChange={e => setEditUser({ ...editUser, first_name: e.target.value })}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.lastName')}</label>
-                                    <input required value={editUser.last_name || ''} onChange={e => setEditUser({ ...editUser, last_name: e.target.value })}
+                                    <input required maxLength={100} value={editUser.last_name || ''} onChange={e => setEditUser({ ...editUser, last_name: e.target.value })}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                             </div>
@@ -463,21 +463,25 @@ export default function AdminUsers() {
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.newPassword')}</label>
-                                    <input type="password" minLength={6} value={editUser.password || ''} onChange={e => setEditUser({ ...editUser, password: e.target.value })}
+                                    <input type="password" minLength={12} value={editUser.password || ''} onChange={e => setEditUser({ ...editUser, password: e.target.value })}
                                         placeholder={t('admin.users.leaveBlank')}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                             </div>
                             <div>
                                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.phoneNumber')}</label>
-                                <input type="tel" value={editUser.phone || ''} onChange={e => setEditUser({ ...editUser, phone: e.target.value })} placeholder="Optional"
+                                <input type="tel" maxLength={20} value={editUser.phone || ''} onChange={e => setEditUser({ ...editUser, phone: e.target.value })} placeholder="Optional"
                                     className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                             </div>
                             <div>
                                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.systemRole')}</label>
                                 <select value={editUser.role || ''} onChange={e => setEditUser({ ...editUser, role: e.target.value, division_id: '', range_id: '', beat_id: '' })}
                                     className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm">
-                                    {ROLES.filter(r => canManageRole(currentUserProfile?.role, r.value)).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                                    {ROLES.filter(r =>
+                                        editUser.id === currentUserProfile?.id
+                                            ? true
+                                            : canManageRole(currentUserProfile?.role, r.value)
+                                    ).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                                 </select>
                             </div>
 

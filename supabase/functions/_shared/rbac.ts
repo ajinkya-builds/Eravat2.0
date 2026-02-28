@@ -1,3 +1,8 @@
+export const VALID_ROLES = [
+  'admin', 'ccf', 'biologist', 'veterinarian',
+  'dfo', 'rrt', 'range_officer', 'beat_guard', 'volunteer'
+];
+
 export const ROLE_HIERARCHY: Record<string, string[]> = {
   admin: ['*'],
   ccf: ['*'],
@@ -12,6 +17,7 @@ export const ROLE_HIERARCHY: Record<string, string[]> = {
 
 export function canManageRole(callerRole: string, targetRole: string): boolean {
   if (!callerRole || !targetRole) return false;
+  if (!VALID_ROLES.includes(targetRole)) return false;
   const allowed = ROLE_HIERARCHY[callerRole];
   if (!allowed) return false;
   if (allowed.includes('*')) return true;

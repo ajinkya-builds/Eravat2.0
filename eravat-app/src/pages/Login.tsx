@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Phone, ArrowRight, AlertCircle } from 'lucide-react';
+import { Lock, Phone, ArrowRight, AlertCircle, Timer } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import elephantLogo from '../../public/elephant-logo.png';
+
+const MAX_ATTEMPTS = 5;
+const LOCK_DURATION_MS = 30_000;
 
 export default function Login() {
     const navigate = useNavigate();
@@ -13,19 +16,56 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [attempts, setAttempts] = useState(0);
+    const [lockUntil, setLockUntil] = useState<number | null>(null);
+    const [countdown, setCountdown] = useState(0);
+    const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const { t } = useLanguage();
+
+    // Countdown timer for rate-limit lock
+    useEffect(() => {
+        if (!lockUntil) return;
+        const tick = () => {
+            const remaining = Math.ceil((lockUntil - Date.now()) / 1000);
+            if (remaining <= 0) {
+                setLockUntil(null);
+                setCountdown(0);
+                setAttempts(0);
+                setError(null);
+                if (countdownRef.current) clearInterval(countdownRef.current);
+            } else {
+                setCountdown(remaining);
+            }
+        };
+        tick();
+        countdownRef.current = setInterval(tick, 1000);
+        return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
+    }, [lockUntil]);
+
+    const isLocked = lockUntil !== null && Date.now() < lockUntil;
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isLocked) return;
         setIsLoading(true);
         setError(null);
 
         const { error } = await signInWithPhone(phone.trim(), password);
 
         if (error) {
-            setError(error.message || 'Invalid phone number or password. Please try again.');
+            const newAttempts = attempts + 1;
+            setAttempts(newAttempts);
+            if (newAttempts >= MAX_ATTEMPTS) {
+                setLockUntil(Date.now() + LOCK_DURATION_MS);
+                setError(`Too many failed attempts. Please wait ${LOCK_DURATION_MS / 1000} seconds before trying again.`);
+            } else {
+                setError('Invalid credentials. Please try again.');
+            }
             setIsLoading(false);
         } else {
+            // Reset rate-limit state on success
+            setAttempts(0);
+            setLockUntil(null);
             navigate('/');
         }
     };
@@ -126,18 +166,30 @@ export default function Login() {
                             </div>
                         </motion.div>
 
+                        {/* Rate-limit warning bar */}
+                        {attempts > 0 && !isLocked && (
+                            <p className="text-xs text-amber-500 text-center -mt-1">
+                                {MAX_ATTEMPTS - attempts} attempt{MAX_ATTEMPTS - attempts !== 1 ? 's' : ''} remaining before temporary lockout
+                            </p>
+                        )}
+
                         <motion.button
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.6 }}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            whileHover={{ scale: isLocked ? 1 : 1.02 }}
+                            whileTap={{ scale: isLocked ? 1 : 0.98 }}
                             type="submit"
-                            disabled={isLoading}
+                            disabled={isLoading || isLocked}
                             className="w-full bg-primary text-primary-foreground font-semibold rounded-xl py-3.5 px-4 flex items-center justify-center gap-2 mt-2 shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-not-allowed group"
                         >
                             {isLoading ? (
                                 <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : isLocked ? (
+                                <>
+                                    <Timer className="w-5 h-5" />
+                                    Try again in {countdown}s
+                                </>
                             ) : (
                                 <>
                                     {t('sign_in')}

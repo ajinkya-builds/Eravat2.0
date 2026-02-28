@@ -27,8 +27,7 @@ export class NotificationService {
       }
 
       return (data as Notification[]) || [];
-    } catch (e) {
-      console.error("Error fetching notifications:", e);
+    } catch {
       return [];
     }
   }
@@ -47,8 +46,7 @@ export class NotificationService {
         throw error;
       }
       return true;
-    } catch (e) {
-      console.error("Error marking notification as read:", e);
+    } catch {
       return false;
     }
   }
@@ -68,8 +66,7 @@ export class NotificationService {
         throw error;
       }
       return true;
-    } catch (e) {
-      console.error("Error marking all notifications as read:", e);
+    } catch {
       return false;
     }
   }
