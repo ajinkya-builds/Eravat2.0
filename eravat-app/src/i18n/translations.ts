@@ -55,10 +55,11 @@ const translations: Record<Language, Record<string, string>> = {
 
         "admin.nav.overview": "Overview",
         "admin.nav.users": "Personnel",
-        "admin.nav.divisions": "Territories",
-        "admin.nav.observations": "Logs",
+        "admin.nav.divisions": "Divisions",
+        "admin.nav.observations": "Observations",
         "admin.nav.settings": "Settings",
         "admin.nav.exit": "Exit",
+        "admin.commandCenter": "Command Center",
         "nav.dashboard": "Home",
         "nav.map": "Map",
         "nav.report": "Report",
@@ -648,6 +649,23 @@ const translations: Record<Language, Record<string, string>> = {
         "admin.users.noPersonnel": "No personnel found.",
         "admin.users.systemRole": "System Role",
 
+        // ── Admin Observations ───────────────────────────────────────────
+        "admin.obs.title": "Observation Reports",
+        "admin.obs.totalReports": "total reports",
+        "admin.obs.deleteReport": "Delete",
+        "admin.obs.exportCSV": "Export CSV",
+        "admin.obs.noObs": "No observations found.",
+        "admin.obs.timestamp": "Timestamp",
+        "admin.obs.type": "Type",
+        "admin.obs.count": "Count",
+        "admin.obs.details": "Details",
+        "admin.obs.showing": "Showing",
+        "admin.obs.of": "of",
+        "admin.obs.editReport": "Edit Report",
+        "admin.obs.pending": "Pending",
+        "admin.obs.synced": "Synced",
+        "admin.obs.reviewed": "Reviewed",
+
         // ── Admin Settings (Structured) ───────────────────────────────────
         "admin.settings.title": "System Settings",
         "admin.settings.subtitle":
@@ -663,6 +681,26 @@ const translations: Record<Language, Record<string, string>> = {
         "admin.settings.twoFactor": "Two-Factor Auth (Admins)",
         "admin.settings.twoFactorDesc": "Enforce 2FA for all dashboard users",
         "admin.settings.saveChanges": "Save Changes",
+
+        // ── MFA / Two-Factor Authentication ─────────────────────────────
+        "mfa.enrollTitle": "Set Up Two-Factor Authentication",
+        "mfa.enrollDesc": "Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)",
+        "mfa.manualEntry": "Or enter this code manually:",
+        "mfa.enterCode": "Enter 6-digit code",
+        "mfa.verify": "Verify & Enable",
+        "mfa.verifying": "Verifying...",
+        "mfa.enabled": "2FA is enabled",
+        "mfa.disable": "Disable 2FA",
+        "mfa.disableConfirm": "Are you sure you want to disable two-factor authentication?",
+        "mfa.disableDesc": "Your account will be less secure without 2FA.",
+        "mfa.challengeTitle": "Two-Factor Authentication",
+        "mfa.challengeDesc": "Enter the code from your authenticator app",
+        "mfa.invalidCode": "Invalid code. Please try again.",
+        "mfa.back": "Back to login",
+        "mfa.success": "Two-factor authentication enabled successfully!",
+        "mfa.disabled": "Two-factor authentication has been disabled.",
+        "mfa.cancel": "Cancel",
+        "mfa.confirm": "Yes, Disable",
 
         // ── Profile (Structured) ──────────────────────────────────────────
         "profile.firstName": "First Name",
@@ -681,6 +719,7 @@ const translations: Record<Language, Record<string, string>> = {
         "profile.privacySecurity": "Privacy & Security",
         "profile.helpSupport": "Help & Support",
         "profile.logout": "Sign Out",
+        "profile.logoutConfirmation": "Are you sure you want to sign out?",
         "profile.user": "User",
         "profile.beat": "Beat",
         "profile.range": "Range",
@@ -701,6 +740,7 @@ const translations: Record<Language, Record<string, string>> = {
         "privacyPolicy.dataShareTitle": "3. Data Sharing",
         "privacyPolicy.dataShareDesc":
             "Aggregated data is shared with authorized forest officials. Personal identifiers are never sold or shared with third parties.",
+        "privacyPolicy.rightsTitle": "4. Your Rights",
         "privacyPolicy.rightsDesc":
             "You can request access to or deletion of your reported data by contacting your range officer.",
 
@@ -716,6 +756,35 @@ const translations: Record<Language, Record<string, string>> = {
         "privacy.analyticsDesc": "Help us improve by sharing usage data",
         "privacy.signOutAll": "Sign out from all devices",
         "privacy.revokeWarning": "Revoke all active session tokens",
+
+        // ── Help & Support ────────────────────────────────────────────────
+        "help.title": "Help & Support",
+        "help.contactAdmin": "Contact Administrator",
+        "help.callIT": "Call IT Support",
+        "help.callTime": "8:00 AM to 8:00 PM EST",
+        "help.emailSupport": "Email Support",
+        "help.emailTime": "Response within 24 hours",
+        "help.resources": "Resources",
+        "help.userManual": "User Manual",
+        "help.faq": "Frequently Asked Questions",
+        "help.diagnostics": "Diagnostics",
+        "help.appVersion": "App Version",
+        "help.forceSync": "Force Manual Sync",
+        "help.lastSync": "Last sync",
+        "help.never": "Never",
+        "help.syncing": "Syncing...",
+        "help.syncNow": "Sync Now",
+
+        // ── FAQ ───────────────────────────────────────────────────────────
+        "faq.title": "Frequently Asked Questions",
+        "faq.q1": "How do I report a wild elephant sighting?",
+        "faq.a1": "Go to the Dashboard and tap 'Report Activity'. Fill in the location, number of elephants, and add an optional photo.",
+        "faq.q2": "Do I need internet to submit a report?",
+        "faq.a2": "No! The app works offline. Reports are saved locally and will automatically sync once you regain internet connection.",
+        "faq.q3": "What should I do in case of a direct encounter?",
+        "faq.a3": "Maintain a safe distance, do not panic, and slowly back away. Never try to feed or flash the camera at wild elephants.",
+        "faq.q4": "How is my location data used?",
+        "faq.a4": "Your location is only captured when submitting a report to accurately map animal movements and conflict zones.",
     },
 
     hi: {
@@ -768,10 +837,11 @@ const translations: Record<Language, Record<string, string>> = {
 
         "admin.nav.overview": "अवलोकन",
         "admin.nav.users": "कर्मचारी",
-        "admin.nav.divisions": "क्षेत्र",
-        "admin.nav.observations": "लॉग",
+        "admin.nav.divisions": "प्रभाग",
+        "admin.nav.observations": "अवलोकन",
         "admin.nav.settings": "सेटिंग्स",
         "admin.nav.exit": "बाहर",
+        "admin.commandCenter": "कमांड सेंटर",
         "nav.dashboard": "होम",
         "nav.map": "नक्शा",
         "nav.report": "रिपोर्ट",
@@ -1353,6 +1423,23 @@ const translations: Record<Language, Record<string, string>> = {
         "admin.users.noPersonnel": "कोई कर्मचारी नहीं मिला।",
         "admin.users.systemRole": "सिस्टम भूमिका",
 
+        // ── Admin Observations ───────────────────────────────────────────
+        "admin.obs.title": "अवलोकन रिपोर्ट",
+        "admin.obs.totalReports": "कुल रिपोर्ट",
+        "admin.obs.deleteReport": "हटाएँ",
+        "admin.obs.exportCSV": "CSV निर्यात",
+        "admin.obs.noObs": "कोई अवलोकन नहीं मिला।",
+        "admin.obs.timestamp": "समय",
+        "admin.obs.type": "प्रकार",
+        "admin.obs.count": "संख्या",
+        "admin.obs.details": "विवरण",
+        "admin.obs.showing": "दिखा रहा है",
+        "admin.obs.of": "में से",
+        "admin.obs.editReport": "रिपोर्ट संपादित करें",
+        "admin.obs.pending": "लंबित",
+        "admin.obs.synced": "सिंक किया",
+        "admin.obs.reviewed": "समीक्षित",
+
         // ── Admin Settings (Structured) ───────────────────────────────────
         "admin.settings.title": "सिस्टम सेटिंग्स",
         "admin.settings.subtitle": "ऐप-व्यापी प्राथमिकताएँ और एकीकरण कॉन्फ़िगर करें।",
@@ -1368,6 +1455,26 @@ const translations: Record<Language, Record<string, string>> = {
         "admin.settings.twoFactorDesc":
             "सभी डैशबोर्ड उपयोगकर्ताओं के लिए 2FA लागू करें",
         "admin.settings.saveChanges": "परिवर्तन सहेजें",
+
+        // ── MFA / Two-Factor Authentication ─────────────────────────────
+        "mfa.enrollTitle": "दो-कारक प्रमाणीकरण सेटअप",
+        "mfa.enrollDesc": "अपने ऑथेंटिकेटर ऐप (Google Authenticator, Authy, आदि) से इस QR कोड को स्कैन करें",
+        "mfa.manualEntry": "या इस कोड को मैन्युअली दर्ज करें:",
+        "mfa.enterCode": "6-अंकीय कोड दर्ज करें",
+        "mfa.verify": "सत्यापित करें और सक्षम करें",
+        "mfa.verifying": "सत्यापित हो रहा है...",
+        "mfa.enabled": "2FA सक्षम है",
+        "mfa.disable": "2FA अक्षम करें",
+        "mfa.disableConfirm": "क्या आप वाकई दो-कारक प्रमाणीकरण अक्षम करना चाहते हैं?",
+        "mfa.disableDesc": "2FA के बिना आपका खाता कम सुरक्षित होगा।",
+        "mfa.challengeTitle": "दो-कारक प्रमाणीकरण",
+        "mfa.challengeDesc": "अपने ऑथेंटिकेटर ऐप से कोड दर्ज करें",
+        "mfa.invalidCode": "अमान्य कोड। कृपया पुनः प्रयास करें।",
+        "mfa.back": "लॉगिन पर वापस जाएं",
+        "mfa.success": "दो-कारक प्रमाणीकरण सफलतापूर्वक सक्षम!",
+        "mfa.disabled": "दो-कारक प्रमाणीकरण अक्षम कर दिया गया है।",
+        "mfa.cancel": "रद्द करें",
+        "mfa.confirm": "हाँ, अक्षम करें",
 
         // ── Profile (Structured) ──────────────────────────────────────────
         "profile.firstName": "पहला नाम",
@@ -1386,6 +1493,7 @@ const translations: Record<Language, Record<string, string>> = {
         "profile.privacySecurity": "गोपनीयता और सुरक्षा",
         "profile.helpSupport": "मदद और समर्थन",
         "profile.logout": "साइन आउट",
+        "profile.logoutConfirmation": "क्या आप वाकई साइन आउट करना चाहते हैं?",
         "profile.user": "उपयोगकर्ता",
         "profile.beat": "बीट",
         "profile.range": "रेंज",
@@ -1406,6 +1514,7 @@ const translations: Record<Language, Record<string, string>> = {
         "privacyPolicy.dataShareTitle": "3. डेटा साझा करना",
         "privacyPolicy.dataShareDesc":
             "एकत्रित डेटा अधिकृत वन अधिकारियों के साथ साझा किया जाता है। व्यक्तिगत पहचानकर्ता कभी नहीं बेचे जाते हैं।",
+        "privacyPolicy.rightsTitle": "4. आपके अधिकार",
         "privacyPolicy.rightsDesc":
             "आप अपने रेंज अधिकारी से संपर्क करके अपने रिपोर्ट किए गए डेटा तक पहुँच या उसे हटाने का अनुरोध कर सकते हैं।",
 
@@ -1422,6 +1531,35 @@ const translations: Record<Language, Record<string, string>> = {
         "privacy.analyticsDesc": "उपयोग डेटा साझा करके हमें सुधारने में मदद करें",
         "privacy.signOutAll": "सभी डिवाइस से साइन आउट करें",
         "privacy.revokeWarning": "सभी सक्रिय सत्र टोकन रद्द करें",
+
+        // ── Help & Support ────────────────────────────────────────────────
+        "help.title": "मदद और समर्थन",
+        "help.contactAdmin": "व्यवस्थापक से संपर्क करें",
+        "help.callIT": "आईटी सपोर्ट को कॉल करें",
+        "help.callTime": "सुबह 8:00 बजे से शाम 8:00 बजे तक",
+        "help.emailSupport": "ईमेल सपोर्ट",
+        "help.emailTime": "24 घंटे के भीतर प्रतिक्रिया",
+        "help.resources": "संसाधन",
+        "help.userManual": "उपयोगकर्ता पुस्तिका",
+        "help.faq": "अक्सर पूछे जाने वाले प्रश्न",
+        "help.diagnostics": "निदान",
+        "help.appVersion": "ऐप संस्करण",
+        "help.forceSync": "बलपूर्वक मैनुअल सिंक",
+        "help.lastSync": "अंतिम सिंक",
+        "help.never": "कभी नहीं",
+        "help.syncing": "सिंक हो रहा है...",
+        "help.syncNow": "अभी सिंक करें",
+
+        // ── FAQ ───────────────────────────────────────────────────────────
+        "faq.title": "अक्सर पूछे जाने वाले प्रश्न",
+        "faq.q1": "मैं जंगली हाथी देखने की रिपोर्ट कैसे करूं?",
+        "faq.a1": "डैशबोर्ड पर जाएं और 'गतिविधि की रिपोर्ट करें' पर टैप करें। स्थान, हाथियों की संख्या भरें और एक वैकल्पिक तस्वीर जोड़ें।",
+        "faq.q2": "क्या मुझे रिपोर्ट जमा करने के लिए इंटरनेट की आवश्यकता है?",
+        "faq.a2": "नहीं! ऐप ऑफलाइन भी काम करता है। रिपोर्ट स्थानीय रूप से सहेजी जाती हैं और जैसे ही आपका इंटरनेट कनेक्शन वापस आता है, स्वचालित रूप से सिंक हो जाएंगी।",
+        "faq.q3": "सीधे एनकाउंटर (दर्शन) के मामले में मुझे क्या करना चाहिए?",
+        "faq.a3": "एक सुरक्षित दूरी बनाए रखें, घबराएं नहीं और धीरे-धीरे पीछे हटें। कभी भी जंगली हाथियों को खाना खिलाने या कैमरे की फ्लैश चमकाने की कोशिश न करें।",
+        "faq.q4": "मेरे स्थान डेटा का उपयोग कैसे किया जाता है?",
+        "faq.a4": "पशुओं की गतिविधियों और संघर्ष क्षेत्रों को सही ढंग से मैप करने के लिए केवल रिपोर्ट जमा करते समय आपका स्थान कैप्चर किया जाता है।",
     },
 
     mr: {
@@ -1474,10 +1612,11 @@ const translations: Record<Language, Record<string, string>> = {
 
         "admin.nav.overview": "विहंगावलोकन",
         "admin.nav.users": "कर्मचारी",
-        "admin.nav.divisions": "प्रदेश",
-        "admin.nav.observations": "लॉग",
+        "admin.nav.divisions": "विभाग",
+        "admin.nav.observations": "निरीक्षणे",
         "admin.nav.settings": "सेटिंग्ज",
         "admin.nav.exit": "बाहेर",
+        "admin.commandCenter": "कमांड सेंटर",
         "nav.dashboard": "होम",
         "nav.map": "नकाशा",
         "nav.report": "अहवाल",
@@ -2055,6 +2194,23 @@ const translations: Record<Language, Record<string, string>> = {
         "admin.users.noPersonnel": "कोणतेही कर्मचारी सापडले नाहीत.",
         "admin.users.systemRole": "सिस्टम भूमिका",
 
+        // ── Admin Observations ───────────────────────────────────────────
+        "admin.obs.title": "निरीक्षण अहवाल",
+        "admin.obs.totalReports": "एकूण अहवाल",
+        "admin.obs.deleteReport": "हटवा",
+        "admin.obs.exportCSV": "CSV निर्यात",
+        "admin.obs.noObs": "कोणतेही निरीक्षण सापडले नाही.",
+        "admin.obs.timestamp": "वेळ",
+        "admin.obs.type": "प्रकार",
+        "admin.obs.count": "संख्या",
+        "admin.obs.details": "तपशील",
+        "admin.obs.showing": "दाखवत आहे",
+        "admin.obs.of": "पैकी",
+        "admin.obs.editReport": "अहवाल संपादित करा",
+        "admin.obs.pending": "प्रलंबित",
+        "admin.obs.synced": "सिंक केले",
+        "admin.obs.reviewed": "पुनरावलोकन केले",
+
         // ── Admin Settings (Structured) ───────────────────────────────────
         "admin.settings.title": "सिस्टम सेटिंग्ज",
         "admin.settings.subtitle": "ॲप-व्यापी प्राधान्ये आणि एकीकरण कॉन्फिगर करा.",
@@ -2069,6 +2225,26 @@ const translations: Record<Language, Record<string, string>> = {
         "admin.settings.twoFactor": "द्वि-घटक प्रमाणीकरण (ॲडमिन)",
         "admin.settings.twoFactorDesc": "सर्व डॅशबोर्ड वापरकर्त्यांसाठी 2FA लागू करा",
         "admin.settings.saveChanges": "बदल जतन करा",
+
+        // ── MFA / Two-Factor Authentication ─────────────────────────────
+        "mfa.enrollTitle": "द्वि-घटक प्रमाणीकरण सेटअप",
+        "mfa.enrollDesc": "तुमच्या ऑथेंटिकेटर ॲपने (Google Authenticator, Authy, इ.) हा QR कोड स्कॅन करा",
+        "mfa.manualEntry": "किंवा हा कोड मॅन्युअली टाका:",
+        "mfa.enterCode": "6-अंकी कोड टाका",
+        "mfa.verify": "सत्यापित करा आणि सक्षम करा",
+        "mfa.verifying": "सत्यापित होत आहे...",
+        "mfa.enabled": "2FA सक्षम आहे",
+        "mfa.disable": "2FA अक्षम करा",
+        "mfa.disableConfirm": "तुम्हाला खात्री आहे की तुम्ही द्वि-घटक प्रमाणीकरण अक्षम करू इच्छिता?",
+        "mfa.disableDesc": "2FA शिवाय तुमचे खाते कमी सुरक्षित असेल.",
+        "mfa.challengeTitle": "द्वि-घटक प्रमाणीकरण",
+        "mfa.challengeDesc": "तुमच्या ऑथेंटिकेटर ॲपमधून कोड टाका",
+        "mfa.invalidCode": "अवैध कोड. कृपया पुन्हा प्रयत्न करा.",
+        "mfa.back": "लॉगिनवर परत जा",
+        "mfa.success": "द्वि-घटक प्रमाणीकरण यशस्वीरित्या सक्षम!",
+        "mfa.disabled": "द्वि-घटक प्रमाणीकरण अक्षम केले गेले आहे.",
+        "mfa.cancel": "रद्द करा",
+        "mfa.confirm": "होय, अक्षम करा",
 
         // ── Profile (Structured) ──────────────────────────────────────────
         "profile.firstName": "पहिले नाव",
@@ -2087,6 +2263,7 @@ const translations: Record<Language, Record<string, string>> = {
         "profile.privacySecurity": "गोपनीयता आणि सुरक्षा",
         "profile.helpSupport": "मदत आणि समर्थन",
         "profile.logout": "साइन आउट",
+        "profile.logoutConfirmation": "तुम्हाला खात्री आहे की तुम्ही साइन आउट करू इच्छिता?",
         "profile.user": "वापरकर्ता",
         "profile.beat": "बीट",
         "profile.range": "रेंज",
@@ -2123,6 +2300,35 @@ const translations: Record<Language, Record<string, string>> = {
         "privacy.analyticsDesc": "वापर डेटा शेअर करून आम्हाला सुधारण्यास मदत करा",
         "privacy.signOutAll": "सर्व उपकरणांतून साइन आउट करा",
         "privacy.revokeWarning": "सर्व सक्रिय सत्र टोकन रद्द करा",
+
+        // ── Help & Support ────────────────────────────────────────────────
+        "help.title": "मदत आणि समर्थन",
+        "help.contactAdmin": "प्रशासकाशी संपर्क साधा",
+        "help.callIT": "आयटी सपोर्टला कॉल करा",
+        "help.callTime": "सकाळी 8:00 ते संध्याकाळी 8:00",
+        "help.emailSupport": "ईमेल सपोर्ट",
+        "help.emailTime": "24 तासांच्या आत प्रतिसाद",
+        "help.resources": "संसाधने",
+        "help.userManual": "वापरकर्ता पुस्तिका",
+        "help.faq": "वारंवार विचारले जाणारे प्रश्न",
+        "help.diagnostics": "निदान",
+        "help.appVersion": "ॲप आवृत्ती",
+        "help.forceSync": "जबरदस्ती मॅन्युअल सिंक",
+        "help.lastSync": "शेवटचा सिंक",
+        "help.never": "कधीच नाही",
+        "help.syncing": "सिंक होत आहे...",
+        "help.syncNow": "आता सिंक करा",
+
+        // ── FAQ ───────────────────────────────────────────────────────────
+        "faq.title": "वारंवार विचारले जाणारे प्रश्न",
+        "faq.q1": "मी जंगली हत्तीचे दर्शन कसे नोंदवू?",
+        "faq.a1": "डॅशबोर्डवर जा आणि 'क्रियाकलाप नोंदवा' वर टॅप करा. स्थान, हत्तींची संख्या भरा आणि पर्यायी फोटो जोडा.",
+        "faq.q2": "रिपोर्ट सबमिट करण्यासाठी मला इंटरनेटची आवश्यकता आहे का?",
+        "faq.a2": "नाही! ॲप ऑफलाइन देखील काम करतो. रिपोर्ट स्थानिक पातळीवर जतन केले जातात आणि तुमचे इंटरनेट कनेक्शन परत आल्यावर स्वयंचलितपणे सिंक होतील.",
+        "faq.q3": "थेट भेटीच्या बाबतीत मी काय करावे?",
+        "faq.a3": "सुरक्षित अंतर ठेवा, घाबरू नका आणि हळूहळू मागे सरका. जंगली हत्तींना कधीही खायला देऊ नका किंवा कॅमेरा फ्लॅश करू नका.",
+        "faq.q4": "माझ्या स्थान डेटाचा वापर कसा केला जातो?",
+        "faq.a4": "प्राण्यांच्या हालचाली आणि संघर्ष क्षेत्रे अचूकपणे मॅप करण्यासाठी केवळ रिपोर्ट सबमिट करताना तुमचे स्थान कॅप्चर केले जाते.",
     },
 };
 

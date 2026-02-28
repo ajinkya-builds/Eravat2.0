@@ -73,7 +73,7 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
     const isStepValid = useCallback((step: FormStep): boolean => {
         switch (step) {
             case 'dateTimeLocation':
-                return !!(formData.activity_date && formData.activity_time && formData.latitude && formData.longitude);
+                return !!(formData.activity_date && formData.activity_time && formData.latitude != null && formData.longitude != null);
             case 'observationType':
                 if (!formData.observation_type) return false;
                 if (formData.observation_type === 'indirect') return formData.indirect_sign_details.length > 0;

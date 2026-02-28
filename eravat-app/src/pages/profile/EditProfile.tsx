@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, User, Phone, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../supabase';
-import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function EditProfile() {
     const navigate = useNavigate();
@@ -14,7 +14,7 @@ export default function EditProfile() {
     const [lastName, setLastName] = useState(profile?.last_name || '');
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const { t } = useTranslation();
+    const { t } = useLanguage();
 
     const initials = profile
         ? `${profile.first_name?.charAt(0) ?? ''}${profile.last_name?.charAt(0) ?? ''}`.toUpperCase() || 'U'
@@ -160,7 +160,7 @@ export default function EditProfile() {
 
                     <button
                         type="submit"
-                        disabled={isLoading || (firstName === profile?.first_name && lastName === profile?.last_name)}
+                        disabled={isLoading || !firstName.trim() || !lastName.trim() || (firstName === profile?.first_name && lastName === profile?.last_name)}
                         className="w-full bg-primary text-primary-foreground font-semibold rounded-xl py-3.5 px-4 flex items-center justify-center gap-2 mt-8 shadow-lg shadow-primary/25 disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed group transition-all"
                     >
                         {isLoading ? (

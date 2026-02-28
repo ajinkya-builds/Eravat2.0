@@ -1,9 +1,10 @@
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Map, Plus, Settings, User } from 'lucide-react';
+import { Home, Map, Plus, Settings, User, AlertTriangle } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import { NotificationBell } from '../components/shared/NotificationBell';
 import elephantLogo from '../../public/elephant-logo.png';
 
@@ -13,6 +14,7 @@ export function AppLayout() {
     const location = useLocation();
     const navigate = useNavigate();
     const { t } = useLanguage();
+    const { sessionExpired, clearSessionExpired } = useAuth();
 
     const NAV_ITEMS = [
         { id: 'dashboard', path: '/', icon: Home, label: 'nav.dashboard' },
@@ -36,6 +38,34 @@ export function AppLayout() {
             {/* Decorative ambient background glows */}
             <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[100px] pointer-events-none" />
             <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-[100px] pointer-events-none" />
+
+            {/* BUG-012 FIX: Session expiry notification banner */}
+            <AnimatePresence>
+                {sessionExpired && (
+                    <motion.div
+                        initial={{ y: -60, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -60, opacity: 0 }}
+                        className="fixed top-16 left-0 right-0 z-50 bg-destructive/95 text-destructive-foreground px-4 py-2.5 flex items-center justify-between gap-3 shadow-lg text-sm"
+                    >
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle size={16} className="shrink-0" />
+                            <span className="font-medium">Your session has expired. Please sign in again.</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button
+                                onClick={() => { clearSessionExpired(); navigate('/login'); }}
+                                className="px-3 py-1 rounded-lg bg-white/20 hover:bg-white/30 font-semibold text-xs transition-colors"
+                            >
+                                Sign In
+                            </button>
+                            <button onClick={clearSessionExpired} className="p-1 rounded-lg hover:bg-white/20">
+                                <span className="sr-only">Dismiss</span>✕
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Global Header with Logo */}
             <header className="fixed top-0 left-0 right-0 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 flex items-center justify-between px-4 md:px-6 shadow-sm">

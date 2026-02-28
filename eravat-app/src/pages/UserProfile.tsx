@@ -1,6 +1,7 @@
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Settings, HelpCircle, Lock, ChevronRight, Shield, AlertTriangle, MapPin } from 'lucide-react';
+import { LogOut, User, HelpCircle, Lock, ChevronRight, Shield, AlertTriangle, MapPin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -8,6 +9,7 @@ export default function UserProfile() {
     const { user, profile, signOut } = useAuth();
     const navigate = useNavigate();
     const { t } = useLanguage();
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     const initials = profile
         ? `${profile.first_name?.charAt(0) ?? ''}${profile.last_name?.charAt(0) ?? ''}`.toUpperCase() || 'U'
@@ -23,12 +25,12 @@ export default function UserProfile() {
 
     const menuItems = [
         { id: 'profile', label: t('profile.editProfile'), icon: User, onClick: () => navigate('/profile/edit') },
-        { id: 'settings', label: t('profile.appSettings'), icon: Settings, onClick: () => navigate('/settings') },
         { id: 'privacy', label: t('profile.privacySecurity'), icon: Lock, onClick: () => navigate('/privacy') },
         { id: 'help', label: t('profile.helpSupport'), icon: HelpCircle, onClick: () => navigate('/help') },
     ];
 
     const handleLogout = async () => {
+        setShowLogoutConfirm(false);
         await signOut();
         navigate('/login');
     };
@@ -91,7 +93,7 @@ export default function UserProfile() {
             {/* Logout */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                 <button
-                    onClick={handleLogout}
+                    onClick={() => setShowLogoutConfirm(true)}
                     className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 text-destructive hover:bg-destructive/5 transition-colors"
                 >
                     <div className="w-10 h-10 rounded-2xl bg-destructive/10 flex items-center justify-center">
@@ -100,6 +102,51 @@ export default function UserProfile() {
                     <span className="flex-1 text-sm font-semibold">{t('profile.logout')}</span>
                 </button>
             </motion.div>
+
+            {/* Sign-out Confirmation Dialog */}
+            <AnimatePresence>
+                {showLogoutConfirm && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                        onClick={() => setShowLogoutConfirm(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-background rounded-2xl p-6 w-full max-w-sm shadow-xl border border-border/50 space-y-4"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                                    <LogOut size={20} className="text-destructive" />
+                                </div>
+                                <h3 className="text-lg font-bold text-foreground">{t('profile.logout')}</h3>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                {t('profile.logoutConfirmation')}
+                            </p>
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={() => setShowLogoutConfirm(false)}
+                                    className="flex-1 py-2.5 px-4 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
+                                >
+                                    {t('profile.cancel')}
+                                </button>
+                                <button
+                                    onClick={handleLogout}
+                                    className="flex-1 py-2.5 px-4 rounded-xl bg-destructive text-destructive-foreground text-sm font-semibold hover:bg-destructive/90 transition-colors"
+                                >
+                                    {t('profile.logout')}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

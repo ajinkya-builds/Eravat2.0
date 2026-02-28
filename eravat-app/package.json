@@ -9,7 +9,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "vite build --base=/Eravat2.0/",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "test:e2e": "npx playwright test --project=chromium",
+    "test:e2e:headed": "npx playwright test --project=chromium --headed",
+    "test:e2e:ui": "npx playwright test --ui",
+    "test:e2e:report": "npx playwright show-report"
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",
@@ -43,8 +47,9 @@
   "devDependencies": {
     "@capacitor/cli": "^8.1.0",
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.58.2",
     "@types/leaflet": "^1.9.21",
-    "@types/node": "^24.10.1",
+    "@types/node": "^24.10.14",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",

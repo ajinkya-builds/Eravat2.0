@@ -29,8 +29,8 @@ interface AuthContextValue {
     loading: boolean;
     sessionExpired: boolean;
     clearSessionExpired: () => void;
-    signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-    signInWithPhone: (phone: string, password: string) => Promise<{ error: Error | null }>;
+    signIn: (email: string, password: string) => Promise<{ error: Error | null; mfaRequired?: boolean }>;
+    signInWithPhone: (phone: string, password: string) => Promise<{ error: Error | null; mfaRequired?: boolean }>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
@@ -148,10 +148,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Step 2: sign in with the resolved email + password
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (!error) {
-            setSessionExpired(false);
+        if (error) {
+            return { error: new Error('Invalid credentials. Please try again.') };
         }
-        return { error: error ? new Error('Invalid credentials. Please try again.') : null };
+
+        setSessionExpired(false);
+
+        // Step 3: check if MFA verification is needed (admin users with TOTP enrolled)
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aalData && aalData.currentLevel === 'aal1' && aalData.nextLevel === 'aal2') {
+            return { error: null, mfaRequired: true };
+        }
+
+        return { error: null, mfaRequired: false };
     };
 
     const signOut = async () => {

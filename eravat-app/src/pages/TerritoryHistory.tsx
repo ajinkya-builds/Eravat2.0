@@ -43,9 +43,11 @@ export default function TerritoryHistory() {
     const { t } = useLanguage();
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchHistory = async () => {
+            setFetchError(null);
             // Because RLS is active, users will ONLY see reports they are allowed to see 
             // (either their own, or those in their assigned territory)
             const { data, error } = await supabase
@@ -55,7 +57,9 @@ export default function TerritoryHistory() {
                 .limit(50);
 
             if (error) {
-                console.error("Error fetching history:", error);
+                // BUG-007 FIX: surface the error to the user instead of silently logging
+                console.error('Error fetching history:', error);
+                setFetchError(error.message || 'Failed to load activity history.');
             } else {
                 // Safely cast the PostgREST response
                 setHistory((data as unknown) as HistoryItem[] || []);
@@ -65,6 +69,28 @@ export default function TerritoryHistory() {
 
         fetchHistory();
     }, []);
+
+    const handleRetry = () => {
+        setLoading(true);
+        setFetchError(null);
+        // Re-trigger the effect by bumping a key
+        setHistory([]);
+        // We call a direct re-fetch rather than repurposing the effect
+        const refetch = async () => {
+            const { data, error } = await supabase
+                .from('reports')
+                .select('id, device_timestamp, status, geo_beats(name, geo_ranges(name)), observations(*), conflict_damages(*)')
+                .order('server_created_at', { ascending: false })
+                .limit(50);
+            if (error) {
+                setFetchError(error.message || 'Failed to load activity history.');
+            } else {
+                setHistory((data as unknown) as HistoryItem[] || []);
+            }
+            setLoading(false);
+        };
+        refetch();
+    };
 
     return (
         <div className="min-h-screen bg-background pb-20 pt-8 px-4">
@@ -82,6 +108,19 @@ export default function TerritoryHistory() {
                 {loading ? (
                     <div className="flex justify-center py-20">
                         <Loader2 className="animate-spin text-primary" size={32} />
+                    </div>
+                ) : fetchError ? (
+                    // BUG-007 FIX: show a user-facing error card with retry
+                    <div className="text-center py-16 glass-card rounded-3xl border border-destructive/30 bg-destructive/5">
+                        <AlertTriangle className="mx-auto h-12 w-12 text-destructive/70 mb-4" />
+                        <h3 className="text-lg font-bold text-foreground">Unable to load history</h3>
+                        <p className="text-muted-foreground text-sm mt-1 px-4">{fetchError}</p>
+                        <button
+                            onClick={handleRetry}
+                            className="mt-4 px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+                        >
+                            Try Again
+                        </button>
                     </div>
                 ) : history.length === 0 ? (
                     <div className="text-center py-16 glass-card rounded-3xl border border-border">

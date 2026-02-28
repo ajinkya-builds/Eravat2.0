@@ -22,6 +22,7 @@ export interface LocalReport {
   // Observation details (maps to `observations` table on sync)
   observation_type: 'direct' | 'indirect' | 'loss' | null;
   male_count: number;
+  total_elephants: number;
   female_count: number;
   calf_count: number;
   unknown_count: number;

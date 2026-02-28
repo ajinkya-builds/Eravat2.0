@@ -21,7 +21,7 @@ export function DateTimeLocationStep() {
         if (!formData.activity_time) updateFormData({ activity_time: time });
 
         // Get GPS only if not already filled
-        if (!formData.latitude || !formData.longitude) {
+        if (formData.latitude == null || formData.longitude == null) {
             const pos = await fetchLocation();
             if (pos) {
                 updateFormData({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
@@ -32,7 +32,7 @@ export function DateTimeLocationStep() {
     // Auto-trigger on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
-        if (!formData.latitude || !formData.activity_date) {
+        if (formData.latitude == null || !formData.activity_date) {
             handleAutofill();
         }
     }, []);
@@ -99,9 +99,11 @@ export function DateTimeLocationStep() {
                         <input
                             type="number"
                             step="any"
+                            min={-90}
+                            max={90}
                             placeholder={`${t('report.eg')} 11.4589`}
                             value={formData.latitude ?? ''}
-                            onChange={e => updateFormData({ latitude: parseFloat(e.target.value) || null })}
+                            onChange={e => updateFormData({ latitude: e.target.value === '' ? null : parseFloat(e.target.value) })}
                             className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         />
                     </div>
@@ -110,9 +112,11 @@ export function DateTimeLocationStep() {
                         <input
                             type="number"
                             step="any"
+                            min={-180}
+                            max={180}
                             placeholder={`${t('report.eg')} 76.5491`}
                             value={formData.longitude ?? ''}
-                            onChange={e => updateFormData({ longitude: parseFloat(e.target.value) || null })}
+                            onChange={e => updateFormData({ longitude: e.target.value === '' ? null : parseFloat(e.target.value) })}
                             className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         />
                     </div>
@@ -122,7 +126,7 @@ export function DateTimeLocationStep() {
                         ⚠ {gpsError}
                     </p>
                 )}
-                {formData.latitude && formData.longitude && (
+                {formData.latitude != null && formData.longitude != null && (
                     <p className="text-xs text-emerald-600 mt-1">
                         ✓ {t('dtl_location_acquired')}: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
                     </p>

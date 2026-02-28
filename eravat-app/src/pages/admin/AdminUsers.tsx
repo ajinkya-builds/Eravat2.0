@@ -77,7 +77,8 @@ export default function AdminUsers() {
     const [search, setSearch] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editUser, setEditUser] = useState<Profile & { password?: string, division_id?: string, range_id?: string, beat_id?: string } | null>(null);
-    const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+    const [selected, setSelected] = useState<string[]>([]);
+    const [confirmDelete, setConfirmDelete] = useState<{ ids: string[]; label: string } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [newUser, setNewUser] = useState(DEFAULT_NEW_USER);
     const [toast, setToast] = useState<string | null>(null);
@@ -185,24 +186,27 @@ export default function AdminUsers() {
         }
     };
 
-    const handleDelete = async () => {
-        if (!deleteUserId) return;
+    const handleConfirmDelete = async () => {
+        if (!confirmDelete) return;
         setIsSubmitting(true);
         setError(null);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Not authenticated');
 
-            const { data, error: fnErr } = await supabase.functions.invoke('delete-user', {
-                body: { id: deleteUserId },
-                headers: { Authorization: `Bearer ${session.access_token}` },
-            });
+            for (const id of confirmDelete.ids) {
+                const { data, error: fnErr } = await supabase.functions.invoke('delete-user', {
+                    body: { id },
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                });
 
-            if (fnErr) throw fnErr;
-            if (data?.error) throw new Error(data.error);
+                if (fnErr) throw fnErr;
+                if (data?.error) throw new Error(data.error);
+            }
 
-            setDeleteUserId(null);
-            setToast('Personnel deleted successfully');
+            setSelected(prev => prev.filter(id => !confirmDelete.ids.includes(id)));
+            setConfirmDelete(null);
+            setToast(`${confirmDelete.ids.length > 1 ? confirmDelete.ids.length + ' personnel' : 'Personnel'} deleted successfully`);
             setTimeout(() => setToast(null), 3000);
             await fetchData();
         } catch (err) {
@@ -212,9 +216,17 @@ export default function AdminUsers() {
         }
     };
 
+    const toggleSelect = (id: string) =>
+        setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
     const filtered = useMemo(() =>
         profiles.filter(p => `${p.first_name} ${p.last_name}`.toLowerCase().includes(search.toLowerCase())),
         [profiles, search]
+    );
+
+    const manageableIds = useMemo(() =>
+        filtered.filter(p => canManageRole(currentUserProfile?.role, p.role)).map(p => p.id),
+        [filtered, currentUserProfile?.role]
     );
 
     const filteredRanges = ranges.filter(r => r.division_id === (editUser ? editUser.division_id : newUser.division_id));
@@ -230,12 +242,20 @@ export default function AdminUsers() {
                     <h1 className="text-3xl font-bold tracking-tight">{t('admin.users.title')}</h1>
                     <p className="text-sm text-muted-foreground mt-1">{t('admin.users.subtitle')}</p>
                 </div>
-                {canCreateAnyUser && (
-                    <button onClick={() => setShowModal(true)}
-                        className="bg-primary text-primary-foreground h-11 px-6 rounded-xl flex items-center gap-2 font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
-                        <UserPlus size={18} /> {t('admin.users.registerPersonnel')}
-                    </button>
-                )}
+                <div className="flex items-center gap-2">
+                    {selected.length > 0 && (
+                        <button onClick={() => setConfirmDelete({ ids: selected, label: `Delete ${selected.length} selected personnel permanently?` })}
+                            className="bg-destructive text-destructive-foreground h-11 px-5 rounded-xl flex items-center gap-2 font-semibold shadow-lg shadow-destructive/20 hover:bg-destructive/90 transition-colors text-sm">
+                            <Trash2 size={16} /> {t('admin.users.deleteBtn')} ({selected.length})
+                        </button>
+                    )}
+                    {canCreateAnyUser && (
+                        <button onClick={() => { setNewUser(DEFAULT_NEW_USER); setShowModal(true); }}
+                            className="bg-primary text-primary-foreground h-11 px-6 rounded-xl flex items-center gap-2 font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                            <UserPlus size={18} /> {t('admin.users.registerPersonnel')}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {error && (
@@ -267,6 +287,12 @@ export default function AdminUsers() {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-muted/40 border-b border-border">
+                                    <th className="p-4 w-10">
+                                        <input type="checkbox"
+                                            onChange={e => setSelected(e.target.checked ? manageableIds : [])}
+                                            checked={selected.length === manageableIds.length && manageableIds.length > 0}
+                                            className="rounded border-border" />
+                                    </th>
                                     <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.name')}</th>
                                     <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.contact')}</th>
                                     <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.role')}</th>
@@ -277,10 +303,15 @@ export default function AdminUsers() {
                             </thead>
                             <tbody className="divide-y divide-border/40">
                                 {filtered.length === 0 ? (
-                                    <tr><td colSpan={5} className="text-center py-16 text-muted-foreground">{t('admin.users.noPersonnel')}</td></tr>
+                                    <tr><td colSpan={7} className="text-center py-16 text-muted-foreground">{t('admin.users.noPersonnel')}</td></tr>
                                 ) : filtered.map((p, i) => (
                                     <motion.tr key={p.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: i * 0.04 }} className="hover:bg-muted/20 group transition-colors">
+                                        <td className="p-4">
+                                            {canManageRole(currentUserProfile?.role, p.role) ? (
+                                                <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggleSelect(p.id)} className="rounded border-border" />
+                                            ) : <span className="w-4 block" />}
+                                        </td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
@@ -333,7 +364,7 @@ export default function AdminUsers() {
                                                         title="Edit">
                                                         <Edit2 size={16} />
                                                     </button>
-                                                    <button onClick={() => setDeleteUserId(p.id)}
+                                                    <button onClick={() => setConfirmDelete({ ids: [p.id], label: t('admin.users.deleteDesc') })}
                                                         className="p-2 text-muted-foreground hover:text-destructive bg-muted/30 hover:bg-destructive/10 rounded-lg transition-colors"
                                                         title="Delete">
                                                         <Trash2 size={16} />
@@ -383,7 +414,7 @@ export default function AdminUsers() {
                             </div>
                             <div>
                                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.phoneNumber')}</label>
-                                <input type="tel" maxLength={20} value={newUser.phone} onChange={e => setNewUser({ ...newUser, phone: e.target.value })} placeholder="Optional"
+                                <input type="tel" required maxLength={20} value={newUser.phone} onChange={e => setNewUser({ ...newUser, phone: e.target.value })} placeholder="+91 98765 43210"
                                     className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                             </div>
                             <div>
@@ -470,7 +501,7 @@ export default function AdminUsers() {
                             </div>
                             <div>
                                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.phoneNumber')}</label>
-                                <input type="tel" maxLength={20} value={editUser.phone || ''} onChange={e => setEditUser({ ...editUser, phone: e.target.value })} placeholder="Optional"
+                                <input type="tel" required maxLength={20} value={editUser.phone || ''} onChange={e => setEditUser({ ...editUser, phone: e.target.value })} placeholder="+91 98765 43210"
                                     className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                             </div>
                             <div>
@@ -526,7 +557,7 @@ export default function AdminUsers() {
                 </div>
             )}
 
-            {deleteUserId && (
+            {confirmDelete && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                         className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl">
@@ -537,14 +568,14 @@ export default function AdminUsers() {
                         </div>
                         <h2 className="text-xl font-bold text-center mb-2">{t('admin.users.deleteTitle')}</h2>
                         <p className="text-sm text-center text-muted-foreground mb-6">
-                            {t('admin.users.deleteDesc')}
+                            {confirmDelete.label}
                         </p>
                         <div className="flex gap-3">
-                            <button type="button" onClick={() => setDeleteUserId(null)}
+                            <button type="button" onClick={() => setConfirmDelete(null)}
                                 className="flex-1 h-11 rounded-xl border border-border font-semibold hover:bg-muted transition-colors text-sm">
                                 {t('profile.cancel')}
                             </button>
-                            <button type="button" onClick={handleDelete} disabled={isSubmitting}
+                            <button type="button" onClick={handleConfirmDelete} disabled={isSubmitting}
                                 className="flex-1 h-11 bg-destructive text-destructive-foreground rounded-xl font-bold hover:bg-destructive/90 transition-colors shadow-lg shadow-destructive/20 disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
                                 {isSubmitting && <Loader2 size={16} className="animate-spin" />}
                                 {t('admin.users.deleteBtn')}

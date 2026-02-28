@@ -3,11 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Key, Fingerprint, Activity, ShieldAlert, LogOut, ChevronRight, Check } from 'lucide-react';
 import { supabase } from '../../supabase';
-import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function PrivacySecurity() {
     const navigate = useNavigate();
-    const { t } = useTranslation();
+    const { t } = useLanguage();
 
     // Toggles state
     const [biometricEnabled, setBiometricEnabled] = useState(false);

@@ -1,10 +1,10 @@
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function FAQ() {
     const navigate = useNavigate();
-    const { t } = useTranslation();
+    const { t } = useLanguage();
 
     const faqs = [
         { q: t('faq.q1'), a: t('faq.a1') },

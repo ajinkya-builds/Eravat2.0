@@ -1,10 +1,10 @@
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function PrivacyPolicy() {
     const navigate = useNavigate();
-    const { t } = useTranslation();
+    const { t } = useLanguage();
 
     return (
         <div className="min-h-screen bg-background pb-[80px]">

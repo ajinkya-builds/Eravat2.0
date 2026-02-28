@@ -167,6 +167,12 @@ serve(async (req) => {
         .eq('id', id)
 
       if (profileUpdateErr) {
+        // Check for unique phone violation (PostgreSQL error code 23505)
+        if (profileUpdateErr.code === '23505' && profileUpdateErr.message?.includes('phone')) {
+          return new Response(JSON.stringify({ error: 'Phone number already exists' }), {
+            status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
         return new Response(JSON.stringify({ error: `Profile update failed: ${profileUpdateErr.message}` }), {
           status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })

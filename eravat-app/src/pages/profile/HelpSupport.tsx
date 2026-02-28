@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, Phone, BookOpen, RefreshCw, FileText, ExternalLink, AlertCircle } from 'lucide-react';
 import { syncData } from '../../services/syncService';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function HelpSupport() {
     const navigate = useNavigate();
     const [isSyncing, setIsSyncing] = useState(false);
     const [lastSyncTime, setLastSyncTime] = useState<string | null>(localStorage.getItem('last_sync_time'));
-    const { t } = useTranslation();
+    const { t } = useLanguage();
 
     const handleForceSync = async () => {
         setIsSyncing(true);

@@ -152,6 +152,12 @@ serve(async (req) => {
     if (profileUpsertErr) {
       // Rollback auth user
       await adminClient.auth.admin.deleteUser(newUserId)
+      // Check for unique phone violation (PostgreSQL error code 23505)
+      if (profileUpsertErr.code === '23505' && profileUpsertErr.message?.includes('phone')) {
+        return new Response(JSON.stringify({ error: 'Phone number already exists' }), {
+          status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
       return new Response(JSON.stringify({ error: `Profile creation failed: ${profileUpsertErr.message}` }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
