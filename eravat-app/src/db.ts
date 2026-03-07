@@ -35,7 +35,8 @@ export interface LocalReport {
   // Photo (maps to `report_media` on sync)
   photo_url: string | null;
 
-  // Local sync fields
+  // Offline sync fields
+  obs_id: string | null;     // stable UUID for the corresponding observations row
   notes: string | null;
   status: string;
   sync_status: 'pending' | 'synced' | 'failed';
@@ -56,6 +57,11 @@ export class EravatDatabase extends Dexie {
   constructor() {
     super('EravatDB');
     this.version(2).stores({
+      reports: 'id, sync_status, device_timestamp, beat_id',
+      report_media: 'id, report_id, sync_status',
+    });
+    // Version 3 adds obs_id column (no store change needed, just schema bump)
+    this.version(3).stores({
       reports: 'id, sync_status, device_timestamp, beat_id',
       report_media: 'id, report_id, sync_status',
     });

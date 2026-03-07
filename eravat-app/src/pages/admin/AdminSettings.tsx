@@ -138,7 +138,7 @@ export default function AdminSettings() {
             const { data: existingFactors } = await supabase.auth.mfa.listFactors();
             if (existingFactors) {
                 for (const factor of existingFactors.totp) {
-                    if (factor.status === 'unverified') {
+                    if ((factor.status as string) === 'unverified') {
                         await supabase.auth.mfa.unenroll({ factorId: factor.id });
                     }
                 }

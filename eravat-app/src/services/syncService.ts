@@ -81,8 +81,9 @@ export async function syncData() {
                         'loss': 'conflict_loss',
                     };
 
-                    // Deterministic observation ID based on report_id
-                    const obsId = `obs-${report.id}`;
+                    // Use pre-generated stable UUID from Dexie (set at report-save time).
+                    // Fall back to a fresh UUID for legacy records without obs_id.
+                    const obsId = report.obs_id ?? crypto.randomUUID();
 
                     const { error: obsError } = await supabase
                         .from('observations')
@@ -90,7 +91,6 @@ export async function syncData() {
                             id: obsId,
                             report_id: report.id,
                             type: typeMapping[report.observation_type] || report.observation_type,
-                            total_elephants: report.total_elephants ?? 0,
                             male_count: report.male_count ?? 0,
                             female_count: report.female_count ?? 0,
                             calf_count: report.calf_count ?? 0,
@@ -100,7 +100,8 @@ export async function syncData() {
                         });
 
                     if (obsError) {
-                        await supabase.from('reports').update({ status: 'failed' }).eq('id', report.id);
+                        console.error('[SyncService] observations upsert error:', obsError);
+                        // Leave report in 'pending' so it can be retried (no 'failed' enum value in DB)
                         await db.reports.update(report.id, { sync_status: 'failed' });
                         continue;
                     }
@@ -130,7 +131,7 @@ export async function syncData() {
                     }
 
                     if (hasDamageError) {
-                        await supabase.from('reports').update({ status: 'failed' }).eq('id', report.id);
+                        console.error('[SyncService] conflict_damages upsert error');
                         await db.reports.update(report.id, { sync_status: 'failed' });
                         continue;
                     }
@@ -181,7 +182,7 @@ export async function syncData() {
                 }
 
                 if (hasMediaError) {
-                    await supabase.from('reports').update({ status: 'failed' }).eq('id', report.id);
+                    console.error('[SyncService] media upload error');
                     await db.reports.update(report.id, { sync_status: 'failed' });
                     continue;
                 }

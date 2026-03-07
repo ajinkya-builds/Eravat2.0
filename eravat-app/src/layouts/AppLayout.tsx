@@ -6,7 +6,6 @@ import { cn } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationBell } from '../components/shared/NotificationBell';
-import elephantLogo from '../../public/elephant-logo.png';
 
 
 
@@ -71,7 +70,7 @@ export function AppLayout() {
             <header className="fixed top-0 left-0 right-0 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 flex items-center justify-between px-4 md:px-6 shadow-sm">
                 <Link to="/" className="flex items-center gap-2 active:scale-95 transition-transform">
                     <div className="w-10 h-10 relative flex items-center justify-center overflow-visible">
-                        <img src={elephantLogo} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
+                        <img src="/elephant-logo.png" alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
                     </div>
                     <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT</span>
                 </Link>

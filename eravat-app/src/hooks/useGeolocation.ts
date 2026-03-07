@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Geolocation, type Position } from '@capacitor/geolocation';
 
 export function useGeolocation() {
@@ -10,24 +11,59 @@ export function useGeolocation() {
         setIsLoading(true);
         setError(null);
         try {
-            // First, request permissions (Critical for iOS/Android)
-            const permissions = await Geolocation.checkPermissions();
-            if (permissions.location !== 'granted') {
-                const req = await Geolocation.requestPermissions();
-                if (req.location !== 'granted') {
-                    throw new Error('Location permission denied');
+            if (Capacitor.isNativePlatform()) {
+                // Native Android/iOS — use Capacitor geolocation with permission flow
+                const permissions = await Geolocation.checkPermissions();
+                if (permissions.location !== 'granted') {
+                    const req = await Geolocation.requestPermissions();
+                    if (req.location !== 'granted') {
+                        throw new Error('Location permission denied');
+                    }
                 }
+                const coordinates = await Geolocation.getCurrentPosition({
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 3000
+                });
+                setPosition(coordinates);
+                return coordinates;
+            } else {
+                // Web browser — use the native browser Geolocation API
+                if (!navigator.geolocation) {
+                    throw new Error('Geolocation is not supported by this browser');
+                }
+                const coordinates = await new Promise<GeolocationPosition>((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 3000
+                    });
+                });
+                // Normalise to the same shape as a Capacitor Position
+                const pos: Position = {
+                    coords: {
+                        latitude: coordinates.coords.latitude,
+                        longitude: coordinates.coords.longitude,
+                        accuracy: coordinates.coords.accuracy,
+                        altitude: coordinates.coords.altitude,
+                        altitudeAccuracy: coordinates.coords.altitudeAccuracy,
+                        heading: coordinates.coords.heading,
+                        speed: coordinates.coords.speed,
+                    },
+                    timestamp: coordinates.timestamp,
+                };
+                setPosition(pos);
+                return pos;
             }
-
-            const coordinates = await Geolocation.getCurrentPosition({
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 3000
-            });
-            setPosition(coordinates);
-            return coordinates;
         } catch (err: unknown) {
-            if (err instanceof Error) {
+            if (err instanceof GeolocationPositionError) {
+                const messages: Record<number, string> = {
+                    [GeolocationPositionError.PERMISSION_DENIED]: 'Location permission denied',
+                    [GeolocationPositionError.POSITION_UNAVAILABLE]: 'Location unavailable',
+                    [GeolocationPositionError.TIMEOUT]: 'Location request timed out',
+                };
+                setError(messages[err.code] ?? 'Failed to fetch location');
+            } else if (err instanceof Error) {
                 setError(err.message || 'Failed to fetch location');
             } else {
                 setError('Failed to fetch location');
@@ -45,7 +81,7 @@ export function useGeolocation() {
         error,
         loading: isLoading,
         isLoading,
-        // fetchLocation is an alias for requestLocation 
+        // fetchLocation is an alias for requestLocation
         fetchLocation: requestLocation,
         requestLocation
     };

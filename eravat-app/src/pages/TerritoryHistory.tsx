@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../supabase';
-import { MapPin, Calendar, Clock, AlertTriangle, Eye, Loader2, ArrowLeft } from 'lucide-react';
+import { MapPin, Calendar, Clock, AlertTriangle, Eye, Loader2, ArrowLeft, Radio, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface HistoryItem {
     id: string;
@@ -41,51 +42,84 @@ const typeColors: Record<string, string> = {
 export default function TerritoryHistory() {
     const navigate = useNavigate();
     const { t } = useLanguage();
+    const { user } = useAuth();
     const [history, setHistory] = useState<HistoryItem[]>([]);
+    const [proximityReportIds, setProximityReportIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchHistory = async () => {
+        if (!user?.id) return;
+        const fetchAll = async () => {
             setFetchError(null);
-            // Because RLS is active, users will ONLY see reports they are allowed to see 
-            // (either their own, or those in their assigned territory)
-            const { data, error } = await supabase
+
+            // Fetch reports (RLS scopes to territory owned by the user)
+            const reportsPromise = supabase
                 .from('reports')
                 .select('id, device_timestamp, status, geo_beats(name, geo_ranges(name)), observations(*), conflict_damages(*)')
                 .order('server_created_at', { ascending: false })
                 .limit(50);
 
-            if (error) {
-                // BUG-007 FIX: surface the error to the user instead of silently logging
-                console.error('Error fetching history:', error);
-                setFetchError(error.message || 'Failed to load activity history.');
+            // Fetch proximity notification report_ids for this user
+            const notifPromise = supabase
+                .from('notifications')
+                .select('report_id')
+                .eq('user_id', user.id)
+                .eq('notification_type', 'proximity')
+                .not('report_id', 'is', null);
+
+            const [reportsRes, notifRes] = await Promise.all([reportsPromise, notifPromise]);
+
+            if (reportsRes.error) {
+                console.error('Error fetching history:', reportsRes.error);
+                setFetchError(reportsRes.error.message || 'Failed to load activity history.');
             } else {
-                // Safely cast the PostgREST response
-                setHistory((data as unknown) as HistoryItem[] || []);
+                setHistory((reportsRes.data as unknown) as HistoryItem[] || []);
             }
+
+            if (!notifRes.error && notifRes.data) {
+                const ids = new Set<string>(
+                    notifRes.data.map((n: { report_id: string }) => n.report_id).filter(Boolean)
+                );
+                setProximityReportIds(ids);
+            }
+
             setLoading(false);
         };
 
-        fetchHistory();
-    }, []);
+        fetchAll();
+    }, [user?.id]);
 
     const handleRetry = () => {
         setLoading(true);
         setFetchError(null);
-        // Re-trigger the effect by bumping a key
         setHistory([]);
-        // We call a direct re-fetch rather than repurposing the effect
+        setProximityReportIds(new Set());
+        // Re-trigger effect by bumping user dep isn't possible; call directly
+        if (!user?.id) return;
         const refetch = async () => {
-            const { data, error } = await supabase
-                .from('reports')
-                .select('id, device_timestamp, status, geo_beats(name, geo_ranges(name)), observations(*), conflict_damages(*)')
-                .order('server_created_at', { ascending: false })
-                .limit(50);
-            if (error) {
-                setFetchError(error.message || 'Failed to load activity history.');
+            const [reportsRes, notifRes] = await Promise.all([
+                supabase
+                    .from('reports')
+                    .select('id, device_timestamp, status, geo_beats(name, geo_ranges(name)), observations(*), conflict_damages(*)')
+                    .order('server_created_at', { ascending: false })
+                    .limit(50),
+                supabase
+                    .from('notifications')
+                    .select('report_id')
+                    .eq('user_id', user.id)
+                    .eq('notification_type', 'proximity')
+                    .not('report_id', 'is', null),
+            ]);
+            if (reportsRes.error) {
+                setFetchError(reportsRes.error.message || 'Failed to load activity history.');
             } else {
-                setHistory((data as unknown) as HistoryItem[] || []);
+                setHistory((reportsRes.data as unknown) as HistoryItem[] || []);
+            }
+            if (!notifRes.error && notifRes.data) {
+                setProximityReportIds(new Set(
+                    notifRes.data.map((n: { report_id: string }) => n.report_id).filter(Boolean)
+                ));
             }
             setLoading(false);
         };
@@ -110,7 +144,6 @@ export default function TerritoryHistory() {
                         <Loader2 className="animate-spin text-primary" size={32} />
                     </div>
                 ) : fetchError ? (
-                    // BUG-007 FIX: show a user-facing error card with retry
                     <div className="text-center py-16 glass-card rounded-3xl border border-destructive/30 bg-destructive/5">
                         <AlertTriangle className="mx-auto h-12 w-12 text-destructive/70 mb-4" />
                         <h3 className="text-lg font-bold text-foreground">Unable to load history</h3>
@@ -160,6 +193,9 @@ export default function TerritoryHistory() {
                             const colorClass = oType ? typeColors[oType] : 'bg-muted text-muted-foreground border-border';
                             const Icon = ['loss', 'conflict_loss'].includes(oType || '') ? AlertTriangle : Eye;
 
+                            // Determine source: proximity (radius subscription) or territory (assigned area)
+                            const isProximity = proximityReportIds.has(item.id);
+
                             return (
                                 <motion.div
                                     key={item.id}
@@ -182,6 +218,23 @@ export default function TerritoryHistory() {
                                                     {new Date(item.device_timestamp).toLocaleDateString()}
                                                 </div>
                                             </div>
+                                        </div>
+
+                                        {/* Source badge: Territory owned vs Proximity radius */}
+                                        <div
+                                            title={isProximity
+                                                ? 'This activity is within your configured alert radius'
+                                                : 'This activity is in your assigned territory'}
+                                            className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold border ${
+                                                isProximity
+                                                    ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                                                    : 'bg-primary/10 text-primary border-primary/20'
+                                            }`}
+                                        >
+                                            {isProximity
+                                                ? <><Radio size={11} /> Radius</>
+                                                : <><Shield size={11} /> Territory</>
+                                            }
                                         </div>
                                     </div>
 

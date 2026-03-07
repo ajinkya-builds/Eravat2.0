@@ -40,6 +40,7 @@ function StepperContent() {
                 id: reportId,
                 user_id: profile?.id || null,
                 ...formData,
+                obs_id: crypto.randomUUID(),
                 male_count: formData.male_count || 0,
                 female_count: formData.female_count || 0,
                 calf_count: formData.calf_count || 0,

@@ -5,7 +5,7 @@ import Dashboard from './pages/Dashboard';
 import ReportActivityPage from './pages/ReportActivityPage';
 import UserProfile from './pages/UserProfile';
 import EditProfile from './pages/profile/EditProfile';
-import Settings from './pages/Settings';
+import Settings from './pages/profile/AppSettings';
 import PrivacySecurity from './pages/profile/PrivacySecurity';
 import HelpSupport from './pages/profile/HelpSupport';
 import FAQ from './pages/profile/FAQ';
@@ -17,7 +17,6 @@ import AdminObservations from './pages/admin/AdminObservations';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminDivisions from './pages/admin/AdminDivisions';
 import TerritoryHistory from './pages/TerritoryHistory';
-import MapPage from './pages/MapPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -63,7 +62,6 @@ function App() {
                   <Route path="/profile" element={<UserProfile />} />
                   <Route path="/profile/edit" element={<EditProfile />} />
                   <Route path="/history" element={<TerritoryHistory />} />
-                  <Route path="/map" element={<MapPage />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/privacy" element={<PrivacySecurity />} />
                   <Route path="/help" element={<HelpSupport />} />
