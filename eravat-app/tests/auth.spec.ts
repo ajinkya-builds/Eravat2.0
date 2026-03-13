@@ -16,11 +16,14 @@ test.describe('Authentication', () => {
     const phoneInput = page.getByPlaceholder('+91 98765 43210');
     await phoneInput.fill('12345');
     
+    const passwordInput = page.getByPlaceholder('••••••••');
+    await passwordInput.fill('password123');
+    
     // Tap anywhere or submit to trigger validation
     const submitBtn = page.locator('button[type="submit"]');
     await submitBtn.click();
 
     // Expecting to see the validation toast
-    await expect(page.locator('text=Invalid Input')).toBeVisible();
+    await expect(page.locator('text=Invalid credentials. Please try again.')).toBeVisible();
   });
 });

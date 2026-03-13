@@ -129,3 +129,50 @@ CREATE POLICY "Admins can manage all report media"
 CREATE POLICY "Service role can manage all report media"
   ON public.report_media FOR ALL
   USING (auth.role() = 'service_role');
+
+-- Allow users to update their own report media (required for upsert)
+CREATE POLICY "Users can update own report media"
+  ON public.report_media FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.reports r
+      WHERE r.id = report_media.report_id AND r.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.reports r
+      WHERE r.id = report_media.report_id AND r.user_id = auth.uid()
+    )
+  );
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 5. reports — users manage own, admins manage all
+-- ══════════════════════════════════════════════════════════════════════
+ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own reports"
+  ON public.reports FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own reports"
+  ON public.reports FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own reports"
+  ON public.reports FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Admins can manage all reports"
+  ON public.reports FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role IN ('admin', 'ccf', 'dfo')
+    )
+  );
+
+CREATE POLICY "Service role can manage all reports"
+  ON public.reports FOR ALL
+  USING (auth.role() = 'service_role');

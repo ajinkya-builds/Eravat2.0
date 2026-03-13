@@ -10,7 +10,7 @@ function isSafeId(id: string): boolean {
 }
 
 // Allowed MIME types for media uploads
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
 export async function syncData() {
     // Mutex guard prevents concurrent syncs
@@ -143,40 +143,57 @@ export async function syncData() {
                     .equals(report.id)
                     .toArray();
 
+                console.log(`[SyncService] Found ${mediaFiles.length} media files for report:`, report.id);
+
                 let hasMediaError = false;
                 for (const media of mediaFiles) {
+                    console.log(`[SyncService] Processing media:`, media.id);
                     // Validate media ID and MIME type
                     if (!isSafeId(media.id)) {
+                        console.error('[SyncService] Unsafe media ID:', media.id);
                         hasMediaError = true;
                         break;
                     }
 
                     if (!ALLOWED_MIME_TYPES.includes(media.mime_type)) {
+                        console.error('[SyncService] Unsupported MIME type:', media.mime_type);
                         hasMediaError = true;
                         break;
                     }
 
+                    console.log(`[SyncService] Fetching media data for blob creation, MIME type: ${media.mime_type}`);
                     const response = await fetch(`data:${media.mime_type};base64,${media.file_data}`);
                     const blob = await response.blob();
+                    console.log(`[SyncService] Blob created, size: ${blob.size} bytes`);
 
-                    // Use sanitized path: reportId/mediaId.jpg
-                    const fileName = `${report.id}/${media.id}.jpg`;
+                    // Determine extension from mime type
+                    const ext = media.mime_type.split('/')[1] || 'jpg';
+                    const fileName = `${report.id}/${media.id}.${ext}`;
 
                     const { error: storageError } = await supabase.storage
                         .from('report_media')
                         .upload(fileName, blob, { contentType: media.mime_type, upsert: true });
 
                     if (storageError) {
+                        console.error('[SyncService] storage upload error for report', report.id, 'media', media.id, ':', storageError);
                         hasMediaError = true;
                         break;
                     }
+                    console.log(`[SyncService] Storage upload successful for media ${media.id}, file: ${fileName}`);
 
-                    await supabase.from('report_media').upsert({
+                    const { error: mediaTableError } = await supabase.from('report_media').upsert({
                         id: media.id,
                         report_id: report.id,
                         file_path: fileName,
                         content_type: media.mime_type,
                     });
+
+                    if (mediaTableError) {
+                        console.error('[SyncService] report_media table upsert error for report', report.id, 'media', media.id, ':', mediaTableError);
+                        hasMediaError = true;
+                        break;
+                    }
+                    console.log(`[SyncService] DB entry created in report_media for ${media.id}`);
 
                     await db.report_media.update(media.id, { sync_status: 'synced' });
                 }

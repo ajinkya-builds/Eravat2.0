@@ -57,16 +57,31 @@ function StepperContent() {
 
             // 2. Save media if exists
             if (formData.photo_url) {
-                const match = formData.photo_url.match(/^data:(image\/[a-zA-Z]*);base64,(.*)$/);
+                console.log('[ReportStepper] Attempting to save media for report:', reportId);
+                // More robust regex to handle various image formats and potential data URL variations
+                // More robust regex to handle various image formats and potential data URL variations
+                const match = formData.photo_url.match(/^data:([^;]+);base64,(.+)$/);
                 if (match) {
-                    await db.report_media.add({
-                        id: crypto.randomUUID(),
-                        report_id: reportId,
-                        mime_type: match[1],
-                        file_data: match[2],
-                        sync_status: 'pending'
-                    });
+                    const mimeType = match[1];
+                    const base64Data = match[2];
+                    
+                    try {
+                        await db.report_media.add({
+                            id: crypto.randomUUID(),
+                            report_id: reportId,
+                            mime_type: mimeType,
+                            file_data: base64Data,
+                            sync_status: 'pending'
+                        });
+                        console.log('[ReportStepper] Media saved to local Dexie store');
+                    } catch (dexieErr) {
+                        console.error('[ReportStepper] Failed to add media to Dexie:', dexieErr);
+                    }
+                } else {
+                    console.error('[ReportStepper] Failed to parse photo_url: invalid data URL format');
                 }
+            } else {
+                console.log('[ReportStepper] No photo_url found in formData');
             }
 
             setSubmitted(true);
