@@ -25,6 +25,7 @@ export interface ActivityReport {
     unknown_elephants?: number;
     calves?: number;
     indirect_sign_details?: string[];
+    conflict_loss_details?: string[];
     loss_type?: string[];
     photo_url?: string;
     created_at?: string;

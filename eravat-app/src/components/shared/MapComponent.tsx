@@ -76,6 +76,7 @@ interface ObsPin {
     unknownCount: number;
     compassBearing?: number;
     indirectSigns?: string[];
+    conflictLossDetails?: string[];
     deviceTimestamp: string;
 }
 
@@ -159,7 +160,8 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                             calf_count,
                             unknown_count,
                             compass_bearing,
-                            indirect_sign_details
+                            indirect_sign_details,
+                            conflict_loss_details
                         )
                     `)
                     .not('location', 'is', null)
@@ -191,6 +193,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                         unknownCount: obs?.unknown_count ?? 0,
                         compassBearing: obs?.compass_bearing ?? undefined,
                         indirectSigns: obs?.indirect_sign_details ?? [],
+                        conflictLossDetails: obs?.conflict_loss_details ?? [],
                         deviceTimestamp: rep.device_timestamp,
                     });
                 });
@@ -482,6 +485,13 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                                             <div className="flex flex-wrap gap-1 mt-1">
                                                 {pin.indirectSigns.map(s => (
                                                     <span key={s} className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-[10px] font-medium">{s}</span>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {pin.type === 'loss' && pin.conflictLossDetails && pin.conflictLossDetails.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                {pin.conflictLossDetails.map(s => (
+                                                    <span key={s} className="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[10px] font-medium">{s}</span>
                                                 ))}
                                             </div>
                                         )}

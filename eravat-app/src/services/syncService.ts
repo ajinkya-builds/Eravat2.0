@@ -223,6 +223,7 @@ export async function syncData(options?: { includeFailed?: boolean }) {
                             unknown_count: report.unknown_count ?? 0,
                             compass_bearing: report.compass_bearing,
                             indirect_sign_details: normalizeTextArray(report.indirect_sign_details),
+                            conflict_loss_details: normalizeTextArray(report.conflict_loss_details ?? report.loss_type),
                         });
 
                     if (obsError) {

@@ -18,6 +18,7 @@ export interface ActivityFormData {
     unknown_count: number;
     calf_count: number;
     indirect_sign_details: string[];
+    conflict_loss_details: string[];
     loss_type: string[];
 
     // Step 3: Compass Bearing
@@ -54,6 +55,7 @@ const DEFAULT_FORM: ActivityFormData = {
     unknown_count: 0,
     calf_count: 0,
     indirect_sign_details: [],
+    conflict_loss_details: [],
     loss_type: [],
     compass_bearing: null,
     photo_url: null,

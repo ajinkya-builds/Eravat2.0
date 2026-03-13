@@ -6,6 +6,13 @@
 
 ---
 
+## 🧾 Latest Session Logs
+
+- `docs/sessions/2026-03-14-conflict-loss-details-column-and-cli-migration.md`
+- `docs/sessions/2026-03-14-sync-and-media-schema-drift-fix.md`
+
+---
+
 ## 📱 What Is Eravat?
 
 **Eravat 2.0** is a mobile-first Progressive Web App (PWA) for the **Forest
@@ -209,6 +216,7 @@ column).
 | `unknown_count`         | int4           |                                             |
 | `compass_bearing`       | numeric        | 0–360°                                      |
 | `indirect_sign_details` | text[]         | Array of sign types                         |
+| `conflict_loss_details` | text[]         | Array of selected conflict/loss types       |
 
 #### `conflict_damages` — Damage Reports (child of reports)
 
@@ -276,7 +284,7 @@ SyncService.ts (runs on connect)
         ↓
   ┌─────────────────┐
   │ reports table   │ ← location as PostGIS POINT
-  │ observations    │ ← normalized counts + signs array
+  │ observations    │ ← normalized counts + signs/loss arrays
   │ conflict_damages│ ← multi-row insert (one per loss type)
   │ report_media    │ ← via Supabase Storage bucket
   └─────────────────┘
@@ -339,6 +347,13 @@ npm run dev         # → http://localhost:5173
 8. **Sync Safety (2026-03-14)** — Auto-sync now processes pending reports by
    default. Manual sync includes failed reports for remediation. Media insert and
    conflict damage writes are hardened for live-schema drift.
+9. **Conflict Loss Details (2026-03-14)** — `observations.conflict_loss_details`
+   (`text[]`) is now live and stores selected conflict-loss parameters directly on
+   the observation row (in addition to normalized `conflict_damages` rows).
+10. **Supabase CLI Migration History (2026-03-14)** — A legacy `20260222`
+   naming mismatch exists in migration history. Remote deploy succeeded using
+   `supabase migration repair --status reverted 20260222` followed by
+   `supabase db push --include-all`.
 
 ---
 

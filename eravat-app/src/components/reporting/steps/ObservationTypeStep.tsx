@@ -88,7 +88,7 @@ export function ObservationTypeStep() {
                             <button
                                 key={value}
                                 type="button"
-                                onClick={() => updateFormData({ observation_type: value, indirect_sign_details: [], loss_type: [] })}
+                                onClick={() => updateFormData({ observation_type: value, indirect_sign_details: [], conflict_loss_details: [], loss_type: [] })}
                                 className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all ${isSelected ? colorMap[color] : 'border-border bg-muted/20 hover:bg-muted/50'}`}
                             >
                                 <div className={`p-2 rounded-xl ${isSelected ? `bg-white/20` : 'bg-muted'}`}>
@@ -166,7 +166,7 @@ export function ObservationTypeStep() {
                                             const next = current.includes(value)
                                                 ? current.filter(v => v !== value)
                                                 : [...current, value];
-                                            updateFormData({ loss_type: next });
+                                            updateFormData({ loss_type: next, conflict_loss_details: next });
                                         }}
                                         className={`px-3 py-2 rounded-xl text-sm font-medium border text-left transition-all ${isSelected ? 'bg-destructive/10 border-destructive text-destructive shadow-sm shadow-destructive/20 scale-100' : 'border-border bg-background hover:bg-muted scale-[0.98]'}`}
                                     >

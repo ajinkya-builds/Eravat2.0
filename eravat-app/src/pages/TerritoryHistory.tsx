@@ -23,6 +23,7 @@ interface HistoryItem {
         calf_count: number;
         unknown_count: number;
         indirect_sign_details?: string[];
+        conflict_loss_details?: string[];
     }[];
     conflict_damages: {
         category: string;
@@ -182,7 +183,9 @@ export default function TerritoryHistory() {
                                 const signs = Array.isArray(o?.indirect_sign_details) ? o.indirect_sign_details.join(', ') : (o?.indirect_sign_details || 'Unspecified');
                                 details = `${t('history.signs')}${signs}`;
                             } else if (['loss', 'conflict_loss'].includes(oType || '')) {
-                                const damages = item.conflict_damages.map(d => d.description).join(', ') || 'Unspecified';
+                                const damages = Array.isArray(o?.conflict_loss_details) && o.conflict_loss_details.length > 0
+                                    ? o.conflict_loss_details.join(', ')
+                                    : item.conflict_damages.map(d => d.description).join(', ') || 'Unspecified';
                                 details = `${t('history.damages')}${damages}`;
                             }
 

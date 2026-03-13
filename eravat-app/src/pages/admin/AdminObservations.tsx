@@ -31,6 +31,7 @@ interface ReportWithObs {
         unknown_count: number;
         compass_bearing?: number;
         indirect_sign_details?: string[];
+        conflict_loss_details?: string[];
     }[];
     conflict_damages: {
         category: string;
@@ -137,6 +138,9 @@ export default function AdminObservations() {
             const total = obs ? (obs.male_count + obs.female_count + obs.calf_count + obs.unknown_count) : 0;
             const type = obs?.type ?? (r.conflict_damages?.length ? 'loss' : '');
             let details = Array.isArray(obs?.indirect_sign_details) ? obs.indirect_sign_details.join(', ') : (obs?.indirect_sign_details || '');
+            if (Array.isArray(obs?.conflict_loss_details) && obs.conflict_loss_details.length > 0) {
+                details = obs.conflict_loss_details.join(', ');
+            }
             if (r.conflict_damages?.length) {
                 details = r.conflict_damages.map(d => d.description).join(', ');
             }
@@ -251,8 +255,18 @@ export default function AdminObservations() {
                                                 ) : <span className="text-muted-foreground text-xs">—</span>}
                                             </td>
                                             <td className="p-4 text-muted-foreground">{total || '—'}</td>
-                                            <td className="p-4 text-muted-foreground text-xs max-w-[200px] truncate" title={Array.isArray(o?.indirect_sign_details) ? o.indirect_sign_details.join(', ') : (obs.conflict_damages.map(cd => cd.description).join(', ') || '')}>
-                                                {Array.isArray(o?.indirect_sign_details) ? o.indirect_sign_details.join(', ') : (obs.conflict_damages.map(cd => cd.description).join(', ') || '—')}
+                                            <td className="p-4 text-muted-foreground text-xs max-w-[200px] truncate" title={
+                                                Array.isArray(o?.indirect_sign_details) && o.indirect_sign_details.length > 0
+                                                    ? o.indirect_sign_details.join(', ')
+                                                    : Array.isArray(o?.conflict_loss_details) && o.conflict_loss_details.length > 0
+                                                        ? o.conflict_loss_details.join(', ')
+                                                        : (obs.conflict_damages.map(cd => cd.description).join(', ') || '')
+                                            }>
+                                                {Array.isArray(o?.indirect_sign_details) && o.indirect_sign_details.length > 0
+                                                    ? o.indirect_sign_details.join(', ')
+                                                    : Array.isArray(o?.conflict_loss_details) && o.conflict_loss_details.length > 0
+                                                        ? o.conflict_loss_details.join(', ')
+                                                        : (obs.conflict_damages.map(cd => cd.description).join(', ') || '—')}
                                             </td>
                                             <td className="p-4">
                                                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${obs.status === 'synced' ? 'bg-emerald-500/15 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>

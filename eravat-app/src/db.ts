@@ -28,6 +28,7 @@ export interface LocalReport {
   unknown_count: number;
   compass_bearing: number | null;
   indirect_sign_details: string[];
+  conflict_loss_details: string[];
 
   // Conflict damage (maps to `conflict_damages` table)
   loss_type: string[];

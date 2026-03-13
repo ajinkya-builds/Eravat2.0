@@ -46,6 +46,7 @@ function StepperContent() {
                 calf_count: formData.calf_count || 0,
                 unknown_count: formData.unknown_count || 0,
                 indirect_sign_details: formData.indirect_sign_details || null,
+                conflict_loss_details: formData.conflict_loss_details || null,
                 loss_type: formData.loss_type || null,
                 division_id: profile?.division_id || null,
                 range_id: profile?.range_id || null,
