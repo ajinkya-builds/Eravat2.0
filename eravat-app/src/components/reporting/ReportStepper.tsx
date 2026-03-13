@@ -58,11 +58,9 @@ function StepperContent() {
             // 2. Save media if exists
             if (formData.photo_url) {
                 console.log('[ReportStepper] Attempting to save media for report:', reportId);
-                // More robust regex to handle various image formats and potential data URL variations
-                // More robust regex to handle various image formats and potential data URL variations
-                const match = formData.photo_url.match(/^data:([^;]+);base64,(.+)$/);
+                const match = formData.photo_url.match(/^data:([^;,]+)(?:;charset=[^;,]+)?;base64,([\s\S]+)$/);
                 if (match) {
-                    const mimeType = match[1];
+                    const mimeType = match[1].toLowerCase() === 'image/jpg' ? 'image/jpeg' : match[1].toLowerCase();
                     const base64Data = match[2];
                     
                     try {

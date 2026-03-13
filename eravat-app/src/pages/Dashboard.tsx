@@ -24,7 +24,7 @@ export default function Dashboard() {
         if (!pendingCount || isSyncing) return;
         setIsSyncing(true);
         try {
-            await syncData();
+            await syncData({ includeFailed: true });
         } finally {
             setIsSyncing(false);
         }

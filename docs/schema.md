@@ -50,6 +50,13 @@ auth.users  (Supabase managed)
 7. `profiles.notification_radius_km` (integer, default 10, range 1–500) controls
    how far from a user's region centroid a report must be to trigger a proximity
    notification.
+8. **Live schema drift alert (2026-03-14):**
+   - `report_media` optional metadata columns are not guaranteed across
+     environments (`content_type` / `mime_type` may be absent).
+   - storage path column naming can vary (`file_path`, `storage_path`, `path`,
+     `media_path`, `object_path`).
+   - `conflict_damages.id` may require explicit UUID (no default in some envs).
+   - `conflict_damages.category` must match actual `loss_category` enum values.
 
 ## Creating and Managing Users
 

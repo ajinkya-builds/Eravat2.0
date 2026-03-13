@@ -227,8 +227,11 @@ column).
 | `id`           | uuid PK             |
 | `report_id`    | uuid → reports      |
 | `file_path`    | text (Storage path) |
-| `content_type" | text                |
 | `created_at`   | timestamptz         |
+
+> **Important:** live environments may differ in optional path/mime columns
+> (`file_path`, `storage_path`, `path`, etc.). The sync layer now uses fallback
+> payload shapes to handle schema drift.
 
 ---
 
@@ -333,6 +336,9 @@ npm run dev         # → http://localhost:5173
    array-based indirect signs.
 7. **Auth Diagnostics** — `signInWithPhone` now emits console logs to help debug
    "Phone not found" errors in the field.
+8. **Sync Safety (2026-03-14)** — Auto-sync now processes pending reports by
+   default. Manual sync includes failed reports for remediation. Media insert and
+   conflict damage writes are hardened for live-schema drift.
 
 ---
 

@@ -4,6 +4,20 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 const ALLOWED_FORMATS = ['jpeg', 'jpg', 'png', 'webp'];
 const MAX_BASE64_SIZE = 5 * 1024 * 1024; // ~5MB in base64 characters
 
+function normalizeImageFormat(format: string): 'jpeg' | 'png' | 'webp' {
+    const lower = format.toLowerCase();
+    if (lower === 'jpg') {
+        return 'jpeg';
+    }
+    if (lower === 'png') {
+        return 'png';
+    }
+    if (lower === 'webp') {
+        return 'webp';
+    }
+    return 'jpeg';
+}
+
 export function useCamera() {
     const [photoUrl, setPhotoUrl] = useState<string | null>(null);
     const [base64String, setBase64String] = useState<string | null>(null);
@@ -36,7 +50,7 @@ export function useCamera() {
                 }
 
                 setBase64String(image.base64String);
-                const safeFormat = ALLOWED_FORMATS.includes(format) ? format : 'jpeg';
+                const safeFormat = normalizeImageFormat(format);
                 const dataUrl = `data:image/${safeFormat};base64,${image.base64String}`;
                 setPhotoUrl(dataUrl);
                 return { base64: image.base64String, format: safeFormat, dataUrl };

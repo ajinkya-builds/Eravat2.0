@@ -169,6 +169,11 @@ delegated to Supabase Edge Functions:
    and added 10-digit fuzzy matching to the phone-to-email RPC.
 4. **Corrupted Assets**: Fixed the Elephant logo which was originally a 39-byte
    corrupted pointer by extracting the raw payload from native assets.
+5. **Media Sync vs Schema Drift (2026-03-14)**: Resolved repeated sync failures
+   where Storage uploads succeeded but `report_media` inserts failed due to live
+   column drift (`content_type`/`mime_type` mismatch), array coercion errors on
+   `observations.indirect_sign_details`, and enum/UUID issues in
+   `conflict_damages`.
 
 ### 7.2 Core Refactors
 

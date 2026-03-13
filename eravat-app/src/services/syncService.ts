@@ -2,6 +2,7 @@ import { db } from '../db';
 import { supabase } from '../supabase';
 
 let isSyncing = false;
+let mediaPathColumnHint: 'file_path' | 'storage_path' | 'path' | 'media_path' | 'object_path' | null = null;
 
 // Validate that an ID is a safe UUID or prefixed-UUID format (no path traversal)
 const SAFE_ID_REGEX = /^[a-zA-Z0-9_-]+$/;
@@ -12,7 +13,130 @@ function isSafeId(id: string): boolean {
 // Allowed MIME types for media uploads
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
-export async function syncData() {
+function normalizeMimeType(mimeType: string): string {
+    const normalized = mimeType.toLowerCase().trim();
+    if (normalized === 'image/jpg') {
+        return 'image/jpeg';
+    }
+    return normalized;
+}
+
+function mimeTypeToExtension(mimeType: string): string {
+    switch (mimeType) {
+        case 'image/jpeg':
+            return 'jpg';
+        case 'image/png':
+            return 'png';
+        case 'image/webp':
+            return 'webp';
+        default:
+            return 'jpg';
+    }
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+type MediaInsertResult = { success: true; row: unknown } | { success: false; error: unknown };
+
+async function insertReportMediaWithFallback(args: {
+    mediaId: string;
+    reportId: string;
+    fileName: string;
+}): Promise<MediaInsertResult> {
+    const { mediaId, reportId, fileName } = args;
+
+    // Your live schema lacks both content_type and mime_type.
+    // Insert only safe/common columns and try path variants.
+    const pathColumns: Array<'file_path' | 'storage_path' | 'path' | 'media_path' | 'object_path'> = [
+        'file_path', 'storage_path', 'path', 'media_path', 'object_path',
+    ];
+    const orderedColumns = mediaPathColumnHint
+        ? [mediaPathColumnHint, ...pathColumns.filter((c) => c !== mediaPathColumnHint)]
+        : pathColumns;
+
+    const attempts: Record<string, unknown>[] = orderedColumns.flatMap((column) => ([
+        { id: mediaId, report_id: reportId, [column]: fileName },
+        { report_id: reportId, [column]: fileName },
+    ]));
+
+    let firstError: unknown = null;
+    for (const payload of attempts) {
+        // Avoid `.select()` on insert so success doesn't depend on SELECT policies.
+        const { error } = await supabase
+            .from('report_media')
+            .insert(payload);
+
+        if (!error) {
+            const keys = Object.keys(payload);
+            mediaPathColumnHint = (keys.find((k) => ['file_path', 'storage_path', 'path', 'media_path', 'object_path'].includes(k)) as typeof mediaPathColumnHint) ?? mediaPathColumnHint;
+            return { success: true, row: payload };
+        }
+
+        if (!firstError) {
+            firstError = error;
+        }
+
+        // If this is not a schema-column error, bubble it immediately.
+        const code = (error as { code?: string })?.code;
+        if (code !== 'PGRST204') {
+            return { success: false, error };
+        }
+    }
+
+    return { success: false, error: firstError };
+}
+
+function normalizeTextArray(value: unknown): string[] | null {
+    if (Array.isArray(value)) {
+        const clean = value
+            .map((v) => (typeof v === 'string' ? v.trim() : ''))
+            .filter((v) => v.length > 0);
+        return clean.length > 0 ? clean : null;
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed ? [trimmed] : null;
+    }
+    return null;
+}
+
+function mapLossCategory(loss: string): string {
+    const normalized = loss.trim().toLowerCase();
+    if (normalized === 'no loss') return 'none';
+    if (normalized === 'crop') return 'crop';
+    if (normalized === 'livestock') return 'livestock';
+    // Keep category aligned with existing DB enum values.
+    // Store specific loss text in description.
+    return 'property';
+}
+
+function stableHex32(input: string): string {
+    let hash = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+        hash ^= input.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    const h1 = (hash >>> 0).toString(16).padStart(8, '0');
+    const h2 = Math.imul(hash ^ 0x9e3779b1, 2246822519) >>> 0;
+    const h3 = Math.imul(hash ^ 0x85ebca6b, 3266489917) >>> 0;
+    const h4 = Math.imul(hash ^ 0xc2b2ae35, 668265263) >>> 0;
+    return `${h1}${h2.toString(16).padStart(8, '0')}${h3.toString(16).padStart(8, '0')}${h4.toString(16).padStart(8, '0')}`.slice(0, 32);
+}
+
+function stableUuidFrom(input: string): string {
+    const hex = stableHex32(input);
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+export async function syncData(options?: { includeFailed?: boolean }) {
     // Mutex guard prevents concurrent syncs
     if (isSyncing) {
         return { success: true, count: 0 };
@@ -26,17 +150,18 @@ export async function syncData() {
             return { success: false, error: 'Not authenticated' };
         }
 
-        // Retry failed reports in addition to pending ones
-        const pendingReports = await db.reports
+        // By default sync only pending reports to avoid noisy endless retries.
+        const statuses: Array<'pending' | 'failed'> = options?.includeFailed ? ['pending', 'failed'] : ['pending'];
+        const reportsToSync = await db.reports
             .where('sync_status')
-            .anyOf(['pending', 'failed'])
+            .anyOf(statuses)
             .toArray();
 
-        if (pendingReports.length === 0) {
+        if (reportsToSync.length === 0) {
             return { success: true, count: 0 };
         }
 
-        for (const report of pendingReports) {
+        for (const report of reportsToSync) {
             try {
                 // Validate user_id matches authenticated user
                 if (report.user_id !== user.id) {
@@ -69,6 +194,7 @@ export async function syncData() {
                     });
 
                 if (reportError) {
+                    console.error('[SyncService] Report upsert error:', reportError);
                     await db.reports.update(report.id, { sync_status: 'failed' });
                     continue;
                 }
@@ -96,7 +222,7 @@ export async function syncData() {
                             calf_count: report.calf_count ?? 0,
                             unknown_count: report.unknown_count ?? 0,
                             compass_bearing: report.compass_bearing,
-                            indirect_sign_details: report.indirect_sign_details,
+                            indirect_sign_details: normalizeTextArray(report.indirect_sign_details),
                         });
 
                     if (obsError) {
@@ -109,29 +235,20 @@ export async function syncData() {
 
                 // 3. Upsert to `conflict_damages` if applicable
                 if (report.loss_type && report.loss_type.length > 0) {
-                    let hasDamageError = false;
-                    for (let i = 0; i < report.loss_type.length; i++) {
-                        const loss = report.loss_type[i];
-                        let category = 'property';
-                        if (loss === 'No loss') category = 'none';
-                        else if (loss === 'crop') category = 'crop';
-                        else if (loss === 'livestock') category = 'livestock';
+                    const rows = report.loss_type.map((loss, idx) => ({
+                        id: stableUuidFrom(`${report.id}:${idx}:${loss}`),
+                        report_id: report.id,
+                        category: mapLossCategory(loss),
+                        description: loss,
+                    }));
 
-                        const { error: damageError } = await supabase.from('conflict_damages').upsert({
-                            id: `dmg-${report.id}-${i}`,
-                            report_id: report.id,
-                            category: category,
-                            description: loss,
-                        });
+                    const { error: damageError } = await supabase
+                        .from('conflict_damages')
+                        .upsert(rows);
 
-                        if (damageError) {
-                            hasDamageError = true;
-                            break;
-                        }
-                    }
-
-                    if (hasDamageError) {
-                        console.error('[SyncService] conflict_damages upsert error');
+                    // If duplicates already exist for this report, continue gracefully.
+                    if (damageError && damageError.code !== '23505') {
+                        console.error('[SyncService] conflict_damages insert error:', damageError);
                         await db.reports.update(report.id, { sync_status: 'failed' });
                         continue;
                     }
@@ -143,11 +260,9 @@ export async function syncData() {
                     .equals(report.id)
                     .toArray();
 
-                console.log(`[SyncService] Found ${mediaFiles.length} media files for report:`, report.id);
-
                 let hasMediaError = false;
                 for (const media of mediaFiles) {
-                    console.log(`[SyncService] Processing media:`, media.id);
+                    const normalizedMimeType = normalizeMimeType(media.mime_type);
                     // Validate media ID and MIME type
                     if (!isSafeId(media.id)) {
                         console.error('[SyncService] Unsafe media ID:', media.id);
@@ -155,46 +270,54 @@ export async function syncData() {
                         break;
                     }
 
-                    if (!ALLOWED_MIME_TYPES.includes(media.mime_type)) {
+                    if (!ALLOWED_MIME_TYPES.includes(normalizedMimeType)) {
                         console.error('[SyncService] Unsupported MIME type:', media.mime_type);
                         hasMediaError = true;
                         break;
                     }
 
-                    console.log(`[SyncService] Fetching media data for blob creation, MIME type: ${media.mime_type}`);
-                    const response = await fetch(`data:${media.mime_type};base64,${media.file_data}`);
-                    const blob = await response.blob();
-                    console.log(`[SyncService] Blob created, size: ${blob.size} bytes`);
+                    const fileBuffer = base64ToArrayBuffer(media.file_data);
 
                     // Determine extension from mime type
-                    const ext = media.mime_type.split('/')[1] || 'jpg';
+                    const ext = mimeTypeToExtension(normalizedMimeType);
                     const fileName = `${report.id}/${media.id}.${ext}`;
 
                     const { error: storageError } = await supabase.storage
                         .from('report_media')
-                        .upload(fileName, blob, { contentType: media.mime_type, upsert: true });
+                        .upload(fileName, fileBuffer, { contentType: normalizedMimeType, upsert: true });
 
                     if (storageError) {
                         console.error('[SyncService] storage upload error for report', report.id, 'media', media.id, ':', storageError);
                         hasMediaError = true;
                         break;
                     }
-                    console.log(`[SyncService] Storage upload successful for media ${media.id}, file: ${fileName}`);
+                    // Verify report exists before inserting media (required by RLS policy)
+                    const { data: reportCheck, error: reportCheckError } = await supabase
+                        .from('reports')
+                        .select('id, user_id')
+                        .eq('id', report.id)
+                        .single();
 
-                    const { error: mediaTableError } = await supabase.from('report_media').upsert({
-                        id: media.id,
-                        report_id: report.id,
-                        file_path: fileName,
-                        content_type: media.mime_type,
-                    });
-
-                    if (mediaTableError) {
-                        console.error('[SyncService] report_media table upsert error for report', report.id, 'media', media.id, ':', mediaTableError);
+                    if (reportCheckError || !reportCheck) {
+                        console.error('[SyncService] Report not found before media insert:', report.id, reportCheckError);
                         hasMediaError = true;
                         break;
                     }
-                    console.log(`[SyncService] DB entry created in report_media for ${media.id}`);
 
+                    const mediaInsertResult = await insertReportMediaWithFallback({
+                        mediaId: media.id,
+                        reportId: report.id,
+                        fileName,
+                    });
+
+                    if (!mediaInsertResult.success) {
+                        console.error('[SyncService] report_media table error for report', report.id, 'media', media.id);
+                        console.error('[SyncService] Error details:', JSON.stringify(mediaInsertResult.error, null, 2));
+                        console.error('[SyncService] Report check result:', reportCheck);
+                        console.error('[SyncService] User ID:', user.id);
+                        hasMediaError = true;
+                        break;
+                    }
                     await db.report_media.update(media.id, { sync_status: 'synced' });
                 }
 
@@ -211,7 +334,7 @@ export async function syncData() {
             }
         }
 
-        return { success: true, count: pendingReports.length };
+        return { success: true, count: reportsToSync.length };
     } catch (error) {
         return { success: false, error };
     } finally {

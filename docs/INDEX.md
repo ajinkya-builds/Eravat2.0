@@ -25,7 +25,9 @@ docs/
 ├── README.md                   ← Main architecture reference (always up to date)
 ├── INDEX.md                    ← This file
 ├── schema.md                   ← Database schema quick reference
+├── SYNC_RUNBOOK.md             ← Sync troubleshooting playbook
 └── sessions/
+    ├── 2026-03-14-sync-and-media-schema-drift-fix.md
     ├── 2026-02-21-database-setup-and-login.md
     ├── 2026-02-21-ui-ux-centralization.md
     ├── 2026-02-21-interactive-dashboard-map.md
@@ -55,12 +57,14 @@ docs/
 | 2026-02-22 | Android, PWA & Deployment      | Fixed white screen by decapitating base path from main config, built native APK, and streamlined GitHub Pages deployment |
 | 2026-02-23 | Git Restructure & Deploy       | Unified Yash/Ajinkya branches into master, resolved route conflicts, and deployed to production GH Pages                 |
 | 2026-02-24 | Login Fix & Diagnostics        | Fixed Ajinkya's login by correcting a DB phone typo and added verbose frontend auth logging                              |
+| 2026-03-14 | Sync + Media Schema Drift Fix  | Fixed photo storage-to-table sync blockers, added schema-drift-safe inserts, normalized arrays/enums, and reduced sync noise |
 
 ---
 
 ## 🔗 Quick Links
 
 - **App:** http://localhost:5173 (dev)
+- **Sync Runbook:** [`SYNC_RUNBOOK.md`](./SYNC_RUNBOOK.md)
 - **Supabase Dashboard:**
   https://supabase.com/dashboard/project/mnytrlcmdpkfhrzrtesf
 - **Supabase SQL Editor:**
