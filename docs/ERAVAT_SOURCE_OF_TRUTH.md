@@ -1,7 +1,7 @@
 # Eravat 2.0 — The Ultimate Source of Truth & Technical Handbook
 
 > **Project Status:** Production / Active Development\
-> **Last Comprehensive Audit:** 2026-02-26\
+> **Last Comprehensive Audit:** 2026-03-14\
 > **Target Audience:** Developers, Administrators, AI Agents
 
 This document provides a 360-degree view of **Eravat 2.0**, consolidating all
@@ -43,7 +43,7 @@ Response Teams (RRT) and conservation research.
 - **Persistence (Offline)**: **Dexie.js** (Standardized IndexedDB wrapper).
 - **Native Bridge**: **Capacitor 8.0** (Targeting Android SDK 34/35).
 - **Global State**: React Context API (`AuthContext`, `ActivityFormContext`).
-- **I18n**: `react-i18next` with English and Hindi (`hi`) bundles.
+- **I18n**: Custom `LanguageContext` with English, Hindi, and Marathi translations.
 
 ### 2.2 Offline-First Sync Strategy
 
@@ -134,6 +134,20 @@ delegated to Supabase Edge Functions:
 - `reports`: Visible if (`user_role = 'admin'`) OR (`beat_id` in user's
   assignment) OR (`user_id = auth.uid()`).
 - `notifications`: Strictly scoped where `user_id = auth.uid()`.
+- `observations`: Users can read/insert/update/delete observations for their own reports; admins can manage all.
+- `push_tokens`: Users can manage their own push notification tokens.
+
+### 5.3 Phone-Based Authentication
+
+The application uses a two-step login process:
+
+1. **Phone to Email Resolution**: The `get_email_by_phone` RPC function matches the entered phone number (supports formats: `9762764447`, `+91-9762764447`, `919762764447`) to the user's email by comparing the last 10 digits.
+2. **Email/Password Authentication**: Once the email is resolved, standard Supabase auth is used with the provided password.
+
+**Key Implementation Details**:
+- The RPC uses `extensions.crypt` for secure password hashing.
+- The `anon` role must have EXECUTE permission on `get_email_by_phone` since login occurs before authentication.
+- Phone numbers in the database may include country codes (e.g., `+91-`), but the matching logic normalizes to the last 10 digits for compatibility.
 
 ---
 
@@ -153,6 +167,16 @@ delegated to Supabase Edge Functions:
 - **Subpath**: The site is hosted under `/Eravat2.0/`.
 - **Automation**: `npm run deploy` triggers a build using `--base=/Eravat2.0/`
   to ensure relative asset resolution on the web.
+
+### 6.3 Database Migrations
+
+- **Migration Tool**: Supabase CLI (`npx supabase migration`)
+- **Common Issues**:
+  - Migration history conflicts between local and remote (use `supabase migration repair --status reverted <timestamp>`)
+  - Encoding issues with special characters (→ symbol) - use ASCII alternatives
+  - Policy already exists errors - make migrations idempotent with `DROP POLICY IF EXISTS` before `CREATE POLICY`
+  - Extension schema errors - prefix with `extensions.` (e.g., `extensions.crypt`, `extensions.gen_salt`)
+- **Pushing Migrations**: Use `npx supabase db push --include-all` to apply migrations that are inserted before the last remote migration
 
 ---
 
@@ -175,6 +199,7 @@ delegated to Supabase Edge Functions:
    `observations.indirect_sign_details`, and enum/UUID issues in
    `conflict_damages`.
 6. **Phone Login Fix (2026-03-14)**: Resolved login failure for users with phone numbers stored with country codes (e.g., `+91-`). The `get_email_by_phone` RPC was updated to normalize both input and database numbers to their last 10 digits for accurate matching. Also restored the `anon` grant for this RPC to fix unauthenticated login.
+7. **Total Elephants Column Fix (2026-03-14)**: Fixed `observations.total_elephants` column always showing 0 despite individual counts being present. Root cause was `syncService.ts` not calculating and including the total in the upsert operation. Added calculation: `total_elephants = male_count + female_count + calf_count + unknown_count`.
 
 ### 7.2 Core Refactors
 

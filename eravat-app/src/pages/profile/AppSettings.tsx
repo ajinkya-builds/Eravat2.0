@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Moon, Sun, Smartphone, Wifi, Globe, Map, Languages, Bell, Radio, MapPin, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import i18n from '../../i18n';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../supabase';
 
@@ -61,6 +61,7 @@ function RadiusPreview({ km }: { km: number }) {
 
 export default function AppSettings() {
     const { user, profile } = useAuth();
+    const { t, language: globalLanguage, setLanguage: setGlobalLanguage } = useLanguage();
 
     // ── Proximity radius state ────────────────────────────────────────────────
     const [radius, setRadius] = useState<number>((profile as any)?.notification_radius_km ?? 10);
@@ -108,11 +109,10 @@ export default function AppSettings() {
     const [autoSync, setAutoSync] = useState(initial.autoSync !== undefined ? initial.autoSync : true);
     const [wifiOnly, setWifiOnly] = useState(initial.wifiOnly !== undefined ? initial.wifiOnly : false);
     const [mapStyle, setMapStyle] = useState<'terrain' | 'satellite'>(initial.mapStyle || 'terrain');
-    const [language, setLanguage] = useState<'english' | 'hindi'>(initial.language || 'english');
 
-    // Save on change
+    // Save on change (theme, sync, map settings only - language is managed by LanguageContext)
     useEffect(() => {
-        const settings = { theme, autoSync, wifiOnly, mapStyle, language };
+        const settings = { theme, autoSync, wifiOnly, mapStyle };
         localStorage.setItem('eravat_app_settings', JSON.stringify(settings));
 
         // Apply theme immediately to HTML root
@@ -122,39 +122,7 @@ export default function AppSettings() {
         } else {
             root.classList.remove('dark');
         }
-
-        // Apply language immediately across the app
-        const langCode = language === 'hindi' ? 'hi' : 'en';
-        document.documentElement.lang = langCode;
-        i18n.changeLanguage(langCode);
-
-    }, [theme, autoSync, wifiOnly, mapStyle, language]);
-
-    // Simple translation dictionary for the settings page
-    const isHindi = language === 'hindi';
-    const t = {
-        title: isHindi ? 'ऐप सेटिंग्स' : 'App Settings',
-        appearance: isHindi ? 'दिखावट' : 'Appearance',
-        theme: isHindi ? 'थीम' : 'Theme',
-        themeDesc: isHindi ? 'ऐप्लिकेशन का रंग चुनें' : 'Choose application colors',
-        light: isHindi ? 'हल्का' : 'Light',
-        dark: isHindi ? 'गहरा' : 'Dark',
-        system: isHindi ? 'सिस्टम' : 'System',
-        lang: isHindi ? 'भाषा' : 'Language',
-        langDesc: isHindi ? 'अपनी पसंदीदा भाषा चुनें' : 'Choose your preferred language',
-        english: 'English',
-        hindi: 'हिन्दी',
-        sync: isHindi ? 'ऑफ़लाइन सिंक' : 'Offline Sync',
-        autoSync: isHindi ? 'ऑनलाइन होने पर ऑटो-सिंक' : 'Auto-Sync When Online',
-        autoSyncDesc: isHindi ? 'लंबित रिपोर्ट स्वचालित रूप से अपलोड करें' : 'Upload pending reports automatically',
-        wifi: isHindi ? 'केवल वाई-फाई पर सिंक करें' : 'Sync over Wi-Fi Only',
-        wifiDesc: isHindi ? 'फ़ील्ड में मोबाइल डेटा बचाएं' : 'Save mobile data in the field',
-        mapOptions: isHindi ? 'मानचित्र विकल्प' : 'Map Options',
-        mapStyle: isHindi ? 'डिफ़ॉल्ट मानचित्र शैली' : 'Default Map Style',
-        mapStyleDesc: isHindi ? 'ऑफलाइन क्षेत्र बेस मैप' : 'Offline territory base map',
-        terrain: isHindi ? 'भू-भाग' : 'Terrain',
-        satellite: isHindi ? 'उपग्रह' : 'Satellite',
-    };
+    }, [theme, autoSync, wifiOnly, mapStyle]);
 
     return (
         <div className="min-h-screen bg-background pb-[80px]">
@@ -166,40 +134,40 @@ export default function AppSettings() {
                 >
                     <ArrowLeft size={20} className="text-foreground" />
                 </button>
-                <h1 className="text-lg font-bold text-foreground">App Settings</h1>
+                <h1 className="text-lg font-bold text-foreground">{t('app_settings')}</h1>
             </div>
 
             <div className="p-6 max-w-lg mx-auto space-y-8">
 
                 {/* Theme & Appearance */}
                 <div className="space-y-3 animate-fade-in">
-                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t.appearance}</h2>
+                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t('appearance')}</h2>
                     <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
                         <div className="p-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-primary/10 text-primary">
                                     {theme === 'system' ? <Smartphone size={18} /> : theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
                                 </div>
-                                <span className="font-medium">{t.theme}</span>
+                                <span className="font-medium">{t('choose_theme')}</span>
                             </div>
                             <div className="flex bg-muted/50 p-1 rounded-xl">
                                 <button
                                     onClick={() => setTheme('light')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'light' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                                 >
-                                    {t.light}
+                                    {t('light')}
                                 </button>
                                 <button
                                     onClick={() => setTheme('dark')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'dark' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                                 >
-                                    {t.dark}
+                                    {t('dark')}
                                 </button>
                                 <button
                                     onClick={() => setTheme('system')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'system' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                                 >
-                                    {t.system}
+                                    {t('system')}
                                 </button>
                             </div>
                         </div>
@@ -209,15 +177,15 @@ export default function AppSettings() {
                                 <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
                                     <Languages size={18} />
                                 </div>
-                                <span className="font-medium">{t.lang}</span>
+                                <span className="font-medium">{t('language')}</span>
                             </div>
                             <select
-                                value={language}
-                                onChange={(e) => setLanguage(e.target.value as any)}
+                                value={globalLanguage}
+                                onChange={(e) => setGlobalLanguage(e.target.value as any)}
                                 className="bg-background border border-border rounded-lg px-2 py-1 text-sm outline-none"
                             >
-                                <option value="english">{t.english}</option>
-                                <option value="hindi">{t.hindi}</option>
+                                <option value="en">{t('english')}</option>
+                                <option value="hi">{t('hindi')}</option>
                             </select>
                         </div>
                     </div>
@@ -225,7 +193,7 @@ export default function AppSettings() {
 
                 {/* Offline Sync Behavior */}
                 <div className="space-y-3 animate-fade-in" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
-                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t.sync}</h2>
+                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t('offline_sync')}</h2>
                     <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
                         <label className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/20 transition-colors">
                             <div className="flex items-center gap-3">
@@ -233,8 +201,8 @@ export default function AppSettings() {
                                     <Globe size={18} />
                                 </div>
                                 <div>
-                                    <div className="font-medium">{t.autoSync}</div>
-                                    <div className="text-xs text-muted-foreground mt-0.5">{t.autoSyncDesc}</div>
+                                    <div className="font-medium">{t('user_auto_sync')}</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">{t('user_auto_sync_desc')}</div>
                                 </div>
                             </div>
                             <div className="relative inline-block w-12 h-6 align-middle select-none">
@@ -249,8 +217,8 @@ export default function AppSettings() {
                                     <Wifi size={18} />
                                 </div>
                                 <div>
-                                    <div className="font-medium">{t.wifi}</div>
-                                    <div className="text-xs text-muted-foreground mt-0.5">{t.wifiDesc}</div>
+                                    <div className="font-medium">{t('wifi_only')}</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">{t('wifi_desc')}</div>
                                 </div>
                             </div>
                             <div className="relative inline-block w-12 h-6 align-middle select-none">
@@ -263,22 +231,22 @@ export default function AppSettings() {
 
                 {/* Map Settings */}
                 <div className="space-y-3 animate-fade-in" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
-                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t.mapOptions}</h2>
+                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t('map_options')}</h2>
                     <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
                         <div className="p-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
                                     <Map size={18} />
                                 </div>
-                                <span className="font-medium">{t.mapStyle}</span>
+                                <span className="font-medium">{t('map_style')}</span>
                             </div>
                             <select
                                 value={mapStyle}
                                 onChange={(e) => setMapStyle(e.target.value as any)}
                                 className="bg-background border border-border rounded-lg px-2 py-1 text-sm outline-none"
                             >
-                                <option value="terrain">{t.terrain}</option>
-                                <option value="satellite">{t.satellite}</option>
+                                <option value="terrain">{t('terrain')}</option>
+                                <option value="satellite">{t('satellite')}</option>
                             </select>
                         </div>
                     </div>
@@ -286,13 +254,13 @@ export default function AppSettings() {
 
                 {/* Proximity Alert Radius */}
                 <div className="space-y-3 animate-fade-in" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
-                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">Notifications</h2>
+                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t('user_notifications')}</h2>
                     <div className="glass-card rounded-2xl p-5 space-y-5">
                         <div className="flex items-center gap-3">
                             <div className="p-2 rounded-lg bg-primary/10 text-primary"><Bell size={18} /></div>
                             <div>
-                                <div className="font-medium">Proximity Alert Radius</div>
-                                <div className="text-xs text-muted-foreground mt-0.5">Get notified when activity occurs near your region</div>
+                                <div className="font-medium">{t('proximity_alert_radius')}</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">{t('proximity_desc')}</div>
                             </div>
                         </div>
 
@@ -302,7 +270,7 @@ export default function AppSettings() {
                             <div className="flex items-center justify-between">
                                 <label htmlFor="radius-slider" className="flex items-center gap-2 text-sm font-medium text-foreground">
                                     <Radio size={15} className="text-primary" />
-                                    Alert Radius
+                                    {t('user_alert_radius')}
                                 </label>
                                 <div className="flex items-center gap-2">
                                     <SaveIndicator state={saveState} />
@@ -318,9 +286,8 @@ export default function AppSettings() {
                         </div>
 
                         <p className="text-xs text-muted-foreground leading-relaxed bg-muted/50 rounded-2xl px-4 py-3 border border-border/50">
-                            You'll receive a notification whenever a new field report is filed within{' '}
-                            <span className="font-semibold text-foreground">{radius} km</span> of your assigned territory's centroid.
-                            Drag the slider or type a value (1–100 km).
+                            {t('radius_note')}{' '}
+                            <span className="font-semibold text-foreground">{radius} km</span> {t('radius_note_suffix_user')}
                         </p>
                     </div>
                 </div>
