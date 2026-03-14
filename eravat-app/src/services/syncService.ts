@@ -217,6 +217,12 @@ export async function syncData() {
                     // Use pre-generated stable UUID from Dexie (set at report-save time) for idempotency
                     const obsId = report.obs_id ?? stableUuidFrom(`${report.id}:obs`);
 
+                    // Calculate total elephants from individual counts
+                    const totalElephants = (report.male_count ?? 0) +
+                                          (report.female_count ?? 0) +
+                                          (report.calf_count ?? 0) +
+                                          (report.unknown_count ?? 0);
+
                     const { error: obsError } = await supabase
                         .from('observations')
                         .upsert({
@@ -227,6 +233,7 @@ export async function syncData() {
                             female_count: report.female_count ?? 0,
                             calf_count: report.calf_count ?? 0,
                             unknown_count: report.unknown_count ?? 0,
+                            total_elephants: totalElephants,
                             compass_bearing: report.compass_bearing,
                             indirect_sign_details: normalizeTextArray(report.indirect_sign_details),
                             conflict_loss_details: normalizeTextArray(report.conflict_loss_details ?? report.loss_type),
