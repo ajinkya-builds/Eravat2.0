@@ -174,6 +174,7 @@ delegated to Supabase Edge Functions:
    column drift (`content_type`/`mime_type` mismatch), array coercion errors on
    `observations.indirect_sign_details`, and enum/UUID issues in
    `conflict_damages`.
+6. **Phone Login Fix (2026-03-14)**: Resolved login failure for users with phone numbers stored with country codes (e.g., `+91-`). The `get_email_by_phone` RPC was updated to normalize both input and database numbers to their last 10 digits for accurate matching. Also restored the `anon` grant for this RPC to fix unauthenticated login.
 
 ### 7.2 Core Refactors
 

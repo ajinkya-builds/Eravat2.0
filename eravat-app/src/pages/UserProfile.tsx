@@ -57,15 +57,15 @@ export default function UserProfile() {
                     </span>
                 </div>
 
-                {(profile as any)?.divisions?.name || (profile as any)?.ranges?.name || (profile as any)?.beats?.name ? (
+                {profile?.beat_name || profile?.range_name || profile?.division_name ? (
                     <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground bg-muted/50 py-2 px-4 rounded-xl border border-border/50">
                         <MapPin size={12} className="text-primary" />
                         <span className="font-semibold">
-                            {(profile as any)?.beats?.name || (profile as any)?.ranges?.name || (profile as any)?.divisions?.name}
+                            {profile.beat_name || profile.range_name || profile.division_name}
                         </span>
                         <span className="opacity-50">•</span>
                         <span>
-                            {(profile as any)?.beats ? t('profile.beat') : (profile as any)?.ranges ? t('profile.range') : t('profile.division')}
+                            {profile.beat_name ? t('profile.beat') : profile.range_name ? t('profile.range') : t('profile.division')}
                         </span>
                     </div>
                 ) : profile?.role && profile.role !== 'admin' && profile.role !== 'volunteer' ? (
