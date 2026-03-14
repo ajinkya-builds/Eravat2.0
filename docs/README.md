@@ -8,6 +8,7 @@
 
 ## 🧾 Latest Session Logs
 
+- `docs/sessions/2026-03-14-beat-nearest-boundary-fallback.md`
 - `docs/sessions/2026-03-14-conflict-loss-details-column-and-cli-migration.md`
 - `docs/sessions/2026-03-14-sync-and-media-schema-drift-fix.md`
 

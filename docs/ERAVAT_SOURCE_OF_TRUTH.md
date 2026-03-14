@@ -87,6 +87,10 @@ The application uses a "Shadow Database" pattern.
 
 ### 3.2 SQL Triggers & Logic
 
+- **Beat Auto-Association Fallback (2026-03-14)**: `assign_report_geography()`
+  now keeps the existing `ST_Intersects` beat match first, and if no beat
+  contains the report coordinate, assigns the nearest beat boundary using
+  euclidean distance on geometry.
 - **Enriched Notifications**: Instead of simple insertion webhooks, Suapbase
   triggers fetch the Beat/Range names to send human-readable alerts:\
   _"3 elephant(s) recorded in Pali Beat (Pali Range)."_
@@ -200,6 +204,9 @@ The application uses a two-step login process:
    `conflict_damages`.
 6. **Phone Login Fix (2026-03-14)**: Resolved login failure for users with phone numbers stored with country codes (e.g., `+91-`). The `get_email_by_phone` RPC was updated to normalize both input and database numbers to their last 10 digits for accurate matching. Also restored the `anon` grant for this RPC to fix unauthenticated login.
 7. **Total Elephants Column Fix (2026-03-14)**: Fixed `observations.total_elephants` column always showing 0 despite individual counts being present. Root cause was `syncService.ts` not calculating and including the total in the upsert operation. Added calculation: `total_elephants = male_count + female_count + calf_count + unknown_count`.
+8. **Beat Association Outside Boundaries (2026-03-14)**: Reports with GPS
+   points outside all beat polygons now get auto-linked to the nearest beat
+   boundary instead of leaving `reports.beat_id` null.
 
 ### 7.2 Core Refactors
 

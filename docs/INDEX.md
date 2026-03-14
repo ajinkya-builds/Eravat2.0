@@ -27,6 +27,7 @@ docs/
 ├── schema.md                   ← Database schema quick reference
 ├── SYNC_RUNBOOK.md             ← Sync troubleshooting playbook
 └── sessions/
+    ├── 2026-03-14-beat-nearest-boundary-fallback.md
     ├── 2026-03-14-sync-and-media-schema-drift-fix.md
     ├── 2026-03-14-phone-login-migration-and-total-elephants-fix.md  <-- NEW
     ├── 2026-02-21-database-setup-and-login.md
@@ -60,6 +61,7 @@ docs/
 | 2026-02-24 | Login Fix & Diagnostics        | Fixed Ajinkya's login by correcting a DB phone typo and added verbose frontend auth logging                              |
 | 2026-03-14 | Sync + Media Schema Drift Fix  | Fixed photo storage-to-table sync blockers, added schema-drift-safe inserts, normalized arrays/enums, and reduced sync noise |
 | 2026-03-14 | Phone Login & Elephants Fix    | Fixed country code phone matching in get_email_by_phone RPC, added total_elephants calculation in syncService, and resolved migration conflicts |
+| 2026-03-14 | Beat Nearest-Boundary Fallback | Updated report beat auto-assignment to use nearest beat boundary when GPS point falls outside all beat polygons |
 
 ---
 

@@ -1,7 +1,7 @@
 # Eravat 2.0 — Database Schema Quick Reference
 
 > Supabase Project: `mnytrlcmdpkfhrzrtesf`\
-> Last updated: 2026-02-23
+> Last updated: 2026-03-14
 
 ---
 
@@ -57,6 +57,11 @@ auth.users  (Supabase managed)
      `media_path`, `object_path`).
    - `conflict_damages.id` may require explicit UUID (no default in some envs).
    - `conflict_damages.category` must match actual `loss_category` enum values.
+9. **Beat auto-assignment fallback (2026-03-14):**
+   - `public.assign_report_geography()` now assigns nearest beat boundary when
+     `reports.location` does not intersect any `geo_beats.boundary`.
+   - Session details:
+     [`sessions/2026-03-14-beat-nearest-boundary-fallback.md`](./sessions/2026-03-14-beat-nearest-boundary-fallback.md).
 
 ## Creating and Managing Users
 
