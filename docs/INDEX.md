@@ -24,9 +24,11 @@ context is never lost between AI chat sessions.
 docs/
 ├── README.md                   ← Main architecture reference (always up to date)
 ├── INDEX.md                    ← This file
+├── DASHBOARD_METRICS_REFERENCE.md ← KPI and dashboard calculation formulas
 ├── schema.md                   ← Database schema quick reference
 ├── SYNC_RUNBOOK.md             ← Sync troubleshooting playbook
 └── sessions/
+    ├── 2026-03-14-dashboard-role-kpis-and-metric-reference.md
     ├── 2026-03-14-beat-nearest-boundary-fallback.md
     ├── 2026-03-14-sync-and-media-schema-drift-fix.md
     ├── 2026-03-14-phone-login-migration-and-total-elephants-fix.md  <-- NEW
@@ -62,6 +64,7 @@ docs/
 | 2026-03-14 | Sync + Media Schema Drift Fix  | Fixed photo storage-to-table sync blockers, added schema-drift-safe inserts, normalized arrays/enums, and reduced sync noise |
 | 2026-03-14 | Phone Login & Elephants Fix    | Fixed country code phone matching in get_email_by_phone RPC, added total_elephants calculation in syncService, and resolved migration conflicts |
 | 2026-03-14 | Beat Nearest-Boundary Fallback | Updated report beat auto-assignment to use nearest beat boundary when GPS point falls outside all beat polygons |
+| 2026-03-14 | Dashboard Role KPIs + Docs     | Added role-oriented KPI cue cards in Admin Dashboard and documented formula-level metric definitions in docs |
 
 ---
 
@@ -69,6 +72,7 @@ docs/
 
 - **App:** http://localhost:5173 (dev)
 - **Sync Runbook:** [`SYNC_RUNBOOK.md`](./SYNC_RUNBOOK.md)
+- **Dashboard Metrics Reference:** [`DASHBOARD_METRICS_REFERENCE.md`](./DASHBOARD_METRICS_REFERENCE.md)
 - **Supabase Dashboard:**
   https://supabase.com/dashboard/project/mnytrlcmdpkfhrzrtesf
 - **Supabase SQL Editor:**

@@ -3,7 +3,7 @@ import { supabase } from '../supabase';
 import { motion } from 'framer-motion';
 import {
     Users, Activity, AlertTriangle, ShieldCheck, Eye,
-    PawPrint, TrendingUp, Tag
+    PawPrint, TrendingUp, Tag, Leaf
 } from 'lucide-react';
 import {
     LineChart, Line,
@@ -29,6 +29,15 @@ const COLOR_UNKNOWN  = 'hsl(215, 16%, 57%)';
 interface DayBucket { day: string; total: number; direct: number; indirect: number; loss: number; }
 interface BeatBar { beat: string; count: number; }
 interface ElephantBar { day: string; male: number; female: number; calf: number; unknown: number; }
+type RoleRiskLevel = 'good' | 'watch' | 'critical';
+interface RoleKpi {
+    role: string;
+    title: string;
+    value: string;
+    context: string;
+    level: RoleRiskLevel;
+    icon: 'biologist' | 'conservation' | 'veterinary' | 'forest';
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const obsTypeNorm = (raw: string) => {
@@ -55,6 +64,7 @@ export default function AdminDashboard() {
     const [beatBarData, setBeatBarData] = useState<BeatBar[]>([]);
     const [elephantBarData, setElephantBarData] = useState<ElephantBar[]>([]);
     const [indirectTags, setIndirectTags] = useState<{ tag: string; count: number }[]>([]);
+    const [roleKpis, setRoleKpis] = useState<RoleKpi[]>([]);
 
     // Feed
     const [recentReports, setRecentReports] = useState<{
@@ -86,7 +96,8 @@ export default function AdminDashboard() {
                     observations (
                         type,
                         male_count, female_count, calf_count, unknown_count,
-                        indirect_sign_details
+                        indirect_sign_details,
+                        conflict_loss_details
                     ),
                     conflict_damages (category)
                 `)
@@ -120,6 +131,8 @@ export default function AdminDashboard() {
 
             // Pie data
             let directCount = 0, indirectCount = 0, lossCount = 0;
+            let emergencySignalCount = 0;
+            const emergencyKeywordRegex = /(injur|death|dead|electroc|poison|wire|fracture|bleed|trap|snare)/i;
 
             // Indirect sign tags
             const tagMap: Record<string, number> = {};
@@ -149,6 +162,17 @@ export default function AdminDashboard() {
                     if (type === 'direct') elephantToday += total;
                 }
                 if (type === 'loss') conflictCount++;
+                if (type === 'loss') {
+                    const conflictDetails: string[] = [
+                        ...(Array.isArray(obs?.conflict_loss_details) ? obs.conflict_loss_details : []),
+                        ...(Array.isArray(rep.conflict_damages)
+                            ? rep.conflict_damages.map((d: { category?: string }) => d?.category).filter(Boolean)
+                            : []),
+                    ].map((item) => String(item));
+                    if (conflictDetails.some((item) => emergencyKeywordRegex.test(item))) {
+                        emergencySignalCount++;
+                    }
+                }
 
                 // 7-day
                 const dayLabel = format(startOfDay(repDate), 'EEE');
@@ -218,6 +242,64 @@ export default function AdminDashboard() {
 
             setRecentReports(feedItems);
 
+            // ── Role-oriented KPIs for field decision-making ──────────────────
+            const totalReports30 = reportsData.length;
+            const topBeatShare = totalReports30 > 0 ? Math.round(((beatArr[0]?.count ?? 0) / totalReports30) * 100) : 0;
+            const conflictRate = totalReports30 > 0 ? Math.round((lossCount / totalReports30) * 100) : 0;
+            const elephant7Totals = Object.values(elephantDayMap).reduce((acc, item) => {
+                return {
+                    total: acc.total + item.male + item.female + item.calf + item.unknown,
+                    calf: acc.calf + item.calf,
+                };
+            }, { total: 0, calf: 0 });
+            const calfShare = elephant7Totals.total > 0
+                ? Math.round((elephant7Totals.calf / elephant7Totals.total) * 100)
+                : 0;
+
+            const biologistLevel: RoleRiskLevel =
+                elephant7Totals.total === 0 ? 'watch' : calfShare >= 20 ? 'good' : calfShare >= 10 ? 'watch' : 'critical';
+            const conservationLevel: RoleRiskLevel =
+                conflictRate < 15 ? 'good' : conflictRate < 30 ? 'watch' : 'critical';
+            const veterinaryLevel: RoleRiskLevel =
+                emergencySignalCount === 0 ? 'good' : emergencySignalCount <= 2 ? 'watch' : 'critical';
+            const forestLevel: RoleRiskLevel =
+                topBeatShare < 30 ? 'good' : topBeatShare <= 50 ? 'watch' : 'critical';
+
+            setRoleKpis([
+                {
+                    role: 'Biologist',
+                    title: 'Calf Representation',
+                    value: elephant7Totals.total > 0 ? `${calfShare}%` : 'No data',
+                    context: `${elephant7Totals.calf}/${elephant7Totals.total} in direct sightings (7d)`,
+                    level: biologistLevel,
+                    icon: 'biologist',
+                },
+                {
+                    role: 'Wildlife Conservation',
+                    title: 'Coexistence Pressure',
+                    value: `${conflictRate}%`,
+                    context: `${lossCount} conflict/loss reports in 30d`,
+                    level: conservationLevel,
+                    icon: 'conservation',
+                },
+                {
+                    role: 'Veterinary',
+                    title: 'Emergency Signal',
+                    value: `${emergencySignalCount}`,
+                    context: 'High-severity conflict indicators (30d)',
+                    level: veterinaryLevel,
+                    icon: 'veterinary',
+                },
+                {
+                    role: 'Forest Official',
+                    title: 'Hotspot Concentration',
+                    value: `${topBeatShare}%`,
+                    context: 'Share of reports in most active beat (30d)',
+                    level: forestLevel,
+                    icon: 'forest',
+                },
+            ]);
+
         } catch (err) {
             console.error('Dashboard fetch error', err);
         } finally {
@@ -257,6 +339,13 @@ export default function AdminDashboard() {
                     trend="Today (direct)" icon={PawPrint} color="primary" />
                 <StatCard delay={0.4} title={t('total_personnel')} value={totalPersonnel}
                     trend={t('across_all_beats')} icon={Users} color="muted" />
+            </div>
+
+            {/* ── Role-specific KPI cues ───────────────────────────────────── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                {roleKpis.map((kpi, index) => (
+                    <RoleKpiCard key={`${kpi.role}-${kpi.title}`} kpi={kpi} delay={0.45 + index * 0.05} />
+                ))}
             </div>
 
             {/* ── Map ────────────────────────────────────────────────────── */}
@@ -513,5 +602,61 @@ function EmptyState({ message }: { message: string }) {
         <div className="flex items-center justify-center h-40 text-muted-foreground/50 text-sm">
             {message}
         </div>
+    );
+}
+
+function RoleKpiCard({ kpi, delay }: { kpi: RoleKpi; delay: number }) {
+    const Icon = kpi.icon === 'biologist'
+        ? Eye
+        : kpi.icon === 'conservation'
+            ? Leaf
+            : kpi.icon === 'veterinary'
+                ? PawPrint
+                : ShieldCheck;
+
+    const levelStyles: Record<RoleRiskLevel, {
+        badge: string;
+        iconWrap: string;
+        label: string;
+    }> = {
+        good: {
+            badge: 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30',
+            iconWrap: 'bg-emerald-500/10 text-emerald-600',
+            label: 'Stable',
+        },
+        watch: {
+            badge: 'bg-amber-500/15 text-amber-700 border border-amber-500/40',
+            iconWrap: 'bg-amber-500/10 text-amber-700',
+            label: 'Watch',
+        },
+        critical: {
+            badge: 'bg-destructive/15 text-destructive border border-destructive/40',
+            iconWrap: 'bg-destructive/10 text-destructive',
+            label: 'Critical',
+        },
+    };
+
+    const cue = levelStyles[kpi.level];
+
+    return (
+        <motion.div
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay }}
+            className="glass-card rounded-2xl p-4 border border-border/60"
+        >
+            <div className="flex items-center justify-between mb-3">
+                <div className={`p-2.5 rounded-xl ${cue.iconWrap}`}>
+                    <Icon size={17} />
+                </div>
+                <span className={`text-[11px] font-semibold px-2 py-1 rounded-full ${cue.badge}`}>
+                    {cue.label}
+                </span>
+            </div>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">{kpi.role}</p>
+            <p className="text-sm font-semibold text-foreground mt-0.5">{kpi.title}</p>
+            <p className="text-2xl font-bold text-foreground mt-2">{kpi.value}</p>
+            <p className="text-xs text-muted-foreground mt-1.5">{kpi.context}</p>
+        </motion.div>
     );
 }

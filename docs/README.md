@@ -8,6 +8,7 @@
 
 ## 🧾 Latest Session Logs
 
+- `docs/sessions/2026-03-14-dashboard-role-kpis-and-metric-reference.md`
 - `docs/sessions/2026-03-14-beat-nearest-boundary-fallback.md`
 - `docs/sessions/2026-03-14-conflict-loss-details-column-and-cli-migration.md`
 - `docs/sessions/2026-03-14-sync-and-media-schema-drift-fix.md`
@@ -99,6 +100,18 @@ eravat-app/
 │   └── lib/                      # Utility functions
 └── .env.local                     # Contains real Supabase credentials
 ```
+
+---
+
+## 📊 Dashboard Metrics Docs
+
+- **Admin dashboard metric formulas + thresholds:**  
+  `docs/DASHBOARD_METRICS_REFERENCE.md`
+- Covers:
+  - Core KPI card calculations
+  - Role-specific KPI cues (Biologist / Conservation / Veterinary / Forest Official)
+  - 7-day/30-day window logic
+  - Chart/feed derivations and caveats
 
 ---
 
