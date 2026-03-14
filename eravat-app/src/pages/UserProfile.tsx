@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, HelpCircle, Lock, ChevronRight, Shield, AlertTriangle, MapPin, Settings } from 'lucide-react';
+import { LogOut, User, HelpCircle, Lock, ChevronRight, Shield, AlertTriangle, MapPin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -25,7 +25,6 @@ export default function UserProfile() {
 
     const menuItems = [
         { id: 'profile', label: t('profile.editProfile'), icon: User, onClick: () => navigate('/profile/edit') },
-        { id: 'settings', label: t('settings'), icon: Settings, onClick: () => navigate('/settings') },
         { id: 'privacy', label: t('profile.privacySecurity'), icon: Lock, onClick: () => navigate('/privacy') },
         { id: 'help', label: t('profile.helpSupport'), icon: HelpCircle, onClick: () => navigate('/help') },
     ];

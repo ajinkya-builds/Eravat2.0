@@ -15,6 +15,7 @@ export default function PrivacySecurity() {
 
     // Password change state
     const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -23,6 +24,11 @@ export default function PrivacySecurity() {
     const handlePasswordChange = async (e: React.FormEvent) => {
         e.preventDefault();
         setPasswordMessage(null);
+
+        if (!currentPassword) {
+            setPasswordMessage({ type: 'error', text: "Current password is required." });
+            return;
+        }
 
         if (newPassword !== confirmPassword) {
             setPasswordMessage({ type: 'error', text: "Passwords don't match." });
@@ -37,6 +43,22 @@ export default function PrivacySecurity() {
         setIsLoading(true);
 
         try {
+            // First verify current password by attempting to re-authenticate
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user?.email) {
+                throw new Error("User email not found");
+            }
+
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+                email: user.email,
+                password: currentPassword
+            });
+
+            if (signInError) {
+                throw new Error("Current password is incorrect.");
+            }
+
+            // If verification successful, update password
             const { error } = await supabase.auth.updateUser({
                 password: newPassword
             });
@@ -48,6 +70,7 @@ export default function PrivacySecurity() {
             // Reset and close after 2s
             setTimeout(() => {
                 setIsChangingPassword(false);
+                setCurrentPassword('');
                 setNewPassword('');
                 setConfirmPassword('');
                 setPasswordMessage(null);
@@ -116,6 +139,14 @@ export default function PrivacySecurity() {
                                             )}
                                             <input
                                                 type="password"
+                                                placeholder="Current Password"
+                                                required
+                                                value={currentPassword}
+                                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary"
+                                            />
+                                            <input
+                                                type="password"
                                                 placeholder="New Password"
                                                 required
                                                 value={newPassword}
@@ -133,7 +164,7 @@ export default function PrivacySecurity() {
                                             <div className="flex justify-end pt-2">
                                                 <button
                                                     type="submit"
-                                                    disabled={isLoading || !newPassword || !confirmPassword}
+                                                    disabled={isLoading || !currentPassword || !newPassword || !confirmPassword}
                                                     className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 flex items-center gap-2"
                                                 >
                                                     {isLoading ? 'Updating...' : <><Check size={16} /> Update</>}

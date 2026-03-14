@@ -65,6 +65,7 @@ export function DateTimeLocationStep() {
                     <input
                         type="date"
                         value={formData.activity_date}
+                        max={new Date().toISOString().split('T')[0]}
                         onChange={e => updateFormData({ activity_date: e.target.value })}
                         className="w-full px-4 py-3.5 rounded-2xl bg-muted/30 border-2 border-border/50 text-base font-medium focus:outline-none focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all"
                         required

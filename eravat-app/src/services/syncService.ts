@@ -136,13 +136,17 @@ function stableUuidFrom(input: string): string {
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
-export async function syncData(options?: { includeFailed?: boolean }) {
+export async function syncData() {
     // Mutex guard prevents concurrent syncs
     if (isSyncing) {
-        return { success: true, count: 0 };
+        console.log('[SyncService] Sync already in progress, skipping');
+        return { success: true, count: 0, message: 'Sync already in progress' };
     }
 
     isSyncing = true;
+    let successCount = 0;
+    let failureCount = 0;
+
     try {
         // Verify user is authenticated before syncing
         const { data: { user } } = await supabase.auth.getUser();
@@ -150,8 +154,8 @@ export async function syncData(options?: { includeFailed?: boolean }) {
             return { success: false, error: 'Not authenticated' };
         }
 
-        // By default sync only pending reports to avoid noisy endless retries.
-        const statuses: Array<'pending' | 'failed'> = options?.includeFailed ? ['pending', 'failed'] : ['pending'];
+        // Automatically include failed reports in sync for retry mechanism
+        const statuses: Array<'pending' | 'failed'> = ['pending', 'failed'];
         const reportsToSync = await db.reports
             .where('sync_status')
             .anyOf(statuses)
@@ -166,12 +170,14 @@ export async function syncData(options?: { includeFailed?: boolean }) {
                 // Validate user_id matches authenticated user
                 if (report.user_id !== user.id) {
                     await db.reports.update(report.id, { sync_status: 'failed' });
+                    failureCount++;
                     continue;
                 }
 
                 // Validate report ID format for path safety
                 if (!isSafeId(report.id)) {
                     await db.reports.update(report.id, { sync_status: 'failed' });
+                    failureCount++;
                     continue;
                 }
 
@@ -196,6 +202,7 @@ export async function syncData(options?: { includeFailed?: boolean }) {
                 if (reportError) {
                     console.error('[SyncService] Report upsert error:', reportError);
                     await db.reports.update(report.id, { sync_status: 'failed' });
+                    failureCount++;
                     continue;
                 }
 
@@ -207,9 +214,8 @@ export async function syncData(options?: { includeFailed?: boolean }) {
                         'loss': 'conflict_loss',
                     };
 
-                    // Use pre-generated stable UUID from Dexie (set at report-save time).
-                    // Fall back to a fresh UUID for legacy records without obs_id.
-                    const obsId = report.obs_id ?? crypto.randomUUID();
+                    // Use pre-generated stable UUID from Dexie (set at report-save time) for idempotency
+                    const obsId = report.obs_id ?? stableUuidFrom(`${report.id}:obs`);
 
                     const { error: obsError } = await supabase
                         .from('observations')
@@ -228,8 +234,8 @@ export async function syncData(options?: { includeFailed?: boolean }) {
 
                     if (obsError) {
                         console.error('[SyncService] observations upsert error:', obsError);
-                        // Leave report in 'pending' so it can be retried (no 'failed' enum value in DB)
                         await db.reports.update(report.id, { sync_status: 'failed' });
+                        failureCount++;
                         continue;
                     }
                 }
@@ -251,6 +257,7 @@ export async function syncData(options?: { includeFailed?: boolean }) {
                     if (damageError && damageError.code !== '23505') {
                         console.error('[SyncService] conflict_damages insert error:', damageError);
                         await db.reports.update(report.id, { sync_status: 'failed' });
+                        failureCount++;
                         continue;
                     }
                 }
@@ -325,17 +332,26 @@ export async function syncData(options?: { includeFailed?: boolean }) {
                 if (hasMediaError) {
                     console.error('[SyncService] media upload error');
                     await db.reports.update(report.id, { sync_status: 'failed' });
+                    failureCount++;
                     continue;
                 }
 
                 await db.reports.update(report.id, { sync_status: 'synced' });
+                successCount++;
 
-            } catch {
+            } catch (err) {
+                console.error('[SyncService] Unexpected error syncing report:', err);
                 await db.reports.update(report.id, { sync_status: 'failed' });
+                failureCount++;
             }
         }
 
-        return { success: true, count: reportsToSync.length };
+        return {
+            success: failureCount === 0,
+            count: successCount,
+            total: reportsToSync.length,
+            failed: failureCount
+        };
     } catch (error) {
         return { success: false, error };
     } finally {

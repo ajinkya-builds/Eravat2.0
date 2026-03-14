@@ -21,12 +21,7 @@ ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Admins can read audit logs"
   ON public.audit_log FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role IN ('admin', 'ccf')
-    )
-  );
+  USING (public.get_my_role() IN ('admin', 'ccf'));
 
 CREATE POLICY "Authenticated users can insert audit entries"
   ON public.audit_log FOR INSERT

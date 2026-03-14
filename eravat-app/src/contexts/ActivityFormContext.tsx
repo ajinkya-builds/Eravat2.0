@@ -75,12 +75,27 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
     const isStepValid = useCallback((step: FormStep): boolean => {
         switch (step) {
             case 'dateTimeLocation':
-                return !!(formData.activity_date && formData.activity_time && formData.latitude != null && formData.longitude != null);
+                // Check required fields exist
+                if (!formData.activity_date || !formData.activity_time || formData.latitude == null || formData.longitude == null) {
+                    return false;
+                }
+                // Validate lat/lng ranges
+                if (formData.latitude < -90 || formData.latitude > 90) return false;
+                if (formData.longitude < -180 || formData.longitude > 180) return false;
+                // Validate date is not in the future
+                const activityDateTime = new Date(`${formData.activity_date}T${formData.activity_time}`);
+                if (activityDateTime > new Date()) return false;
+                return true;
             case 'observationType':
                 if (!formData.observation_type) return false;
                 if (formData.observation_type === 'indirect') return formData.indirect_sign_details.length > 0;
                 if (formData.observation_type === 'loss') return formData.loss_type.length > 0;
-                return true; // direct sighting - just type is enough
+                // direct sighting - require at least 1 elephant
+                if (formData.observation_type === 'direct') {
+                    const total = formData.male_count + formData.female_count + formData.calf_count + formData.unknown_count;
+                    return total > 0;
+                }
+                return true;
             case 'compassBearing':
                 return true; // Optional step - always valid
             case 'photo':

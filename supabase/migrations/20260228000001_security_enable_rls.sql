@@ -1,4 +1,18 @@
 -- Security fix: Enable RLS on tables that were missing it.
+-- Uses a SECURITY DEFINER helper function to avoid infinite recursion
+-- when RLS policies on `profiles` need to check the current user's role.
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 0. Helper: get_my_role() — bypasses RLS to look up current user's role
+-- ══════════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS text
+LANGUAGE sql STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT role::text FROM public.profiles WHERE id = auth.uid();
+$$;
 
 -- ══════════════════════════════════════════════════════════════════════
 -- 1. profiles — users read own, admins read all
@@ -16,21 +30,11 @@ CREATE POLICY "Users can update own profile"
 
 CREATE POLICY "Admins can read all profiles"
   ON public.profiles FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role IN ('admin', 'ccf', 'dfo')
-    )
-  );
+  USING (public.get_my_role() IN ('admin', 'ccf', 'dfo'));
 
 CREATE POLICY "Admins can update all profiles"
   ON public.profiles FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role IN ('admin', 'ccf')
-    )
-  );
+  USING (public.get_my_role() IN ('admin', 'ccf'));
 
 CREATE POLICY "Service role can manage all profiles"
   ON public.profiles FOR ALL
@@ -47,12 +51,7 @@ CREATE POLICY "Users can read own assignments"
 
 CREATE POLICY "Admins can read all assignments"
   ON public.user_region_assignments FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role IN ('admin', 'ccf', 'dfo')
-    )
-  );
+  USING (public.get_my_role() IN ('admin', 'ccf', 'dfo'));
 
 CREATE POLICY "Service role can manage all assignments"
   ON public.user_region_assignments FOR ALL
@@ -83,12 +82,7 @@ CREATE POLICY "Users can insert conflict damages for own reports"
 
 CREATE POLICY "Admins can manage all conflict damages"
   ON public.conflict_damages FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role IN ('admin', 'ccf', 'dfo')
-    )
-  );
+  USING (public.get_my_role() IN ('admin', 'ccf', 'dfo'));
 
 CREATE POLICY "Service role can manage all conflict damages"
   ON public.conflict_damages FOR ALL
@@ -119,12 +113,7 @@ CREATE POLICY "Users can insert media for own reports"
 
 CREATE POLICY "Admins can manage all report media"
   ON public.report_media FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role IN ('admin', 'ccf', 'dfo')
-    )
-  );
+  USING (public.get_my_role() IN ('admin', 'ccf', 'dfo'));
 
 CREATE POLICY "Service role can manage all report media"
   ON public.report_media FOR ALL

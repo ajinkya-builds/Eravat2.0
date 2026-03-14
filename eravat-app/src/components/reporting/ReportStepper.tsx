@@ -19,6 +19,7 @@ function StepperContent() {
     const { profile } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
     const navigate = useNavigate();
     const { t } = useLanguage();
 
@@ -97,6 +98,7 @@ function StepperContent() {
             setTimeout(() => navigate('/'), 2000);
         } catch (err) {
             console.error('Failed to save report:', err);
+            setSubmitError(err instanceof Error ? err.message : 'Failed to save report. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
@@ -176,6 +178,20 @@ function StepperContent() {
                         </div>
                     </div>
                 </div>
+
+                {/* Error Message */}
+                {submitError && (
+                    <div className="px-4">
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex items-center gap-3"
+                        >
+                            <div className="text-destructive font-semibold">⚠ {submitError}</div>
+                            <button onClick={() => setSubmitError(null)} className="ml-auto text-destructive hover:text-destructive/80">✕</button>
+                        </motion.div>
+                    </div>
+                )}
 
                 {/* Current Step Content */}
                 <div className="px-4">

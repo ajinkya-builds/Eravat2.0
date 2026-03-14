@@ -11,20 +11,43 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Dashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
+    const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const navigate = useNavigate();
     const { profile } = useAuth();
     const { t } = useLanguage();
 
+    // Count both pending and failed reports
     const pendingCount = useLiveQuery(
-        () => db.reports.where('sync_status').equals('pending').count(),
+        () => db.reports.where('sync_status').anyOf(['pending', 'failed']).count(),
         []
     );
 
     const handleManualSync = async () => {
         if (!pendingCount || isSyncing) return;
         setIsSyncing(true);
+        setSyncMessage(null);
         try {
-            await syncData({ includeFailed: true });
+            const result = await syncData();
+            if (result.success) {
+                setSyncMessage({
+                    type: 'success',
+                    text: `Synced ${result.count} of ${result.total || result.count} reports successfully!`
+                });
+            } else {
+                setSyncMessage({
+                    type: 'error',
+                    text: result.error?.toString() || 'Sync failed. Please try again.'
+                });
+            }
+            // Auto-clear success message after 3 seconds
+            if (result.success) {
+                setTimeout(() => setSyncMessage(null), 3000);
+            }
+        } catch (err) {
+            setSyncMessage({
+                type: 'error',
+                text: 'Sync failed. Please check your connection.'
+            });
         } finally {
             setIsSyncing(false);
         }
@@ -57,6 +80,26 @@ export default function Dashboard() {
                         <p className="text-muted-foreground">{t('dashboard.welcomeSub')}</p>
                     </div>
                 </motion.div>
+
+                {/* Sync Feedback Message */}
+                {syncMessage && (
+                    <motion.div
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.95, opacity: 0 }}
+                        className="mb-4 z-10"
+                    >
+                        <div className={cn(
+                            "glass-card rounded-2xl p-4 flex items-center gap-3",
+                            syncMessage.type === 'success' ? "border border-emerald-500/30 bg-emerald-500/10" : "border border-destructive/30 bg-destructive/10"
+                        )}>
+                            <div className="font-semibold text-sm">
+                                {syncMessage.type === 'success' ? '✓' : '⚠'} {syncMessage.text}
+                            </div>
+                            <button onClick={() => setSyncMessage(null)} className="ml-auto text-foreground/60 hover:text-foreground">✕</button>
+                        </div>
+                    </motion.div>
+                )}
 
                 {/* Offline Sync Status Indicator (Only shows if there are pending items) */}
                 {pendingCount ? (

@@ -10,6 +10,7 @@ import PrivacySecurity from './pages/profile/PrivacySecurity';
 import HelpSupport from './pages/profile/HelpSupport';
 import FAQ from './pages/profile/FAQ';
 import PrivacyPolicy from './pages/profile/PrivacyPolicy';
+import MapPage from './pages/MapPage';
 import { AdminLayout } from './layouts/admin/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
@@ -58,6 +59,7 @@ function App() {
               <Route element={<ProtectedRoute />}>
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<Dashboard />} />
+                  <Route path="/map" element={<MapPage />} />
                   <Route path="/report" element={<ReportActivityPage />} />
                   <Route path="/profile" element={<UserProfile />} />
                   <Route path="/profile/edit" element={<EditProfile />} />

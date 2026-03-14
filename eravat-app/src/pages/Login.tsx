@@ -53,6 +53,23 @@ export default function Login() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isLocked) return;
+
+        // Client-side validation
+        if (!phone.trim()) {
+            setError('Phone number is required');
+            return;
+        }
+
+        if (!password) {
+            setError('Password is required');
+            return;
+        }
+
+        if (phone.trim().length < 10) {
+            setError('Please enter a valid phone number');
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
 

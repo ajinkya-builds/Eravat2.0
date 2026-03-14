@@ -4,19 +4,29 @@ const translations: Record<Language, Record<string, string>> = {
     en: {
         // ── Settings ──────────────────────────────────────────────────────
         settings: "Settings",
+        app_settings: "App Settings",
         app_preferences: "App preferences",
         appearance: "Appearance",
         choose_theme: "Choose your preferred theme",
+        theme_desc: "Choose application colors",
         light: "Light",
         dark: "Dark",
         system: "System",
         language: "Language",
         select_language: "Select your preferred language",
+        lang_desc: "Choose your preferred language",
+        english: "English",
+        hindi: "हिन्दी",
         push_notifications: "Push Notifications",
         receive_alerts: "Receive alerts on your device",
         push_desc:
             "You'll receive push notifications for new reports near your territory, assignment changes, and system alerts.",
         offline_storage: "Offline Storage",
+        offline_sync: "Offline Sync",
+        user_auto_sync: "Auto-Sync When Online",
+        user_auto_sync_desc: "Upload pending reports automatically",
+        wifi_only: "Sync over Wi-Fi Only",
+        wifi_desc: "Save mobile data in the field",
         manage_cached: "Manage locally cached data",
         clear_cache: "Clear Local Map Cache",
         clear_cache_desc: "Free up space by removing cached map tiles",
@@ -24,6 +34,17 @@ const translations: Record<Language, Record<string, string>> = {
         cleared: "Cleared!",
         offline_note:
             "Pending reports saved offline will not be affected. Only cached map tiles and temporary data will be removed.",
+        map_options: "Map Options",
+        map_style: "Default Map Style",
+        map_style_desc: "Offline territory base map",
+        terrain: "Terrain",
+        satellite: "Satellite",
+        user_notifications: "Notifications",
+        proximity_alert_radius: "Proximity Alert Radius",
+        proximity_desc: "Get notified when activity occurs near your region",
+        user_alert_radius: "Alert Radius",
+        radius_note: "You'll receive a notification whenever a new field report is filed within",
+        radius_note_suffix_user: "of your assigned territory's centroid. Drag the slider or type a value (1–100 km).",
 
         // ── Dashboard ─────────────────────────────────────────────────────
         wild_elephant_monitoring: "Wild Elephant Monitoring System",
@@ -51,6 +72,7 @@ const translations: Record<Language, Record<string, string>> = {
         home: "Home",
         map: "Map",
         report: "Report",
+        "report.eg": "e.g.",
         profile: "Profile",
 
         "admin.nav.overview": "Overview",
@@ -548,6 +570,23 @@ const translations: Record<Language, Record<string, string>> = {
         ot_loss_damage: "Loss / Damage",
         ot_loss_desc: "Reported damage or loss",
 
+        // Indirect sign types (it_*)
+        it_pugmark: "Pugmark",
+        it_dung: "Dung",
+        it_broken_branches: "Broken Branches",
+        it_sound: "Sound",
+        it_eyewitness: "Eyewitness",
+
+        // Loss types (lt_*)
+        lt_no_loss: "No Loss",
+        lt_crop: "Crop Damage",
+        lt_livestock: "Livestock Loss",
+        lt_property: "Property Damage",
+        lt_fencing: "Fencing Damage",
+        lt_solar: "Solar Panel Damage",
+        lt_fd: "FD Establishment",
+        lt_other: "Other",
+
         // Photo Step (ps_*)
         ps_attach_photo: "Attach a Photo",
         ps_opening_camera: "Opening Camera...",
@@ -809,6 +848,22 @@ const translations: Record<Language, Record<string, string>> = {
         cleared: "साफ़ हो गया!",
         offline_note:
             "ऑफ़लाइन सहेजी गई लंबित रिपोर्ट प्रभावित नहीं होंगी। केवल कैश्ड मैप टाइल्स और अस्थायी डेटा हटाया जाएगा।",
+        offline_sync: "ऑफ़लाइन सिंक",
+        user_auto_sync: "ऑनलाइन होने पर ऑटो-सिंक",
+        user_auto_sync_desc: "लंबित रिपोर्ट स्वचालित रूप से अपलोड करें",
+        wifi_only: "केवल वाई-फाई पर सिंक करें",
+        wifi_desc: "फ़ील्ड में मोबाइल डेटा बचाएं",
+        map_options: "मानचित्र विकल्प",
+        map_style: "डिफ़ॉल्ट मानचित्र शैली",
+        map_style_desc: "ऑफलाइन क्षेत्र बेस मैप",
+        terrain: "भू-भाग",
+        satellite: "उपग्रह",
+        user_notifications: "सूचनाएं",
+        proximity_alert_radius: "निकटता अलर्ट रेडियस",
+        proximity_desc: "जब आपके क्षेत्र के पास गतिविधि हो तो सूचित हों",
+        user_alert_radius: "अलर्ट रेडियस",
+        radius_note: "जब भी आपके निर्धारित क्षेत्र के केंद्र से",
+        radius_note_suffix_user: "के भीतर कोई नई फ़ील्ड रिपोर्ट दर्ज की जाती है, तो आपको एक सूचना प्राप्त होगी। स्लाइडर खींचें या मान टाइप करें (1–100 किमी)।",
 
         wild_elephant_monitoring: "जंगली हाथी निगरानी प्रणाली",
         welcome_back: "वापस स्वागत है",
@@ -833,6 +888,7 @@ const translations: Record<Language, Record<string, string>> = {
         home: "होम",
         map: "नक्शा",
         report: "रिपोर्ट",
+        "report.eg": "उदा.",
         profile: "प्रोफ़ाइल",
 
         "admin.nav.overview": "अवलोकन",
@@ -1353,6 +1409,10 @@ const translations: Record<Language, Record<string, string>> = {
             "कृपया नीचे दिए गए संपर्क माध्यमों से संपर्क करें, समस्या का विवरण और स्क्रीनशॉट के साथ। अपने डिवाइस मॉडल, OS संस्करण और बग होने पर आप क्या कर रहे थे, शामिल करें।",
         faq_title: "अक्सर पूछे जाने वाले प्रश्न",
 
+        saved_success: "सहेजा गया!",
+        session_details: "आपके सत्र और खाते का विवरण",
+        update_password_btn: "पासवर्ड अपडेट करें",
+
         // Loss types (lt_*)
         lt_no_loss: "कोई हानि नहीं",
         lt_crop: "फसल क्षति",
@@ -1608,6 +1668,7 @@ const translations: Record<Language, Record<string, string>> = {
         home: "होम",
         map: "नकाशा",
         report: "अहवाल",
+        "report.eg": "उदा.",
         profile: "प्रोफाइल",
 
         "admin.nav.overview": "विहंगावलोकन",

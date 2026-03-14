@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
+import { PushNotificationService } from '../services/PushNotificationService';
 
 // Matches the `profiles` table + joined user_region_assignments
 export interface UserProfile {
@@ -107,6 +108,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (session?.user) {
                 wasAuthenticated[0].current = true;
                 fetchProfile(session.user.id);
+                // Initialize push notifications for native platforms
+                PushNotificationService.register(session.user.id).catch(err =>
+                    console.error('[AuthContext] Failed to register push notifications:', err)
+                );
             }
             setLoading(false);
         });
@@ -116,6 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (session?.user) {
                 wasAuthenticated[0].current = true;
                 fetchProfile(session.user.id);
+                // Initialize push notifications on sign-in
+                PushNotificationService.register(session.user.id).catch(err =>
+                    console.error('[AuthContext] Failed to register push notifications:', err)
+                );
             } else {
                 // If we had a session before and now it's gone (not an explicit sign-out)
                 if (wasAuthenticated[0].current && event !== 'SIGNED_OUT') {
@@ -165,6 +174,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signOut = async () => {
         wasAuthenticated[0].current = false; // explicit sign-out, not expiry
+        if (session?.user?.id) {
+            await PushNotificationService.unregister(session.user.id);
+        }
         await supabase.auth.signOut();
         setProfile(null);
         setSessionExpired(false);
