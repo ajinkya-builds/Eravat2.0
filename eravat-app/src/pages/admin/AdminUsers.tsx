@@ -19,6 +19,9 @@ interface Profile {
     beat_name?: string;
     range_name?: string;
     division_name?: string;
+    division_id?: string;
+    range_id?: string;
+    beat_id?: string;
     user_region_assignments?: any[];
 }
 
@@ -87,40 +90,82 @@ export default function AdminUsers() {
         setLoading(true);
         setError(null);
         try {
-            // Fetch profiles with region assignment
-            const { data: profileData, error: pErr } = await supabase
-                .from('profiles')
-                .select(`
-                    *,
-                    user_region_assignments (
-                        division_id, range_id, beat_id,
+            // Fetch profiles and geography together
+            const [
+                { data: profileData, error: pErr },
+                { data: assignmentData, error: aErr },
+                { data: divData },
+                { data: ranData },
+                { data: beaData },
+            ] = await Promise.all([
+                supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+                supabase
+                    .from('user_region_assignments')
+                    .select(`
+                        user_id, division_id, range_id, beat_id, is_primary_contact,
                         geo_divisions (name),
                         geo_ranges (name),
                         geo_beats (name)
-                    )
-                `)
-                .order('created_at', { ascending: false });
-
-            if (pErr) throw pErr;
-
-            // Flatten assignments into profile objects
-            const flat: Profile[] = (profileData || []).map((p: any) => ({
-                ...p,
-                division_name: p.user_region_assignments?.[0]?.geo_divisions?.name ?? null,
-                range_name: p.user_region_assignments?.[0]?.geo_ranges?.name ?? null,
-                beat_name: p.user_region_assignments?.[0]?.geo_beats?.name ?? null,
-            }));
-            setProfiles(flat);
-
-            // Fetch geography
-            const [{ data: divData }, { data: ranData }, { data: beaData }] = await Promise.all([
+                    `),
                 supabase.from('geo_divisions').select('id, name, code').order('name'),
                 supabase.from('geo_ranges').select('id, name, code, division_id').order('name'),
                 supabase.from('geo_beats').select('id, name, code, range_id').order('name'),
             ]);
+            if (pErr) throw pErr;
+            if (aErr) throw aErr;
+
             setDivisions(divData || []);
             setRanges(ranData || []);
             setBeats(beaData || []);
+
+            const divisionNameById = new Map((divData || []).map((d) => [d.id, d.name]));
+            const rangeNameById = new Map((ranData || []).map((r) => [r.id, r.name]));
+            const beatNameById = new Map((beaData || []).map((b) => [b.id, b.name]));
+            const rangeDivisionById = new Map((ranData || []).map((r) => [r.id, r.division_id]));
+            const beatRangeById = new Map((beaData || []).map((b) => [b.id, b.range_id]));
+
+            const assignmentsByUser = new Map<string, any[]>();
+            (assignmentData || []).forEach((a: any) => {
+                const existing = assignmentsByUser.get(a.user_id) || [];
+                existing.push(a);
+                assignmentsByUser.set(a.user_id, existing);
+            });
+
+            const specificityScore = (a: any) => {
+                if (a?.beat_id) return 3;
+                if (a?.range_id) return 2;
+                if (a?.division_id) return 1;
+                return 0;
+            };
+
+            // Prefer relational names, but fallback to ID->name maps for schema drift cases.
+            const flat: Profile[] = (profileData || []).map((p: any) => {
+                const userAssignments = assignmentsByUser.get(p.id) || [];
+                const assignment = userAssignments.sort((a, b) => {
+                    const primaryDelta = Number(Boolean(b?.is_primary_contact)) - Number(Boolean(a?.is_primary_contact));
+                    if (primaryDelta !== 0) return primaryDelta;
+                    return specificityScore(b) - specificityScore(a);
+                })[0];
+                const derivedRangeId = assignment?.range_id || (assignment?.beat_id ? beatRangeById.get(assignment.beat_id) : null);
+                const derivedDivisionId = assignment?.division_id || (derivedRangeId ? rangeDivisionById.get(derivedRangeId) : null);
+                return {
+                    ...p,
+                    division_id: assignment?.division_id ?? derivedDivisionId ?? null,
+                    range_id: assignment?.range_id ?? derivedRangeId ?? null,
+                    beat_id: assignment?.beat_id ?? null,
+                    division_name:
+                        assignment?.geo_divisions?.name ??
+                        ((assignment?.division_id || derivedDivisionId) ? divisionNameById.get(assignment?.division_id || derivedDivisionId) ?? null : null),
+                    range_name:
+                        assignment?.geo_ranges?.name ??
+                        ((assignment?.range_id || derivedRangeId) ? rangeNameById.get(assignment?.range_id || derivedRangeId) ?? null : null),
+                    beat_name:
+                        assignment?.geo_beats?.name ??
+                        (assignment?.beat_id ? beatNameById.get(assignment.beat_id) ?? null : null),
+                    user_region_assignments: userAssignments,
+                };
+            });
+            setProfiles(flat);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load data');
         } finally {
@@ -174,9 +219,10 @@ export default function AdminUsers() {
 
             if (fnErr) throw fnErr;
             if (data?.error) throw new Error(data.error);
+            if (data?.warning) setError(data.warning);
 
             setEditUser(null);
-            setToast('Personnel updated successfully');
+            setToast(data?.warning ? null : 'Personnel updated successfully');
             setTimeout(() => setToast(null), 3000);
             await fetchData();
         } catch (err) {
@@ -339,7 +385,7 @@ export default function AdminUsers() {
                                                 <MapPin size={13} className="text-primary shrink-0" />
                                                 <span className="font-medium">{p.beat_name || p.range_name || p.division_name || 'Global'}</span>
                                             </div>
-                                            {(p.beat_name && (p.range_name || p.division_name)) && (
+                                            {((p.beat_name && (p.range_name || p.division_name)) || (p.range_name && p.division_name)) && (
                                                 <p className="text-[10px] text-muted-foreground pl-5 mt-0.5 flex items-center gap-1">
                                                     {p.division_name} <ChevronRight size={8} /> {p.range_name}
                                                 </p>
@@ -355,9 +401,9 @@ export default function AdminUsers() {
                                                 <div className="flex items-center justify-end gap-2">
                                                     <button onClick={() => setEditUser({
                                                         ...p,
-                                                        division_id: p.user_region_assignments?.[0]?.division_id || '',
-                                                        range_id: p.user_region_assignments?.[0]?.range_id || '',
-                                                        beat_id: p.user_region_assignments?.[0]?.beat_id || '',
+                                                        division_id: p.division_id || '',
+                                                        range_id: p.range_id || '',
+                                                        beat_id: p.beat_id || '',
                                                         password: '' // empty indicates no password change
                                                     } as any)}
                                                         className="p-2 text-muted-foreground hover:text-primary bg-muted/30 hover:bg-primary/10 rounded-lg transition-colors"
@@ -408,7 +454,7 @@ export default function AdminUsers() {
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('login.password')}</label>
-                                    <input type="password" required minLength={12} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                                    <input type="password" required minLength={8} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>
                             </div>
@@ -494,7 +540,7 @@ export default function AdminUsers() {
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.newPassword')}</label>
-                                    <input type="password" minLength={12} value={editUser.password || ''} onChange={e => setEditUser({ ...editUser, password: e.target.value })}
+                                    <input type="password" minLength={8} value={editUser.password || ''} onChange={e => setEditUser({ ...editUser, password: e.target.value })}
                                         placeholder={t('admin.users.leaveBlank')}
                                         className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                                 </div>

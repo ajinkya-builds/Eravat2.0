@@ -3,10 +3,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { canManageRole, VALID_ROLES } from '../_shared/rbac.ts'
 
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').map(o => o.trim()).filter(Boolean)
+const DEFAULT_ORIGINS = ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174']
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get('Origin') || ''
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || '')
+  const allowed = ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : DEFAULT_ORIGINS
+  const allowedOrigin = allowed.includes(origin) ? origin : (allowed[0] || '*')
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -17,6 +19,8 @@ function getCorsHeaders(req: Request) {
 
 const MAX_NAME_LENGTH = 100
 const MAX_PHONE_LENGTH = 20
+const GEOGRAPHIC_ROLES = ['dfo', 'rrt', 'range_officer', 'beat_guard'] as const
+const hasValue = (value: unknown) => Boolean(value && String(value).trim().length > 0)
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req)
@@ -181,12 +185,66 @@ serve(async (req) => {
 
     // 8. Update Region Assignments
     const finalRole = role || targetProfile.role
-    const GEOGRAPHIC_ROLES = ['dfo', 'rrt', 'range_officer', 'beat_guard']
 
-    if (GEOGRAPHIC_ROLES.includes(finalRole)) {
+    if (GEOGRAPHIC_ROLES.includes(finalRole as (typeof GEOGRAPHIC_ROLES)[number])) {
+      if (!hasValue(division_id)) {
+        return new Response(JSON.stringify({ error: 'Division is required for this role.' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (['range_officer', 'beat_guard'].includes(finalRole) && !hasValue(range_id)) {
+        return new Response(JSON.stringify({ error: 'Range is required for this role.' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (finalRole === 'beat_guard' && !hasValue(beat_id)) {
+        return new Response(JSON.stringify({ error: 'Beat is required for beat guard role.' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      if (hasValue(range_id)) {
+        const { data: rangeRow, error: rangeErr } = await adminClient
+          .from('geo_ranges')
+          .select('id, division_id')
+          .eq('id', range_id)
+          .single()
+        if (rangeErr || !rangeRow) {
+          return new Response(JSON.stringify({ error: 'Selected range does not exist.' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+        if (hasValue(division_id) && rangeRow.division_id !== division_id) {
+          return new Response(JSON.stringify({ error: 'Selected range does not belong to selected division.' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+      }
+
+      if (hasValue(beat_id)) {
+        const { data: beatRow, error: beatErr } = await adminClient
+          .from('geo_beats')
+          .select('id, range_id')
+          .eq('id', beat_id)
+          .single()
+        if (beatErr || !beatRow) {
+          return new Response(JSON.stringify({ error: 'Selected beat does not exist.' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+        if (hasValue(range_id) && beatRow.range_id !== range_id) {
+          return new Response(JSON.stringify({ error: 'Selected beat does not belong to selected range.' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+      }
+
+      // Delete existing assignment, then insert (avoids needing unique constraint for upsert)
+      await adminClient.from('user_region_assignments').delete().eq('user_id', id)
+
       const { error: assignErr } = await adminClient
         .from('user_region_assignments')
-        .upsert({
+        .insert({
           user_id: id,
           division_id: division_id || null,
           range_id: range_id || null,
@@ -203,7 +261,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
-    } else if (!GEOGRAPHIC_ROLES.includes(finalRole) && targetProfile.role !== finalRole) {
+    } else {
       await adminClient
         .from('user_region_assignments')
         .delete()

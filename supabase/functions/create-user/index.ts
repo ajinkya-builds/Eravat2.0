@@ -3,10 +3,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { canManageRole, VALID_ROLES } from '../_shared/rbac.ts'
 
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').map(o => o.trim()).filter(Boolean)
+const DEFAULT_ORIGINS = ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174']
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get('Origin') || ''
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || '')
+  const allowed = ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : DEFAULT_ORIGINS
+  const allowedOrigin = allowed.includes(origin) ? origin : (allowed[0] || '*')
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -18,6 +20,9 @@ function getCorsHeaders(req: Request) {
 const MAX_NAME_LENGTH = 100
 const MAX_PHONE_LENGTH = 20
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const GEOGRAPHIC_ROLES = ['dfo', 'rrt', 'range_officer', 'beat_guard'] as const
+
+const hasValue = (value: unknown) => Boolean(value && String(value).trim().length > 0)
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req)
@@ -115,12 +120,76 @@ serve(async (req) => {
       })
     }
 
+    // ── 2.7 Validate required geography fields by role ───────────────────────
+    if (GEOGRAPHIC_ROLES.includes(role as (typeof GEOGRAPHIC_ROLES)[number]) && !hasValue(division_id)) {
+      return new Response(JSON.stringify({
+        error: 'Division is required for this role.',
+      }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    if (['range_officer', 'beat_guard'].includes(role) && !hasValue(range_id)) {
+      return new Response(JSON.stringify({
+        error: 'Range is required for this role.',
+      }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    if (role === 'beat_guard' && !hasValue(beat_id)) {
+      return new Response(JSON.stringify({
+        error: 'Beat is required for beat guard role.',
+      }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     // ── 3. Create auth user with service-role key (never touches caller's session) ──
     const adminClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
+
+    // ── 3.1 Validate territory hierarchy consistency ──────────────────────────
+    if (GEOGRAPHIC_ROLES.includes(role as (typeof GEOGRAPHIC_ROLES)[number])) {
+      if (hasValue(range_id)) {
+        const { data: rangeRow, error: rangeErr } = await adminClient
+          .from('geo_ranges')
+          .select('id, division_id')
+          .eq('id', range_id)
+          .single()
+
+        if (rangeErr || !rangeRow) {
+          return new Response(JSON.stringify({ error: 'Selected range does not exist.' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+        if (hasValue(division_id) && rangeRow.division_id !== division_id) {
+          return new Response(JSON.stringify({ error: 'Selected range does not belong to selected division.' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+      }
+
+      if (hasValue(beat_id)) {
+        const { data: beatRow, error: beatErr } = await adminClient
+          .from('geo_beats')
+          .select('id, range_id')
+          .eq('id', beat_id)
+          .single()
+
+        if (beatErr || !beatRow) {
+          return new Response(JSON.stringify({ error: 'Selected beat does not exist.' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+        if (hasValue(range_id) && beatRow.range_id !== range_id) {
+          return new Response(JSON.stringify({ error: 'Selected beat does not belong to selected range.' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+      }
+    }
 
     const { data: authData, error: createErr } = await adminClient.auth.admin.createUser({
       email,
@@ -164,9 +233,7 @@ serve(async (req) => {
     }
 
     // ── 5. Create region assignment for geographic roles ─────────────────────
-    const GEOGRAPHIC_ROLES = ['dfo', 'rrt', 'range_officer', 'beat_guard']
-
-    if (GEOGRAPHIC_ROLES.includes(role) && division_id) {
+    if (GEOGRAPHIC_ROLES.includes(role as (typeof GEOGRAPHIC_ROLES)[number])) {
       const { error: assignErr } = await adminClient
         .from('user_region_assignments')
         .insert({
@@ -178,11 +245,9 @@ serve(async (req) => {
 
       if (assignErr) {
         return new Response(JSON.stringify({
-          success: true,
-          warning: `User created but region assignment failed: ${assignErr.message}`,
-          user: { id: newUserId, email: authData.user.email, first_name, last_name, role },
+          error: `Region assignment failed: ${assignErr.message}. The user was created but has no territory. You can edit them to assign territory.`,
         }), {
-          status: 207,
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }

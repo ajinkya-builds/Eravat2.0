@@ -35,8 +35,8 @@ export default function PrivacySecurity() {
             return;
         }
 
-        if (newPassword.length < 6) {
-            setPasswordMessage({ type: 'error', text: "Password must be at least 6 characters." });
+        if (newPassword.length < 8) {
+            setPasswordMessage({ type: 'error', text: "Password must be at least 8 characters." });
             return;
         }
 
