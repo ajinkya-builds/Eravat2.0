@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "sb-mnytrlcmdpkfhrzrtesf-auth-token",
+          "value": "{\"access_token\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6IjczNmU3Zjg5LWMyMGYtNDZhMS1hMzhkLWViMjQ0NzE1MjNkZiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL21ueXRybGNtZHBrZmhyenJ0ZXNmLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIxZWY3NWEyMC1kYmJlLTQ5MjEtOTdkNi1jNDU2NzlmNTVjNjAiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzcyMjA3MjIyLCJpYXQiOjE3NzIyMDM2MjIsImVtYWlsIjoidGVzdF9hZG1pbkBnbWFpbC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmaXJzdF9uYW1lIjoiVGVzdCIsImxhc3RfbmFtZSI6IkFkbWluIiwicm9sZSI6ImFkbWluIn0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NzIyMDM2MjJ9XSwic2Vzc2lvbl9pZCI6IjkwNWRkMDE2LWMzMzctNDAyZC05Mjk5LWIzYTNmNmY2ZTFjNSIsImlzX2Fub255bW91cyI6ZmFsc2V9.IIJmswGtZhZDna2MdHMKve-lCrvhQf7zGLVl0A4H5X0aCUdQCsb0OXd8CAjWZkbvH9pksD1SjiDCQfr8sS2C-w\",\"token_type\":\"bearer\",\"expires_in\":3600,\"expires_at\":1772207222,\"refresh_token\":\"4i364uvevzsr\",\"user\":{\"id\":\"1ef75a20-dbbe-4921-97d6-c45679f55c60\",\"aud\":\"authenticated\",\"role\":\"authenticated\",\"email\":\"test_admin@gmail.com\",\"email_confirmed_at\":\"2026-02-26T07:10:51.907837Z\",\"phone\":\"\",\"confirmed_at\":\"2026-02-26T07:10:51.907837Z\",\"last_sign_in_at\":\"2026-02-27T14:47:02.83024588Z\",\"app_metadata\":{\"provider\":\"email\",\"providers\":[\"email\"]},\"user_metadata\":{\"email_verified\":true,\"first_name\":\"Test\",\"last_name\":\"Admin\",\"role\":\"admin\"},\"identities\":[{\"identity_id\":\"b47747e9-e327-4868-ab54-7d597bf4b23c\",\"id\":\"1ef75a20-dbbe-4921-97d6-c45679f55c60\",\"user_id\":\"1ef75a20-dbbe-4921-97d6-c45679f55c60\",\"identity_data\":{\"email\":\"test_admin@gmail.com\",\"email_verified\":false,\"phone_verified\":false,\"sub\":\"1ef75a20-dbbe-4921-97d6-c45679f55c60\"},\"provider\":\"email\",\"last_sign_in_at\":\"2026-02-26T07:10:51.897938Z\",\"created_at\":\"2026-02-26T07:10:51.898007Z\",\"updated_at\":\"2026-02-26T07:10:51.898007Z\",\"email\":\"test_admin@gmail.com\"}],\"created_at\":\"2026-02-26T07:10:51.864688Z\",\"updated_at\":\"2026-02-27T14:47:02.840652Z\",\"is_anonymous\":false},\"weak_password\":null}"
+        }
+      ]
+    }
+  ]
+}

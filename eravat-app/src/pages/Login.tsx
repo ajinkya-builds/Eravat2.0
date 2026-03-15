@@ -1,17 +1,27 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Phone, ArrowRight, AlertCircle, Timer, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { Lock, Phone, ArrowRight, AlertCircle, Timer, ShieldCheck, ArrowLeft, Smartphone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../supabase';
 
 const MAX_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 30_000;
+const OTP_RESEND_COOLDOWN_SEC = 60;
+
+type LoginMode = 'password' | 'otp';
+type OTPStep = 'phone_entry' | 'otp_verification';
 
 export default function Login() {
     const navigate = useNavigate();
-    const { signInWithPhone, signOut } = useAuth();
+    const { signInWithPhone, signInWithPhoneOTP, verifyOTP, resendOTP, signOut } = useAuth();
+    const { t } = useLanguage();
+
+    // ── Login Mode State ──────────────────────────────────────────────────────
+    const [loginMode, setLoginMode] = useState<LoginMode>('password');
+
+    // ── Password Login State ──────────────────────────────────────────────────
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -20,15 +30,23 @@ export default function Login() {
     const [lockUntil, setLockUntil] = useState<number | null>(null);
     const [countdown, setCountdown] = useState(0);
     const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const { t } = useLanguage();
 
-    // MFA challenge state
+    // ── OTP Login State ───────────────────────────────────────────────────────
+    const [otpStep, setOtpStep] = useState<OTPStep>('phone_entry');
+    const [otpPhone, setOtpPhone] = useState('');
+    const [otpCode, setOtpCode] = useState('');
+    const [otpLoading, setOtpLoading] = useState(false);
+    const [otpError, setOtpError] = useState<string | null>(null);
+    const [otpResendCountdown, setOtpResendCountdown] = useState(0);
+    const otpResendRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // ── MFA State (shared between both modes) ─────────────────────────────────
     const [mfaRequired, setMfaRequired] = useState(false);
     const [mfaCode, setMfaCode] = useState('');
     const [mfaError, setMfaError] = useState<string | null>(null);
     const [mfaVerifying, setMfaVerifying] = useState(false);
 
-    // Countdown timer for rate-limit lock
+    // ── Rate Limit Countdown Timer ────────────────────────────────────────────
     useEffect(() => {
         if (!lockUntil) return;
         const tick = () => {
@@ -48,9 +66,31 @@ export default function Login() {
         return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
     }, [lockUntil]);
 
+    // ── OTP Resend Countdown Timer ────────────────────────────────────────────
+    useEffect(() => {
+        if (otpResendCountdown <= 0) {
+            if (otpResendRef.current) clearInterval(otpResendRef.current);
+            return;
+        }
+        otpResendRef.current = setInterval(() => {
+            setOtpResendCountdown(prev => {
+                if (prev <= 1) {
+                    if (otpResendRef.current) clearInterval(otpResendRef.current);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => { if (otpResendRef.current) clearInterval(otpResendRef.current); };
+    }, [otpResendCountdown]);
+
     const isLocked = lockUntil !== null && Date.now() < lockUntil;
 
-    const handleLogin = async (e: React.FormEvent) => {
+    // ══════════════════════════════════════════════════════════════════════════
+    // PASSWORD LOGIN HANDLERS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    const handlePasswordLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isLocked) return;
 
@@ -96,6 +136,96 @@ export default function Login() {
             navigate('/');
         }
     };
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // OTP LOGIN HANDLERS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    const handleSendOTP = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!otpPhone.trim()) {
+            setOtpError(t('otp.invalidPhone'));
+            return;
+        }
+
+        if (otpPhone.trim().length < 10) {
+            setOtpError(t('otp.invalidPhone'));
+            return;
+        }
+
+        setOtpLoading(true);
+        setOtpError(null);
+
+        const { error, message } = await signInWithPhoneOTP(otpPhone.trim());
+
+        if (error) {
+            if (message === 'rate_limit') {
+                setOtpError(t('otp.tooManyRequests'));
+            } else {
+                setOtpError(error.message);
+            }
+            setOtpLoading(false);
+        } else {
+            // OTP sent successfully
+            setOtpStep('otp_verification');
+            setOtpResendCountdown(OTP_RESEND_COOLDOWN_SEC);
+            setOtpLoading(false);
+        }
+    };
+
+    const handleVerifyOTP = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (otpCode.length !== 6) {
+            setOtpError(t('otp.invalidCode'));
+            return;
+        }
+
+        setOtpLoading(true);
+        setOtpError(null);
+
+        const { error, mfaRequired: needsMfa } = await verifyOTP(otpPhone.trim(), otpCode);
+
+        if (error) {
+            setOtpError(error.message);
+            setOtpLoading(false);
+        } else if (needsMfa) {
+            // OTP verified, but MFA is required
+            setMfaRequired(true);
+            setOtpLoading(false);
+        } else {
+            // Success - navigate to home
+            navigate('/');
+        }
+    };
+
+    const handleResendOTP = async () => {
+        if (otpResendCountdown > 0) return;
+
+        setOtpLoading(true);
+        setOtpError(null);
+
+        const { error } = await resendOTP(otpPhone.trim());
+
+        if (error) {
+            setOtpError(error.message);
+            setOtpLoading(false);
+        } else {
+            setOtpResendCountdown(OTP_RESEND_COOLDOWN_SEC);
+            setOtpLoading(false);
+        }
+    };
+
+    const handleOtpBack = () => {
+        setOtpStep('phone_entry');
+        setOtpCode('');
+        setOtpError(null);
+    };
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // MFA HANDLERS (shared)
+    // ══════════════════════════════════════════════════════════════════════════
 
     const handleMfaVerify = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -144,6 +274,28 @@ export default function Login() {
         setMfaError(null);
     };
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // MODE SWITCHING
+    // ══════════════════════════════════════════════════════════════════════════
+
+    const switchToPassword = () => {
+        setLoginMode('password');
+        setOtpError(null);
+        setOtpStep('phone_entry');
+        setOtpCode('');
+        setOtpPhone('');
+    };
+
+    const switchToOTP = () => {
+        setLoginMode('otp');
+        setError(null);
+        setPassword('');
+    };
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // RENDER
+    // ══════════════════════════════════════════════════════════════════════════
+
     return (
         <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background">
             {/* Dynamic Background Elements */}
@@ -160,7 +312,9 @@ export default function Login() {
                 <div className="glass-card rounded-[2rem] p-10 premium-shadow">
                     <AnimatePresence mode="wait">
                         {mfaRequired ? (
-                            /* ── MFA Challenge Form ── */
+                            /* ══════════════════════════════════════════════════════ */
+                            /* MFA CHALLENGE FORM                                      */
+                            /* ══════════════════════════════════════════════════════ */
                             <motion.div
                                 key="mfa"
                                 initial={{ opacity: 0, x: 20 }}
@@ -237,7 +391,9 @@ export default function Login() {
                                 </form>
                             </motion.div>
                         ) : (
-                            /* ── Login Form ── */
+                            /* ══════════════════════════════════════════════════════ */
+                            /* LOGIN FORM (Password or OTP)                            */
+                            /* ══════════════════════════════════════════════════════ */
                             <motion.div
                                 key="login"
                                 initial={{ opacity: 0, x: -20 }}
@@ -275,90 +431,275 @@ export default function Login() {
                                     <p className="text-muted-foreground text-sm">{t('login_subtitle')}</p>
                                 </motion.div>
 
-                                {error && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -8 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="mb-6 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2"
+                                {/* ── Login Mode Tabs ───────────────────────────── */}
+                                <div className="flex gap-2 mb-6 bg-muted/30 p-1 rounded-xl">
+                                    <button
+                                        type="button"
+                                        onClick={switchToPassword}
+                                        className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+                                            loginMode === 'password'
+                                                ? 'bg-primary text-primary-foreground shadow-md'
+                                                : 'text-muted-foreground hover:text-foreground'
+                                        }`}
                                     >
-                                        <AlertCircle size={16} className="shrink-0" />
-                                        {error}
-                                    </motion.div>
+                                        <Lock size={16} />
+                                        {t('otp.loginWithPassword')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={switchToOTP}
+                                        className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+                                            loginMode === 'otp'
+                                                ? 'bg-primary text-primary-foreground shadow-md'
+                                                : 'text-muted-foreground hover:text-foreground'
+                                        }`}
+                                    >
+                                        <Smartphone size={16} />
+                                        {t('otp.loginWithOTP')}
+                                    </button>
+                                </div>
+
+                                {/* ══════════════════════════════════════════════ */}
+                                {/* PASSWORD LOGIN FORM                            */}
+                                {/* ══════════════════════════════════════════════ */}
+                                {loginMode === 'password' && (
+                                    <>
+                                        {error && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="mb-6 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2"
+                                            >
+                                                <AlertCircle size={16} className="shrink-0" />
+                                                {error}
+                                            </motion.div>
+                                        )}
+
+                                        <form onSubmit={handlePasswordLogin} className="space-y-5">
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.4 }}
+                                            >
+                                                <div className="relative group">
+                                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                        <Phone className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                                    </div>
+                                                    <input
+                                                        type="tel"
+                                                        required
+                                                        value={phone}
+                                                        onChange={(e) => setPhone(e.target.value)}
+                                                        className="w-full bg-white/50 dark:bg-black/20 border border-border rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                                                        placeholder="+91 98765 43210"
+                                                    />
+                                                </div>
+                                            </motion.div>
+
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.5 }}
+                                            >
+                                                <div className="relative group">
+                                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                        <Lock className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                                    </div>
+                                                    <input
+                                                        type="password"
+                                                        required
+                                                        value={password}
+                                                        onChange={(e) => setPassword(e.target.value)}
+                                                        className="w-full bg-white/50 dark:bg-black/20 border border-border rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                                                        placeholder="••••••••"
+                                                    />
+                                                </div>
+                                            </motion.div>
+
+                                            {/* Rate-limit warning bar */}
+                                            {attempts > 0 && !isLocked && (
+                                                <p className="text-xs text-amber-500 text-center -mt-1">
+                                                    {MAX_ATTEMPTS - attempts} attempt{MAX_ATTEMPTS - attempts !== 1 ? 's' : ''} remaining before temporary lockout
+                                                </p>
+                                            )}
+
+                                            <motion.button
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 0.6 }}
+                                                whileHover={{ scale: isLocked ? 1 : 1.02 }}
+                                                whileTap={{ scale: isLocked ? 1 : 0.98 }}
+                                                type="submit"
+                                                disabled={isLoading || isLocked}
+                                                className="w-full bg-primary text-primary-foreground font-semibold rounded-xl py-3.5 px-4 flex items-center justify-center gap-2 mt-2 shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-not-allowed group"
+                                            >
+                                                {isLoading ? (
+                                                    <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                ) : isLocked ? (
+                                                    <>
+                                                        <Timer className="w-5 h-5" />
+                                                        Try again in {countdown}s
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        {t('sign_in')}
+                                                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                                    </>
+                                                )}
+                                            </motion.button>
+                                        </form>
+                                    </>
                                 )}
 
-                                <form onSubmit={handleLogin} className="space-y-5">
-                                    <motion.div
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 0.4 }}
-                                    >
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                                <Phone className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                                            </div>
-                                            <input
-                                                type="tel"
-                                                required
-                                                value={phone}
-                                                onChange={(e) => setPhone(e.target.value)}
-                                                className="w-full bg-white/50 dark:bg-black/20 border border-border rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                                                placeholder="+91 98765 43210"
-                                            />
-                                        </div>
-                                    </motion.div>
+                                {/* ══════════════════════════════════════════════ */}
+                                {/* OTP LOGIN FORM                                 */}
+                                {/* ══════════════════════════════════════════════ */}
+                                {loginMode === 'otp' && (
+                                    <>
+                                        {otpError && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="mb-6 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2"
+                                            >
+                                                <AlertCircle size={16} className="shrink-0" />
+                                                {otpError}
+                                            </motion.div>
+                                        )}
 
-                                    <motion.div
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 0.5 }}
-                                    >
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                                <Lock className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                                            </div>
-                                            <input
-                                                type="password"
-                                                required
-                                                value={password}
-                                                onChange={(e) => setPassword(e.target.value)}
-                                                className="w-full bg-white/50 dark:bg-black/20 border border-border rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                                                placeholder="••••••••"
-                                            />
-                                        </div>
-                                    </motion.div>
+                                        {otpStep === 'phone_entry' ? (
+                                            /* ── OTP: Phone Entry Step ──────────── */
+                                            <form onSubmit={handleSendOTP} className="space-y-5">
+                                                <motion.div
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: 0.4 }}
+                                                    className="text-center mb-4"
+                                                >
+                                                    <p className="text-sm text-muted-foreground">{t('otp.subtitle')}</p>
+                                                </motion.div>
 
-                                    {/* Rate-limit warning bar */}
-                                    {attempts > 0 && !isLocked && (
-                                        <p className="text-xs text-amber-500 text-center -mt-1">
-                                            {MAX_ATTEMPTS - attempts} attempt{MAX_ATTEMPTS - attempts !== 1 ? 's' : ''} remaining before temporary lockout
-                                        </p>
-                                    )}
+                                                <motion.div
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: 0.5 }}
+                                                >
+                                                                    {/* Locked +91 prefix + 10-digit input */}
+                                                                    <div className="flex rounded-xl overflow-hidden border border-border bg-white/50 dark:bg-black/20 focus-within:ring-2 focus-within:ring-primary/50 focus-within:border-primary transition-all">
+                                                                        <span className="inline-flex items-center px-3 bg-muted/70 border-r border-border text-sm font-bold text-foreground select-none shrink-0">
+                                                                            +91
+                                                                        </span>
+                                                                        <input
+                                                                            type="tel"
+                                                                            required
+                                                                            inputMode="numeric"
+                                                                            maxLength={10}
+                                                                            value={otpPhone}
+                                                                            onChange={(e) => {
+                                                                                const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                                                                setOtpPhone(digits);
+                                                                                setOtpError(null);
+                                                                            }}
+                                                                            className="flex-1 py-3 px-4 text-sm outline-none bg-transparent"
+                                                                            placeholder="9876543210"
+                                                                            autoFocus
+                                                                        />
+                                                                    </div>
+                                                </motion.div>
 
-                                    <motion.button
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.6 }}
-                                        whileHover={{ scale: isLocked ? 1 : 1.02 }}
-                                        whileTap={{ scale: isLocked ? 1 : 0.98 }}
-                                        type="submit"
-                                        disabled={isLoading || isLocked}
-                                        className="w-full bg-primary text-primary-foreground font-semibold rounded-xl py-3.5 px-4 flex items-center justify-center gap-2 mt-2 shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-not-allowed group"
-                                    >
-                                        {isLoading ? (
-                                            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        ) : isLocked ? (
-                                            <>
-                                                <Timer className="w-5 h-5" />
-                                                Try again in {countdown}s
-                                            </>
+                                                <motion.button
+                                                    initial={{ opacity: 0, y: 20 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: 0.6 }}
+                                                    whileHover={{ scale: otpLoading ? 1 : 1.02 }}
+                                                    whileTap={{ scale: otpLoading ? 1 : 0.98 }}
+                                                    type="submit"
+                                                    disabled={otpLoading}
+                                                    className="w-full bg-primary text-primary-foreground font-semibold rounded-xl py-3.5 px-4 flex items-center justify-center gap-2 shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-not-allowed group"
+                                                >
+                                                    {otpLoading ? (
+                                                        <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    ) : (
+                                                        <>
+                                                            {t('otp.sendCode')}
+                                                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                                        </>
+                                                    )}
+                                                </motion.button>
+                                            </form>
                                         ) : (
+                                            /* ── OTP: Verification Step ─────────── */
                                             <>
-                                                {t('sign_in')}
-                                                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                                <div className="text-center mb-6">
+                                                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                                        <Smartphone size={32} className="text-primary" />
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground mb-1">{t('otp.codeSent')}</p>
+                                                    <p className="text-sm font-semibold text-foreground">{otpPhone}</p>
+                                                </div>
+
+                                                <form onSubmit={handleVerifyOTP} className="space-y-5">
+                                                    <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        maxLength={6}
+                                                        placeholder={t('otp.enterCode')}
+                                                        value={otpCode}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                                            setOtpCode(val);
+                                                            setOtpError(null);
+                                                        }}
+                                                        className="w-full bg-white/50 dark:bg-black/20 border border-border rounded-xl py-3.5 px-4 text-center text-xl font-mono tracking-[0.5em] outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                                                        autoFocus
+                                                    />
+
+                                                    <button
+                                                        type="submit"
+                                                        disabled={otpCode.length !== 6 || otpLoading}
+                                                        className="w-full bg-primary text-primary-foreground font-semibold rounded-xl py-3.5 px-4 flex items-center justify-center gap-2 shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-not-allowed"
+                                                    >
+                                                        {otpLoading ? (
+                                                            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                        ) : (
+                                                            <>
+                                                                <ShieldCheck size={18} />
+                                                                {t('otp.verify')}
+                                                            </>
+                                                        )}
+                                                    </button>
+
+                                                    {/* Resend OTP */}
+                                                    <div className="text-center">
+                                                        {otpResendCountdown > 0 ? (
+                                                            <p className="text-sm text-muted-foreground">
+                                                                {t('otp.resendIn')} {otpResendCountdown}s
+                                                            </p>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleResendOTP}
+                                                                disabled={otpLoading}
+                                                                className="text-sm text-primary font-medium hover:underline disabled:opacity-50"
+                                                            >
+                                                                {t('otp.resend')}
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleOtpBack}
+                                                        className="w-full text-muted-foreground text-sm font-medium flex items-center justify-center gap-1.5 hover:text-foreground transition-colors py-2"
+                                                    >
+                                                        <ArrowLeft size={14} />
+                                                        {t('otp.changePhone')}
+                                                    </button>
+                                                </form>
                                             </>
                                         )}
-                                    </motion.button>
-                                </form>
+                                    </>
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>

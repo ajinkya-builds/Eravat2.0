@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "sb-mnytrlcmdpkfhrzrtesf-auth-token",
+          "value": "{\"access_token\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6IjczNmU3Zjg5LWMyMGYtNDZhMS1hMzhkLWViMjQ0NzE1MjNkZiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL21ueXRybGNtZHBrZmhyenJ0ZXNmLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIzNDQ3Y2FmMy04MGQxLTRlYzItYjc0Zi1iMjdmYWJhZjJmMjciLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzcyMjA3MjE5LCJpYXQiOjE3NzIyMDM2MTksImVtYWlsIjoidGVzdF91c2VyXzJAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiZmlyc3RfbmFtZSI6IlRlc3RfVXNlcl8xIiwibGFzdF9uYW1lIjoiVXNlcl8xIiwicm9sZSI6ImJlYXRfZ3VhcmQifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3MjIwMzYxOX1dLCJzZXNzaW9uX2lkIjoiY2I0ODkxNWUtZTU3OS00ZGFkLWEyYzktYzI2ZTY5OWYzY2Q4IiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.fGPaBhgG9ku3m6OpjTVFIK3iC21k9F1dw1CZqpMozttLgMr7i0ayvt_NzTrABJYv4Nl1qLb3MjhTKMZogkFHAA\",\"token_type\":\"bearer\",\"expires_in\":3600,\"expires_at\":1772207219,\"refresh_token\":\"z6f4cex22jhk\",\"user\":{\"id\":\"3447caf3-80d1-4ec2-b74f-b27fabaf2f27\",\"aud\":\"authenticated\",\"role\":\"authenticated\",\"email\":\"test_user_2@gmail.com\",\"email_confirmed_at\":\"2026-02-26T07:12:32.839083Z\",\"phone\":\"\",\"confirmed_at\":\"2026-02-26T07:12:32.839083Z\",\"last_sign_in_at\":\"2026-02-27T14:46:59.656151182Z\",\"app_metadata\":{\"provider\":\"email\",\"providers\":[\"email\"]},\"user_metadata\":{\"email_verified\":true,\"first_name\":\"Test_User_1\",\"last_name\":\"User_1\",\"role\":\"beat_guard\"},\"identities\":[{\"identity_id\":\"1e917ae5-973b-4eef-b8a8-0ab47fcfe663\",\"id\":\"3447caf3-80d1-4ec2-b74f-b27fabaf2f27\",\"user_id\":\"3447caf3-80d1-4ec2-b74f-b27fabaf2f27\",\"identity_data\":{\"email\":\"test_user_2@gmail.com\",\"email_verified\":false,\"phone_verified\":false,\"sub\":\"3447caf3-80d1-4ec2-b74f-b27fabaf2f27\"},\"provider\":\"email\",\"last_sign_in_at\":\"2026-02-26T07:12:32.832989Z\",\"created_at\":\"2026-02-26T07:12:32.836041Z\",\"updated_at\":\"2026-02-26T07:12:32.836041Z\",\"email\":\"test_user_2@gmail.com\"}],\"created_at\":\"2026-02-26T07:12:32.826862Z\",\"updated_at\":\"2026-02-27T14:46:59.748763Z\",\"is_anonymous\":false},\"weak_password\":null}"
+        }
+      ]
+    }
+  ]
+}

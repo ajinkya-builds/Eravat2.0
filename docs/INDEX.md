@@ -65,6 +65,7 @@ docs/
 | 2026-03-14 | Phone Login & Elephants Fix    | Fixed country code phone matching in get_email_by_phone RPC, added total_elephants calculation in syncService, and resolved migration conflicts |
 | 2026-03-14 | Beat Nearest-Boundary Fallback | Updated report beat auto-assignment to use nearest beat boundary when GPS point falls outside all beat polygons |
 | 2026-03-14 | Dashboard Role KPIs + Docs     | Added role-oriented KPI cue cards in Admin Dashboard and documented formula-level metric definitions in docs |
+| 2026-03-15 | OTP Phone Authentication       | Implemented dual login (Password + OTP tabs), integrated Twilio SMS, added E.164 phone normalization, and created comprehensive testing guide |
 
 ---
 
@@ -73,6 +74,7 @@ docs/
 - **App:** http://localhost:5173 (dev)
 - **Sync Runbook:** [`SYNC_RUNBOOK.md`](./SYNC_RUNBOOK.md)
 - **Dashboard Metrics Reference:** [`DASHBOARD_METRICS_REFERENCE.md`](./DASHBOARD_METRICS_REFERENCE.md)
+- **OTP Testing Guide:** [`OTP_TESTING_GUIDE.md`](./OTP_TESTING_GUIDE.md)
 - **Supabase Dashboard:**
   https://supabase.com/dashboard/project/mnytrlcmdpkfhrzrtesf
 - **Supabase SQL Editor:**

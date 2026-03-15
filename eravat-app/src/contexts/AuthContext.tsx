@@ -32,6 +32,9 @@ interface AuthContextValue {
     clearSessionExpired: () => void;
     signIn: (email: string, password: string) => Promise<{ error: Error | null; mfaRequired?: boolean }>;
     signInWithPhone: (phone: string, password: string) => Promise<{ error: Error | null; mfaRequired?: boolean }>;
+    signInWithPhoneOTP: (phone: string) => Promise<{ error: Error | null; message?: string }>;
+    verifyOTP: (phone: string, token: string) => Promise<{ error: Error | null; mfaRequired?: boolean }>;
+    resendOTP: (phone: string) => Promise<{ error: Error | null; message?: string }>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
@@ -171,6 +174,104 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return { error: null, mfaRequired: false };
     };
+    const signInWithPhoneOTP = async (phone: string) => {
+        try {
+            // Step 1: Normalize to last-10-digit string (same as password login)
+            const tenDigit = normalisePhone(phone);
+
+            // Step 2: Verify user exists using the get_email_by_phone RPC.
+            // This does last-10-digit matching so it handles all stored formats
+            // (+91-XXXXXXXXXX, +91XXXXXXXXXX, 919XXXXXXXXX, etc.)
+            const { data: resolvedEmail, error: rpcError } = await supabase
+                .rpc('get_email_by_phone', { p_phone: tenDigit });
+
+            if (rpcError || !resolvedEmail) {
+                console.warn('[AuthContext] Phone not found via RPC:', tenDigit);
+                return {
+                    error: new Error('Invalid credentials. Please try again.'),
+                    message: 'user_not_found'
+                };
+            }
+
+            // Step 3: Build canonical E.164 phone directly from user input.
+            // We know tenDigit is 10 digits (normalisePhone guarantees this for Indian numbers).
+            // Do NOT query profiles here — RLS blocks anon reads before login.
+            const e164Phone = `+91${tenDigit}`;
+            // Step 4: Send OTP.
+            // Removing `shouldCreateUser: false` because GoTrue has a bug where it throws 422
+            // even on exact matches. Identity mapping resolves ghost users.
+            const { error } = await supabase.auth.signInWithOtp({
+                phone: e164Phone,
+                options: {
+                    channel: 'sms',
+                }
+            });
+
+            if (error) {
+                console.error('[AuthContext] OTP send error:', error);
+                if (error.message.includes('rate limit')) {
+                    return { error: new Error('Too many requests. Please try again later.'), message: 'rate_limit' };
+                }
+                return { error: new Error('Unable to send verification code. Please try again.'), message: 'send_failed' };
+            }
+            return { error: null, message: 'otp_sent' };
+
+        } catch (err) {
+            console.error('[AuthContext] Unexpected error in signInWithPhoneOTP:', err);
+            return { error: new Error('An unexpected error occurred. Please try again.'), message: 'unexpected_error' };
+        }
+
+    };
+
+    const verifyOTP = async (phone: string, token: string) => {
+        try {
+            // Normalize to last 10 digits then build E.164
+            const tenDigit = normalisePhone(phone);
+            const storedDigits = tenDigit.replace(/\D/g, '');
+            let e164Phone: string;
+            if (storedDigits.length === 12 && storedDigits.startsWith('91')) {
+                e164Phone = `+${storedDigits}`;
+            } else if (storedDigits.length === 10) {
+                e164Phone = `+91${storedDigits}`;
+            } else {
+                e164Phone = `+91${tenDigit}`;
+            }
+            // Verify OTP via Supabase Auth
+            const { error } = await supabase.auth.verifyOtp({
+                phone: e164Phone,
+                token: token,
+                type: 'sms'
+            });
+
+            if (error) {
+                console.error('[AuthContext] OTP verification error:', error);
+                return {
+                    error: new Error('Invalid or expired verification code. Please try again.')
+                };
+            }
+
+            console.log('[AuthContext] OTP verified successfully');
+            setSessionExpired(false);
+
+            // Check if MFA is required (for admin users with TOTP)
+            const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            if (aalData && aalData.currentLevel === 'aal1' && aalData.nextLevel === 'aal2') {
+                return { error: null, mfaRequired: true };
+            }
+
+            return { error: null, mfaRequired: false };
+        } catch (err) {
+            console.error('[AuthContext] Unexpected error in verifyOTP:', err);
+            return {
+                error: new Error('An unexpected error occurred. Please try again.')
+            };
+        }
+    };
+
+    const resendOTP = async (phone: string) => {
+        // Resend is the same as initial send
+        return signInWithPhoneOTP(phone);
+    };
 
     const signOut = async () => {
         wasAuthenticated[0].current = false; // explicit sign-out, not expiry
@@ -194,6 +295,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             clearSessionExpired,
             signIn,
             signInWithPhone,
+            signInWithPhoneOTP,
+            verifyOTP,
+            resendOTP,
             signOut,
             refreshProfile,
         }}>
