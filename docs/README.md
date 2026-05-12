@@ -8,6 +8,7 @@
 
 ## 🧾 Latest Session Logs
 
+- `docs/sessions/2026-05-12-main-yash-dev-merge-backups-gh-pages.md`
 - `docs/sessions/2026-03-14-dashboard-role-kpis-and-metric-reference.md`
 - `docs/sessions/2026-03-14-beat-nearest-boundary-fallback.md`
 - `docs/sessions/2026-03-14-conflict-loss-details-column-and-cli-migration.md`
@@ -372,6 +373,10 @@ npm run dev         # → http://localhost:5173
    failed silently because an `update().eq('user_id')` matched 0 rows due to PostgREST bulk
    limitations combined with RLS constraints. Fixed by explicitly mapping the exact unread
    notification `id`s from local state and utilizing an array-based `.in('id', array)` filter.
+12. **Main + yash-dev merge (2026-05-12)** — `yash-dev` was merged into `main` with backup
+   branches `main-backup-5-12` and `yash-dev-5-12` on GitHub. No `supabase/migrations` changes.
+   `SyncService` unit test was updated to expect `total_elephants` on the observations upsert
+   (matches production sync behavior; see session log).
 
 ---
 
@@ -382,7 +387,11 @@ npm run dev         # → http://localhost:5173
 The application is configured to deploy to GitHub Pages with a specific base
 path override.
 
-1. `npm run deploy`
+**CI:** Pushing to **`main`** runs `.github/workflows/deploy.yml`, which builds `eravat-app`
+(with `VITE_SUPABASE_*` repository secrets) and publishes `eravat-app/dist` to the **`gh-pages`**
+branch via `peaceiris/actions-gh-pages`.
+
+**Manual:** from `eravat-app/`, run `npm run deploy` (see note below).
 
 > **Note:** The `predeploy` script automatically runs
 > `vite build --base=/Eravat2.0/` to ensure asset paths are correct for GitHub

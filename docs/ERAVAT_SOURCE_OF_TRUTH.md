@@ -1,7 +1,7 @@
 # Eravat 2.0 — The Ultimate Source of Truth & Technical Handbook
 
 > **Project Status:** Production / Active Development\
-> **Last Comprehensive Audit:** 2026-03-19\
+> **Last Comprehensive Audit:** 2026-05-12\
 > **Target Audience:** Developers, Administrators, AI Agents
 
 This document provides a 360-degree view of **Eravat 2.0**, consolidating all
@@ -225,6 +225,13 @@ The application uses a two-step login process:
    matched zero rows within PostgREST constraints. Refactored the frontend to
    extract exact unread `id`s and perform an explicit `.in('id', array)`
    update instead.
+10. **Main and yash-dev convergence (2026-05-12)**: Backup branches
+    `main-backup-5-12` and `yash-dev-5-12` were pushed to GitHub; `yash-dev` was
+    merged into `main` without touching `supabase/migrations`. Unit test for
+    sync was aligned so **`total_elephants`** is expected on the observations
+    upsert (consistent with the Total Elephants fix in item 7 of this list). GitHub Pages deploy runs on push to
+    `main` via Actions. Capacitor Android APK should be rebuilt from the new
+    `main` tip when distributing native builds.
 
 ### 7.2 Core Refactors
 
