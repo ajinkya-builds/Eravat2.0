@@ -67,7 +67,7 @@ describe('SyncService', () => {
     expect(db.reports.where).not.toHaveBeenCalled();
   });
 
-  it('does NOT send total_elephants to the observations table', async () => {
+  it('sends total_elephants as the sum of sex/age counts on observations upsert', async () => {
     // Arrange: one pending direct sighting report
     (db.reports.where as any).mockReturnValueOnce({
       anyOf: vi.fn(() => ({
@@ -80,7 +80,7 @@ describe('SyncService', () => {
           longitude: 80.5,
           notes: null,
           observation_type: 'direct',
-          total_elephants: 5,    // stored locally — must NOT be sent to Supabase
+          total_elephants: 5,
           male_count: 2,
           female_count: 2,
           calf_count: 1,
@@ -109,8 +109,6 @@ describe('SyncService', () => {
       .find((p) => p?.report_id === 'report-uuid-1');
 
     expect(observationsPayload).toBeDefined();
-    // The key assertion — total_elephants must not be present
-    expect(observationsPayload).not.toHaveProperty('total_elephants');
     expect(observationsPayload).toMatchObject({
       report_id: 'report-uuid-1',
       type: 'direct_sighting',
@@ -118,6 +116,7 @@ describe('SyncService', () => {
       female_count: 2,
       calf_count: 1,
       unknown_count: 0,
+      total_elephants: 5,
     });
   });
 
