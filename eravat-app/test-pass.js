@@ -3,8 +3,13 @@ import dotenv from 'dotenv';
 import path from 'path';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-const key = process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const supabase = createClient(process.env.VITE_SUPABASE_URL, key);
+const url = process.env.VITE_SUPABASE_URL;
+const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+if (!url || !key) {
+  console.error('Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (e.g. in eravat-app/.env).');
+  process.exit(1);
+}
+const supabase = createClient(url, key);
 
 async function test() {
   const email = 'admin@eravat.app'; // example, let's just create a new user instead

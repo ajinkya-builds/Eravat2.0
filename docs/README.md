@@ -125,12 +125,10 @@ File: `eravat-app/.env.local`
 
 ```
 VITE_SUPABASE_URL=https://mnytrlcmdpkfhrzrtesf.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_pxNb78WOGaRxX64ZGZPaog_i0nJqbCC
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_pxNb78WOGaRxX64ZGZPaog_i0nJqbCC
 ```
 
-> **Note:** The new `sb_publishable_` key format replaces the legacy `anon` JWT
-> key in newer Supabase projects. It works identically with
-> `@supabase/supabase-js` v2.
+> **Note:** Use the Dashboard **Publishable** key (`sb_publishable_...`) with `@supabase/supabase-js` v2.
 
 ---
 
