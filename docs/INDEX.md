@@ -28,6 +28,7 @@ docs/
 ├── schema.md                   ← Database schema quick reference
 ├── SYNC_RUNBOOK.md             ← Sync troubleshooting playbook
 └── sessions/
+    ├── 2026-05-13-gh-pages-logo-auth-env-deploy.md
     ├── 2026-05-12-main-yash-dev-merge-backups-gh-pages.md
     ├── 2026-03-28-android-apk-build.md
     ├── 2026-03-14-dashboard-role-kpis-and-metric-reference.md
@@ -70,6 +71,7 @@ docs/
 | 2026-03-15 | OTP Phone Authentication       | Implemented dual login (Password + OTP tabs), integrated Twilio SMS, added E.164 phone normalization, and created comprehensive testing guide |
 | 2026-03-19 | UI Notification State Sync     | Fixed a bug where marking all notifications as read silently failed on Supabase due to implicit `update` behavior; changed `markAllAsRead` to use explicit `in('id', ids)`. |
 | 2026-05-12 | Main + yash-dev merge & backups | Created `main-backup-5-12` and `yash-dev-5-12` on GitHub; merged `yash-dev` into `main` (no migration diff); aligned `SyncService` test with `total_elephants` payload; documented CI GitHub Pages deploy on push to `main`; Android rebuild noted as follow-up |
+| 2026-05-13 | GH Pages logo, auth bootstrap, env, deploy | Base-aware elephant logo URL; `profiles` `.maybeSingle()` + auth init timeout; Supabase client publishable-key support; `.env.example` + gitignored env layout; `main` → Actions → `gh-pages` production deploy |
 
 ---
 

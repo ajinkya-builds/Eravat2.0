@@ -41,6 +41,9 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** If Supabase cannot reach the host (DNS/offline), `getSession()` may never settle while refresh retries run. */
+const AUTH_INIT_TIMEOUT_MS = 12_000;
+
 /** Strip spaces, dashes, dots; remove +91 or 91 country prefix → 10-digit string */
 function normalisePhone(raw: string): string {
     const digits = raw.replace(/\D/g, '');
@@ -62,13 +65,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const fetchProfile = async (userId: string) => {
         try {
             // profiles.id = auth.users.id (no auth_id column)
-            const { data: profileData } = await supabase
+            const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
-                .single();
+                .maybeSingle();
+
+            if (profileError) {
+                console.warn('[AuthContext] profiles fetch failed:', profileError.message);
+                setProfile(null);
+                return;
+            }
 
             if (!profileData) {
+                console.warn(
+                    '[AuthContext] No profiles row for this user. Provisioning may be incomplete; id:',
+                    userId
+                );
                 setProfile(null);
                 return;
             }
@@ -106,18 +119,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        let cancelled = false;
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+        const applyInitialSession = (session: Session | null) => {
+            if (cancelled) return;
             setSession(session);
             if (session?.user) {
                 wasAuthenticated[0].current = true;
                 fetchProfile(session.user.id);
-                // Initialize push notifications for native platforms
                 PushNotificationService.register(session.user.id).catch(err =>
                     console.error('[AuthContext] Failed to register push notifications:', err)
                 );
             }
             setLoading(false);
-        });
+        };
+
+        timeoutId = setTimeout(() => {
+            if (cancelled) return;
+            console.warn(
+                '[AuthContext] Auth init exceeded timeout; check network/DNS and VITE_SUPABASE_URL.',
+                import.meta.env.VITE_SUPABASE_URL
+            );
+            // Drop stale refresh tokens so GoTrue stops retrying refresh against an unreachable host.
+            void supabase.auth.signOut({ scope: 'local' }).finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        }, AUTH_INIT_TIMEOUT_MS);
+
+        supabase.auth
+            .getSession()
+            .then(({ data: { session } }) => {
+                if (cancelled) return;
+                if (timeoutId !== undefined) clearTimeout(timeoutId);
+                applyInitialSession(session);
+            })
+            .catch(err => {
+                if (cancelled) return;
+                if (timeoutId !== undefined) clearTimeout(timeoutId);
+                console.error('[AuthContext] getSession failed:', err);
+                applyInitialSession(null);
+            });
 
         const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
             setSession(session);
@@ -138,7 +180,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(false);
         });
 
-        return () => listener.subscription.unsubscribe();
+        return () => {
+            cancelled = true;
+            if (timeoutId !== undefined) clearTimeout(timeoutId);
+            listener.subscription.unsubscribe();
+        };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const signIn = async (email: string, password: string) => {

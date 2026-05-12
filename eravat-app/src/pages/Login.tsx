@@ -5,6 +5,7 @@ import { Lock, Phone, ArrowRight, AlertCircle, Timer, ShieldCheck, ArrowLeft, Sm
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../supabase';
+import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
 
 const MAX_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 30_000;
@@ -324,7 +325,7 @@ export default function Login() {
                                 {/* Compact app branding */}
                                 <div className="flex items-center justify-center gap-2 mb-6">
                                     <div className="w-8 h-8 relative flex items-center justify-center overflow-visible">
-                                        <img src="/elephant-logo.png" alt="App Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain" />
+                                        <img src={ELEPHANT_LOGO_URL} alt="App Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain" />
                                     </div>
                                     <span className="text-sm font-semibold text-muted-foreground">{t('wild_elephant_monitoring')}</span>
                                 </div>
@@ -408,7 +409,7 @@ export default function Login() {
                                         transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
                                         className="w-24 h-24 sm:w-28 sm:h-28 mb-4 relative flex items-center justify-center overflow-visible"
                                     >
-                                        <img src="/elephant-logo.png" alt="App Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
+                                        <img src={ELEPHANT_LOGO_URL} alt="App Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
                                     </motion.div>
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }}

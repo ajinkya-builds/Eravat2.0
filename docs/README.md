@@ -8,6 +8,7 @@
 
 ## 🧾 Latest Session Logs
 
+- `docs/sessions/2026-05-13-gh-pages-logo-auth-env-deploy.md`
 - `docs/sessions/2026-05-12-main-yash-dev-merge-backups-gh-pages.md`
 - `docs/sessions/2026-03-14-dashboard-role-kpis-and-metric-reference.md`
 - `docs/sessions/2026-03-14-beat-nearest-boundary-fallback.md`
@@ -47,7 +48,9 @@ centralised Supabase backend when online.
 ### Logo Assets
 
 - **Primary Logo**: `elephant-logo.png` (sourced from legacy Android
-  `ic_launcher_foreground.png`).
+  `ic_launcher_foreground.png`). **GitHub Pages:** use `import.meta.env.BASE_URL`
+  (see `src/lib/publicAsset.ts` / `ELEPHANT_LOGO_URL`) for `<img>` `src` so the
+  file resolves under `/Eravat2.0/` instead of site root.
 - **Scaling Fix**: Due to Android "safe zone" padding, the logo is wrapped in a
   CSS container (`overflow-visible`) and scaled to `150%` to ensure the elephant
   fills the intended bounding box.
@@ -377,6 +380,10 @@ npm run dev         # → http://localhost:5173
    branches `main-backup-5-12` and `yash-dev-5-12` on GitHub. No `supabase/migrations` changes.
    `SyncService` unit test was updated to expect `total_elephants` on the observations upsert
    (matches production sync behavior; see session log).
+13. **GitHub Pages logo + auth env (2026-05-13)** — Logo `src` is base-aware for `/Eravat2.0/`;
+   `AuthContext` uses `profiles` `.maybeSingle()`, auth bootstrap timeout + local sign-out on
+   stuck refresh; `supabase.ts` supports publishable key alias and optional disable of auto
+   token refresh. See `docs/sessions/2026-05-13-gh-pages-logo-auth-env-deploy.md`.
 
 ---
 
