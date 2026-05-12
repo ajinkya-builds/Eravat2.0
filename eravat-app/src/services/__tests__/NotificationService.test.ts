@@ -100,23 +100,32 @@ describe('NotificationService', () => {
 
   // ── markAllAsRead ──────────────────────────────────────────────────────────
 
-  it('markAllAsRead() chains two .eq() calls for user_id and is_read=false', async () => {
-    // markAllAsRead chains: .update().eq('user_id', ...).eq('is_read', false)
-    const mockEq2 = vi.fn().mockResolvedValue({ error: null });
-    mockEq.mockReturnValue({ eq: mockEq2 });
+  it('markAllAsRead() chains .in() and .select() for a list of ids', async () => {
+    const mockSelect2 = vi.fn().mockResolvedValue({ data: [{ id: '1' }], error: null });
+    const mockIn = vi.fn().mockReturnValue({ select: mockSelect2 });
+    mockUpdate.mockReturnValue({ in: mockIn });
 
-    const result = await NotificationService.markAllAsRead('user-abc');
+    const result = await NotificationService.markAllAsRead(['id-1', 'id-2']);
     expect(result).toBe(true);
     expect(mockUpdate).toHaveBeenCalledWith({ is_read: true });
-    expect(mockEq).toHaveBeenCalledWith('user_id', 'user-abc');
-    expect(mockEq2).toHaveBeenCalledWith('is_read', false);
+    expect(mockIn).toHaveBeenCalledWith('id', ['id-1', 'id-2']);
+    expect(mockSelect2).toHaveBeenCalled();
   });
 
-  it('markAllAsRead() returns false on Supabase error', async () => {
-    const mockEq2 = vi.fn().mockResolvedValue({ error: { message: 'fail' } });
-    mockEq.mockReturnValue({ eq: mockEq2 });
+  it('markAllAsRead() returns true immediately if ids array is empty', async () => {
+    // Use an instance of clearAllMocks to make sure not.toHaveBeenCalled works properly
+    vi.clearAllMocks();
+    const result = await NotificationService.markAllAsRead([]);
+    expect(result).toBe(true);
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
 
-    const result = await NotificationService.markAllAsRead('user-xyz');
+  it('markAllAsRead() returns false on Supabase error or zero rows matching', async () => {
+    const mockSelect2 = vi.fn().mockResolvedValue({ data: null, error: { message: 'fail' } });
+    const mockIn = vi.fn().mockReturnValue({ select: mockSelect2 });
+    mockUpdate.mockReturnValue({ in: mockIn });
+
+    const result = await NotificationService.markAllAsRead(['id-xyz']);
     expect(result).toBe(false);
   });
 

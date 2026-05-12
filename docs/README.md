@@ -368,6 +368,10 @@ npm run dev         # → http://localhost:5173
    naming mismatch exists in migration history. Remote deploy succeeded using
    `supabase migration repair --status reverted 20260222` followed by
    `supabase db push --include-all`.
+11. **Notification State Persistence (2026-03-19)** — The "Mark all as read" button originally
+   failed silently because an `update().eq('user_id')` matched 0 rows due to PostgREST bulk
+   limitations combined with RLS constraints. Fixed by explicitly mapping the exact unread
+   notification `id`s from local state and utilizing an array-based `.in('id', array)` filter.
 
 ---
 

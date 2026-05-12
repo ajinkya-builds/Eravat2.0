@@ -1,7 +1,7 @@
 # Eravat 2.0 — The Ultimate Source of Truth & Technical Handbook
 
 > **Project Status:** Production / Active Development\
-> **Last Comprehensive Audit:** 2026-03-14\
+> **Last Comprehensive Audit:** 2026-03-19\
 > **Target Audience:** Developers, Administrators, AI Agents
 
 This document provides a 360-degree view of **Eravat 2.0**, consolidating all
@@ -220,6 +220,11 @@ The application uses a two-step login process:
 8. **Beat Association Outside Boundaries (2026-03-14)**: Reports with GPS
    points outside all beat polygons now get auto-linked to the nearest beat
    boundary instead of leaving `reports.beat_id` null.
+9. **Notification State Persistence (2026-03-19)**: The "Mark all as read" 
+   button failed to sync with the server because a bulk `update().eq('user_id')`
+   matched zero rows within PostgREST constraints. Refactored the frontend to
+   extract exact unread `id`s and perform an explicit `.in('id', array)`
+   update instead.
 
 ### 7.2 Core Refactors
 
