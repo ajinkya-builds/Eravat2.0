@@ -139,7 +139,9 @@ function stableUuidFrom(input: string): string {
 export async function syncData() {
     // Mutex guard prevents concurrent syncs
     if (isSyncing) {
-        console.log('[SyncService] Sync already in progress, skipping');
+        if (import.meta.env.DEV) {
+            console.log('[SyncService] Sync already in progress, skipping');
+        }
         return { success: true, count: 0, message: 'Sync already in progress' };
     }
 

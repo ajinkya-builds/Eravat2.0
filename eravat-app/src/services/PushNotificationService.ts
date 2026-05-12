@@ -8,7 +8,9 @@ export class PushNotificationService {
    */
   static async register(userId: string): Promise<void> {
     if (Capacitor.getPlatform() === 'web') {
-      console.log('[PushNotificationService] Push notifications are not supported on web. Skipping registration for user:', userId);
+      if (import.meta.env.DEV) {
+        console.log('[PushNotificationService] Push notifications are not supported on web. Skipping registration for user:', userId);
+      }
       return;
     }
 
@@ -35,7 +37,9 @@ export class PushNotificationService {
    */
   static async unregister(userId: string): Promise<void> {
     if (Capacitor.getPlatform() === 'web') {
+      if (import.meta.env.DEV) {
         console.log('[PushNotificationService] Push notifications are not supported on web. skipping unregistration for user:', userId);
+      }
       return;
     }
 

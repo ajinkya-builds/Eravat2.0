@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
 import { PushNotificationService } from '../services/PushNotificationService';
@@ -61,35 +61,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [sessionExpired, setSessionExpired] = useState(false);
     // Track whether user was previously authenticated so we can detect expiry
     const wasAuthenticated = useState({ current: false });
+    /** Coalesce parallel profile loads (e.g. getSession + onAuthStateChange firing together). */
+    const profileInflight = useRef(new Map<string, Promise<void>>());
+    /** Log missing profile / fetch errors at most once per user until a profile loads. */
+    const profileIssueLogged = useRef(new Set<string>());
 
-    const fetchProfile = async (userId: string) => {
-        try {
-            // profiles.id = auth.users.id (no auth_id column)
-            const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .maybeSingle();
+    const fetchProfile = useCallback(async (userId: string) => {
+        const existing = profileInflight.current.get(userId);
+        if (existing) return existing;
 
-            if (profileError) {
-                console.warn('[AuthContext] profiles fetch failed:', profileError.message);
-                setProfile(null);
-                return;
-            }
+        const run = (async () => {
+            try {
+                const { data: profileData, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .maybeSingle();
 
-            if (!profileData) {
-                console.warn(
-                    '[AuthContext] No profiles row for this user. Provisioning may be incomplete; id:',
-                    userId
-                );
-                setProfile(null);
-                return;
-            }
+                if (profileError) {
+                    if (!profileIssueLogged.current.has(userId)) {
+                        profileIssueLogged.current.add(userId);
+                        console.warn('[AuthContext] profiles fetch failed:', profileError.message);
+                    }
+                    setProfile(null);
+                    return;
+                }
 
-            // Fetch regional assignment separately
-            const { data: assignment } = await supabase
-                .from('user_region_assignments')
-                .select(`
+                if (!profileData) {
+                    if (!profileIssueLogged.current.has(userId)) {
+                        profileIssueLogged.current.add(userId);
+                        console.warn(
+                            '[AuthContext] No profiles row for this user. If you just deployed DB fixes, run the profiles backfill migration; id:',
+                            userId
+                        );
+                    }
+                    setProfile(null);
+                    return;
+                }
+
+                profileIssueLogged.current.delete(userId);
+
+                const { data: assignment } = await supabase
+                    .from('user_region_assignments')
+                    .select(`
                     division_id,
                     range_id,
                     beat_id,
@@ -97,22 +111,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     geo_ranges (name),
                     geo_beats (name)
                 `)
-                .eq('user_id', userId)
-                .maybeSingle();
+                    .eq('user_id', userId)
+                    .maybeSingle();
 
-            setProfile({
-                ...profileData,
-                division_id: assignment?.division_id ?? null,
-                range_id: assignment?.range_id ?? null,
-                beat_id: assignment?.beat_id ?? null,
-                division_name: (assignment?.geo_divisions as any)?.name ?? null,
-                range_name: (assignment?.geo_ranges as any)?.name ?? null,
-                beat_name: (assignment?.geo_beats as any)?.name ?? null,
-            } as UserProfile);
-        } catch {
-            // Profile fetch failed
+                setProfile({
+                    ...profileData,
+                    division_id: assignment?.division_id ?? null,
+                    range_id: assignment?.range_id ?? null,
+                    beat_id: assignment?.beat_id ?? null,
+                    division_name: (assignment?.geo_divisions as any)?.name ?? null,
+                    range_name: (assignment?.geo_ranges as any)?.name ?? null,
+                    beat_name: (assignment?.geo_beats as any)?.name ?? null,
+                } as UserProfile);
+            } catch {
+                // Profile fetch failed
+            }
+        })();
+
+        profileInflight.current.set(userId, run);
+        try {
+            await run;
+        } finally {
+            profileInflight.current.delete(userId);
         }
-    };
+    }, []);
 
     const refreshProfile = async () => {
         if (session?.user?.id) await fetchProfile(session.user.id);
@@ -127,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(session);
             if (session?.user) {
                 wasAuthenticated[0].current = true;
-                fetchProfile(session.user.id);
+                void fetchProfile(session.user.id);
                 PushNotificationService.register(session.user.id).catch(err =>
                     console.error('[AuthContext] Failed to register push notifications:', err)
                 );
@@ -165,13 +187,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(session);
             if (session?.user) {
                 wasAuthenticated[0].current = true;
-                fetchProfile(session.user.id);
-                // Initialize push notifications on sign-in
+                void fetchProfile(session.user.id);
                 PushNotificationService.register(session.user.id).catch(err =>
                     console.error('[AuthContext] Failed to register push notifications:', err)
                 );
             } else {
-                // If we had a session before and now it's gone (not an explicit sign-out)
+                profileIssueLogged.current.clear();
                 if (wasAuthenticated[0].current && event !== 'SIGNED_OUT') {
                     setSessionExpired(true);
                 }
@@ -185,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (timeoutId !== undefined) clearTimeout(timeoutId);
             listener.subscription.unsubscribe();
         };
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [fetchProfile]);
 
     const signIn = async (email: string, password: string) => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -296,7 +317,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 };
             }
 
-            console.log('[AuthContext] OTP verified successfully');
+            if (import.meta.env.DEV) {
+                console.log('[AuthContext] OTP verified successfully');
+            }
             setSessionExpired(false);
 
             // Check if MFA is required (for admin users with TOTP)
@@ -321,6 +344,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signOut = async () => {
         wasAuthenticated[0].current = false; // explicit sign-out, not expiry
+        profileIssueLogged.current.clear();
         if (session?.user?.id) {
             await PushNotificationService.unregister(session.user.id);
         }
