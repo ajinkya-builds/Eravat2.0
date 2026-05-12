@@ -52,20 +52,22 @@ export class NotificationService {
   }
 
   /**
-   * Marks all unread notifications for a user as read.
+   * Marks specific notifications as read.
    */
-  static async markAllAsRead(userId: string): Promise<boolean> {
+  static async markAllAsRead(notificationIds: string[]): Promise<boolean> {
+    if (!notificationIds.length) return true;
+    
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('notifications')
         .update({ is_read: true })
-        .eq('user_id', userId)
-        .eq('is_read', false);
+        .in('id', notificationIds)
+        .select();
 
       if (error) {
         throw error;
       }
-      return true;
+      return data && data.length > 0;
     } catch {
       return false;
     }

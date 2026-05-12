@@ -66,6 +66,7 @@ docs/
 | 2026-03-14 | Beat Nearest-Boundary Fallback | Updated report beat auto-assignment to use nearest beat boundary when GPS point falls outside all beat polygons |
 | 2026-03-14 | Dashboard Role KPIs + Docs     | Added role-oriented KPI cue cards in Admin Dashboard and documented formula-level metric definitions in docs |
 | 2026-03-15 | OTP Phone Authentication       | Implemented dual login (Password + OTP tabs), integrated Twilio SMS, added E.164 phone normalization, and created comprehensive testing guide |
+| 2026-03-19 | UI Notification State Sync     | Fixed a bug where marking all notifications as read silently failed on Supabase due to implicit `update` behavior; changed `markAllAsRead` to use explicit `in('id', ids)`. |
 
 ---
 

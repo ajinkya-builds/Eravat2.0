@@ -75,7 +75,11 @@ export function NotificationBell() {
 
     const handleMarkAllAsRead = async () => {
         if (!user) return;
-        const success = await NotificationService.markAllAsRead(user.id);
+        
+        const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+        if (unreadIds.length === 0) return;
+        
+        const success = await NotificationService.markAllAsRead(unreadIds);
         if (success) {
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
             setUnreadCount(0);
