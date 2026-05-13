@@ -2,6 +2,47 @@ import { db } from '../db';
 import { supabase } from '../supabase';
 
 let isSyncing = false;
+const SYNC_LOCK_KEY = 'eravat_sync_lock';
+const SYNC_LOCK_TTL_MS = 120_000;
+const SYNC_TAB_ID = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `tab-${Date.now()}`;
+
+function tryAcquireCrossTabSyncLock(): boolean {
+    if (typeof localStorage === 'undefined') return true;
+    try {
+        const now = Date.now();
+        const raw = localStorage.getItem(SYNC_LOCK_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw) as { tabId?: string; ts?: number };
+            if (
+                parsed.tabId !== SYNC_TAB_ID &&
+                typeof parsed.ts === 'number' &&
+                now - parsed.ts < SYNC_LOCK_TTL_MS
+            ) {
+                return false;
+            }
+        }
+        localStorage.setItem(SYNC_LOCK_KEY, JSON.stringify({ tabId: SYNC_TAB_ID, ts: now }));
+        return true;
+    } catch {
+        return true;
+    }
+}
+
+function releaseCrossTabSyncLock(): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+        const raw = localStorage.getItem(SYNC_LOCK_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as { tabId?: string };
+        if (parsed.tabId === SYNC_TAB_ID) {
+            localStorage.removeItem(SYNC_LOCK_KEY);
+        }
+    } catch {
+        // ignore lock cleanup errors
+    }
+}
 let mediaPathColumnHint: 'file_path' | 'storage_path' | 'path' | 'media_path' | 'object_path' | null = null;
 
 // Validate that an ID is a safe UUID or prefixed-UUID format (no path traversal)
@@ -137,12 +178,19 @@ function stableUuidFrom(input: string): string {
 }
 
 export async function syncData() {
-    // Mutex guard prevents concurrent syncs
+    // Mutex guard prevents concurrent syncs in this tab
     if (isSyncing) {
         if (import.meta.env.DEV) {
             console.log('[SyncService] Sync already in progress, skipping');
         }
         return { success: true, count: 0, message: 'Sync already in progress' };
+    }
+
+    if (!tryAcquireCrossTabSyncLock()) {
+        if (import.meta.env.DEV) {
+            console.log('[SyncService] Sync locked by another tab, skipping');
+        }
+        return { success: true, count: 0, message: 'Sync already in progress in another tab' };
     }
 
     isSyncing = true;
@@ -365,5 +413,6 @@ export async function syncData() {
         return { success: false, error };
     } finally {
         isSyncing = false;
+        releaseCrossTabSyncLock();
     }
 }

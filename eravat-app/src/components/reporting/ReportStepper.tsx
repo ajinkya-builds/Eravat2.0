@@ -32,14 +32,19 @@ function StepperContent() {
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
+        if (!profile?.id) {
+            setSubmitError('Your profile is not loaded. Please wait and try again.');
+            return;
+        }
         setIsSubmitting(true);
+        setSubmitError(null);
         try {
             const reportId = crypto.randomUUID();
 
             // 1. Save flat report to Dexie
             await db.reports.add({
                 id: reportId,
-                user_id: profile?.id || null,
+                user_id: profile.id,
                 ...formData,
                 obs_id: crypto.randomUUID(),
                 male_count: formData.male_count || 0,

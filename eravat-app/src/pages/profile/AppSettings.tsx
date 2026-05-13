@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Moon, Sun, Smartphone, Wifi, Globe, Map, Languages, Bell, Radio, MapPin, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -64,12 +64,16 @@ export default function AppSettings() {
     const { t, language: globalLanguage, setLanguage: setGlobalLanguage } = useLanguage();
 
     // ── Proximity radius state ────────────────────────────────────────────────
-    const [radius, setRadius] = useState<number>((profile as any)?.notification_radius_km ?? 10);
+    const [radius, setRadius] = useState<number>(profile?.notification_radius_km ?? 10);
     const [saveState, setSaveState] = useState<SaveState>('idle');
+    const radiusHydrated = useRef(false);
 
     useEffect(() => {
-        const r = (profile as any)?.notification_radius_km;
-        if (typeof r === 'number') setRadius(r);
+        const r = profile?.notification_radius_km;
+        if (typeof r === 'number') {
+            setRadius(r);
+            radiusHydrated.current = false;
+        }
     }, [profile]);
 
     const persist = useCallback(async (newRadius: number) => {
@@ -81,10 +85,13 @@ export default function AppSettings() {
     }, [user?.id]);
 
     useEffect(() => {
+        if (!radiusHydrated.current) {
+            radiusHydrated.current = true;
+            return;
+        }
         const timer = setTimeout(() => persist(radius), DEBOUNCE_MS);
         return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [radius]);
+    }, [radius, persist]);
 
     const handleRadiusChange = (v: number) => { setRadius(clamp(v)); setSaveState('idle'); };
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -8,6 +8,7 @@ export interface Notification {
   message: string;
   is_read: boolean;
   created_at: string;
+  notification_type?: 'general' | 'proximity' | 'chain_of_command';
 }
 
 export class NotificationService {

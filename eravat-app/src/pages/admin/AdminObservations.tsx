@@ -118,12 +118,12 @@ export default function AdminObservations() {
         } catch (err) { setError(err instanceof Error ? err.message : 'Delete failed'); setConfirmState(null); }
     };
 
-    const handleSync = async (id: string) => {
+    const handleMarkReviewed = async (id: string) => {
         try {
-            const { error } = await supabase.from('reports').update({ status: 'synced' }).eq('id', id);
+            const { error } = await supabase.from('reports').update({ status: 'reviewed' }).eq('id', id);
             if (error) throw error;
             fetchObservations(currentPage);
-        } catch (err) { setError(err instanceof Error ? err.message : 'Sync failed'); }
+        } catch (err) { setError(err instanceof Error ? err.message : 'Update failed'); }
     };
 
     const handleExportCSV = async () => {
@@ -269,14 +269,20 @@ export default function AdminObservations() {
                                                         : (obs.conflict_damages.map(cd => cd.description).join(', ') || '—')}
                                             </td>
                                             <td className="p-4">
-                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${obs.status === 'synced' ? 'bg-emerald-500/15 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
+                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${obs.status === 'reviewed' ? 'bg-emerald-500/15 text-emerald-600' : obs.status === 'synced' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
                                                     {obs.status || 'pending'}
                                                 </span>
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button onClick={() => setEditTarget(obs)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"><Pencil size={14} /></button>
-                                                    <button onClick={() => handleSync(obs.id)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"><RefreshCw size={14} /></button>
+                                                    <button
+                                                        onClick={() => handleMarkReviewed(obs.id)}
+                                                        title={t('admin.obs.reviewed')}
+                                                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+                                                    >
+                                                        <RefreshCw size={14} />
+                                                    </button>
                                                     <button onClick={() => handleDelete(obs.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive"><Trash2 size={14} /></button>
                                                 </div>
                                             </td>

@@ -21,6 +21,7 @@ export interface UserProfile {
     division_name?: string | null;
     range_name?: string | null;
     beat_name?: string | null;
+    notification_radius_km?: number;
 }
 
 interface AuthContextValue {
@@ -95,6 +96,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             userId
                         );
                     }
+                    setProfile(null);
+                    return;
+                }
+
+                if (profileData.is_active === false) {
+                    console.warn('[AuthContext] Inactive user attempted access:', userId);
+                    await supabase.auth.signOut();
                     setProfile(null);
                     return;
                 }

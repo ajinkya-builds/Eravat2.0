@@ -5,21 +5,34 @@ import { useAuth } from '../contexts/AuthContext';
 const ADMIN_ROLES = ['admin', 'ccf', 'dfo'];
 const PROFILE_LOAD_TIMEOUT_MS = 15_000;
 
-export function ProtectedRoute() {
-    const { session, loading } = useAuth();
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-background">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                    <p className="text-muted-foreground text-sm">Loading...</p>
-                </div>
+function RouteLoadingScreen() {
+    return (
+        <div className="flex items-center justify-center h-screen bg-background">
+            <div className="flex flex-col items-center gap-4">
+                <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                <p className="text-muted-foreground text-sm">Loading...</p>
             </div>
-        );
+        </div>
+    );
+}
+
+export function ProtectedRoute() {
+    const { session, profile, loading } = useAuth();
+    const [timedOut, setTimedOut] = useState(false);
+
+    useEffect(() => {
+        if (!loading && session && !profile) {
+            const timer = setTimeout(() => setTimedOut(true), PROFILE_LOAD_TIMEOUT_MS);
+            return () => clearTimeout(timer);
+        }
+        setTimedOut(false);
+    }, [loading, session, profile]);
+
+    if (loading || (session && !profile && !timedOut)) {
+        return <RouteLoadingScreen />;
     }
 
-    if (!session) {
+    if (!session || timedOut || !profile) {
         return <Navigate to="/login" replace />;
     }
 
@@ -30,7 +43,6 @@ export function AdminRoute() {
     const { session, profile, loading } = useAuth();
     const [timedOut, setTimedOut] = useState(false);
 
-    // Timeout to prevent infinite spinner if profile fetch fails
     useEffect(() => {
         if (!loading && session && !profile) {
             const timer = setTimeout(() => setTimedOut(true), PROFILE_LOAD_TIMEOUT_MS);
@@ -39,16 +51,8 @@ export function AdminRoute() {
         setTimedOut(false);
     }, [loading, session, profile]);
 
-    // Show spinner while auth or profile is still loading (with timeout)
     if (loading || (session && !profile && !timedOut)) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-background">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                    <p className="text-muted-foreground text-sm">Loading...</p>
-                </div>
-            </div>
-        );
+        return <RouteLoadingScreen />;
     }
 
     if (!session || timedOut) {

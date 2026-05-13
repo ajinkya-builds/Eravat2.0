@@ -27,6 +27,7 @@ docs/
 ├── DASHBOARD_METRICS_REFERENCE.md ← KPI and dashboard calculation formulas
 ├── schema.md                   ← Database schema quick reference
 ├── SYNC_RUNBOOK.md             ← Sync troubleshooting playbook
+├── AUTH_ARCHITECTURE.md        ← Offline-first auth proposal (draft — decision pending)
 └── sessions/
     ├── 2026-05-13-gh-pages-logo-auth-env-deploy.md
     ├── 2026-05-12-main-yash-dev-merge-backups-gh-pages.md
@@ -81,6 +82,7 @@ docs/
 - **Sync Runbook:** [`SYNC_RUNBOOK.md`](./SYNC_RUNBOOK.md)
 - **Dashboard Metrics Reference:** [`DASHBOARD_METRICS_REFERENCE.md`](./DASHBOARD_METRICS_REFERENCE.md)
 - **OTP Testing Guide:** [`OTP_TESTING_GUIDE.md`](./OTP_TESTING_GUIDE.md)
+- **Auth Architecture (draft, decision pending):** [`AUTH_ARCHITECTURE.md`](./AUTH_ARCHITECTURE.md)
 - **Supabase Dashboard:**
   https://supabase.com/dashboard/project/mnytrlcmdpkfhrzrtesf
 - **Supabase SQL Editor:**

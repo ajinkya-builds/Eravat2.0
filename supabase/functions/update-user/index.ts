@@ -239,17 +239,15 @@ serve(async (req) => {
         }
       }
 
-      // Delete existing assignment, then insert (avoids needing unique constraint for upsert)
-      await adminClient.from('user_region_assignments').delete().eq('user_id', id)
-
+      // Upsert assignment atomically (user_id is unique)
       const { error: assignErr } = await adminClient
         .from('user_region_assignments')
-        .insert({
+        .upsert({
           user_id: id,
           division_id: division_id || null,
           range_id: range_id || null,
           beat_id: beat_id || null,
-        })
+        }, { onConflict: 'user_id' })
 
       if (assignErr) {
         return new Response(JSON.stringify({

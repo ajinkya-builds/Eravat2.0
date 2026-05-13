@@ -4,23 +4,35 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 /**
  * Edge Function: send-push
  *
- * Called (via pg_net trigger or Database Webhook) whenever a new
- * notification row is inserted.  Looks up the target user's FCM
- * tokens from `push_tokens` and sends a push via the FCM HTTP v1 API.
+ * Invoked by pg_net when a notification row is inserted. Delivers FCM push
+ * to the target user's registered device tokens.
  *
- * Required Supabase secrets:
- *   - FCM_PROJECT_ID          (Firebase project ID)
- *   - FCM_SERVICE_ACCOUNT_JSON (full service-account JSON, base-64 encoded)
+ * Auth: Bearer service-role JWT (from pg_net trigger) or X-Push-Webhook-Secret.
+ *
+ * Secrets:
+ *   - FCM_PROJECT_ID (optional if embedded in service account JSON)
+ *   - FCM_SERVICE_ACCOUNT_JSON (plain JSON or base64-encoded JSON)
+ *   - PUSH_WEBHOOK_SECRET (optional secondary auth for webhooks)
  */
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+let cachedFcmAccess: { token: string; expiresAt: number } | null = null
 
-/** Decode a base-64 string into a UTF-8 string. */
 function b64decode(b64: string): string {
   return new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)))
 }
 
-/** Import an RSA private key from PEM for signing JWTs. */
+function parseServiceAccount(raw: string): { client_email: string; private_key: string; project_id?: string } {
+  const trimmed = raw.trim()
+  try {
+    if (trimmed.startsWith('{')) {
+      return JSON.parse(trimmed)
+    }
+    return JSON.parse(b64decode(trimmed))
+  } catch {
+    throw new Error('FCM_SERVICE_ACCOUNT_JSON is not valid JSON or base64 JSON')
+  }
+}
+
 async function importPrivateKey(pem: string): Promise<CryptoKey> {
   const b64 = pem
     .replace(/-----BEGIN PRIVATE KEY-----/, '')
@@ -32,16 +44,11 @@ async function importPrivateKey(pem: string): Promise<CryptoKey> {
     binary.buffer,
     { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
     false,
-    ['sign']
+    ['sign'],
   )
 }
 
-/** Create a signed JWT for Google OAuth 2.0 service-account flow. */
-async function createServiceAccountJWT(
-  email: string,
-  privateKeyPem: string,
-  scope: string,
-): Promise<string> {
+async function createServiceAccountJWT(email: string, privateKeyPem: string, scope: string): Promise<string> {
   const header = { alg: 'RS256', typ: 'JWT' }
   const now = Math.floor(Date.now() / 1000)
   const payload = {
@@ -60,11 +67,7 @@ async function createServiceAccountJWT(
 
   const unsigned = `${encode(header)}.${encode(payload)}`
   const key = await importPrivateKey(privateKeyPem)
-  const sig = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    key,
-    new TextEncoder().encode(unsigned)
-  )
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(unsigned))
   const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
@@ -73,14 +76,13 @@ async function createServiceAccountJWT(
   return `${unsigned}.${sigB64}`
 }
 
-/** Exchange a service-account JWT for a short-lived OAuth access token. */
-async function getAccessToken(email: string, privateKey: string): Promise<string> {
-  const jwt = await createServiceAccountJWT(
-    email,
-    privateKey,
-    'https://www.googleapis.com/auth/firebase.messaging',
-  )
+async function getCachedFcmAccessToken(email: string, privateKey: string): Promise<string> {
+  const now = Date.now()
+  if (cachedFcmAccess && cachedFcmAccess.expiresAt > now + 60_000) {
+    return cachedFcmAccess.token
+  }
 
+  const jwt = await createServiceAccountJWT(email, privateKey, 'https://www.googleapis.com/auth/firebase.messaging')
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -92,19 +94,39 @@ async function getAccessToken(email: string, privateKey: string): Promise<string
 
   const data = await res.json()
   if (!res.ok) throw new Error(`OAuth token error: ${JSON.stringify(data)}`)
+
+  cachedFcmAccess = { token: data.access_token, expiresAt: now + 3_500_000 }
   return data.access_token
 }
 
-// ── Main handler ─────────────────────────────────────────────────────────────
+function isAuthorized(req: Request): boolean {
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  const webhookSecret = Deno.env.get('PUSH_WEBHOOK_SECRET') ?? ''
+  const authHeader = req.headers.get('Authorization') ?? ''
+  const bearer = authHeader.replace(/^Bearer\s+/i, '')
+
+  if (serviceRoleKey && bearer === serviceRoleKey) {
+    return true
+  }
+
+  const headerSecret = req.headers.get('X-Push-Webhook-Secret') ?? ''
+  return Boolean(webhookSecret && headerSecret === webhookSecret)
+}
 
 serve(async (req) => {
-  // Accept POST only (from pg_net trigger or webhook)
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 })
   }
 
+  if (!isAuthorized(req)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   try {
-    const { user_id, title, message, report_id } = await req.json()
+    const { user_id, title, message, report_id, notification_type } = await req.json()
 
     if (!user_id || !title) {
       return new Response(JSON.stringify({ error: 'Missing user_id or title' }), {
@@ -113,23 +135,27 @@ serve(async (req) => {
       })
     }
 
-    // ── 1. Lookup FCM config ────────────────────────────────────────────────
-    const fcmProjectId = Deno.env.get('FCM_PROJECT_ID')
-    const fcmServiceAccountB64 = Deno.env.get('FCM_SERVICE_ACCOUNT_JSON')
-
-    if (!fcmProjectId || !fcmServiceAccountB64) {
-      // FCM not configured yet — skip silently
+    const fcmServiceAccountRaw = Deno.env.get('FCM_SERVICE_ACCOUNT_JSON')
+    if (!fcmServiceAccountRaw) {
       return new Response(JSON.stringify({ skipped: true, reason: 'FCM not configured' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       })
     }
 
-    // ── 2. Look up user's push tokens ───────────────────────────────────────
+    const serviceAccount = parseServiceAccount(fcmServiceAccountRaw)
+    const fcmProjectId = Deno.env.get('FCM_PROJECT_ID') ?? serviceAccount.project_id
+    if (!fcmProjectId) {
+      return new Response(JSON.stringify({ skipped: true, reason: 'FCM project id missing' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
     const adminClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { auth: { autoRefreshToken: false, persistSession: false } }
+      { auth: { autoRefreshToken: false, persistSession: false } },
     )
 
     const { data: tokens, error: tokensErr } = await adminClient
@@ -147,14 +173,11 @@ serve(async (req) => {
       })
     }
 
-    // ── 3. Get OAuth access token for FCM ───────────────────────────────────
-    const serviceAccount = JSON.parse(b64decode(fcmServiceAccountB64))
-    const accessToken = await getAccessToken(
+    const accessToken = await getCachedFcmAccessToken(
       serviceAccount.client_email,
       serviceAccount.private_key,
     )
 
-    // ── 4. Send push to each registered device ──────────────────────────────
     const fcmUrl = `https://fcm.googleapis.com/v1/projects/${fcmProjectId}/messages:send`
     const results: { token: string; success: boolean; error?: string }[] = []
 
@@ -165,7 +188,7 @@ serve(async (req) => {
           notification: { title, body: message },
           data: {
             report_id: report_id ?? '',
-            notification_type: 'eravat_alert',
+            notification_type: notification_type ?? 'eravat_alert',
           },
           android: {
             priority: 'high' as const,
@@ -192,18 +215,16 @@ serve(async (req) => {
         const errBody = await fcmRes.text()
         results.push({ token: token.slice(0, 12) + '…', success: false, error: errBody })
 
-        // If token is invalid/expired, clean it up
         if (fcmRes.status === 404 || fcmRes.status === 410) {
           await adminClient.from('push_tokens').delete().eq('token', token)
         }
       }
     }
 
-    return new Response(JSON.stringify({ sent: results.length, results }), {
+    return new Response(JSON.stringify({ sent: results.filter(r => r.success).length, results }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })
-
   } catch (err) {
     console.error('send-push error:', err)
     return new Response(JSON.stringify({ error: 'Internal error' }), {
