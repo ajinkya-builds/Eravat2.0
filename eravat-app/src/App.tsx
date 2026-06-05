@@ -8,6 +8,8 @@ import EditProfile from './pages/profile/EditProfile';
 import Settings from './pages/profile/AppSettings';
 import PrivacySecurity from './pages/profile/PrivacySecurity';
 import HelpSupport from './pages/profile/HelpSupport';
+import CompleteProfileLocation from './pages/profile/CompleteProfileLocation';
+import OnboardVolunteer from './pages/OnboardVolunteer';
 import FAQ from './pages/profile/FAQ';
 import PrivacyPolicy from './pages/profile/PrivacyPolicy';
 import MapPage from './pages/MapPage';
@@ -76,13 +78,14 @@ function App() {
       <LanguageProvider>
         <AuthProvider>
           <NetworkSync />
-          <BrowserRouter>
+          <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
 
               {/* Protected App Shell */}
               <Route element={<ProtectedRoute />}>
+                  <Route path="/profile/complete-location" element={<CompleteProfileLocation />} />
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/map" element={<MapPage />} />
@@ -95,6 +98,7 @@ function App() {
                   <Route path="/help" element={<HelpSupport />} />
                   <Route path="/faq" element={<FAQ />} />
                   <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                  <Route path="/volunteers/onboard" element={<OnboardVolunteer />} />
                 </Route>
 
               </Route>

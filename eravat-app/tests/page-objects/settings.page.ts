@@ -1,33 +1,38 @@
-import { type Page, type Locator, expect } from '@playwright/test';
+import { type Page, type Locator } from '@playwright/test';
+import { appPath } from '../fixtures/test-constants';
+
+const LANG_VALUE: Record<'English' | 'Hindi' | 'Marathi', string> = {
+    English: 'en',
+    Hindi: 'hi',
+    Marathi: 'mr',
+};
 
 export class SettingsPage {
     readonly page: Page;
     readonly lightButton: Locator;
     readonly darkButton: Locator;
     readonly systemButton: Locator;
-    readonly languageDropdown: Locator;
+    readonly languageSelect: Locator;
     readonly pushToggle: Locator;
     readonly clearCacheButton: Locator;
 
     constructor(page: Page) {
         this.page = page;
-        // Theme buttons use lucide icons: Sun, Moon, Monitor — locale-independent
-        this.lightButton = page.locator('button:has(.lucide-sun)').first();
-        this.darkButton = page.locator('button:has(.lucide-moon)').first();
-        this.systemButton = page.locator('button:has(.lucide-monitor)').first();
-        // Language dropdown — match any known language label (works in any locale)
-        this.languageDropdown = page.locator('button').filter({ hasText: /English|Hindi|Marathi|अंग्रेज़ी|हिन्दी|मराठी|इंग्रजी/ }).first();
-        this.pushToggle = page.locator('button').filter({ has: page.locator('.rounded-full') }).last();
-        this.clearCacheButton = page.getByRole('button', { name: /Clear/i }).first();
+        this.lightButton = page.getByTestId('theme-light');
+        this.darkButton = page.getByTestId('theme-dark');
+        this.systemButton = page.getByTestId('theme-system');
+        this.languageSelect = page.getByTestId('language-select');
+        this.pushToggle = page.locator('input.toggle-checkbox').first();
+        this.clearCacheButton = page.getByRole('button', { name: /Clear|साफ/i }).first();
     }
 
     async goto() {
-        await this.page.goto('/settings');
+        await this.page.goto(appPath('/settings'));
     }
 
     async selectLanguage(lang: 'English' | 'Hindi' | 'Marathi') {
-        await this.languageDropdown.click();
-        await this.page.locator('button').filter({ hasText: new RegExp(lang) }).last().click();
+        await this.languageSelect.selectOption(LANG_VALUE[lang]);
+        await this.page.waitForTimeout(300);
     }
 
     async selectTheme(theme: 'Light' | 'Dark' | 'System') {
@@ -35,5 +40,6 @@ export class SettingsPage {
             : theme === 'Dark' ? this.darkButton
             : this.systemButton;
         await btn.click();
+        await this.page.waitForTimeout(200);
     }
 }

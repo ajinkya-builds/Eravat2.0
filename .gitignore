@@ -33,3 +33,11 @@ dist-ssr
 
 # OS
 Thumbs.db
+
+# Playwright / E2E artifacts (may contain session tokens)
+eravat-app/playwright-report/
+eravat-app/playwright/.auth/
+eravat-app/test-results/
+
+# Supabase CLI temp
+supabase/.temp/

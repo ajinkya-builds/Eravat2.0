@@ -13,10 +13,13 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "npx playwright test --project=chromium",
+    "test:e2e": "npx playwright test",
+    "test:notifications": "node scripts/test-notifications-integration.mjs",
     "test:e2e:headed": "npx playwright test --project=chromium --headed",
     "test:e2e:ui": "npx playwright test --ui",
-    "test:e2e:report": "npx playwright show-report"
+    "test:e2e:report": "npx playwright show-report",
+    "seed:e2e": "node scripts/seed-e2e-test-users.mjs",
+    "smoke:manual": "node scripts/manual-smoke.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",

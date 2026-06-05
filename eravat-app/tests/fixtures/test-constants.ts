@@ -1,3 +1,19 @@
+/** Vite `base` in vite.config.ts — required for local dev and gh-pages. */
+export const APP_BASE = '/Eravat2.0';
+
+export const appPath = (path: string) =>
+    `${APP_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+
+/** Navigate and wait until loading spinners clear. */
+export async function gotoAndReady(
+    page: import('@playwright/test').Page,
+    path: string,
+) {
+    const { waitForAppReady } = await import('./app-ready');
+    await page.goto(appPath(path));
+    await waitForAppReady(page);
+}
+
 export const FIELD_STAFF = {
     phone: '8899776655',
     password: 'pass123',
@@ -8,39 +24,42 @@ export const ADMIN = {
     password: 'P@ss123',
 } as const;
 
+const LANG_VALUE: Record<'English' | 'Hindi' | 'Marathi', string> = {
+    English: 'en',
+    Hindi: 'hi',
+    Marathi: 'mr',
+};
+
 /**
- * Switch the app language via the Settings page dropdown.
- * Works from any page — navigates to /settings, switches, then navigates back.
+ * Switch language via Settings <select data-testid="language-select">.
  */
 export async function switchLanguage(
     page: import('@playwright/test').Page,
     lang: 'English' | 'Hindi' | 'Marathi',
 ) {
-    await page.goto('/settings');
-    // Open the custom language dropdown
-    const langTrigger = page.locator('button').filter({ hasText: /English|Hindi|Marathi|अंग्रेज़ी|हिन्दी|मराठी|इंग्रजी/ }).first();
-    await langTrigger.click();
-    // Dropdown options contain both English label and native text
-    await page.locator('button').filter({ hasText: new RegExp(lang) }).last().click();
-    await page.waitForTimeout(500);
+    const { waitForAppReady } = await import('./app-ready');
+    await page.goto(ROUTES.settings);
+    await waitForAppReady(page);
+    await page.getByTestId('language-select').selectOption(LANG_VALUE[lang]);
+    await waitForAppReady(page);
 }
 
 export const ROUTES = {
-    login: '/login',
-    dashboard: '/',
-    report: '/report',
-    profile: '/profile',
-    editProfile: '/profile/edit',
-    settings: '/settings',
-    privacy: '/privacy',
-    help: '/help',
-    faq: '/faq',
-    privacyPolicy: '/privacy-policy',
-    history: '/history',
-    map: '/map',
-    admin: '/admin',
-    adminUsers: '/admin/users',
-    adminDivisions: '/admin/divisions',
-    adminObservations: '/admin/observations',
-    adminSettings: '/admin/settings',
+    login: appPath('/login'),
+    dashboard: appPath('/'),
+    report: appPath('/report'),
+    profile: appPath('/profile'),
+    editProfile: appPath('/profile/edit'),
+    settings: appPath('/settings'),
+    privacy: appPath('/privacy'),
+    help: appPath('/help'),
+    faq: appPath('/faq'),
+    privacyPolicy: appPath('/privacy-policy'),
+    history: appPath('/history'),
+    map: appPath('/map'),
+    admin: appPath('/admin'),
+    adminUsers: appPath('/admin/users'),
+    adminDivisions: appPath('/admin/divisions'),
+    adminObservations: appPath('/admin/observations'),
+    adminSettings: appPath('/admin/settings'),
 } as const;

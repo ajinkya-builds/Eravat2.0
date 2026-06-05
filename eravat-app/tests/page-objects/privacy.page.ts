@@ -1,8 +1,10 @@
-import { type Page, type Locator, expect } from '@playwright/test';
+import { type Page, type Locator } from '@playwright/test';
+import { appPath } from '../fixtures/test-constants';
 
 export class PrivacyPage {
     readonly page: Page;
     readonly changePasswordSection: Locator;
+    readonly currentPasswordInput: Locator;
     readonly newPasswordInput: Locator;
     readonly confirmPasswordInput: Locator;
     readonly updateButton: Locator;
@@ -12,31 +14,29 @@ export class PrivacyPage {
 
     constructor(page: Page) {
         this.page = page;
-        // The toggle button text comes from t('privacy.changePassword')
         this.changePasswordSection = page.locator('button').filter({ hasText: /Change Password|Password|पासवर्ड/i }).first();
-        this.newPasswordInput = page.locator('input[placeholder="New Password"]');
-        this.confirmPasswordInput = page.locator('input[placeholder="Confirm New Password"]');
-        // Submit button inside the password form (not the toggle)
+        this.currentPasswordInput = page.getByPlaceholder('Current Password', { exact: true });
+        this.newPasswordInput = page.getByPlaceholder('New Password', { exact: true });
+        this.confirmPasswordInput = page.getByPlaceholder('Confirm New Password', { exact: true });
         this.updateButton = page.locator('form button[type="submit"]').first();
         this.successMessage = page.locator('[class*="emerald"]').or(page.locator('text=/updated|success/i')).first();
         this.errorMessage = page.locator('[class*="destructive"]');
-        // Sign out uses LogOut icon
         this.signOutAllButton = page.locator('button:has(.lucide-log-out)').or(
-            page.locator('button').filter({ hasText: /Sign out|साइन आउट/i })
+            page.locator('button').filter({ hasText: /Sign out|साइन आउट/i }),
         ).first();
     }
 
     async goto() {
-        await this.page.goto('/privacy');
+        await this.page.goto(appPath('/privacy'));
     }
 
     async expandPasswordForm() {
         await this.changePasswordSection.click();
-        // Wait for AnimatePresence to reveal the form
-        await this.newPasswordInput.waitFor({ state: 'visible', timeout: 5_000 });
+        await this.currentPasswordInput.waitFor({ state: 'visible', timeout: 10_000 });
     }
 
-    async changePassword(newPwd: string, confirmPwd: string) {
+    async changePassword(currentPwd: string, newPwd: string, confirmPwd: string) {
+        await this.currentPasswordInput.fill(currentPwd);
         await this.newPasswordInput.fill(newPwd);
         await this.confirmPasswordInput.fill(confirmPwd);
         await this.updateButton.click();

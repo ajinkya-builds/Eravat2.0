@@ -1,4 +1,5 @@
 import { type Page, type Locator, expect } from '@playwright/test';
+import { appPath } from '../../fixtures/test-constants';
 
 export class AdminUsersPage {
     readonly page: Page;
@@ -47,6 +48,6 @@ export class AdminUsersPage {
     }
 
     async goto() {
-        await this.page.goto('/admin/users');
+        await this.page.goto(appPath('/admin/users'));
     }
 }

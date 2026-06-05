@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { ShieldCheck, History, User, Activity, CloudOff, RefreshCw, ChevronRight } from 'lucide-react';
+import { ShieldCheck, History, User, Activity, CloudOff, RefreshCw, ChevronRight, UserPlus } from 'lucide-react';
+import { canOnboardVolunteers } from '../lib/rbac';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { syncData } from '../services/syncService';
@@ -55,6 +56,7 @@ export default function Dashboard() {
     };
 
     const hasAdminAccess = ['admin', 'ccf', 'dfo'].includes(profile?.role || '');
+    const canOnboard = canOnboardVolunteers(profile?.role);
 
     return (
         <div className="relative min-h-screen w-full bg-background overflow-hidden flex flex-col pt-6 px-6 pb-24">
@@ -187,6 +189,27 @@ export default function Dashboard() {
                             </div>
                         </motion.button>
                     </div>
+
+                    {canOnboard && (
+                        <motion.button
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.35 }}
+                            onClick={() => navigate('/volunteers/onboard')}
+                            className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-emerald-500/20"
+                        >
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl">
+                                    <UserPlus size={28} />
+                                </div>
+                                <div className="text-left">
+                                    <h2 className="text-xl font-bold text-foreground">{t('volunteer.onboardTitle')}</h2>
+                                    <p className="text-sm text-muted-foreground">{t('volunteer.onboardDesc')}</p>
+                                </div>
+                            </div>
+                            <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        </motion.button>
+                    )}
 
                     {hasAdminAccess && (
                         <motion.button

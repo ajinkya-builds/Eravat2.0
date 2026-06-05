@@ -8,10 +8,10 @@ export const ROLE_HIERARCHY: Record<string, string[]> = {
   ccf: ['*'],
   biologist: [],
   veterinarian: [],
-  dfo: ['range_officer', 'beat_guard'],
+  dfo: ['range_officer', 'beat_guard', 'volunteer'],
   rrt: ['beat_guard'],
-  range_officer: ['beat_guard'],
-  beat_guard: [],
+  range_officer: ['beat_guard', 'volunteer'],
+  beat_guard: ['volunteer'],
   volunteer: []
 };
 

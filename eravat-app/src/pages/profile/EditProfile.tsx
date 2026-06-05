@@ -5,6 +5,7 @@ import { ArrowLeft, Save, User, Phone, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../supabase';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { LocationFields } from '../../components/profile/LocationFields';
 
 export default function EditProfile() {
     const navigate = useNavigate();
@@ -12,6 +13,10 @@ export default function EditProfile() {
 
     const [firstName, setFirstName] = useState(profile?.first_name || '');
     const [lastName, setLastName] = useState(profile?.last_name || '');
+    const [location, setLocation] = useState({
+        latitude: profile?.latitude ?? null,
+        longitude: profile?.longitude ?? null,
+    });
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const { t } = useLanguage();
@@ -25,6 +30,10 @@ export default function EditProfile() {
         setMessage(null);
 
         if (!profile?.id) return;
+        if (location.latitude == null || location.longitude == null) {
+            setMessage({ type: 'error', text: t('volunteer.onboardGpsRequired') });
+            return;
+        }
 
         setIsLoading(true);
 
@@ -34,6 +43,8 @@ export default function EditProfile() {
                 .update({
                     first_name: firstName.trim(),
                     last_name: lastName.trim(),
+                    latitude: location.latitude,
+                    longitude: location.longitude,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', profile.id);
@@ -158,9 +169,23 @@ export default function EditProfile() {
                         </div>
                     </div>
 
+                    <LocationFields value={location} onChange={setLocation} />
+
                     <button
                         type="submit"
-                        disabled={isLoading || !firstName.trim() || !lastName.trim() || (firstName === profile?.first_name && lastName === profile?.last_name)}
+                        disabled={
+                            isLoading
+                            || !firstName.trim()
+                            || !lastName.trim()
+                            || location.latitude == null
+                            || location.longitude == null
+                            || (
+                                firstName === profile?.first_name
+                                && lastName === profile?.last_name
+                                && location.latitude === profile?.latitude
+                                && location.longitude === profile?.longitude
+                            )
+                        }
                         className="w-full bg-primary text-primary-foreground font-semibold rounded-xl py-3.5 px-4 flex items-center justify-center gap-2 mt-8 shadow-lg shadow-primary/25 disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed group transition-all"
                     >
                         {isLoading ? (

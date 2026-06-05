@@ -1,14 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { ADMIN, switchLanguage } from './fixtures/test-constants';
-import { loginAs } from './fixtures/auth.fixture';
+import { ADMIN, switchLanguage, gotoAndReady } from './fixtures/test-constants';
+import { ensureOnPage } from './fixtures/auth.fixture';
 import { AdminObservationsPage } from './page-objects/admin/admin-observations.page';
 
 test.describe('Admin Observations Module', () => {
     let op: AdminObservationsPage;
 
     test.beforeEach(async ({ page }) => {
-        await loginAs(page, ADMIN);
-        await page.goto('/admin/observations');
+        await ensureOnPage(page, '/admin/observations', ADMIN);
         op = new AdminObservationsPage(page);
     });
 
@@ -17,7 +16,7 @@ test.describe('Admin Observations Module', () => {
     });
 
     test('AOBS-002: Observations table has rows', async ({ page }) => {
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         const rows = op.table.locator('tbody tr');
         const count = await rows.count();
         expect(count).toBeGreaterThanOrEqual(0);
@@ -38,12 +37,12 @@ test.describe('Admin Observations Module', () => {
 
     test('AOBS-005: Refresh button reloads data', async ({ page }) => {
         await op.refreshButton.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         await expect(op.table).toBeVisible();
     });
 
     test('AOBS-006: Master checkbox selects all', async ({ page }) => {
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         const rows = await op.table.locator('tbody tr').count();
         if (rows > 0) {
             await op.masterCheckbox.check();
@@ -56,7 +55,7 @@ test.describe('Admin Observations Module', () => {
     });
 
     test('AOBS-007: Pagination next/prev', async ({ page }) => {
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         if (await op.paginationNext.isVisible()) {
             const isDisabled = await op.paginationNext.isDisabled();
             if (!isDisabled) {
@@ -70,7 +69,7 @@ test.describe('Admin Observations Module', () => {
     });
 
     test('AOBS-008: Pagination text shows count', async ({ page }) => {
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         if (await op.paginationText.isVisible()) {
             const text = await op.paginationText.textContent();
             expect(text).toMatch(/Showing/i);
@@ -78,7 +77,7 @@ test.describe('Admin Observations Module', () => {
     });
 
     test('AOBS-009: Observation row detail click', async ({ page }) => {
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         const firstRow = op.table.locator('tbody tr').first();
         if (await firstRow.isVisible()) {
             await firstRow.click();
@@ -90,8 +89,7 @@ test.describe('Admin Observations Module', () => {
     test('AOBS-010: Observations table in Hindi', async ({ page }) => {
         await switchLanguage(page, 'Hindi');
 
-        await page.goto('/admin/observations');
-        await page.waitForLoadState('networkidle');
+        await gotoAndReady(page, '/admin/observations');
 
         const bodyText = await page.locator('body').textContent();
         expect(bodyText).toMatch(/अवलोकन|निर्यात|रिपोर्ट/);

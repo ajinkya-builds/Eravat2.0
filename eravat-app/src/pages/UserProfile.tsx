@@ -73,6 +73,12 @@ export default function UserProfile() {
                         <AlertTriangle size={12} /> {t('profile.territoryNotAssigned')}
                     </div>
                 ) : null}
+
+                {profile?.latitude != null && profile?.longitude != null && (
+                    <p className="text-xs text-muted-foreground">
+                        {t('profile.gpsLocation')}: {profile.latitude.toFixed(5)}, {profile.longitude.toFixed(5)}
+                    </p>
+                )}
             </motion.div>
 
             {/* Menu items */}

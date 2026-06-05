@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF, ADMIN } from './fixtures/test-constants';
-import { loginAs } from './fixtures/auth.fixture';
+import { FIELD_STAFF, ADMIN , appPath } from './fixtures/test-constants';
+import { ensureOnPage, loginAs } from './fixtures/auth.fixture';
 import { BottomNav } from './page-objects/bottom-nav.page';
 
 test.describe('Bottom Navigation Module', () => {
@@ -9,7 +9,7 @@ test.describe('Bottom Navigation Module', () => {
         let nav: BottomNav;
 
         test.beforeEach(async ({ page }) => {
-            await loginAs(page, FIELD_STAFF);
+            await ensureOnPage(page, '/');
             nav = new BottomNav(page);
         });
 
@@ -18,9 +18,9 @@ test.describe('Bottom Navigation Module', () => {
         });
 
         test('NAV-002: Home tab navigates to dashboard', async ({ page }) => {
-            await page.goto('/settings');
+            await page.goto(appPath('/settings'));
             await nav.homeTab.click();
-            await expect(page).toHaveURL(/\/$/);
+            await expect(page).toHaveURL(/\/Eravat2\.0\/?$/);
         });
 
         test('NAV-003: Map tab navigates to map', async ({ page }) => {
@@ -53,7 +53,7 @@ test.describe('Bottom Navigation Module', () => {
         });
 
         test('NAV-008: Bottom nav hidden on report flow', async ({ page }) => {
-            await page.goto('/report');
+            await page.goto(appPath('/report'));
             // Bottom nav should be hidden during the report stepper
             const navVisible = await nav.navContainer.isVisible().catch(() => false);
             // Report page may hide the nav — this is conditional

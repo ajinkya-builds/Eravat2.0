@@ -1,0 +1,39 @@
+{
+  "at": "2026-06-05T10:53:01.149Z",
+  "passed": 8,
+  "failed": 0,
+  "results": [
+    {
+      "name": "Field login",
+      "ok": true
+    },
+    {
+      "name": "Dashboard",
+      "ok": true
+    },
+    {
+      "name": "Report page",
+      "ok": true
+    },
+    {
+      "name": "Map page",
+      "ok": true
+    },
+    {
+      "name": "Profile",
+      "ok": true
+    },
+    {
+      "name": "Admin login",
+      "ok": true
+    },
+    {
+      "name": "Admin dashboard",
+      "ok": true
+    },
+    {
+      "name": "Admin users",
+      "ok": true
+    }
+  ]
+}

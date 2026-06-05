@@ -1,7 +1,7 @@
 # Eravat 2.0 — Database Schema Quick Reference
 
 > Supabase Project: `mnytrlcmdpkfhrzrtesf`\
-> Last updated: 2026-03-14
+> Last updated: 2026-05-21
 
 ---
 
@@ -47,17 +47,20 @@ auth.users  (Supabase managed)
 6. All geo tables (`geo_divisions`, `geo_ranges`, `geo_beats`) now have a
    `centroid extensions.geography(POINT, 4326)` column auto-populated from their
    `boundary` polygon via `ST_Centroid`.
-7. `profiles.notification_radius_km` (integer, default 10, range 1–500) controls
+7. `profiles.latitude` / `profiles.longitude` (double precision, NOT NULL) store
+   each user's GPS position; `location_updated_at` tracks changes. Backfilled from
+   assigned beat/range/division centroid via migration `20260521000000`.
+8. `profiles.notification_radius_km` (integer, default 10, range 1–500) controls
    how far from a user's region centroid a report must be to trigger a proximity
    notification.
-8. **Live schema drift alert (2026-03-14):**
+9. **Live schema drift alert (2026-03-14):**
    - `report_media` optional metadata columns are not guaranteed across
      environments (`content_type` / `mime_type` may be absent).
    - storage path column naming can vary (`file_path`, `storage_path`, `path`,
      `media_path`, `object_path`).
    - `conflict_damages.id` may require explicit UUID (no default in some envs).
    - `conflict_damages.category` must match actual `loss_category` enum values.
-9. **Beat auto-assignment fallback (2026-03-14):**
+10. **Beat auto-assignment fallback (2026-03-14):**
    - `public.assign_report_geography()` now assigns nearest beat boundary when
      `reports.location` does not intersect any `geo_beats.boundary`.
    - Session details:
@@ -85,8 +88,9 @@ All Edge Functions strictly enforce RBAC using
 `supabase/functions/_shared/rbac.ts`:
 
 - **Admin / CCF**: Can manage any role
-- **DFO**: Can manage Range Officers & Beat Guards
-- **Range Officer / RRT**: Can manage Beat Guards
+- **DFO**: Can manage Range Officers, Beat Guards, Volunteers
+- **Range Officer / RRT**: Can manage Beat Guards (Range Officer also Volunteers)
+- **Beat Guard**: Can onboard Volunteers (field UI `/volunteers/onboard`)
 - **Others**: Cannot manage anyone.
 
 ---

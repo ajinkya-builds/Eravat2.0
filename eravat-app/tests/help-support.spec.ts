@@ -1,12 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF } from './fixtures/test-constants';
-import { loginAs } from './fixtures/auth.fixture';
+import { FIELD_STAFF , appPath } from './fixtures/test-constants';
+import { ensureOnPage } from './fixtures/auth.fixture';
 
 test.describe('Help & Support Module', () => {
 
     test.beforeEach(async ({ page }) => {
-        await loginAs(page, FIELD_STAFF);
-        await page.goto('/help');
+        await ensureOnPage(page, '/help');
     });
 
     test('HELP-001: Help page loads', async ({ page }) => {

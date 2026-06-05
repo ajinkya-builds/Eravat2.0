@@ -1,12 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF, ADMIN, switchLanguage } from './fixtures/test-constants';
-import { loginAs } from './fixtures/auth.fixture';
+import { FIELD_STAFF, ADMIN, switchLanguage, gotoAndReady, appPath } from './fixtures/test-constants';
+import { ensureOnPage, loginAs } from './fixtures/auth.fixture';
 
 test.describe('User Profile Module - Field Staff', () => {
 
     test.beforeEach(async ({ page }) => {
-        await loginAs(page, FIELD_STAFF);
-        await page.goto('/profile');
+        await ensureOnPage(page, '/profile');
     });
 
     test('PROF-001: Profile page loads with name and role', async ({ page }) => {
@@ -51,28 +50,22 @@ test.describe('User Profile Module - Field Staff', () => {
         await expect(page).toHaveURL(/.*\/help/);
     });
 
-    test('PROF-008: Logout', async ({ page }) => {
-        // Click sign out button (opens confirmation dialog)
-        await page.locator('button:has(.lucide-log-out)').first().click();
-        // Confirm in the dialog
-        const confirmBtn = page.locator('.fixed button').filter({ hasText: /Sign Out|साइन आउट/i }).first();
-        await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
-        await confirmBtn.click();
-        await expect(page).toHaveURL(/.*\/login/, { timeout: 10_000 });
-    });
-
     test('PROF-009: Profile labels in Hindi', async ({ page }) => {
-        // Switch to Hindi
         await switchLanguage(page, 'Hindi');
-
-        await page.goto('/profile');
-        await page.waitForLoadState('networkidle');
+        await gotoAndReady(page, '/profile');
 
         const bodyText = await page.locator('body').textContent();
         expect(bodyText).toMatch(/प्रोफ़ाइल|साइन आउट|संपादित/);
 
-        // Restore English
         await switchLanguage(page, 'English');
+    });
+
+    test('PROF-008: Logout', async ({ page }) => {
+        await page.locator('button:has(.lucide-log-out)').first().click();
+        const confirmBtn = page.locator('.fixed button').filter({ hasText: /Sign Out|साइन आउट/i }).first();
+        await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
+        await confirmBtn.click();
+        await expect(page).toHaveURL(/.*\/login/, { timeout: 10_000 });
     });
 });
 
@@ -80,7 +73,7 @@ test.describe('User Profile Module - Admin', () => {
 
     test('PROF-002: Admin badge visible on profile', async ({ page }) => {
         await loginAs(page, ADMIN);
-        await page.goto('/profile');
+        await page.goto(appPath('/profile'));
 
         // Admin should see an admin badge or role indicator
         const adminBadge = page.locator('text=/admin/i');

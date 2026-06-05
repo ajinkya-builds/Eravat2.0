@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF, ADMIN, switchLanguage } from './fixtures/test-constants';
-import { loginAs } from './fixtures/auth.fixture';
+import { FIELD_STAFF, ADMIN, switchLanguage, gotoAndReady } from './fixtures/test-constants';
+import { ensureOnPage, loginAs } from './fixtures/auth.fixture';
 
 test.describe('Dashboard Module - Field Staff', () => {
 
     test.beforeEach(async ({ page }) => {
-        await loginAs(page, FIELD_STAFF);
+        await ensureOnPage(page, '/');
     });
 
     test('DASH-001: Dashboard loads with greeting', async ({ page }) => {
@@ -53,8 +53,7 @@ test.describe('Dashboard Module - Field Staff', () => {
         await switchLanguage(page, 'Hindi');
 
         // Go back to dashboard
-        await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await gotoAndReady(page, '/');
 
         // Verify Hindi text is present
         await expect(page.locator('h1').first()).toBeVisible();
@@ -69,8 +68,7 @@ test.describe('Dashboard Module - Field Staff', () => {
     test('DASH-012: Dashboard greeting in Marathi', async ({ page }) => {
         await switchLanguage(page, 'Marathi');
 
-        await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await gotoAndReady(page, '/');
 
         await expect(page.locator('h1').first()).toBeVisible();
         const bodyText = await page.locator('body').textContent();

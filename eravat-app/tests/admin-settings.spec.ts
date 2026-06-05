@@ -1,12 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { ADMIN, switchLanguage } from './fixtures/test-constants';
-import { loginAs } from './fixtures/auth.fixture';
+import { ADMIN, switchLanguage, gotoAndReady } from './fixtures/test-constants';
+import { ensureOnPage } from './fixtures/auth.fixture';
 
 test.describe('Admin Settings Module', () => {
 
     test.beforeEach(async ({ page }) => {
-        await loginAs(page, ADMIN);
-        await page.goto('/admin/settings');
+        await ensureOnPage(page, '/admin/settings', ADMIN);
     });
 
     test('ASET-001: Admin settings page loads', async ({ page }) => {
@@ -62,8 +61,7 @@ test.describe('Admin Settings Module', () => {
     test('ASET-008: Admin settings in Hindi', async ({ page }) => {
         await switchLanguage(page, 'Hindi');
 
-        await page.goto('/admin/settings');
-        await page.waitForLoadState('networkidle');
+        await gotoAndReady(page, '/admin/settings');
 
         const bodyText = await page.locator('body').textContent();
         expect(bodyText).toMatch(/सेटिंग|विन्यास|प्रणाली/);

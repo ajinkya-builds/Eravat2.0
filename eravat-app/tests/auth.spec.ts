@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { appPath } from './fixtures/test-constants';
 
 test.describe('Authentication', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to the login page before each test
-    await page.goto('/');
+    await page.goto(appPath('/login'));
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('should display translation properly on Login screen', async ({ page }) => {
@@ -23,7 +24,6 @@ test.describe('Authentication', () => {
     const submitBtn = page.locator('button[type="submit"]');
     await submitBtn.click();
 
-    // Expecting to see the validation toast
-    await expect(page.locator('text=Invalid credentials. Please try again.')).toBeVisible();
+    await expect(page.locator('text=Please enter a valid phone number')).toBeVisible();
   });
 });

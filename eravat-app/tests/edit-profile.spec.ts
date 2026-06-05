@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF } from './fixtures/test-constants';
-import { loginAs } from './fixtures/auth.fixture';
+import { FIELD_STAFF , appPath } from './fixtures/test-constants';
+import { ensureOnPage } from './fixtures/auth.fixture';
 
 test.describe('Edit Profile Module', () => {
 
@@ -10,9 +10,8 @@ test.describe('Edit Profile Module', () => {
         page.locator('form input:not([disabled])').first();
 
     test.beforeEach(async ({ page }) => {
-        await loginAs(page, FIELD_STAFF);
-        await page.goto('/profile/edit');
-        await page.waitForLoadState('networkidle');
+        await ensureOnPage(page, '/profile/edit');
+        await page.waitForLoadState('domcontentloaded');
     });
 
     test('EDIT-001: Edit profile page loads with pre-filled data', async ({ page }) => {
@@ -42,24 +41,10 @@ test.describe('Edit Profile Module', () => {
         await expect(saveBtn).toBeEnabled({ timeout: 5_000 });
         await saveBtn.click();
 
-        // Wait for success message (emerald colored or text)
         const successMsg = page.locator('[class*="emerald"]').or(page.locator('text=/saved|success|updated/i')).first();
         await expect(successMsg).toBeVisible({ timeout: 10_000 });
 
-        // Restore: navigate back and use a different unique name to ensure button is enabled
-        await page.goto('/profile/edit');
-        await page.waitForLoadState('networkidle');
-        await page.waitForTimeout(2_000);
-        const restoreFirst = getFirstNameInput(page);
-        const restoreLast = page.locator('form input:not([disabled])').nth(1);
-        await expect(restoreFirst).toBeVisible({ timeout: 10_000 });
-        await restoreFirst.fill(originalFirst || 'Patrol');
-        await restoreLast.fill(originalLast || 'Staff');
-        const restoreSaveBtn = page.locator('button[type="submit"]').first();
-        await expect(restoreSaveBtn).toBeEnabled({ timeout: 5_000 });
-        await restoreSaveBtn.click();
-        const restoreSuccess = page.locator('[class*="emerald"]').or(page.locator('text=/saved|success|updated/i')).first();
-        await expect(restoreSuccess).toBeVisible({ timeout: 10_000 });
+        await expect(firstInput).toHaveValue(testName);
     });
 
     test('EDIT-003: Cancel edit returns to profile', async ({ page }) => {

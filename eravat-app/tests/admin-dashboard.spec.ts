@@ -1,12 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { ADMIN, FIELD_STAFF, switchLanguage } from './fixtures/test-constants';
-import { loginAs } from './fixtures/auth.fixture';
+import { ADMIN, FIELD_STAFF, switchLanguage, gotoAndReady, appPath } from './fixtures/test-constants';
+import { ensureOnPage, loginAs } from './fixtures/auth.fixture';
 
 test.describe('Admin Dashboard Module', () => {
 
     test.beforeEach(async ({ page }) => {
-        await loginAs(page, ADMIN);
-        await page.goto('/admin');
+        await ensureOnPage(page, '/admin', ADMIN);
     });
 
     test('ADM-001: Admin dashboard loads', async ({ page }) => {
@@ -18,7 +17,7 @@ test.describe('Admin Dashboard Module', () => {
     });
 
     test('ADM-002: Stats cards visible', async ({ page }) => {
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         // Stats are in glass-card divs within a grid layout
         const statsCard = page.locator('.glass-card').first();
         await expect(statsCard).toBeVisible({ timeout: 15_000 });
@@ -26,7 +25,7 @@ test.describe('Admin Dashboard Module', () => {
 
     test('ADM-003: Navigate to Users management', async ({ page }) => {
         // Admin nav uses buttons in sidebar with text from translations
-        const usersBtn = page.locator('nav button').filter({ hasText: /User|Personnel/i }).first();
+        const usersBtn = page.locator('nav button').filter({ hasText: /^Personnel$|^कर्मचारी$/ }).first();
         await usersBtn.click();
         await expect(page).toHaveURL(/.*\/admin\/users/);
     });
@@ -55,7 +54,7 @@ test.describe('Admin Dashboard Module', () => {
     });
 
     test('ADM-007: Recent activity feed', async ({ page }) => {
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         const activitySection = page.locator('text=/Recent|Activity|Latest/i').first();
         if (await activitySection.isVisible({ timeout: 3_000 }).catch(() => false)) {
             await expect(activitySection).toBeVisible();
@@ -66,14 +65,14 @@ test.describe('Admin Dashboard Module', () => {
         const refreshBtn = page.locator('button:has(.lucide-refresh-cw)').first();
         if (await refreshBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
             await refreshBtn.click();
-            await page.waitForLoadState('networkidle');
+            await page.waitForLoadState('domcontentloaded');
         }
     });
 
     test('ADM-009: Non-admin cannot access admin dashboard', async ({ page }) => {
-        await page.goto('/login');
+        await page.goto(appPath('/login'));
         await loginAs(page, FIELD_STAFF);
-        await page.goto('/admin');
+        await page.goto(appPath('/admin'));
 
         const url = page.url();
         const hasAdminAccess = url.includes('/admin');
@@ -86,7 +85,7 @@ test.describe('Admin Dashboard Module', () => {
     });
 
     test('ADM-010: Admin dashboard charts/graphs', async ({ page }) => {
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         const charts = page.locator('canvas, .recharts-wrapper, svg.recharts-surface').first();
         if (await charts.isVisible({ timeout: 5_000 }).catch(() => false)) {
             await expect(charts).toBeVisible();
@@ -103,11 +102,10 @@ test.describe('Admin Dashboard Module', () => {
     test('ADM-012: Admin dashboard in Hindi', async ({ page }) => {
         await switchLanguage(page, 'Hindi');
 
-        await page.goto('/admin');
-        await page.waitForLoadState('networkidle');
+        await gotoAndReady(page, '/admin');
 
         const bodyText = await page.locator('body').textContent();
-        expect(bodyText).toMatch(/कमांड|प्रशासन|उपयोगकर्ता|अवलोकन|एडमिन/);
+        expect(bodyText).toMatch(/कमांड|प्रशासन|उपयोगकर्ता|अवलोकन|एडमिन|अवलोकन|कर्मचारी/);
 
         await switchLanguage(page, 'English');
     });

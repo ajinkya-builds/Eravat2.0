@@ -1,4 +1,5 @@
 import { type Page, type Locator, expect } from '@playwright/test';
+import { appPath } from '../fixtures/test-constants';
 
 export class LoginPage {
     readonly page: Page;
@@ -16,7 +17,7 @@ export class LoginPage {
     }
 
     async goto() {
-        await this.page.goto('/login');
+        await this.page.goto(appPath('/login'));
     }
 
     async login(phone: string, password: string) {

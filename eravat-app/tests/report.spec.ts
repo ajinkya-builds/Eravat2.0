@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF, switchLanguage } from './fixtures/test-constants';
-import { loginAs } from './fixtures/auth.fixture';
+import { FIELD_STAFF, switchLanguage, gotoAndReady } from './fixtures/test-constants';
+import { ensureOnPage } from './fixtures/auth.fixture';
 import { ReportStepperPage } from './page-objects/report-stepper.page';
 
 const DEFAULT_DATE = '2025-06-15';
@@ -12,9 +12,9 @@ test.describe('Report Activity Module', () => {
     let rp: ReportStepperPage;
 
     test.beforeEach(async ({ page }) => {
-        await loginAs(page, FIELD_STAFF);
-        await page.goto('/report');
+        await ensureOnPage(page, '/report');
         rp = new ReportStepperPage(page);
+        await expect(rp.dateInput).toBeVisible({ timeout: 30_000 });
     });
 
     // --- Step 1: Location & Time ---
@@ -175,12 +175,8 @@ test.describe('Report Activity Module', () => {
     test('RPT-019: Advance from Step 2 with valid selection', async ({ page }) => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
-
-        await rp.directSightingCard.click();
-        await page.waitForTimeout(300);
+        await rp.selectDirectSightingWithCount(1);
         await rp.advanceStep();
-
-        // Should be on step 3 — compass/bearing (continue button visible)
         await expect(rp.continueButton).toBeVisible({ timeout: 5_000 });
     });
 
@@ -205,8 +201,7 @@ test.describe('Report Activity Module', () => {
     test('RPT-024: Manual bearing input', async ({ page }) => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
-        await rp.directSightingCard.click();
-        await page.waitForTimeout(300);
+        await rp.selectDirectSightingWithCount(1);
         await rp.advanceStep();
 
         if (await rp.manualBearingInput.isVisible()) {
@@ -218,8 +213,7 @@ test.describe('Report Activity Module', () => {
     test('RPT-025: Bearing boundary — 0 degrees', async ({ page }) => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
-        await rp.directSightingCard.click();
-        await page.waitForTimeout(300);
+        await rp.selectDirectSightingWithCount(1);
         await rp.advanceStep();
 
         if (await rp.manualBearingInput.isVisible()) {
@@ -231,8 +225,7 @@ test.describe('Report Activity Module', () => {
     test('RPT-026: Bearing boundary — 359 degrees', async ({ page }) => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
-        await rp.directSightingCard.click();
-        await page.waitForTimeout(300);
+        await rp.selectDirectSightingWithCount(1);
         await rp.advanceStep();
 
         if (await rp.manualBearingInput.isVisible()) {
@@ -244,14 +237,7 @@ test.describe('Report Activity Module', () => {
     test('RPT-027: Skip compass step', async ({ page }) => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
-        await rp.directSightingCard.click();
-        await page.waitForTimeout(300);
-        await rp.advanceStep();
-
-        await page.waitForTimeout(500);
-        await rp.continueButton.click({ force: true });
-
-        // Should be on step 4 — submit button visible
+        await rp.completeToSubmitStep();
         await expect(rp.submitButton).toBeVisible({ timeout: 5_000 });
     });
 
@@ -272,15 +258,8 @@ test.describe('Report Activity Module', () => {
     test('RPT-031: Skip photo and proceed to submit', async ({ page }) => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
-        await rp.directSightingCard.click();
-        await page.waitForTimeout(300);
-        await rp.advanceStep();
-        await page.waitForTimeout(500);
-        await rp.continueButton.click({ force: true });
-
-        await page.waitForTimeout(500);
-        await rp.submitButton.click({ force: true });
-
+        await rp.completeToSubmitStep();
+        await rp.submit();
         await expect(rp.successMessage).toBeVisible({ timeout: 15_000 });
     });
 
@@ -293,13 +272,7 @@ test.describe('Report Activity Module', () => {
     test('RPT-033: Online submission success', async ({ page }) => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
-        await rp.directSightingCard.click();
-        await page.waitForTimeout(300);
-        await rp.advanceStep();
-        await page.waitForTimeout(500);
-        await rp.continueButton.click({ force: true });
-        await page.waitForTimeout(500);
-
+        await rp.completeToSubmitStep();
         await rp.submit();
         await expect(rp.successMessage).toBeVisible({ timeout: 15_000 });
     });
@@ -310,7 +283,7 @@ test.describe('Report Activity Module', () => {
 
     test('RPT-036: Exit report mid-flow', async () => {
         await rp.closeButton.click();
-        await expect(rp.page).toHaveURL(/\/$/);
+        await expect(rp.page).toHaveURL(/\/Eravat2\.0\/?$/);
     });
 
     test('RPT-037: Back button preserves entered data', async ({ page }) => {
@@ -343,9 +316,7 @@ test.describe('Report Activity Module', () => {
 
     test('RPT-039: Report flow labels in Hindi', async ({ page }) => {
         await switchLanguage(page, 'Hindi');
-
-        await page.goto('/report');
-        await page.waitForLoadState('networkidle');
+        await gotoAndReady(page, '/report');
 
         const bodyText = await page.locator('body').textContent();
         expect(bodyText).toMatch(/रिपोर्ट|तारीख|समय|स्थान/);

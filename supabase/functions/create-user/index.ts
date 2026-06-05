@@ -21,8 +21,49 @@ const MAX_NAME_LENGTH = 100
 const MAX_PHONE_LENGTH = 20
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const GEOGRAPHIC_ROLES = ['dfo', 'rrt', 'range_officer', 'beat_guard'] as const
+const INDIA_FALLBACK_LAT = 22.9734
+const INDIA_FALLBACK_LNG = 78.6568
 
 const hasValue = (value: unknown) => Boolean(value && String(value).trim().length > 0)
+
+function normalisePhoneDigits(phone: string): string {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2)
+  if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1)
+  return digits
+}
+
+function volunteerEmailFromPhone(phone: string): string {
+  return `v${normalisePhoneDigits(phone)}@volunteer.eravat.app`
+}
+
+function randomPassword(length = 12): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  let out = ''
+  const bytes = crypto.getRandomValues(new Uint8Array(length))
+  for (let i = 0; i < length; i++) out += chars[bytes[i] % chars.length]
+  return out
+}
+
+function isValidCoordinate(lat: number, lng: number): boolean {
+  return Number.isFinite(lat) && Number.isFinite(lng)
+    && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
+}
+
+async function resolveCentroidLatLng(
+  adminClient: ReturnType<typeof createClient>,
+  opts: { beat_id?: string | null; range_id?: string | null; division_id?: string | null }
+): Promise<{ latitude: number; longitude: number } | null> {
+  const { data, error } = await adminClient.rpc('get_geo_centroid_lat_lng', {
+    p_beat_id: hasValue(opts.beat_id) ? opts.beat_id : null,
+    p_range_id: hasValue(opts.range_id) ? opts.range_id : null,
+    p_division_id: hasValue(opts.division_id) ? opts.division_id : null,
+  })
+  if (error || !data?.length) return null
+  const row = data[0] as { latitude: number; longitude: number }
+  if (!isValidCoordinate(row.latitude, row.longitude)) return null
+  return row
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req)
@@ -69,28 +110,45 @@ serve(async (req) => {
       })
     }
 
+    const adminClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
+    const { data: callerAssignment } = await adminClient
+      .from('user_region_assignments')
+      .select('division_id, range_id, beat_id')
+      .eq('user_id', callerUser.id)
+      .maybeSingle()
+
     // ── 2. Parse request body ─────────────────────────────────────────────────
-    const {
+    let {
       email,
       password,
       first_name,
       last_name,
+      full_name,
       role,
       phone,
       division_id,
       range_id,
       beat_id,
+      latitude,
+      longitude,
+      onboard_volunteer,
     } = await req.json()
 
-    // ── 2.5 Validate inputs ─────────────────────────────────────────────────
-    if (!email || !password || !first_name || !last_name || !role) {
-      return new Response(JSON.stringify({ error: 'Missing required fields: email, password, first_name, last_name, role' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    const isVolunteerOnboard = role === 'volunteer' && (onboard_volunteer === true || callerProfile.role === 'beat_guard')
+
+    if (hasValue(full_name) && (!hasValue(first_name) || !hasValue(last_name))) {
+      const parts = String(full_name).trim().split(/\s+/)
+      first_name = parts[0] || 'Volunteer'
+      last_name = parts.slice(1).join(' ') || 'Gram Mitra'
     }
 
-    if (!EMAIL_REGEX.test(email)) {
-      return new Response(JSON.stringify({ error: 'Invalid email format' }), {
+    if (!role) {
+      return new Response(JSON.stringify({ error: 'Missing required field: role' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -101,7 +159,67 @@ serve(async (req) => {
       })
     }
 
-    if (first_name.length > MAX_NAME_LENGTH || last_name.length > MAX_NAME_LENGTH) {
+    if (!canManageRole(callerProfile.role, role)) {
+      return new Response(JSON.stringify({ error: 'Forbidden: insufficient permissions to create user with this role' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (role === 'volunteer') {
+      if (!hasValue(phone)) {
+        return new Response(JSON.stringify({ error: 'Phone number is required for volunteers.' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (!hasValue(first_name)) {
+        return new Response(JSON.stringify({ error: 'Name is required for volunteers.' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (!hasValue(last_name)) last_name = ''
+
+      if (callerProfile.role === 'beat_guard') {
+        if (!callerAssignment?.beat_id) {
+          return new Response(JSON.stringify({ error: 'Your beat assignment is missing. Contact your Range Officer.' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+        beat_id = callerAssignment.beat_id
+        range_id = callerAssignment.range_id
+        division_id = callerAssignment.division_id
+      }
+
+      if (!hasValue(beat_id)) {
+        return new Response(JSON.stringify({ error: 'Beat assignment is required for volunteers.' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      if (isVolunteerOnboard) {
+        email = volunteerEmailFromPhone(String(phone))
+        password = randomPassword()
+      }
+    } else {
+      if (!email || !password || !first_name || !last_name) {
+        return new Response(JSON.stringify({ error: 'Missing required fields: email, password, first_name, last_name, role' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
+    if (!email || !password) {
+      return new Response(JSON.stringify({ error: 'Missing credentials for account creation.' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return new Response(JSON.stringify({ error: 'Invalid email format' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (first_name.length > MAX_NAME_LENGTH || (last_name && last_name.length > MAX_NAME_LENGTH)) {
       return new Response(JSON.stringify({ error: `Name fields must be ${MAX_NAME_LENGTH} characters or fewer` }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -113,42 +231,40 @@ serve(async (req) => {
       })
     }
 
-    // ── 2.6 Verify RBAC permissions ───────────────────────────────────────────
-    if (!canManageRole(callerProfile.role, role)) {
-      return new Response(JSON.stringify({ error: 'Forbidden: insufficient permissions to create user with this role' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    // ── 2.7 Validate required geography fields by role ───────────────────────
     if (GEOGRAPHIC_ROLES.includes(role as (typeof GEOGRAPHIC_ROLES)[number]) && !hasValue(division_id)) {
-      return new Response(JSON.stringify({
-        error: 'Division is required for this role.',
-      }), {
+      return new Response(JSON.stringify({ error: 'Division is required for this role.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
     if (['range_officer', 'beat_guard'].includes(role) && !hasValue(range_id)) {
-      return new Response(JSON.stringify({
-        error: 'Range is required for this role.',
-      }), {
+      return new Response(JSON.stringify({ error: 'Range is required for this role.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
     if (role === 'beat_guard' && !hasValue(beat_id)) {
-      return new Response(JSON.stringify({
-        error: 'Beat is required for beat guard role.',
-      }), {
+      return new Response(JSON.stringify({ error: 'Beat is required for beat guard role.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // ── 3. Create auth user with service-role key (never touches caller's session) ──
-    const adminClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    let profileLat = typeof latitude === 'number' ? latitude : parseFloat(latitude)
+    let profileLng = typeof longitude === 'number' ? longitude : parseFloat(longitude)
+
+    if (!isValidCoordinate(profileLat, profileLng)) {
+      if (role === 'volunteer' && isVolunteerOnboard) {
+        return new Response(JSON.stringify({ error: 'GPS location is required when onboarding a volunteer.' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      const centroid = await resolveCentroidLatLng(adminClient, { beat_id, range_id, division_id })
+      if (centroid) {
+        profileLat = centroid.latitude
+        profileLng = centroid.longitude
+      } else {
+        profileLat = INDIA_FALLBACK_LAT
+        profileLng = INDIA_FALLBACK_LNG
+      }
+    }
 
     // ── 3.1 Validate territory hierarchy consistency ──────────────────────────
     if (GEOGRAPHIC_ROLES.includes(role as (typeof GEOGRAPHIC_ROLES)[number])) {
@@ -191,11 +307,21 @@ serve(async (req) => {
       }
     }
 
+    const phoneDigits = phone ? normalisePhoneDigits(String(phone)) : null
+    const e164Phone = phoneDigits && phoneDigits.length === 10 ? `91${phoneDigits}` : undefined
+
     const { data: authData, error: createErr } = await adminClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { first_name, last_name, role },
+      phone: e164Phone,
+      user_metadata: {
+        first_name,
+        last_name,
+        role,
+        latitude: profileLat,
+        longitude: profileLng,
+      },
     })
 
     if (createErr) {
@@ -213,9 +339,12 @@ serve(async (req) => {
         id: newUserId,
         role,
         first_name: first_name.trim().slice(0, MAX_NAME_LENGTH),
-        last_name: last_name.trim().slice(0, MAX_NAME_LENGTH),
+        last_name: (last_name || '').trim().slice(0, MAX_NAME_LENGTH),
         phone: phone ? phone.trim().slice(0, MAX_PHONE_LENGTH) : null,
         is_active: true,
+        latitude: profileLat,
+        longitude: profileLng,
+        location_updated_at: new Date().toISOString(),
       })
 
     if (profileUpsertErr) {
@@ -232,8 +361,26 @@ serve(async (req) => {
       })
     }
 
-    // ── 5. Create region assignment for geographic roles ─────────────────────
-    if (GEOGRAPHIC_ROLES.includes(role as (typeof GEOGRAPHIC_ROLES)[number])) {
+    // ── 5. Create region assignment for geographic roles and volunteers ───────
+    const needsTerritory = GEOGRAPHIC_ROLES.includes(role as (typeof GEOGRAPHIC_ROLES)[number]) || role === 'volunteer'
+    if (needsTerritory) {
+      if (role === 'volunteer' && hasValue(beat_id) && (!hasValue(range_id) || !hasValue(division_id))) {
+        const { data: beatRow } = await adminClient
+          .from('geo_beats')
+          .select('id, range_id')
+          .eq('id', beat_id)
+          .single()
+        if (beatRow?.range_id) {
+          range_id = beatRow.range_id
+          const { data: rangeRow } = await adminClient
+            .from('geo_ranges')
+            .select('division_id')
+            .eq('id', beatRow.range_id)
+            .single()
+          if (rangeRow?.division_id) division_id = rangeRow.division_id
+        }
+      }
+
       const { error: assignErr } = await adminClient
         .from('user_region_assignments')
         .insert({
@@ -263,6 +410,7 @@ serve(async (req) => {
         last_name,
         role,
         phone: phone || null,
+        temporary_password: isVolunteerOnboard ? password : undefined,
       }
     }), {
       status: 200,

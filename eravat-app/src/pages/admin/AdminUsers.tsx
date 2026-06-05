@@ -4,6 +4,8 @@ import { Search, UserPlus, Loader2, AlertTriangle, MapPin, ChevronRight, Shield,
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { canManageRole, GEOGRAPHIC_ROLES } from '../../lib/rbac';
+import { LocationFields } from '../../components/profile/LocationFields';
 
 interface Profile {
     id: string;
@@ -32,6 +34,7 @@ interface GeoBeat extends GeoEntity { range_id: string; }
 const DEFAULT_NEW_USER = {
     first_name: '', last_name: '', email: '', password: '', phone: '',
     role: 'volunteer', division_id: '', range_id: '', beat_id: '',
+    latitude: null as number | null, longitude: null as number | null,
 };
 
 const ROLES = [
@@ -45,28 +48,6 @@ const ROLES = [
     { value: 'beat_guard', label: 'Beat Guard' },
     { value: 'volunteer', label: 'Volunteer / Gram Mitra' },
 ];
-
-const GEOGRAPHIC_ROLES = ['dfo', 'rrt', 'range_officer', 'beat_guard'];
-
-const ROLE_HIERARCHY: Record<string, string[]> = {
-    admin: ['*'],
-    ccf: ['*'],
-    biologist: [],
-    veterinarian: [],
-    dfo: ['range_officer', 'beat_guard'],
-    rrt: ['beat_guard'],
-    range_officer: ['beat_guard'],
-    beat_guard: [],
-    volunteer: []
-};
-
-const canManageRole = (callerRole?: string, targetRole?: string) => {
-    if (!callerRole || !targetRole) return false;
-    const allowed = ROLE_HIERARCHY[callerRole];
-    if (!allowed) return false;
-    if (allowed.includes('*')) return true;
-    return allowed.includes(targetRole);
-};
 
 export default function AdminUsers() {
     const { profile: currentUserProfile } = useAuth();
@@ -183,8 +164,13 @@ export default function AdminUsers() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Not authenticated');
 
+            const body: Record<string, unknown> = { ...newUser };
+            if (newUser.role === 'volunteer') {
+                body.onboard_volunteer = !newUser.email?.trim();
+            }
+
             const { data, error: fnErr } = await supabase.functions.invoke('create-user', {
-                body: newUser,
+                body,
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
 
@@ -434,30 +420,55 @@ export default function AdminUsers() {
                         <p className="text-sm text-muted-foreground mb-6">{t('admin.users.registerDesc')}</p>
 
                         <form onSubmit={handleCreate} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-3">
+                            {newUser.role === 'volunteer' ? (
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.firstName')}</label>
-                                    <input required maxLength={100} value={newUser.first_name} onChange={e => setNewUser({ ...newUser, first_name: e.target.value })}
-                                        className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('volunteer.onboardName')}</label>
+                                    <input
+                                        required
+                                        maxLength={200}
+                                        placeholder={t('volunteer.onboardNamePlaceholder')}
+                                        value={`${newUser.first_name}${newUser.last_name ? ` ${newUser.last_name}` : ''}`.trim()}
+                                        onChange={e => {
+                                            const parts = e.target.value.trim().split(/\s+/);
+                                            setNewUser({
+                                                ...newUser,
+                                                first_name: parts[0] || '',
+                                                last_name: parts.slice(1).join(' '),
+                                            });
+                                        }}
+                                        className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    />
                                 </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.lastName')}</label>
-                                    <input required maxLength={100} value={newUser.last_name} onChange={e => setNewUser({ ...newUser, last_name: e.target.value })}
-                                        className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                            ) : (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.firstName')}</label>
+                                        <input required maxLength={100} value={newUser.first_name} onChange={e => setNewUser({ ...newUser, first_name: e.target.value })}
+                                            className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.lastName')}</label>
+                                        <input required maxLength={100} value={newUser.last_name} onChange={e => setNewUser({ ...newUser, last_name: e.target.value })}
+                                            className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('login.email')}</label>
-                                    <input type="email" required value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })}
-                                        className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                            )}
+
+                            {newUser.role !== 'volunteer' && (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('login.email')}</label>
+                                        <input type="email" required value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })}
+                                            className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('login.password')}</label>
+                                        <input type="password" required minLength={8} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                                            className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('login.password')}</label>
-                                    <input type="password" required minLength={8} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })}
-                                        className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                                </div>
-                            </div>
+                            )}
+
                             <div>
                                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.phoneNumber')}</label>
                                 <input type="tel" required maxLength={20} value={newUser.phone} onChange={e => setNewUser({ ...newUser, phone: e.target.value })} placeholder="+91 98765 43210"
@@ -471,7 +482,33 @@ export default function AdminUsers() {
                                 </select>
                             </div>
 
-                            {GEOGRAPHIC_ROLES.includes(newUser.role) && (
+                            {newUser.role === 'volunteer' && (
+                                <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                                    <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
+                                    <select required value={newUser.beat_id} onChange={e => {
+                                        const beatId = e.target.value;
+                                        const beat = beats.find(b => b.id === beatId);
+                                        const range = beat ? ranges.find(r => r.id === beat.range_id) : undefined;
+                                        setNewUser({
+                                            ...newUser,
+                                            beat_id: beatId,
+                                            range_id: beat?.range_id || '',
+                                            division_id: range?.division_id || '',
+                                        });
+                                    }}
+                                        className="w-full p-3 rounded-xl bg-background border border-border text-sm">
+                                        <option value="">{t('admin.users.selectBeat')}</option>
+                                        {beats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                    </select>
+                                </div>
+                            )}
+
+                            <LocationFields
+                                value={{ latitude: newUser.latitude, longitude: newUser.longitude }}
+                                onChange={(loc) => setNewUser({ ...newUser, latitude: loc.latitude, longitude: loc.longitude })}
+                            />
+
+                            {(GEOGRAPHIC_ROLES as readonly string[]).includes(newUser.role) && (
                                 <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
                                     <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
                                     <select required value={newUser.division_id} onChange={e => setNewUser({ ...newUser, division_id: e.target.value, range_id: '', beat_id: '' })}
@@ -562,7 +599,7 @@ export default function AdminUsers() {
                                 </select>
                             </div>
 
-                            {GEOGRAPHIC_ROLES.includes(editUser.role) && (
+                            {(GEOGRAPHIC_ROLES as readonly string[]).includes(editUser.role) && (
                                 <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
                                     <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
                                     <select required value={editUser.division_id || ''} onChange={e => setEditUser({ ...editUser, division_id: e.target.value, range_id: '', beat_id: '' })}

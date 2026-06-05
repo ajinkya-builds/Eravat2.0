@@ -22,9 +22,13 @@ context is never lost between AI chat sessions.
 
 ```
 docs/
+├── PROJECT_BRAIN.md            ← 🧠 Comprehensive project brain (start here)
 ├── README.md                   ← Main architecture reference (always up to date)
 ├── INDEX.md                    ← This file
+├── ERAVAT_SOURCE_OF_TRUTH.md   ← Core project definitions & decisions
+├── SUGGESTED_ENHANCEMENTS_AUDIT.md ← Enhancement roadmap & audit
 ├── DASHBOARD_METRICS_REFERENCE.md ← KPI and dashboard calculation formulas
+├── ROLE_CAPABILITY_MATRIX.md   ← Role intents vs implementation + gaps
 ├── schema.md                   ← Database schema quick reference
 ├── SYNC_RUNBOOK.md             ← Sync troubleshooting playbook
 ├── AUTH_ARCHITECTURE.md        ← Offline-first auth proposal (draft — decision pending)
@@ -73,16 +77,22 @@ docs/
 | 2026-03-19 | UI Notification State Sync     | Fixed a bug where marking all notifications as read silently failed on Supabase due to implicit `update` behavior; changed `markAllAsRead` to use explicit `in('id', ids)`. |
 | 2026-05-12 | Main + yash-dev merge & backups | Created `main-backup-5-12` and `yash-dev-5-12` on GitHub; merged `yash-dev` into `main` (no migration diff); aligned `SyncService` test with `total_elephants` payload; documented CI GitHub Pages deploy on push to `main`; Android rebuild noted as follow-up |
 | 2026-05-13 | GH Pages logo, auth bootstrap, env, deploy | Base-aware elephant logo URL; `profiles` `.maybeSingle()` + auth init timeout; Supabase client publishable-key support; `.env.example` + gitignored env layout; `main` → Actions → `gh-pages` production deploy |
+| 2026-05-21 | Roles, GPS profiles, volunteer onboarding | Mandatory `profiles.latitude/longitude` with centroid backfill; Beat Guard volunteer onboarding flow; role capability matrix doc |
 
 ---
 
 ## 🔗 Quick Links
 
+- **🧠 Project Brain (start here):** [`PROJECT_BRAIN.md`](./PROJECT_BRAIN.md)
 - **App:** http://localhost:5173 (dev)
+- **Source of Truth:** [`ERAVAT_SOURCE_OF_TRUTH.md`](./ERAVAT_SOURCE_OF_TRUTH.md)
+- **Enhancement Audit:** [`SUGGESTED_ENHANCEMENTS_AUDIT.md`](./SUGGESTED_ENHANCEMENTS_AUDIT.md)
 - **Sync Runbook:** [`SYNC_RUNBOOK.md`](./SYNC_RUNBOOK.md)
+- **Supabase operations (apply remote, never files-only):** [`SUPABASE_OPERATIONS.md`](./SUPABASE_OPERATIONS.md)
 - **Dashboard Metrics Reference:** [`DASHBOARD_METRICS_REFERENCE.md`](./DASHBOARD_METRICS_REFERENCE.md)
-- **OTP Testing Guide:** [`OTP_TESTING_GUIDE.md`](./OTP_TESTING_GUIDE.md)
+- **Role Capability Matrix:** [`ROLE_CAPABILITY_MATRIX.md`](./ROLE_CAPABILITY_MATRIX.md)
 - **Auth Architecture (draft, decision pending):** [`AUTH_ARCHITECTURE.md`](./AUTH_ARCHITECTURE.md)
+- ~~**OTP Testing Guide:** `OTP_TESTING_GUIDE.md`~~ *(referenced but file does not exist)*
 - **Supabase Dashboard:**
   https://supabase.com/dashboard/project/mnytrlcmdpkfhrzrtesf
 - **Supabase SQL Editor:**

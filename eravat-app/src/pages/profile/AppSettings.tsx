@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Moon, Sun, Smartphone, Wifi, Globe, Map, Languages, Bell, Radio, MapPin, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../supabase';
 
@@ -62,6 +63,7 @@ function RadiusPreview({ km }: { km: number }) {
 export default function AppSettings() {
     const { user, profile } = useAuth();
     const { t, language: globalLanguage, setLanguage: setGlobalLanguage } = useLanguage();
+    const { theme, setTheme } = useTheme();
 
     // ── Proximity radius state ────────────────────────────────────────────────
     const [radius, setRadius] = useState<number>(profile?.notification_radius_km ?? 10);
@@ -112,24 +114,15 @@ export default function AppSettings() {
     const initial = getInitialState();
 
     // Local state for settings.
-    const [theme, setTheme] = useState<'system' | 'light' | 'dark'>(initial.theme || 'system');
     const [autoSync, setAutoSync] = useState(initial.autoSync !== undefined ? initial.autoSync : true);
     const [wifiOnly, setWifiOnly] = useState(initial.wifiOnly !== undefined ? initial.wifiOnly : false);
     const [mapStyle, setMapStyle] = useState<'terrain' | 'satellite'>(initial.mapStyle || 'terrain');
 
-    // Save on change (theme, sync, map settings only - language is managed by LanguageContext)
+    // Persist sync/map prefs (theme via ThemeContext; language via LanguageContext)
     useEffect(() => {
-        const settings = { theme, autoSync, wifiOnly, mapStyle };
+        const settings = { autoSync, wifiOnly, mapStyle };
         localStorage.setItem('eravat_app_settings', JSON.stringify(settings));
-
-        // Apply theme immediately to HTML root
-        const root = document.documentElement;
-        if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            root.classList.add('dark');
-        } else {
-            root.classList.remove('dark');
-        }
-    }, [theme, autoSync, wifiOnly, mapStyle]);
+    }, [autoSync, wifiOnly, mapStyle]);
 
     return (
         <div className="min-h-screen bg-background pb-[80px]">
@@ -159,18 +152,24 @@ export default function AppSettings() {
                             </div>
                             <div className="flex bg-muted/50 p-1 rounded-xl">
                                 <button
+                                    type="button"
+                                    data-testid="theme-light"
                                     onClick={() => setTheme('light')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'light' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                                 >
                                     {t('light')}
                                 </button>
                                 <button
+                                    type="button"
+                                    data-testid="theme-dark"
                                     onClick={() => setTheme('dark')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'dark' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                                 >
                                     {t('dark')}
                                 </button>
                                 <button
+                                    type="button"
+                                    data-testid="theme-system"
                                     onClick={() => setTheme('system')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'system' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                                 >
@@ -187,12 +186,14 @@ export default function AppSettings() {
                                 <span className="font-medium">{t('language')}</span>
                             </div>
                             <select
+                                data-testid="language-select"
                                 value={globalLanguage}
-                                onChange={(e) => setGlobalLanguage(e.target.value as any)}
+                                onChange={(e) => setGlobalLanguage(e.target.value as 'en' | 'hi' | 'mr')}
                                 className="bg-background border border-border rounded-lg px-2 py-1 text-sm outline-none"
                             >
                                 <option value="en">{t('english')}</option>
                                 <option value="hi">{t('hindi')}</option>
+                                <option value="mr">{t('marathi')}</option>
                             </select>
                         </div>
                     </div>

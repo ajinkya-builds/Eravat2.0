@@ -22,6 +22,9 @@ export interface UserProfile {
     range_name?: string | null;
     beat_name?: string | null;
     notification_radius_km?: number;
+    latitude?: number;
+    longitude?: number;
+    location_updated_at?: string | null;
 }
 
 interface AuthContextValue {

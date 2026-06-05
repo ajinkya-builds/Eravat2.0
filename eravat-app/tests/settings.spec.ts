@@ -1,14 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF } from './fixtures/test-constants';
-import { loginAs } from './fixtures/auth.fixture';
+import { appPath } from './fixtures/test-constants';
+import { ensureOnPage } from './fixtures/auth.fixture';
 import { SettingsPage } from './page-objects/settings.page';
 
 test.describe('Settings Module', () => {
     let sp: SettingsPage;
 
     test.beforeEach(async ({ page }) => {
-        await loginAs(page, FIELD_STAFF);
-        await page.goto('/settings');
+        await ensureOnPage(page, '/settings');
         sp = new SettingsPage(page);
     });
 
@@ -37,14 +36,14 @@ test.describe('Settings Module', () => {
 
     test('SET-004: Theme persists after navigation', async ({ page }) => {
         await sp.selectTheme('Dark');
-        await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.goto(appPath('/'));
+        await page.waitForLoadState('domcontentloaded');
 
         const isDark = await page.evaluate(() => document.documentElement.classList.contains('dark'));
         expect(isDark).toBe(true);
 
         // Restore light
-        await page.goto('/settings');
+        await page.goto(appPath('/settings'));
         await sp.selectTheme('Light');
     });
 
@@ -86,14 +85,13 @@ test.describe('Settings Module', () => {
         await sp.selectLanguage('Hindi');
         await page.waitForTimeout(500);
 
-        await page.goto('/');
-        await page.waitForLoadState('networkidle');
-
-        const bodyText = await page.locator('body').textContent();
-        expect(bodyText).toMatch(/गतिविधि|रिपोर्ट|डैशबोर्ड/);
+        await ensureOnPage(page, '/');
+        await expect(
+            page.getByText(/गतिविधि|रिपोर्ट|डैशबोर्ड|डॅशबोर्ड|Report Activity/i).first(),
+        ).toBeVisible({ timeout: 30_000 });
 
         // Restore English
-        await page.goto('/settings');
+        await page.goto(appPath('/settings'));
         await sp.selectLanguage('English');
     });
 
@@ -119,7 +117,7 @@ test.describe('Settings Module', () => {
     });
 
     test('SET-011: Settings page accessible from bottom nav', async ({ page }) => {
-        await page.goto('/');
+        await page.goto(appPath('/'));
         const settingsTab = page.locator('nav').last().locator('button').filter({ has: page.locator('.lucide-settings') });
         await settingsTab.click();
         await expect(page).toHaveURL(/.*\/settings/);

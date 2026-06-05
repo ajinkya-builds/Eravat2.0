@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const ADMIN_ROLES = ['admin', 'ccf', 'dfo'];
@@ -18,6 +18,7 @@ function RouteLoadingScreen() {
 
 export function ProtectedRoute() {
     const { session, profile, loading } = useAuth();
+    const location = useLocation();
     const [timedOut, setTimedOut] = useState(false);
 
     useEffect(() => {
@@ -34,6 +35,16 @@ export function ProtectedRoute() {
 
     if (!session || timedOut || !profile) {
         return <Navigate to="/login" replace />;
+    }
+
+    const needsLocation =
+        profile.latitude == null
+        || profile.longitude == null
+        || !Number.isFinite(profile.latitude)
+        || !Number.isFinite(profile.longitude);
+
+    if (needsLocation && !location.pathname.startsWith('/profile/complete-location')) {
+        return <Navigate to="/profile/complete-location" replace />;
     }
 
     return <Outlet />;
