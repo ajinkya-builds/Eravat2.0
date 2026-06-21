@@ -96,7 +96,8 @@ eravat-app/
 │   │           ├── CompassBearingStep.tsx
 │   │           └── PhotoStep.tsx
 │   ├── services/
-│   │   └── SyncService.ts         # Offline→Supabase sync logic
+│   │   ├── syncService.ts         # Offline→Supabase sync logic
+│   │   └── NotificationService.ts # Push notification helper
 │   ├── hooks/                     # Custom hooks
 │   ├── layouts/                   # Layout wrappers
 │   ├── types/
@@ -295,18 +296,28 @@ Field staff enters report
 ReportStepper (multi-step form)
         ↓
 Saved to Dexie (IndexedDB) with sync_status='pending'
+  → Also stores obs_id = crypto.randomUUID() for stable observation row ID
         ↓
-SyncService.ts (runs on connect)
+syncService.ts (runs on connect)
         ↓
   ┌─────────────────┐
-  │ reports table   │ ← location as PostGIS POINT
-  │ observations    │ ← normalized counts + signs/loss arrays
+  │ reports table   │ ← location as PostGIS POINT (SRID=4326)
+  │ observations    │ ← obs_id (UUID), counts, signs/loss arrays, and total_elephants
   │ conflict_damages│ ← multi-row insert (one per loss type)
   │ report_media    │ ← via Supabase Storage bucket
   └─────────────────┘
         ↓
 sync_status = 'synced'
 ```
+
+### Key Sync Rules
+
+- `observations.id` **must** be a bare UUID — the `obs_id` field is generated
+  in `ReportStepper` at save time and stored in Dexie alongside the report.
+- `observations` does **NOT** have a `total_elephants` column — only
+  `male_count`, `female_count`, `calf_count`, `unknown_count`.
+- The `sync_status` enum in Supabase is `pending | synced | reviewed` — there
+  is no `failed` state in the DB. Failed state is tracked locally in Dexie only.
 
 ---
 
@@ -360,28 +371,16 @@ npm run dev         # → http://localhost:5173
    array-based indirect signs.
 7. **Auth Diagnostics** — `signInWithPhone` now emits console logs to help debug
    "Phone not found" errors in the field.
-8. **Sync Safety (2026-03-14)** — Auto-sync now processes pending reports by
-   default. Manual sync includes failed reports for remediation. Media insert and
-   conflict damage writes are hardened for live-schema drift.
-9. **Conflict Loss Details (2026-03-14)** — `observations.conflict_loss_details`
-   (`text[]`) is now live and stores selected conflict-loss parameters directly on
-   the observation row (in addition to normalized `conflict_damages` rows).
-10. **Supabase CLI Migration History (2026-03-14)** — A legacy `20260222`
-   naming mismatch exists in migration history. Remote deploy succeeded using
-   `supabase migration repair --status reverted 20260222` followed by
-   `supabase db push --include-all`.
-11. **Notification State Persistence (2026-03-19)** — The "Mark all as read" button originally
-   failed silently because an `update().eq('user_id')` matched 0 rows due to PostgREST bulk
-   limitations combined with RLS constraints. Fixed by explicitly mapping the exact unread
-   notification `id`s from local state and utilizing an array-based `.in('id', array)` filter.
-12. **Main + yash-dev merge (2026-05-12)** — `yash-dev` was merged into `main` with backup
-   branches `main-backup-5-12` and `yash-dev-5-12` on GitHub. No `supabase/migrations` changes.
-   `SyncService` unit test was updated to expect `total_elephants` on the observations upsert
-   (matches production sync behavior; see session log).
-13. **GitHub Pages logo + auth env (2026-05-13)** — Logo `src` is base-aware for `/Eravat2.0/`;
-   `AuthContext` uses `profiles` `.maybeSingle()`, auth bootstrap timeout + local sign-out on
-   stuck refresh; `supabase.ts` supports publishable key alias and optional disable of auto
-   token refresh. See `docs/sessions/2026-05-13-gh-pages-logo-auth-env-deploy.md`.
+8. **Sync Bugs Fixed (2026-03-07)** — Resolved bugs in `syncService.ts`:
+   (a) fixed observation ID format (`obs-uuid` prefix broke UUID columns, now uses a pre-generated `obs_id` UUID stored in Dexie);
+   (b) removed invalid `status:'failed'` Supabase writes (enum has no `failed` value).
+9. **Notification & History Logic Fixed (2026-03-07)** — Fixed a bug where beat_guards were ignored by the territory-based notification trigger. Deduped the proximity triggers using `ON CONFLICT DO NOTHING`, and updated `TerritoryHistory` with UI badges to indicate if a report was in territory vs radius. Added full RLS policy for `reports` table.
+10. **Sync Safety (2026-03-14)** — Auto-sync now processes pending reports by default. Manual sync includes failed reports for remediation. Media insert and conflict damage writes are hardened for live-schema drift.
+11. **Conflict Loss Details (2026-03-14)** — `observations.conflict_loss_details` (`text[]`) is now live and stores selected conflict-loss parameters directly on the observation row (in addition to normalized `conflict_damages` rows).
+12. **Supabase CLI Migration History (2026-03-14)** — A legacy `20260222` naming mismatch exists in migration history. Remote deploy succeeded using `supabase migration repair --status reverted 20260222` followed by `supabase db push --include-all`.
+13. **Notification State Persistence (2026-03-19)** — The "Mark all as read" button originally failed silently because an `update().eq('user_id')` matched 0 rows due to PostgREST bulk limitations combined with RLS constraints. Fixed by explicitly mapping the exact unread notification `id`s from local state and utilizing an array-based `.in('id', array)` filter.
+14. **Main + yash-dev merge (2026-05-12)** — `yash-dev` was merged into `main` with backup branches `main-backup-5-12` and `yash-dev-5-12` on GitHub. No `supabase/migrations` changes. `SyncService` unit test was updated to expect `total_elephants` on the observations upsert (matches production sync behavior; see session log).
+15. **GitHub Pages logo + auth env (2026-05-13)** — Logo `src` is base-aware for `/Eravat2.0/`; `AuthContext` uses `profiles` `.maybeSingle()`, auth bootstrap timeout + local sign-out on stuck refresh; `supabase.ts` supports publishable key alias and optional disable of auto token refresh. See `docs/sessions/2026-05-13-gh-pages-logo-auth-env-deploy.md`.
 
 ---
 
@@ -402,3 +401,30 @@ branch via `peaceiris/actions-gh-pages`.
 > `vite build --base=/Eravat2.0/` to ensure asset paths are correct for GitHub
 > Pages, while the standard `npm run build` is kept clean for Capacitor/Native
 > compatibility.
+
+---
+
+## 🧪 Testing
+
+### Unit & Component Tests (Vitest)
+
+```bash
+cd eravat-app
+npx vitest run           # run all unit tests once
+npx vitest               # watch mode
+```
+
+Key test file: `src/services/__tests__/SyncService.test.ts`
+
+### End-to-End Tests (Playwright)
+
+```bash
+npx playwright test --project=chromium
+```
+
+See `tests/auth.spec.ts` for the login E2E flow.
+
+### Manual QA
+
+See `docs/MANUAL_TESTING.md` for offline sync, PWA install, and geolocation
+test scenarios that cannot be automated.

@@ -1,15 +1,15 @@
-name: Deploy Production App & APK
+name: Build Staging App & APK
 
 on:
   push:
     branches:
-      - main
+      - staging
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: Checkout Code
@@ -32,18 +32,12 @@ jobs:
         working-directory: eravat-app
         run: npm ci
 
-      - name: Build Web App (Production env)
+      - name: Build Web App (Staging env)
         working-directory: eravat-app
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.STAGE_VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGE_VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
-
-      - name: Deploy Web App to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: eravat-app/dist
 
       - name: Sync Capacitor Android
         working-directory: eravat-app
@@ -58,11 +52,11 @@ jobs:
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Eravat-Production-APK
+          name: Eravat-Staging-APK
           path: eravat-app/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
 
-      - name: Upload to Appetize.io (Production)
+      - name: Upload to Appetize.io (Staging)
         env:
           APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
         run: |
@@ -76,8 +70,8 @@ jobs:
             
             if [ "$publicKey" != "null" ] && [ -n "$publicKey" ]; then
               echo "Appetize.io upload successful!"
-              echo "### Production Android Emulator 📱" >> $GITHUB_STEP_SUMMARY
-              echo "Run the production app directly in your browser here: [Launch Emulator](https://appetize.io/app/$publicKey)" >> $GITHUB_STEP_SUMMARY
+              echo "### Staging Android Emulator 📱" >> $GITHUB_STEP_SUMMARY
+              echo "Run the staging app directly in your browser here: [Launch Emulator](https://appetize.io/app/$publicKey)" >> $GITHUB_STEP_SUMMARY
             else
               echo "Appetize upload failed: $response"
             fi

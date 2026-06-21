@@ -32,14 +32,23 @@ docs/
 ├── schema.md                   ← Database schema quick reference
 ├── SYNC_RUNBOOK.md             ← Sync troubleshooting playbook
 ├── AUTH_ARCHITECTURE.md        ← Offline-first auth proposal (draft — decision pending)
+├── MANUAL_TESTING.md           ← QA Test specifications for PWA/Offline Edge Cases
 └── sessions/
+    ├── 2026-05-21-roles-gps-volunteer-onboarding.md
     ├── 2026-05-13-gh-pages-logo-auth-env-deploy.md
     ├── 2026-05-12-main-yash-dev-merge-backups-gh-pages.md
     ├── 2026-03-28-android-apk-build.md
+    ├── 2026-03-19-ui-notification-state-sync.md
+    ├── 2026-03-15-otp-phone-authentication.md
     ├── 2026-03-14-dashboard-role-kpis-and-metric-reference.md
     ├── 2026-03-14-beat-nearest-boundary-fallback.md
     ├── 2026-03-14-sync-and-media-schema-drift-fix.md
-    ├── 2026-03-14-phone-login-migration-and-total-elephants-fix.md
+    ├── 2026-03-14-phone-login-fix-rahul-kumar.md
+    ├── 2026-03-14-conflict-loss-details-column-and-cli-migration.md
+    ├── 2026-03-07-testing-infrastructure.md
+    ├── 2026-03-07-report-activity-sync-fix.md
+    ├── 2026-03-07-dashboard-enhancement.md
+    ├── 2026-03-07-notification-history-audit.md
     ├── 2026-02-21-database-setup-and-login.md
     ├── 2026-02-21-ui-ux-centralization.md
     ├── 2026-02-21-interactive-dashboard-map.md
@@ -47,7 +56,10 @@ docs/
     ├── 2026-02-21-notifications-and-multi-select.md
     ├── 2026-02-21-observation-sync-fix.md
     ├── 2026-02-21-user-management-rbac.md
+    ├── 2026-02-21-register-personnel.md
+    ├── 2026-02-22-android-emulator-apk-deployment.md
     ├── 2026-02-22-branding-logo-and-typography.md
+    ├── 2026-02-22-pwa-android-capabilities.md
     ├── 2026-02-23-git-merge-and-deploy.md
     └── 2026-02-24-login-fix-and-diagnostics.md
 ```
@@ -69,6 +81,10 @@ docs/
 | 2026-02-22 | Android, PWA & Deployment      | Fixed white screen by decapitating base path from main config, built native APK, and streamlined GitHub Pages deployment |
 | 2026-02-23 | Git Restructure & Deploy       | Unified Yash/Ajinkya branches into master, resolved route conflicts, and deployed to production GH Pages                 |
 | 2026-02-24 | Login Fix & Diagnostics        | Fixed Ajinkya's login by correcting a DB phone typo and added verbose frontend auth logging                              |
+| 2026-03-07 | Testing Infrastructure         | Set up Vitest and Playwright; wrote unit tests for SyncService and auth E2E tests                        |
+| 2026-03-07 | Report Activity Sync Fix       | Fixed 3 bugs in syncService: invalid column (total_elephants), bad obs ID format (obs- prefix), invalid enum value (failed). Reports now sync successfully to Supabase |
+| 2026-03-07 | Dashboard Enhancement          | Enhancing Admin command center dashboard, adding new KPIs, charts, map visualization with accurate observation pins |
+| 2026-03-07 | Notification & History Audit   | Fixed beat_guard trigger notifications, deduped proximity trigger, added UI labels to TerritoryHistory |
 | 2026-03-14 | Sync + Media Schema Drift Fix  | Fixed photo storage-to-table sync blockers, added schema-drift-safe inserts, normalized arrays/enums, and reduced sync noise |
 | 2026-03-14 | Phone Login & Elephants Fix    | Fixed country code phone matching in get_email_by_phone RPC, added total_elephants calculation in syncService, and resolved migration conflicts |
 | 2026-03-14 | Beat Nearest-Boundary Fallback | Updated report beat auto-assignment to use nearest beat boundary when GPS point falls outside all beat polygons |
