@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF, ADMIN, switchLanguage, gotoAndReady } from './fixtures/test-constants';
+import { ADMIN, switchLanguage, gotoAndReady } from './fixtures/test-constants';
 import { ensureOnPage, loginAs } from './fixtures/auth.fixture';
 
 test.describe('Dashboard Module - Field Staff', () => {
@@ -33,12 +33,12 @@ test.describe('Dashboard Module - Field Staff', () => {
         await expect(commandCenterIcon).toHaveCount(0);
     });
 
-    test.skip('DASH-008: Pending sync count badge visible', async ({ page }) => {
+    test.skip('DASH-008: Pending sync count badge visible', async () => {
         // Requires IndexedDB manipulation to stage pending reports
         // Cannot reliably test without offline-first setup
     });
 
-    test.skip('DASH-009: Sync triggers on reconnect', async ({ page }) => {
+    test.skip('DASH-009: Sync triggers on reconnect', async () => {
         // Requires IndexedDB manipulation + network toggling
     });
 

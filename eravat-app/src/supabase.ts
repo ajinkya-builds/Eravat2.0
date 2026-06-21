@@ -1,3 +1,4 @@
+import { logger } from './lib/logger';
 import { createClient } from '@supabase/supabase-js';
 
 /**
@@ -22,7 +23,7 @@ if (!supabaseUrl || !supabaseKey) {
 try {
   const host = new URL(supabaseUrl).hostname;
   if (!host.endsWith('.supabase.co')) {
-    console.warn(
+    logger.warn(
       '[supabase] Expected VITE_SUPABASE_URL host like <ref>.supabase.co; got:',
       host
     );
@@ -32,7 +33,7 @@ try {
 }
 
 if (import.meta.env.DEV && disableAutoRefresh) {
-  console.info('[supabase] autoRefreshToken is disabled (VITE_SUPABASE_DISABLE_AUTO_REFRESH).');
+  logger.info('[supabase] autoRefreshToken is disabled (VITE_SUPABASE_DISABLE_AUTO_REFRESH).');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {

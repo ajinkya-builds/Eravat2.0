@@ -1,3 +1,4 @@
+import { logger } from '../lib/logger';
 import { db } from '../db';
 import { supabase } from '../supabase';
 
@@ -8,7 +9,23 @@ const SYNC_TAB_ID = typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
     : `tab-${Date.now()}`;
 
-function tryAcquireCrossTabSyncLock(): boolean {
+let _webLockResolve: (() => void) | null = null;
+
+async function tryAcquireCrossTabSyncLock(): Promise<boolean> {
+    if (typeof navigator !== 'undefined' && navigator.locks) {
+        return new Promise<boolean>(resolve => {
+            navigator.locks.request(
+                SYNC_LOCK_KEY,
+                { ifAvailable: true },
+                (lock: Lock | null) => {
+                    if (!lock) { resolve(false); return Promise.resolve(); }
+                    resolve(true);
+                    return new Promise<void>(r => { _webLockResolve = r; });
+                }
+            );
+        });
+    }
+    // Fallback for environments without Web Locks API
     if (typeof localStorage === 'undefined') return true;
     try {
         const now = Date.now();
@@ -31,6 +48,11 @@ function tryAcquireCrossTabSyncLock(): boolean {
 }
 
 function releaseCrossTabSyncLock(): void {
+    if (_webLockResolve) {
+        _webLockResolve();
+        _webLockResolve = null;
+        return;
+    }
     if (typeof localStorage === 'undefined') return;
     try {
         const raw = localStorage.getItem(SYNC_LOCK_KEY);
@@ -43,8 +65,6 @@ function releaseCrossTabSyncLock(): void {
         // ignore lock cleanup errors
     }
 }
-let mediaPathColumnHint: 'file_path' | 'storage_path' | 'path' | 'media_path' | 'object_path' | null = null;
-
 // Validate that an ID is a safe UUID or prefixed-UUID format (no path traversal)
 const SAFE_ID_REGEX = /^[a-zA-Z0-9_-]+$/;
 function isSafeId(id: string): boolean {
@@ -85,54 +105,19 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
     return bytes.buffer;
 }
 
-type MediaInsertResult = { success: true; row: unknown } | { success: false; error: unknown };
+type MediaInsertResult = { success: true } | { success: false; error: unknown };
 
-async function insertReportMediaWithFallback(args: {
+// Live schema: report_media(id, report_id, storage_path) — no mime/content_type column.
+async function insertReportMedia(args: {
     mediaId: string;
     reportId: string;
     fileName: string;
 }): Promise<MediaInsertResult> {
-    const { mediaId, reportId, fileName } = args;
-
-    // Your live schema lacks both content_type and mime_type.
-    // Insert only safe/common columns and try path variants.
-    const pathColumns: Array<'file_path' | 'storage_path' | 'path' | 'media_path' | 'object_path'> = [
-        'file_path', 'storage_path', 'path', 'media_path', 'object_path',
-    ];
-    const orderedColumns = mediaPathColumnHint
-        ? [mediaPathColumnHint, ...pathColumns.filter((c) => c !== mediaPathColumnHint)]
-        : pathColumns;
-
-    const attempts: Record<string, unknown>[] = orderedColumns.flatMap((column) => ([
-        { id: mediaId, report_id: reportId, [column]: fileName },
-        { report_id: reportId, [column]: fileName },
-    ]));
-
-    let firstError: unknown = null;
-    for (const payload of attempts) {
-        // Avoid `.select()` on insert so success doesn't depend on SELECT policies.
-        const { error } = await supabase
-            .from('report_media')
-            .insert(payload);
-
-        if (!error) {
-            const keys = Object.keys(payload);
-            mediaPathColumnHint = (keys.find((k) => ['file_path', 'storage_path', 'path', 'media_path', 'object_path'].includes(k)) as typeof mediaPathColumnHint) ?? mediaPathColumnHint;
-            return { success: true, row: payload };
-        }
-
-        if (!firstError) {
-            firstError = error;
-        }
-
-        // If this is not a schema-column error, bubble it immediately.
-        const code = (error as { code?: string })?.code;
-        if (code !== 'PGRST204') {
-            return { success: false, error };
-        }
-    }
-
-    return { success: false, error: firstError };
+    // Avoid `.select()` on insert so success doesn't depend on SELECT policies.
+    const { error } = await supabase
+        .from('report_media')
+        .insert({ id: args.mediaId, report_id: args.reportId, storage_path: args.fileName });
+    return error ? { success: false, error } : { success: true };
 }
 
 function normalizeTextArray(value: unknown): string[] | null {
@@ -154,22 +139,28 @@ function mapLossCategory(loss: string): string {
     if (normalized === 'no loss') return 'none';
     if (normalized === 'crop') return 'crop';
     if (normalized === 'livestock') return 'livestock';
+    if (normalized === 'grain') return 'grain';
+    if (normalized === 'human injury') return 'human_injury';
+    if (normalized === 'human death') return 'human_death';
     // Keep category aligned with existing DB enum values.
     // Store specific loss text in description.
     return 'property';
 }
 
 function stableHex32(input: string): string {
-    let hash = 2166136261;
-    for (let i = 0; i < input.length; i++) {
-        hash ^= input.charCodeAt(i);
-        hash = Math.imul(hash, 16777619);
+    function fnv1a32(s: string): number {
+        let h = 2166136261;
+        for (let i = 0; i < s.length; i++) {
+            h ^= s.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+        }
+        return h >>> 0;
     }
-    const h1 = (hash >>> 0).toString(16).padStart(8, '0');
-    const h2 = Math.imul(hash ^ 0x9e3779b1, 2246822519) >>> 0;
-    const h3 = Math.imul(hash ^ 0x85ebca6b, 3266489917) >>> 0;
-    const h4 = Math.imul(hash ^ 0xc2b2ae35, 668265263) >>> 0;
-    return `${h1}${h2.toString(16).padStart(8, '0')}${h3.toString(16).padStart(8, '0')}${h4.toString(16).padStart(8, '0')}`.slice(0, 32);
+    const h1 = fnv1a32(input).toString(16).padStart(8, '0');
+    const h2 = fnv1a32(input + '\x00').toString(16).padStart(8, '0');
+    const h3 = fnv1a32(input + '\x00\x00').toString(16).padStart(8, '0');
+    const h4 = fnv1a32(input + '\x00\x00\x00').toString(16).padStart(8, '0');
+    return `${h1}${h2}${h3}${h4}`;
 }
 
 function stableUuidFrom(input: string): string {
@@ -180,16 +171,12 @@ function stableUuidFrom(input: string): string {
 export async function syncData() {
     // Mutex guard prevents concurrent syncs in this tab
     if (isSyncing) {
-        if (import.meta.env.DEV) {
-            console.log('[SyncService] Sync already in progress, skipping');
-        }
+        logger.log('[SyncService] Sync already in progress, skipping');
         return { success: true, count: 0, message: 'Sync already in progress' };
     }
 
-    if (!tryAcquireCrossTabSyncLock()) {
-        if (import.meta.env.DEV) {
-            console.log('[SyncService] Sync locked by another tab, skipping');
-        }
+    if (!await tryAcquireCrossTabSyncLock()) {
+        logger.log('[SyncService] Sync locked by another tab, skipping');
         return { success: true, count: 0, message: 'Sync already in progress in another tab' };
     }
 
@@ -246,11 +233,10 @@ export async function syncData() {
                         device_timestamp: report.device_timestamp,
                         location: location ? `SRID=4326;${location}` : null,
                         notes: report.notes,
-                        status: 'pending',
                     });
 
                 if (reportError) {
-                    console.error('[SyncService] Report upsert error:', reportError);
+                    logger.error('[SyncService] Report upsert error:', reportError);
                     await db.reports.update(report.id, { sync_status: 'failed' });
                     failureCount++;
                     continue;
@@ -290,7 +276,7 @@ export async function syncData() {
                         });
 
                     if (obsError) {
-                        console.error('[SyncService] observations upsert error:', obsError);
+                        logger.error('[SyncService] observations upsert error:', obsError);
                         await db.reports.update(report.id, { sync_status: 'failed' });
                         failureCount++;
                         continue;
@@ -312,7 +298,7 @@ export async function syncData() {
 
                     // If duplicates already exist for this report, continue gracefully.
                     if (damageError && damageError.code !== '23505') {
-                        console.error('[SyncService] conflict_damages insert error:', damageError);
+                        logger.error('[SyncService] conflict_damages insert error:', damageError);
                         await db.reports.update(report.id, { sync_status: 'failed' });
                         failureCount++;
                         continue;
@@ -330,13 +316,13 @@ export async function syncData() {
                     const normalizedMimeType = normalizeMimeType(media.mime_type);
                     // Validate media ID and MIME type
                     if (!isSafeId(media.id)) {
-                        console.error('[SyncService] Unsafe media ID:', media.id);
+                        logger.error('[SyncService] Unsafe media ID:', media.id);
                         hasMediaError = true;
                         break;
                     }
 
                     if (!ALLOWED_MIME_TYPES.includes(normalizedMimeType)) {
-                        console.error('[SyncService] Unsupported MIME type:', media.mime_type);
+                        logger.error('[SyncService] Unsupported MIME type:', media.mime_type);
                         hasMediaError = true;
                         break;
                     }
@@ -352,7 +338,7 @@ export async function syncData() {
                         .upload(fileName, fileBuffer, { contentType: normalizedMimeType, upsert: true });
 
                     if (storageError) {
-                        console.error('[SyncService] storage upload error for report', report.id, 'media', media.id, ':', storageError);
+                        logger.error('[SyncService] storage upload error for report', report.id, 'media', media.id, ':', storageError);
                         hasMediaError = true;
                         break;
                     }
@@ -364,22 +350,25 @@ export async function syncData() {
                         .single();
 
                     if (reportCheckError || !reportCheck) {
-                        console.error('[SyncService] Report not found before media insert:', report.id, reportCheckError);
+                        logger.error('[SyncService] Report not found before media insert:', report.id, reportCheckError);
                         hasMediaError = true;
                         break;
                     }
 
-                    const mediaInsertResult = await insertReportMediaWithFallback({
+                    const mediaInsertResult = await insertReportMedia({
                         mediaId: media.id,
                         reportId: report.id,
                         fileName,
                     });
 
                     if (!mediaInsertResult.success) {
-                        console.error('[SyncService] report_media table error for report', report.id, 'media', media.id);
-                        console.error('[SyncService] Error details:', JSON.stringify(mediaInsertResult.error, null, 2));
-                        console.error('[SyncService] Report check result:', reportCheck);
-                        console.error('[SyncService] User ID:', user.id);
+                        logger.error('[SyncService] report_media table error', {
+                            reportId: report.id,
+                            mediaId: media.id,
+                            error: mediaInsertResult.error,
+                            reportCheck,
+                            userId: user.id,
+                        });
                         hasMediaError = true;
                         break;
                     }
@@ -387,7 +376,7 @@ export async function syncData() {
                 }
 
                 if (hasMediaError) {
-                    console.error('[SyncService] media upload error');
+                    logger.error('[SyncService] media upload error');
                     await db.reports.update(report.id, { sync_status: 'failed' });
                     failureCount++;
                     continue;
@@ -397,7 +386,7 @@ export async function syncData() {
                 successCount++;
 
             } catch (err) {
-                console.error('[SyncService] Unexpected error syncing report:', err);
+                logger.error('[SyncService] Unexpected error syncing report:', err);
                 await db.reports.update(report.id, { sync_status: 'failed' });
                 failureCount++;
             }

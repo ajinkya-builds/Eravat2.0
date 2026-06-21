@@ -45,7 +45,7 @@ export default function Dashboard() {
             if (result.success) {
                 setTimeout(() => setSyncMessage(null), 3000);
             }
-        } catch (err) {
+        } catch {
             setSyncMessage({
                 type: 'error',
                 text: 'Sync failed. Please check your connection.'

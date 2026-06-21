@@ -1,3 +1,4 @@
+import { logger } from '../../lib/logger';
 import { useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, MapPin, FileText, Compass, Camera, CheckCircle2, X } from 'lucide-react';
@@ -64,7 +65,7 @@ function StepperContent() {
 
             // 2. Save media if exists
             if (formData.photo_url) {
-                console.log('[ReportStepper] Attempting to save media for report:', reportId);
+                logger.log('[ReportStepper] Attempting to save media for report:', reportId);
                 const match = formData.photo_url.match(/^data:([^;,]+)(?:;charset=[^;,]+)?;base64,([\s\S]+)$/);
                 if (match) {
                     const mimeType = match[1].toLowerCase() === 'image/jpg' ? 'image/jpeg' : match[1].toLowerCase();
@@ -78,15 +79,15 @@ function StepperContent() {
                             file_data: base64Data,
                             sync_status: 'pending'
                         });
-                        console.log('[ReportStepper] Media saved to local Dexie store');
+                        logger.log('[ReportStepper] Media saved to local Dexie store');
                     } catch (dexieErr) {
-                        console.error('[ReportStepper] Failed to add media to Dexie:', dexieErr);
+                        logger.error('[ReportStepper] Failed to add media to Dexie:', dexieErr);
                     }
                 } else {
-                    console.error('[ReportStepper] Failed to parse photo_url: invalid data URL format');
+                    logger.error('[ReportStepper] Failed to parse photo_url: invalid data URL format');
                 }
             } else {
-                console.log('[ReportStepper] No photo_url found in formData');
+                logger.log('[ReportStepper] No photo_url found in formData');
             }
 
             setSubmitted(true);
@@ -96,13 +97,13 @@ function StepperContent() {
             Network.getStatus().then(status => {
                 if (status.connected) {
                     // Slight delay to ensure Dexie write is flushed
-                    setTimeout(() => syncData().catch(console.error), 500);
+                    setTimeout(() => syncData().catch(err => logger.error('[ReportStepper] Background sync failed:', err)), 500);
                 }
             });
 
             setTimeout(() => navigate('/'), 2000);
         } catch (err) {
-            console.error('Failed to save report:', err);
+            logger.error('Failed to save report:', err);
             setSubmitError(err instanceof Error ? err.message : 'Failed to save report. Please try again.');
         } finally {
             setIsSubmitting(false);

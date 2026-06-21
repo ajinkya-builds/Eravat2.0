@@ -1,4 +1,4 @@
-import { type Page, type Locator, expect } from '@playwright/test';
+import { type Page, type Locator } from '@playwright/test';
 import { appPath } from '../../fixtures/test-constants';
 
 export class AdminUsersPage {

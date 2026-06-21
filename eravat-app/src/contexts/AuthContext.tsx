@@ -1,3 +1,4 @@
+import { logger } from '../lib/logger';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
@@ -49,7 +50,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const AUTH_INIT_TIMEOUT_MS = 12_000;
 
 /** Strip spaces, dashes, dots; remove +91 or 91 country prefix → 10-digit string */
-function normalisePhone(raw: string): string {
+export function normalisePhone(raw: string): string {
     const digits = raw.replace(/\D/g, '');
     // Remove leading 91 (India country code) if number is 12 digits
     if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
@@ -64,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [sessionExpired, setSessionExpired] = useState(false);
     // Track whether user was previously authenticated so we can detect expiry
-    const wasAuthenticated = useState({ current: false });
+    const wasAuthenticated = useRef(false);
     /** Coalesce parallel profile loads (e.g. getSession + onAuthStateChange firing together). */
     const profileInflight = useRef(new Map<string, Promise<void>>());
     /** Log missing profile / fetch errors at most once per user until a profile loads. */
@@ -85,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (profileError) {
                     if (!profileIssueLogged.current.has(userId)) {
                         profileIssueLogged.current.add(userId);
-                        console.warn('[AuthContext] profiles fetch failed:', profileError.message);
+                        logger.warn('[AuthContext] profiles fetch failed:', profileError.message);
                     }
                     setProfile(null);
                     return;
@@ -94,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (!profileData) {
                     if (!profileIssueLogged.current.has(userId)) {
                         profileIssueLogged.current.add(userId);
-                        console.warn(
+                        logger.warn(
                             '[AuthContext] No profiles row for this user. If you just deployed DB fixes, run the profiles backfill migration; id:',
                             userId
                         );
@@ -104,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
 
                 if (profileData.is_active === false) {
-                    console.warn('[AuthContext] Inactive user attempted access:', userId);
+                    logger.warn('[AuthContext] Inactive user attempted access:', userId);
                     await supabase.auth.signOut();
                     setProfile(null);
                     return;
@@ -130,12 +131,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     division_id: assignment?.division_id ?? null,
                     range_id: assignment?.range_id ?? null,
                     beat_id: assignment?.beat_id ?? null,
-                    division_name: (assignment?.geo_divisions as any)?.name ?? null,
-                    range_name: (assignment?.geo_ranges as any)?.name ?? null,
-                    beat_name: (assignment?.geo_beats as any)?.name ?? null,
+                    division_name: (assignment?.geo_divisions as { name?: string } | null)?.name ?? null,
+                    range_name: (assignment?.geo_ranges as { name?: string } | null)?.name ?? null,
+                    beat_name: (assignment?.geo_beats as { name?: string } | null)?.name ?? null,
                 } as UserProfile);
-            } catch {
-                // Profile fetch failed
+            } catch (err) {
+                logger.warn('[AuthContext] fetchProfile threw:', err);
+                setProfile(null);
             }
         })();
 
@@ -153,24 +155,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         let cancelled = false;
-        let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
         const applyInitialSession = (session: Session | null) => {
             if (cancelled) return;
             setSession(session);
             if (session?.user) {
-                wasAuthenticated[0].current = true;
+                wasAuthenticated.current = true;
                 void fetchProfile(session.user.id);
                 PushNotificationService.register(session.user.id).catch(err =>
-                    console.error('[AuthContext] Failed to register push notifications:', err)
+                    logger.error('[AuthContext] Failed to register push notifications:', err)
                 );
             }
             setLoading(false);
         };
 
-        timeoutId = setTimeout(() => {
+        const timeoutId = setTimeout(() => {
             if (cancelled) return;
-            console.warn(
+            logger.warn(
                 '[AuthContext] Auth init exceeded timeout; check network/DNS and VITE_SUPABASE_URL.',
                 import.meta.env.VITE_SUPABASE_URL
             );
@@ -184,27 +185,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .getSession()
             .then(({ data: { session } }) => {
                 if (cancelled) return;
-                if (timeoutId !== undefined) clearTimeout(timeoutId);
+                clearTimeout(timeoutId);
                 applyInitialSession(session);
             })
             .catch(err => {
                 if (cancelled) return;
-                if (timeoutId !== undefined) clearTimeout(timeoutId);
-                console.error('[AuthContext] getSession failed:', err);
+                clearTimeout(timeoutId);
+                logger.error('[AuthContext] getSession failed:', err);
                 applyInitialSession(null);
             });
 
         const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
             setSession(session);
             if (session?.user) {
-                wasAuthenticated[0].current = true;
+                wasAuthenticated.current = true;
                 void fetchProfile(session.user.id);
                 PushNotificationService.register(session.user.id).catch(err =>
-                    console.error('[AuthContext] Failed to register push notifications:', err)
+                    logger.error('[AuthContext] Failed to register push notifications:', err)
                 );
             } else {
                 profileIssueLogged.current.clear();
-                if (wasAuthenticated[0].current && event !== 'SIGNED_OUT') {
+                if (wasAuthenticated.current && event !== 'SIGNED_OUT') {
                     setSessionExpired(true);
                 }
                 setProfile(null);
@@ -214,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return () => {
             cancelled = true;
-            if (timeoutId !== undefined) clearTimeout(timeoutId);
+            clearTimeout(timeoutId);
             listener.subscription.unsubscribe();
         };
     }, [fetchProfile]);
@@ -264,10 +265,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .rpc('get_email_by_phone', { p_phone: tenDigit });
 
             if (rpcError || !resolvedEmail) {
-                console.warn('[AuthContext] Phone not found via RPC:', tenDigit);
+                logger.warn('[AuthContext] Phone not found via RPC:', tenDigit);
                 return {
                     error: new Error('Invalid credentials. Please try again.'),
-                    message: 'user_not_found'
+                    message: 'failed'
                 };
             }
 
@@ -286,17 +287,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             if (error) {
-                console.error('[AuthContext] OTP send error:', error);
+                logger.error('[AuthContext] OTP send error:', error);
                 if (error.message.includes('rate limit')) {
-                    return { error: new Error('Too many requests. Please try again later.'), message: 'rate_limit' };
+                    return { error: new Error('Too many requests. Please try again later.'), message: 'failed' };
                 }
-                return { error: new Error('Unable to send verification code. Please try again.'), message: 'send_failed' };
+                return { error: new Error('Unable to send verification code. Please try again.'), message: 'failed' };
             }
             return { error: null, message: 'otp_sent' };
 
         } catch (err) {
-            console.error('[AuthContext] Unexpected error in signInWithPhoneOTP:', err);
-            return { error: new Error('An unexpected error occurred. Please try again.'), message: 'unexpected_error' };
+            logger.error('[AuthContext] Unexpected error in signInWithPhoneOTP:', err);
+            return { error: new Error('An unexpected error occurred. Please try again.'), message: 'failed' };
         }
 
     };
@@ -305,15 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             // Normalize to last 10 digits then build E.164
             const tenDigit = normalisePhone(phone);
-            const storedDigits = tenDigit.replace(/\D/g, '');
-            let e164Phone: string;
-            if (storedDigits.length === 12 && storedDigits.startsWith('91')) {
-                e164Phone = `+${storedDigits}`;
-            } else if (storedDigits.length === 10) {
-                e164Phone = `+91${storedDigits}`;
-            } else {
-                e164Phone = `+91${tenDigit}`;
-            }
+            const e164Phone = `+91${tenDigit}`;
             // Verify OTP via Supabase Auth
             const { error } = await supabase.auth.verifyOtp({
                 phone: e164Phone,
@@ -322,14 +315,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             if (error) {
-                console.error('[AuthContext] OTP verification error:', error);
+                logger.error('[AuthContext] OTP verification error:', error);
                 return {
                     error: new Error('Invalid or expired verification code. Please try again.')
                 };
             }
 
             if (import.meta.env.DEV) {
-                console.log('[AuthContext] OTP verified successfully');
+                logger.log('[AuthContext] OTP verified successfully');
             }
             setSessionExpired(false);
 
@@ -341,7 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             return { error: null, mfaRequired: false };
         } catch (err) {
-            console.error('[AuthContext] Unexpected error in verifyOTP:', err);
+            logger.error('[AuthContext] Unexpected error in verifyOTP:', err);
             return {
                 error: new Error('An unexpected error occurred. Please try again.')
             };
@@ -354,7 +347,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const signOut = async () => {
-        wasAuthenticated[0].current = false; // explicit sign-out, not expiry
+        wasAuthenticated.current = false; // explicit sign-out, not expiry
         profileIssueLogged.current.clear();
         if (session?.user?.id) {
             await PushNotificationService.unregister(session.user.id);

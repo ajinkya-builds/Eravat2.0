@@ -7,6 +7,17 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { canManageRole, GEOGRAPHIC_ROLES } from '../../lib/rbac';
 import { LocationFields } from '../../components/profile/LocationFields';
 
+interface RegionAssignment {
+    user_id: string;
+    division_id?: string | null;
+    range_id?: string | null;
+    beat_id?: string | null;
+    is_primary_contact?: boolean | null;
+    geo_divisions?: { name?: string | null } | null;
+    geo_ranges?: { name?: string | null } | null;
+    geo_beats?: { name?: string | null } | null;
+}
+
 interface Profile {
     id: string;
     role: string;
@@ -24,7 +35,7 @@ interface Profile {
     division_id?: string;
     range_id?: string;
     beat_id?: string;
-    user_region_assignments?: any[];
+    user_region_assignments?: RegionAssignment[];
 }
 
 interface GeoEntity { id: string; name: string; code?: string; }
@@ -105,14 +116,14 @@ export default function AdminUsers() {
             const rangeDivisionById = new Map((ranData || []).map((r) => [r.id, r.division_id]));
             const beatRangeById = new Map((beaData || []).map((b) => [b.id, b.range_id]));
 
-            const assignmentsByUser = new Map<string, any[]>();
-            (assignmentData || []).forEach((a: any) => {
+            const assignmentsByUser = new Map<string, RegionAssignment[]>();
+            ((assignmentData ?? []) as unknown as RegionAssignment[]).forEach((a) => {
                 const existing = assignmentsByUser.get(a.user_id) || [];
                 existing.push(a);
                 assignmentsByUser.set(a.user_id, existing);
             });
 
-            const specificityScore = (a: any) => {
+            const specificityScore = (a: RegionAssignment | undefined) => {
                 if (a?.beat_id) return 3;
                 if (a?.range_id) return 2;
                 if (a?.division_id) return 1;
@@ -120,7 +131,7 @@ export default function AdminUsers() {
             };
 
             // Prefer relational names, but fallback to ID->name maps for schema drift cases.
-            const flat: Profile[] = (profileData || []).map((p: any) => {
+            const flat: Profile[] = (profileData || []).map((p: Profile) => {
                 const userAssignments = assignmentsByUser.get(p.id) || [];
                 const assignment = userAssignments.sort((a, b) => {
                     const primaryDelta = Number(Boolean(b?.is_primary_contact)) - Number(Boolean(a?.is_primary_contact));
@@ -131,18 +142,18 @@ export default function AdminUsers() {
                 const derivedDivisionId = assignment?.division_id || (derivedRangeId ? rangeDivisionById.get(derivedRangeId) : null);
                 return {
                     ...p,
-                    division_id: assignment?.division_id ?? derivedDivisionId ?? null,
-                    range_id: assignment?.range_id ?? derivedRangeId ?? null,
-                    beat_id: assignment?.beat_id ?? null,
+                    division_id: assignment?.division_id ?? derivedDivisionId ?? undefined,
+                    range_id: assignment?.range_id ?? derivedRangeId ?? undefined,
+                    beat_id: assignment?.beat_id ?? undefined,
                     division_name:
                         assignment?.geo_divisions?.name ??
-                        ((assignment?.division_id || derivedDivisionId) ? divisionNameById.get(assignment?.division_id || derivedDivisionId) ?? null : null),
+                        ((assignment?.division_id || derivedDivisionId) ? divisionNameById.get(assignment?.division_id || derivedDivisionId) ?? undefined : undefined),
                     range_name:
                         assignment?.geo_ranges?.name ??
-                        ((assignment?.range_id || derivedRangeId) ? rangeNameById.get(assignment?.range_id || derivedRangeId) ?? null : null),
+                        ((assignment?.range_id || derivedRangeId) ? rangeNameById.get(assignment?.range_id || derivedRangeId) ?? undefined : undefined),
                     beat_name:
                         assignment?.geo_beats?.name ??
-                        (assignment?.beat_id ? beatNameById.get(assignment.beat_id) ?? null : null),
+                        (assignment?.beat_id ? beatNameById.get(assignment.beat_id) ?? undefined : undefined),
                     user_region_assignments: userAssignments,
                 };
             });
@@ -154,6 +165,8 @@ export default function AdminUsers() {
         }
     };
 
+    // Mount-only fetch by design; fetchData is re-invoked explicitly after mutations.
+     
     useEffect(() => { fetchData(); }, []);
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -391,7 +404,7 @@ export default function AdminUsers() {
                                                         range_id: p.range_id || '',
                                                         beat_id: p.beat_id || '',
                                                         password: '' // empty indicates no password change
-                                                    } as any)}
+                                                    })}
                                                         className="p-2 text-muted-foreground hover:text-primary bg-muted/30 hover:bg-primary/10 rounded-lg transition-colors"
                                                         title="Edit">
                                                         <Edit2 size={16} />

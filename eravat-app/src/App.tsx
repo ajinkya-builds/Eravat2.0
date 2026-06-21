@@ -2,36 +2,48 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import ReportActivityPage from './pages/ReportActivityPage';
-import UserProfile from './pages/UserProfile';
-import EditProfile from './pages/profile/EditProfile';
-import Settings from './pages/profile/AppSettings';
-import PrivacySecurity from './pages/profile/PrivacySecurity';
-import HelpSupport from './pages/profile/HelpSupport';
-import CompleteProfileLocation from './pages/profile/CompleteProfileLocation';
-import OnboardVolunteer from './pages/OnboardVolunteer';
-import FAQ from './pages/profile/FAQ';
-import PrivacyPolicy from './pages/profile/PrivacyPolicy';
-import MapPage from './pages/MapPage';
-import { AdminLayout } from './layouts/admin/AdminLayout';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminUsers from './pages/admin/AdminUsers';
-import AdminObservations from './pages/admin/AdminObservations';
-import AdminSettings from './pages/admin/AdminSettings';
-import AdminDivisions from './pages/admin/AdminDivisions';
-import AdminConflictDashboard from './pages/admin/AdminConflictDashboard';
-import AdminLiveDashboard from './pages/admin/AdminLiveDashboard';
-import AdminLatestEntries from './pages/admin/AdminLatestEntries';
-import AdminUserStats from './pages/admin/AdminUserStats';
-import AdminNotifications from './pages/admin/AdminNotifications';
-import TerritoryHistory from './pages/TerritoryHistory';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { Network } from '@capacitor/network';
 import { syncData } from './services/syncService';
+
+// Route-level code splitting: everything below loads on demand, keeping the
+// initial chunk small for slow rural connections. The PWA service worker
+// precaches all chunks, so offline use is unaffected.
+const ReportActivityPage = lazy(() => import('./pages/ReportActivityPage'));
+const UserProfile = lazy(() => import('./pages/UserProfile'));
+const EditProfile = lazy(() => import('./pages/profile/EditProfile'));
+const Settings = lazy(() => import('./pages/profile/AppSettings'));
+const PrivacySecurity = lazy(() => import('./pages/profile/PrivacySecurity'));
+const HelpSupport = lazy(() => import('./pages/profile/HelpSupport'));
+const CompleteProfileLocation = lazy(() => import('./pages/profile/CompleteProfileLocation'));
+const OnboardVolunteer = lazy(() => import('./pages/OnboardVolunteer'));
+const FAQ = lazy(() => import('./pages/profile/FAQ'));
+const PrivacyPolicy = lazy(() => import('./pages/profile/PrivacyPolicy'));
+const MapPage = lazy(() => import('./pages/MapPage'));
+const TerritoryHistory = lazy(() => import('./pages/TerritoryHistory'));
+const AdminLayout = lazy(() => import('./layouts/admin/AdminLayout').then(m => ({ default: m.AdminLayout })));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminObservations = lazy(() => import('./pages/admin/AdminObservations'));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
+const AdminDivisions = lazy(() => import('./pages/admin/AdminDivisions'));
+const AdminConflictDashboard = lazy(() => import('./pages/admin/AdminConflictDashboard'));
+const AdminLiveDashboard = lazy(() => import('./pages/admin/AdminLiveDashboard'));
+const AdminLatestEntries = lazy(() => import('./pages/admin/AdminLatestEntries'));
+const AdminUserStats = lazy(() => import('./pages/admin/AdminUserStats'));
+const AdminNotifications = lazy(() => import('./pages/admin/AdminNotifications'));
+
+function RouteFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[40vh] text-sm text-muted-foreground">
+      Loading…
+    </div>
+  );
+}
 
 function shouldAutoSync(connectionType: string): boolean {
   try {
@@ -64,10 +76,17 @@ function NetworkSync() {
     Network.getStatus().then(status => {
       maybeSync(status.connected, status.connectionType);
     });
-    const listener = Network.addListener('networkStatusChange', status => {
+    let cancelled = false;
+    let handle: Awaited<ReturnType<typeof Network.addListener>> | null = null;
+    Network.addListener('networkStatusChange', status => {
       maybeSync(status.connected, status.connectionType);
+    }).then(h => {
+      if (cancelled) { h.remove(); } else { handle = h; }
     });
-    return () => { listener.then(l => l.remove()); };
+    return () => {
+      cancelled = true;
+      handle?.remove();
+    };
   }, [session]);
   return null;
 }
@@ -79,6 +98,7 @@ function App() {
         <AuthProvider>
           <NetworkSync />
           <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
+            <Suspense fallback={<RouteFallback />}>
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
@@ -122,6 +142,7 @@ function App() {
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </Suspense>
           </BrowserRouter>
         </AuthProvider>
       </LanguageProvider>

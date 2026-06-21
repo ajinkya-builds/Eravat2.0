@@ -1,3 +1,4 @@
+import { logger } from '../lib/logger';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../supabase';
@@ -72,7 +73,7 @@ export default function TerritoryHistory() {
             const [reportsRes, notifRes] = await Promise.all([reportsPromise, notifPromise]);
 
             if (reportsRes.error) {
-                console.error('Error fetching history:', reportsRes.error);
+                logger.error('Error fetching history:', reportsRes.error);
                 setFetchError(reportsRes.error.message || 'Failed to load activity history.');
             } else {
                 setHistory((reportsRes.data as unknown) as HistoryItem[] || []);

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF, switchLanguage, gotoAndReady } from './fixtures/test-constants';
+import { switchLanguage, gotoAndReady } from './fixtures/test-constants';
 import { ensureOnPage } from './fixtures/auth.fixture';
 import { ReportStepperPage } from './page-objects/report-stepper.page';
 
@@ -172,7 +172,7 @@ test.describe('Report Activity Module', () => {
         await expect(rp.indirectSignCard).toBeVisible();
     });
 
-    test('RPT-019: Advance from Step 2 with valid selection', async ({ page }) => {
+    test('RPT-019: Advance from Step 2 with valid selection', async () => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
         await rp.selectDirectSightingWithCount(1);
@@ -198,7 +198,7 @@ test.describe('Report Activity Module', () => {
         // Requires device orientation API
     });
 
-    test('RPT-024: Manual bearing input', async ({ page }) => {
+    test('RPT-024: Manual bearing input', async () => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
         await rp.selectDirectSightingWithCount(1);
@@ -210,7 +210,7 @@ test.describe('Report Activity Module', () => {
         }
     });
 
-    test('RPT-025: Bearing boundary — 0 degrees', async ({ page }) => {
+    test('RPT-025: Bearing boundary — 0 degrees', async () => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
         await rp.selectDirectSightingWithCount(1);
@@ -222,7 +222,7 @@ test.describe('Report Activity Module', () => {
         }
     });
 
-    test('RPT-026: Bearing boundary — 359 degrees', async ({ page }) => {
+    test('RPT-026: Bearing boundary — 359 degrees', async () => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
         await rp.selectDirectSightingWithCount(1);
@@ -234,7 +234,7 @@ test.describe('Report Activity Module', () => {
         }
     });
 
-    test('RPT-027: Skip compass step', async ({ page }) => {
+    test('RPT-027: Skip compass step', async () => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
         await rp.completeToSubmitStep();
@@ -255,7 +255,7 @@ test.describe('Report Activity Module', () => {
         // Requires Capacitor Camera API
     });
 
-    test('RPT-031: Skip photo and proceed to submit', async ({ page }) => {
+    test('RPT-031: Skip photo and proceed to submit', async () => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
         await rp.completeToSubmitStep();
@@ -269,7 +269,7 @@ test.describe('Report Activity Module', () => {
 
     // --- Submission ---
 
-    test('RPT-033: Online submission success', async ({ page }) => {
+    test('RPT-033: Online submission success', async () => {
         await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
         await rp.advanceStep();
         await rp.completeToSubmitStep();

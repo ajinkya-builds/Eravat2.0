@@ -2,10 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Smartphone, Bell, Database, Radio, X, ShieldCheck, ShieldOff, Copy, Check } from 'lucide-react';
 import { supabase } from '../../supabase';
-import {
-    RadiusSlider, RadiusPreview, SaveIndicator,
-    clamp, MAX_KM, MIN_KM, type SaveState,
-} from '../../components/shared/RadiusSlider';
+import { RadiusSlider, RadiusPreview, SaveIndicator } from '../../components/shared/RadiusSlider';
+import { clamp, MAX_KM, MIN_KM, type SaveState } from '../../lib/radius';
+import { errorMessage } from '../../lib/errors';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 // ─── Toggle ──────────────────────────────────────────────────────────────────
@@ -150,8 +149,8 @@ export default function AdminSettings() {
             setMfaQr(data.totp.qr_code);
             setMfaSecret(data.totp.secret);
             setMfaFactorId(data.id);
-        } catch (err: any) {
-            setMfaError(err.message || 'Failed to start 2FA enrollment');
+        } catch (err) {
+            setMfaError(errorMessage(err, 'Failed to start 2FA enrollment'));
             // Keep mfaEnrolling true so the error card stays visible
         }
     };
@@ -179,8 +178,9 @@ export default function AdminSettings() {
             setMfaCode('');
             setMfaToast(t('mfa.success'));
             setTimeout(() => setMfaToast(null), 3000);
-        } catch (err: any) {
-            setMfaError(err.message?.includes('Invalid') ? t('mfa.invalidCode') : (err.message || t('mfa.invalidCode')));
+        } catch (err) {
+            const msg = errorMessage(err, t('mfa.invalidCode'));
+            setMfaError(msg.includes('Invalid') ? t('mfa.invalidCode') : msg);
         } finally {
             setMfaVerifying(false);
         }
@@ -200,8 +200,8 @@ export default function AdminSettings() {
             setConfirmDisable2FA(false);
             setMfaToast(t('mfa.disabled'));
             setTimeout(() => setMfaToast(null), 3000);
-        } catch (err: any) {
-            setMfaError(err.message || 'Failed to disable 2FA');
+        } catch (err) {
+            setMfaError(errorMessage(err, 'Failed to disable 2FA'));
         } finally {
             setMfaVerifying(false);
         }

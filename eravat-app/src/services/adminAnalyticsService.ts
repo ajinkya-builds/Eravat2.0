@@ -124,7 +124,23 @@ export async function fetchAdminReports(filters: AdminFilters, limit = 2000): Pr
     const start = startOfDay(filters.startDate).toISOString();
     const end = endOfDay(filters.endDate).toISOString();
 
-    const { data, error } = await supabase
+    let beatIds: string[] | null = null;
+    if (filters.divisionId) {
+        const { data: ranges } = await supabase
+            .from('geo_ranges')
+            .select('id')
+            .eq('division_id', filters.divisionId);
+        const rangeIds = (ranges ?? []).map((r: { id: string }) => r.id);
+        if (!rangeIds.length) return [];
+        const { data: beats } = await supabase
+            .from('geo_beats')
+            .select('id')
+            .in('range_id', rangeIds);
+        beatIds = (beats ?? []).map((b: { id: string }) => b.id);
+        if (!beatIds.length) return [];
+    }
+
+    let q = supabase
         .from('reports')
         .select(REPORT_SELECT)
         .gte('device_timestamp', start)
@@ -132,11 +148,12 @@ export async function fetchAdminReports(filters: AdminFilters, limit = 2000): Pr
         .order('device_timestamp', { ascending: false })
         .limit(limit);
 
+    if (beatIds !== null) q = q.in('beat_id', beatIds);
+
+    const { data, error } = await q;
     if (error) throw error;
 
-    const rows = (data as unknown as AdminReportRow[]) ?? [];
-    if (!filters.divisionId) return rows;
-    return rows.filter((r) => reportDivisionId(r) === filters.divisionId);
+    return (data as unknown as AdminReportRow[]) ?? [];
 }
 
 export interface DamageCounts {
@@ -176,13 +193,15 @@ export function countDamages(reports: AdminReportRow[]): DamageCounts {
         if (inferGrainDamage(report)) grainReports.add(report.id);
     }
 
-    counts.grain += grainReports.size;
-    if (grainReports.size) {
-        // Avoid double-counting grain inferred from text when category already counted
-        counts.total += [...grainReports].filter((id) => {
-            const r = reports.find((x) => x.id === id);
-            return !(r?.conflict_damages ?? []).some((d) => mapDamageCategory(d.category ?? '') === 'grain');
-        }).length;
+    const alreadyCountedGrain = new Set(
+        reports.filter(r =>
+            (r.conflict_damages ?? []).some(d => mapDamageCategory(d.category ?? '') === 'grain')
+        ).map(r => r.id)
+    );
+    const newGrainReports = [...grainReports].filter(id => !alreadyCountedGrain.has(id));
+    counts.grain += newGrainReports.length;
+    if (newGrainReports.length) {
+        counts.total += newGrainReports.length;
     }
 
     return counts;

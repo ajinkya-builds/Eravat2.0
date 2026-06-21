@@ -324,7 +324,9 @@ export default function AdminDivisions() {
             const ranMap: Record<string, { userId: string; isPrimary: boolean }> = {};
             const beaMap: Record<string, { userId: string; isPrimary: boolean }> = {};
 
-            (profileData || []).forEach((p: any) => {
+            type PrimaryAssignment = { is_primary_contact?: boolean | null; division_id?: string | null; range_id?: string | null; beat_id?: string | null };
+            type ProfileRow = { id: string; first_name?: string | null; last_name?: string | null; role: string; user_region_assignments?: PrimaryAssignment | PrimaryAssignment[] | null };
+            (profileData || []).forEach((p: ProfileRow) => {
                 const label = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || 'Unknown';
                 const entry: OfficerOption = { id: p.id, label, role: p.role };
                 if (p.role === 'dfo') dfoList.push(entry);
@@ -333,13 +335,13 @@ export default function AdminDivisions() {
 
                 // Normalize: PostgREST returns a single object (not array) when the FK has a UNIQUE constraint
                 const rawAssignments = p.user_region_assignments;
-                const assignments: any[] = Array.isArray(rawAssignments)
+                const assignments: PrimaryAssignment[] = Array.isArray(rawAssignments)
                     ? rawAssignments
                     : rawAssignments
                         ? [rawAssignments]
                         : [];
 
-                assignments.forEach((a: any) => {
+                assignments.forEach((a) => {
                     const isPrimary = Boolean(a.is_primary_contact);
                     if (!isPrimary) return; // Skip non-primary assignments for the "Primary Contact" slots
 
@@ -482,7 +484,7 @@ export default function AdminDivisions() {
             setSavingState(s => ({ ...s, [geoId]: 'saved' }));
             setTimeout(() => setSavingState(s => { const n = { ...s }; delete n[geoId]; return n; }), 2000);
         } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : (typeof err === 'object' && err && 'message' in err ? String((err as any).message) : 'Failed to save');
+            const msg = err instanceof Error ? err.message : (typeof err === 'object' && err && 'message' in err ? String((err as { message?: unknown }).message) : 'Failed to save');
             setError(msg);
             setSavingState(s => { const n = { ...s }; delete n[geoId]; return n; });
         }
@@ -608,7 +610,7 @@ export default function AdminDivisions() {
                                             hasChildren={divRanges.length > 0}
                                             onToggle={() => setExpandedDivisions(prev => {
                                                 const n = new Set(prev);
-                                                n.has(div.id) ? n.delete(div.id) : n.add(div.id);
+                                                if (n.has(div.id)) { n.delete(div.id); } else { n.add(div.id); }
                                                 return n;
                                             })}
                                             onChange={(id, uid) => setDivisionContacts(c => ({ ...c, [id]: uid }))}
@@ -646,7 +648,7 @@ export default function AdminDivisions() {
                                                     hasChildren={rangeBeats.length > 0}
                                                     onToggle={() => setExpandedRanges(prev => {
                                                         const n = new Set(prev);
-                                                        n.has(range.id) ? n.delete(range.id) : n.add(range.id);
+                                                        if (n.has(range.id)) { n.delete(range.id); } else { n.add(range.id); }
                                                         return n;
                                                     })}
                                                     onChange={(id, uid) => setRangeContacts(c => ({ ...c, [id]: uid }))}

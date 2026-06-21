@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF , appPath } from './fixtures/test-constants';
+import { FIELD_STAFF  } from './fixtures/test-constants';
 import { ensureOnPage } from './fixtures/auth.fixture';
 import { PrivacyPage } from './page-objects/privacy.page';
 

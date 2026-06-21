@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF, switchLanguage, gotoAndReady, appPath } from './fixtures/test-constants';
+import { switchLanguage, gotoAndReady } from './fixtures/test-constants';
 import { ensureOnPage } from './fixtures/auth.fixture';
 
 test.describe('Territory & History Module', () => {

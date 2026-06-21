@@ -1,3 +1,4 @@
+import { logger } from '../lib/logger';
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { motion } from 'framer-motion';
@@ -73,6 +74,8 @@ export default function AdminDashboard() {
     }[]>([]);
 
     // ── Fetch ──────────────────────────────────────────────────────────────────
+    // Mount-only fetch by design (no user-adjustable filters on this page).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { fetchDashboardData(); }, []);
 
     const fetchDashboardData = async () => {
@@ -301,7 +304,7 @@ export default function AdminDashboard() {
             ]);
 
         } catch (err) {
-            console.error('Dashboard fetch error', err);
+            logger.error('Dashboard fetch error', err);
         } finally {
             setLoading(false);
         }

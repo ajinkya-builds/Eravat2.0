@@ -21,11 +21,14 @@ const INDIRECT_TYPE_KEYS: Record<string, string> = {
 const LOSS_TYPES: { value: LossType; label: string }[] = [
     { value: 'No loss', label: 'lt_no_loss' },
     { value: 'crop', label: 'lt_crop' },
+    { value: 'grain', label: 'lt_grain' },
     { value: 'livestock', label: 'lt_livestock' },
     { value: 'property', label: 'lt_property' },
     { value: 'fencing', label: 'lt_fencing' },
     { value: 'solar panels', label: 'lt_solar' },
     { value: 'FD establishment', label: 'lt_fd' },
+    { value: 'human injury', label: 'lt_human_injury' },
+    { value: 'human death', label: 'lt_human_death' },
     { value: 'Other', label: 'lt_other' },
 ];
 

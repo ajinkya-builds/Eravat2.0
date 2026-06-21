@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF , appPath } from './fixtures/test-constants';
+import { } from './fixtures/test-constants';
 import { ensureOnPage } from './fixtures/auth.fixture';
 
 test.describe('Edit Profile Module', () => {
@@ -27,7 +27,6 @@ test.describe('Edit Profile Module', () => {
         await expect(firstInput).toBeVisible({ timeout: 10_000 });
         // Wait a moment for async profile data to load
         await page.waitForTimeout(2_000);
-        const originalFirst = await firstInput.inputValue();
         const originalLast = await lastInput.inputValue();
 
         // Use unique test name to guarantee it differs from current profile

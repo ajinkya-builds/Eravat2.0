@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF, ADMIN, switchLanguage, gotoAndReady, appPath } from './fixtures/test-constants';
+import { ADMIN, switchLanguage, gotoAndReady } from './fixtures/test-constants';
 import { ensureOnPage, loginAs } from './fixtures/auth.fixture';
 
 test.describe('User Profile Module - Field Staff', () => {

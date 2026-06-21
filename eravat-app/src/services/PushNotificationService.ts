@@ -1,3 +1,4 @@
+import { logger } from '../lib/logger';
 import { PushNotifications, type Token, type RegistrationError } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../supabase';
@@ -18,7 +19,7 @@ async function persistToken(userId: string, token: Token): Promise<void> {
   );
 
   if (error) {
-    console.error('[PushNotificationService] Failed to persist push token:', error);
+    logger.error('[PushNotificationService] Failed to persist push token:', error);
   }
 }
 
@@ -40,7 +41,7 @@ async function attachListeners(userId: string): Promise<void> {
   });
 
   await PushNotifications.addListener('registrationError', (error: RegistrationError) => {
-    console.error('[PushNotificationService] Registration error:', error);
+    logger.error('[PushNotificationService] Registration error:', error);
   });
 
   listenersAttached = true;
@@ -54,7 +55,7 @@ export class PushNotificationService {
   static async register(userId: string): Promise<void> {
     if (Capacitor.getPlatform() === 'web') {
       if (import.meta.env.DEV) {
-        console.log('[PushNotificationService] Push notifications are not supported on web. Skipping registration for user:', userId);
+        logger.log('[PushNotificationService] Push notifications are not supported on web. Skipping registration for user:', userId);
       }
       return;
     }
@@ -74,7 +75,7 @@ export class PushNotificationService {
 
       await PushNotifications.register();
     } catch (err) {
-      console.error('[PushNotificationService] Error during push notification registration:', err);
+      logger.error('[PushNotificationService] Error during push notification registration:', err);
     }
   }
 
@@ -89,14 +90,14 @@ export class PushNotificationService {
     try {
       const { error } = await supabase.from('push_tokens').delete().eq('user_id', userId);
       if (error) {
-        console.error('[PushNotificationService] Failed to delete push tokens:', error);
+        logger.error('[PushNotificationService] Failed to delete push tokens:', error);
       }
 
       await PushNotifications.removeAllListeners();
       listenersAttached = false;
       activeUserId = null;
     } catch (err) {
-      console.error('[PushNotificationService] Error during push notification unregistration:', err);
+      logger.error('[PushNotificationService] Error during push notification unregistration:', err);
     }
   }
 }

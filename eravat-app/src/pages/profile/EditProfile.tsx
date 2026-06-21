@@ -1,3 +1,5 @@
+import { logger } from '../../lib/logger';
+import { errorMessage } from '../../lib/errors';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -57,9 +59,9 @@ export default function EditProfile() {
             // Auto close after 2 seconds on success
             setTimeout(() => navigate(-1), 2000);
 
-        } catch (error: any) {
-            console.error('Error updating profile:', error);
-            setMessage({ type: 'error', text: error.message || 'Failed to update profile.' });
+        } catch (error) {
+            logger.error('Error updating profile:', error);
+            setMessage({ type: 'error', text: errorMessage(error, 'Failed to update profile.') });
         } finally {
             setIsLoading(false);
         }

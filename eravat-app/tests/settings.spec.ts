@@ -28,7 +28,7 @@ test.describe('Settings Module', () => {
         await sp.selectTheme('Light');
     });
 
-    test('SET-003: System theme selection', async ({ page }) => {
+    test('SET-003: System theme selection', async () => {
         await sp.selectTheme('System');
         // Just verify no crash — system theme depends on OS preference
         await expect(sp.systemButton).toBeVisible();
@@ -97,7 +97,7 @@ test.describe('Settings Module', () => {
 
     // --- Notifications & Cache ---
 
-    test('SET-009: Push notification toggle', async ({ page }) => {
+    test('SET-009: Push notification toggle', async () => {
         if (await sp.pushToggle.isVisible()) {
             await sp.pushToggle.click();
             // Just verify toggle is interactable without error

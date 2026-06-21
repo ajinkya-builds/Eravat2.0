@@ -1,3 +1,4 @@
+import { errorMessage } from '../../lib/errors';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -76,8 +77,8 @@ export default function PrivacySecurity() {
                 setPasswordMessage(null);
             }, 2000);
 
-        } catch (error: any) {
-            setPasswordMessage({ type: 'error', text: error.message || "Failed to update password." });
+        } catch (error) {
+            setPasswordMessage({ type: 'error', text: errorMessage(error, "Failed to update password.") });
         } finally {
             setIsLoading(false);
         }

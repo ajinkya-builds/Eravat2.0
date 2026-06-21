@@ -64,7 +64,7 @@ test.describe('Admin Users Management Module', () => {
         await expect(registerBtn).toBeVisible({ timeout: 10_000 });
         await registerBtn.click();
 
-        const modalForm = page.locator('form').filter({ has: page.locator('input[type=\"tel\"]') }).first();
+        const modalForm = page.locator('form').filter({ has: page.locator('input[type="tel"]') }).first();
         const roleSelect = modalForm.locator('select').first();
         await expect(roleSelect).toBeVisible({ timeout: 10_000 });
         await roleSelect.selectOption('beat_guard');
@@ -116,7 +116,7 @@ test.describe('Admin Users Management Module', () => {
         await expect(registerBtn).toBeVisible({ timeout: 10_000 });
         await registerBtn.click();
 
-        const modalForm = page.locator('form').filter({ has: page.locator('input[type=\"tel\"]') }).first();
+        const modalForm = page.locator('form').filter({ has: page.locator('input[type="tel"]') }).first();
         const roleSelect = modalForm.locator('select').first();
         await expect(roleSelect).toBeVisible({ timeout: 10_000 });
         await roleSelect.selectOption('beat_guard');
@@ -154,7 +154,7 @@ test.describe('Admin Users Management Module', () => {
         await expect(registerBtn).toBeVisible({ timeout: 10_000 });
         await registerBtn.click();
 
-        const modalForm = page.locator('form').filter({ has: page.locator('input[type=\"tel\"]') }).first();
+        const modalForm = page.locator('form').filter({ has: page.locator('input[type="tel"]') }).first();
         const roleSelect = modalForm.locator('select').first();
         await expect(roleSelect).toBeVisible({ timeout: 10_000 });
         await roleSelect.selectOption('beat_guard');

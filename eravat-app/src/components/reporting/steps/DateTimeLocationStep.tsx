@@ -30,11 +30,14 @@ export function DateTimeLocationStep() {
     };
 
     // Auto-trigger on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     useEffect(() => {
         if (formData.latitude == null || !formData.activity_date) {
             handleAutofill();
         }
+        // Mount-only: re-running on formData changes would clobber user edits
+        // with re-fetched GPS coordinates / regenerated defaults.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (

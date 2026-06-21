@@ -83,8 +83,10 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
                 if (formData.latitude < -90 || formData.latitude > 90) return false;
                 if (formData.longitude < -180 || formData.longitude > 180) return false;
                 // Validate date is not in the future
-                const activityDateTime = new Date(`${formData.activity_date}T${formData.activity_time}`);
-                if (activityDateTime > new Date()) return false;
+                {
+                    const activityDateTime = new Date(`${formData.activity_date}T${formData.activity_time}`);
+                    if (activityDateTime > new Date()) return false;
+                }
                 return true;
             case 'observationType':
                 if (!formData.observation_type) return false;

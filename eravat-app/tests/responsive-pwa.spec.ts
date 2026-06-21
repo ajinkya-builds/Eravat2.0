@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF , appPath } from './fixtures/test-constants';
+import { } from './fixtures/test-constants';
 import { ensureOnPage } from './fixtures/auth.fixture';
 
 test.describe('Responsive & PWA Module', () => {

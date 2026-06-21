@@ -52,6 +52,19 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          supabase: ["@supabase/supabase-js"],
+          motion: ["framer-motion"],
+          i18n: ["i18next", "react-i18next"],
+          dexie: ["dexie", "dexie-react-hooks"],
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: "jsdom",

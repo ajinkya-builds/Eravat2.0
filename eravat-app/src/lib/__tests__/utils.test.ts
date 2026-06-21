@@ -7,7 +7,9 @@ describe('utils/cn', () => {
   });
 
   it('handles conditional classes', () => {
-    expect(cn('px-2', true && 'py-2', false && 'm-1')).toBe('px-2 py-2');
+    const included: boolean = true;
+    const excluded: boolean = false;
+    expect(cn('px-2', included && 'py-2', excluded && 'm-1')).toBe('px-2 py-2');
   });
 
   it('handles arrays of classes', () => {

@@ -1,3 +1,4 @@
+import { logger } from '../../lib/logger';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
 import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap } from 'react-leaflet';
@@ -45,7 +46,7 @@ function MapBounds({ geojsonData }: { geojsonData: any }) {
                 const layer = L.geoJSON(geojsonData);
                 map.fitBounds(layer.getBounds(), { padding: [50, 50], maxZoom: 12 });
             } catch (e) {
-                console.error('Could not fit bounds to geometry', e);
+                logger.error('Could not fit bounds to geometry', e);
             }
         }
     }, [geojsonData, map]);
@@ -200,7 +201,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
 
                 setObsPins(pins);
             } catch (err) {
-                console.error('Error fetching observation pins:', err);
+                logger.error('Error fetching observation pins:', err);
             } finally {
                 setLoadingPins(false);
             }
@@ -258,7 +259,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parseGeometry = (beatsData: any[]) => {
         if (!beatsData?.length) return null;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const features = beatsData.filter(b => b.boundary).map(beat => {
             const buf = Buffer.from(beat.boundary, 'hex');
             const geom = wkx.Geometry.parse(buf);
@@ -314,7 +315,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                 }
             }
         } catch (error) {
-            console.error('Error fetching geo data:', error);
+            logger.error('Error fetching geo data:', error);
             setDivisionGeo(null); setRangeGeo(null); setBeatGeo(null);
         }
         setLoadingGeo(false);

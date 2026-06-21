@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF, ADMIN , appPath } from './fixtures/test-constants';
+import { ADMIN } from './fixtures/test-constants';
 import { ensureOnPage, loginAs } from './fixtures/auth.fixture';
 import { BottomNav } from './page-objects/bottom-nav.page';
 

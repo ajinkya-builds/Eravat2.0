@@ -73,18 +73,23 @@ export default function AppSettings() {
     useEffect(() => {
         const r = profile?.notification_radius_km;
         if (typeof r === 'number') {
+            // Hydrating local slider state from the async-loaded profile is
+            // exactly a "sync external store → state" effect; the reset of
+            // radiusHydrated suppresses the debounced persist for this write.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setRadius(r);
             radiusHydrated.current = false;
         }
     }, [profile]);
 
+    const userId = user?.id;
     const persist = useCallback(async (newRadius: number) => {
-        if (!user?.id) return;
+        if (!userId) return;
         setSaveState('saving');
-        const { error } = await supabase.from('profiles').update({ notification_radius_km: newRadius }).eq('id', user.id);
+        const { error } = await supabase.from('profiles').update({ notification_radius_km: newRadius }).eq('id', userId);
         setSaveState(error ? 'error' : 'saved');
         setTimeout(() => setSaveState('idle'), 2500);
-    }, [user?.id]);
+    }, [userId]);
 
     useEffect(() => {
         if (!radiusHydrated.current) {
@@ -107,7 +112,9 @@ export default function AppSettings() {
         try {
             const saved = localStorage.getItem('eravat_app_settings');
             if (saved) return JSON.parse(saved);
-        } catch (e) { }
+        } catch {
+            // Corrupted localStorage: fall back to defaults
+        }
         return {};
     };
 
@@ -250,7 +257,7 @@ export default function AppSettings() {
                             </div>
                             <select
                                 value={mapStyle}
-                                onChange={(e) => setMapStyle(e.target.value as any)}
+                                onChange={(e) => setMapStyle(e.target.value as 'terrain' | 'satellite')}
                                 className="bg-background border border-border rounded-lg px-2 py-1 text-sm outline-none"
                             >
                                 <option value="terrain">{t('terrain')}</option>

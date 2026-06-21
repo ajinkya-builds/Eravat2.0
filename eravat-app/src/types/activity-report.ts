@@ -1,7 +1,7 @@
 export type UserRole = 'dfo' | 'range_officer' | 'beat_guard' | 'rrt' | 'ccf' | 'biologist' | 'veterinarian' | 'admin' | 'volunteer';
 export type UserPosition = 'DFO' | 'Range Officer' | 'Beat Guard' | 'Response Team' | 'Conservator' | 'Biologist' | 'Veterinarian' | 'Admin' | 'Volunteer';
 export type ObservationType = 'direct' | 'indirect' | 'loss';
-export type LossType = 'No loss' | 'property' | 'crop' | 'livestock' | 'fencing' | 'solar panels' | 'FD establishment' | 'Other';
+export type LossType = 'No loss' | 'property' | 'crop' | 'grain' | 'livestock' | 'fencing' | 'solar panels' | 'FD establishment' | 'human injury' | 'human death' | 'Other';
 export type IndirectSightingType = 'Pugmark' | 'Dung' | 'Broken Branches' | 'Sound' | 'Eyewitness';
 
 export interface ActivityReport {

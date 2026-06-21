@@ -24,9 +24,11 @@ export function ProtectedRoute() {
     useEffect(() => {
         if (!loading && session && !profile) {
             const timer = setTimeout(() => setTimedOut(true), PROFILE_LOAD_TIMEOUT_MS);
-            return () => clearTimeout(timer);
+            return () => {
+                clearTimeout(timer);
+                setTimedOut(false);
+            };
         }
-        setTimedOut(false);
     }, [loading, session, profile]);
 
     if (loading || (session && !profile && !timedOut)) {
@@ -57,9 +59,11 @@ export function AdminRoute() {
     useEffect(() => {
         if (!loading && session && !profile) {
             const timer = setTimeout(() => setTimedOut(true), PROFILE_LOAD_TIMEOUT_MS);
-            return () => clearTimeout(timer);
+            return () => {
+                clearTimeout(timer);
+                setTimedOut(false);
+            };
         }
-        setTimedOut(false);
     }, [loading, session, profile]);
 
     if (loading || (session && !profile && !timedOut)) {

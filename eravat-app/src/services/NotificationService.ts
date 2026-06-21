@@ -77,7 +77,7 @@ export class NotificationService {
   /**
    * Subscribes to real-time notification inserts for the current user.
    */
-  static subscribeToNotifications(userId: string, callback: (payload: any) => void) {
+  static subscribeToNotifications(userId: string, callback: (payload: { new: unknown }) => void) {
     return supabase
       .channel(`public:notifications:user_id=eq.${userId}`)
       .on(

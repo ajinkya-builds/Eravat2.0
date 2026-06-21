@@ -1,3 +1,4 @@
+import { logger } from '../../lib/logger';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, Phone, BookOpen, RefreshCw, FileText, ExternalLink, AlertCircle } from 'lucide-react';
@@ -19,7 +20,7 @@ export default function HelpSupport() {
             localStorage.setItem('last_sync_time', now);
             setLastSyncTime(now);
         } catch (error) {
-            console.error('Failed to force sync:', error);
+            logger.error('Failed to force sync:', error);
         } finally {
             setTimeout(() => setIsSyncing(false), 1000); // UI feedback delay
         }

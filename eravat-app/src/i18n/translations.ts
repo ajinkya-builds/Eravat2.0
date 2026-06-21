@@ -661,11 +661,14 @@ const translations: Record<Language, Record<string, string>> = {
         // Loss types (lt_*)
         lt_no_loss: "No Loss",
         lt_crop: "Crop Damage",
+        lt_grain: "Grain Damage",
         lt_livestock: "Livestock Loss",
         lt_property: "Property Damage",
         lt_fencing: "Fencing Damage",
         lt_solar: "Solar Panel Damage",
         lt_fd: "FD Establishment",
+        lt_human_injury: "Human Injury",
+        lt_human_death: "Human Death",
         lt_other: "Other",
 
         // Photo Step (ps_*)
@@ -1542,11 +1545,14 @@ const translations: Record<Language, Record<string, string>> = {
         // Loss types (lt_*)
         lt_no_loss: "कोई हानि नहीं",
         lt_crop: "फसल क्षति",
+        lt_grain: "अनाज क्षति",
         lt_livestock: "पशुधन हानि",
         lt_property: "संपत्ति क्षति",
         lt_fencing: "बाड़ क्षति",
         lt_solar: "सोलर पैनल क्षति",
         lt_fd: "वन विभाग प्रतिष्ठान",
+        lt_human_injury: "मानव चोट",
+        lt_human_death: "मानव मृत्यु",
         lt_other: "अन्य",
 
         // Indirect types (it_*)
@@ -2338,11 +2344,14 @@ const translations: Record<Language, Record<string, string>> = {
         // Loss types (lt_*)
         lt_no_loss: "नुकसान नाही",
         lt_crop: "पीक नुकसान",
+        lt_grain: "धान्य नुकसान",
         lt_livestock: "पशुधन हानी",
         lt_property: "मालमत्ता नुकसान",
         lt_fencing: "कुंपण नुकसान",
         lt_solar: "सोलर पॅनल नुकसान",
         lt_fd: "वन विभाग आस्थापना",
+        lt_human_injury: "मानवी दुखापत",
+        lt_human_death: "मानवी मृत्यू",
         lt_other: "इतर",
 
         // Indirect types (it_*)

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format, subDays } from 'date-fns';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { supabase } from '../../supabase';
@@ -28,7 +28,7 @@ export default function AdminNotifications() {
     const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [loading, setLoading] = useState(true);
 
-    const load = async () => {
+    const load = useCallback(async () => {
         setLoading(true);
         try {
             const { data, error } = await supabase
@@ -46,9 +46,9 @@ export default function AdminNotifications() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [startDate, endDate]);
 
-    useEffect(() => { void load(); }, [startDate, endDate]);
+    useEffect(() => { void load(); }, [load]);
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();

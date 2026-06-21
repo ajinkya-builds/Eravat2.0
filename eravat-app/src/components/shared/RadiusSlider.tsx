@@ -1,18 +1,8 @@
 import { motion } from 'framer-motion';
 import { MapPin, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-export const MIN_KM = 1;
-export const MAX_KM = 500;
-
-export function clamp(v: number, min = MIN_KM, max = MAX_KM) {
-    return Math.min(max, Math.max(min, v));
-}
+import { MIN_KM, MAX_KM, type SaveState } from '../../lib/radius';
 
 // ─── SaveIndicator ───────────────────────────────────────────────────────────
-
-export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 export function SaveIndicator({ state }: { state: SaveState }) {
     if (state === 'idle') return null;
