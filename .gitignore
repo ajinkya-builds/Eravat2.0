@@ -41,3 +41,6 @@ eravat-app/test-results/
 
 # Supabase CLI temp
 supabase/.temp/
+
+# Local Netlify folder
+.netlify

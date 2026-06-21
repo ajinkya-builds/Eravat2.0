@@ -76,6 +76,8 @@ jobs:
             
             if [ "$publicKey" != "null" ] && [ -n "$publicKey" ]; then
               echo "Appetize.io upload successful!"
+              echo "Appetize Public Key: $publicKey"
+              echo "Appetize URL: https://appetize.io/app/$publicKey"
               echo "### Production Android Emulator 📱" >> $GITHUB_STEP_SUMMARY
               echo "Run the production app directly in your browser here: [Launch Emulator](https://appetize.io/app/$publicKey)" >> $GITHUB_STEP_SUMMARY
             else
