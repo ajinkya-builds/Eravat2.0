@@ -7,7 +7,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/Eravat2.0/',
+  base: process.env.VITE_BASE_PATH || (process.env.NETLIFY === "true" ? "/" : "/Eravat2.0/"),
   plugins: [
     react(),
     tailwindcss(),
