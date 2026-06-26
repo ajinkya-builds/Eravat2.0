@@ -13,11 +13,11 @@ export default function UserProfile() {
 
     const initials = profile
         ? `${profile.first_name?.charAt(0) ?? ''}${profile.last_name?.charAt(0) ?? ''}`.toUpperCase() || 'U'
-        : user?.email?.charAt(0).toUpperCase() ?? 'U';
+        : user?.phone?.slice(-4) ?? 'U';
 
     const displayName = profile
-        ? `${profile.first_name} ${profile.last_name}`.trim() || user?.email
-        : user?.email;
+        ? `${profile.first_name} ${profile.last_name}`.trim() || user?.phone || 'User'
+        : user?.phone || 'User';
 
     const roleLabel = profile?.role
         ? profile.role.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')

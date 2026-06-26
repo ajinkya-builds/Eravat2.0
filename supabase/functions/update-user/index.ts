@@ -66,7 +66,6 @@ serve(async (req) => {
     // 2. Parse request body
     const {
       id, // Target user ID
-      password,
       first_name,
       last_name,
       role,
@@ -142,10 +141,18 @@ serve(async (req) => {
       }
     }
 
-    // 6. Update Auth User
+    // 6. Update Auth User's phone if provided
     const updatesToAuth: any = {}
-    if (password) {
-      updatesToAuth.password = password
+    let normalizedPhoneDigits = ''
+    if (phone !== undefined) {
+      if (phone) {
+        const digits = phone.replace(/\D/g, '')
+        const tenDigits = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : (digits.length === 11 && digits.startsWith('0') ? digits.slice(1) : digits)
+        normalizedPhoneDigits = tenDigits
+        updatesToAuth.phone = `91${tenDigits}`
+      } else {
+        updatesToAuth.phone = null
+      }
     }
 
     if (Object.keys(updatesToAuth).length > 0) {
@@ -162,7 +169,9 @@ serve(async (req) => {
     if (first_name !== undefined) profileUpdates.first_name = first_name.trim().slice(0, MAX_NAME_LENGTH)
     if (last_name !== undefined) profileUpdates.last_name = last_name.trim().slice(0, MAX_NAME_LENGTH)
     if (role !== undefined) profileUpdates.role = role
-    if (phone !== undefined) profileUpdates.phone = phone ? phone.trim().slice(0, MAX_PHONE_LENGTH) : null
+    if (phone !== undefined) {
+      profileUpdates.phone = phone ? `+91${normalizedPhoneDigits}` : null
+    }
 
     if (Object.keys(profileUpdates).length > 0) {
       const { error: profileUpdateErr } = await adminClient

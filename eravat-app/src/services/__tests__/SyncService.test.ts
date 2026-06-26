@@ -164,4 +164,53 @@ describe('SyncService', () => {
       conflict_loss_details: ['crop', 'fencing'],
     });
   });
+
+  it('sends damage_description and damage_value to conflict_damages for loss reports', async () => {
+    (db.reports.where as any).mockReturnValueOnce({
+      anyOf: vi.fn(() => ({
+        toArray: vi.fn().mockResolvedValue([{
+          id: 'report-uuid-3',
+          user_id: 'test-user-id',
+          beat_id: 'beat-uuid-1',
+          device_timestamp: new Date().toISOString(),
+          latitude: 21.5,
+          longitude: 80.5,
+          notes: null,
+          observation_type: 'loss',
+          male_count: 0,
+          female_count: 0,
+          calf_count: 0,
+          unknown_count: 0,
+          compass_bearing: null,
+          indirect_sign_details: [],
+          conflict_loss_details: ['crop'],
+          loss_type: ['crop'],
+          damage_description: 'Custom crop damage detail text',
+          damage_value: 5000,
+          sync_status: 'pending',
+        }]),
+      })),
+    });
+
+    (db.report_media.where as any).mockReturnValueOnce({
+      equals: vi.fn(() => ({
+        toArray: vi.fn().mockResolvedValue([]),
+      })),
+    });
+
+    await syncData();
+
+    // Find the upsert call that has an array of rows and report_id: 'report-uuid-3'
+    const damagesPayload = mockUpsert.mock.calls
+      .map(([payload]) => payload)
+      .find((p) => Array.isArray(p) && p.length > 0 && p[0]?.report_id === 'report-uuid-3');
+
+    expect(damagesPayload).toBeDefined();
+    expect(damagesPayload[0]).toMatchObject({
+      report_id: 'report-uuid-3',
+      category: 'crop',
+      description: 'Custom crop damage detail text',
+      estimated_value: 5000,
+    });
+  });
 });

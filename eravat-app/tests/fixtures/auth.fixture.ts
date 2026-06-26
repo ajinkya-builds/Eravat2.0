@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import { test as base, expect, type Page, type BrowserContext } from '@playwright/test';
 import { FIELD_STAFF, ADMIN, appPath } from './test-constants';
 import { LOGIN_SUBTITLE, waitForAppReady } from './app-ready';
@@ -8,6 +9,8 @@ export { waitForAppReady } from './app-ready';
 
 export async function clearSupabaseSession(page: Page) {
     await page.evaluate(() => {
+        localStorage.removeItem('eravat_secure_session');
+        localStorage.removeItem('eravat_bypass_pin_lock');
         for (const key of Object.keys(localStorage)) {
             if (key.startsWith('sb-')) {
                 localStorage.removeItem(key);
@@ -21,16 +24,23 @@ async function isLoginScreen(page: Page): Promise<boolean> {
     return page.getByText(LOGIN_SUBTITLE).isVisible().catch(() => false);
 }
 
+async function isPINLockScreen(page: Page): Promise<boolean> {
+    return page.getByText('Enter Security PIN').isVisible().catch(() => false);
+}
+
 /** Wait until the login screen is gone and the app shell has loaded. */
 export async function waitForAuthenticated(page: Page) {
-    await page.waitForURL(
-        (url) => !url.pathname.endsWith('/login'),
-        { timeout: 60_000 },
-    );
+    if (page.url().includes('/login')) {
+        await page.waitForURL(
+            (url) => !url.pathname.endsWith('/login'),
+            { timeout: 60_000 },
+        );
+    }
     await expect(page.getByText(LOGIN_SUBTITLE)).toHaveCount(0, { timeout: 30_000 });
+    await expect(page.getByText('Enter Security PIN')).toHaveCount(0, { timeout: 30_000 });
     await waitForAppReady(page);
-    if (await isLoginScreen(page)) {
-        throw new Error('Still on login screen after waitForAuthenticated');
+    if (await isLoginScreen(page) || await isPINLockScreen(page)) {
+        throw new Error('Still on login or PIN lock screen after waitForAuthenticated');
     }
 }
 
@@ -44,23 +54,39 @@ export async function ensureOnPage(
 ) {
     const navigate = async () => {
         await page.goto(appPath(path));
-        await page.waitForLoadState('domcontentloaded');
+        await page.waitForLoadState('networkidle');
+        await page.waitForTimeout(1000);
     };
 
     await navigate();
-    if (await isLoginScreen(page)) {
+    if (await isLoginScreen(page) || await isPINLockScreen(page)) {
         await loginAs(page, credentials);
         await navigate();
     }
     try {
         await waitForAuthenticated(page);
-    } catch {
+    } catch (err) {
+        console.error('DEBUG: initial waitForAuthenticated failed with error:', err);
+        console.error('DEBUG: current URL is:', page.url());
+        const bodyText = await page.innerText('body').catch(() => 'no body');
+        console.error('DEBUG: body text context:', {
+            url: page.url(),
+            hasWelcome: bodyText.includes('Welcome'),
+            hasLoading: bodyText.includes('Loading'),
+            hasEnterCode: bodyText.includes('Enter')
+        });
         await loginAs(page, credentials);
         await navigate();
-        await waitForAuthenticated(page);
+        try {
+            await waitForAuthenticated(page);
+        } catch (err2) {
+            console.error('DEBUG: second waitForAuthenticated failed with error:', err2);
+            console.error('DEBUG: final URL is:', page.url());
+            throw err2;
+        }
     }
 
-    if (await isLoginScreen(page)) {
+    if (await isLoginScreen(page) || await isPINLockScreen(page)) {
         await loginAs(page, credentials);
         await navigate();
         await waitForAuthenticated(page);
@@ -69,25 +95,50 @@ export async function ensureOnPage(
 
 export async function loginAs(
     page: Page,
-    credentials: TestCredentials,
+    credentials: { phone: string },
 ) {
     await page.goto(appPath('/login'));
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     if (!(await isLoginScreen(page))) {
         await clearSupabaseSession(page);
         await page.goto(appPath('/login'));
-        await page.waitForLoadState('domcontentloaded');
+        await page.waitForLoadState('networkidle');
     }
 
-    const passwordTab = page.getByRole('button', { name: /Login with Password|पासवर्ड/i });
-    if (await passwordTab.isVisible().catch(() => false)) {
-        await passwordTab.click();
-    }
-    await page.getByPlaceholder('+91 98765 43210').fill(credentials.phone);
-    await page.getByPlaceholder('••••••••').fill(credentials.password);
+    const phoneInput = page.getByPlaceholder('9876543210');
+    await phoneInput.waitFor({ state: 'visible' });
+    await phoneInput.click();
+    await phoneInput.fill(credentials.phone);
+    await page.waitForFunction(
+        (expected) => {
+            const el = document.querySelector('input[placeholder="9876543210"]');
+            return el && el.value === expected;
+        },
+        credentials.phone,
+        { timeout: 10000 }
+    );
     await page.locator('button[type="submit"]').click();
+
+    await page.getByPlaceholder('Enter 6-digit code').fill('123456');
+    await page.locator('button[type="submit"]').click();
+
+    const keyOne = page.getByRole('button', { name: '1', exact: true });
+    await expect(keyOne).toBeVisible({ timeout: 10000 });
+    for (let i = 0; i < 4; i++) {
+        await keyOne.click();
+    }
+
+    await expect(page.getByText('Confirm Security PIN')).toBeVisible({ timeout: 10000 });
+    for (let i = 0; i < 4; i++) {
+        await keyOne.click();
+    }
+
     await waitForAuthenticated(page);
+
+    await page.evaluate(() => {
+        localStorage.setItem('eravat_bypass_pin_lock', 'true');
+    });
 }
 
 type AuthFixtures = {

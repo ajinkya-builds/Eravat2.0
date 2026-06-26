@@ -92,7 +92,7 @@
 
 ```
 /Volumes/Eravat/Eravat 2.0/
-├── .env / .env.local              # Supabase + Twilio credentials (⚠️ real keys)
+├── .env / .env.local              # Supabase credentials (⚠️ real keys)
 ├── .github/workflows/deploy.yml   # GitHub Pages CI/CD
 ├── data/Shape_Files/              # GIS shapefiles (BTR, STR, MP boundaries)
 │   ├── BTR/                       # Bandhavgarh Tiger Reserve
@@ -380,10 +380,9 @@ User enters phone number
   → ProtectedRoute checks session + profile validity
 ```
 
-**OTP Login (available but costly):**
-- Uses Twilio for SMS delivery
-- Unreliable in India without DLT registration
-- Cost: ₹0.5–1.0 per OTP × daily logins = significant expense
+**OTP Login (native passwordless):**
+- Uses Supabase local sandbox / test OTP bypass for staging and development
+- PIN/Biometrics setup on the app allows offline daily unlock, bypassing regular OTP delivery
 
 **MFA (Admin only):**
 - TOTP-based MFA via `supabase.auth.mfa`
@@ -940,6 +939,7 @@ Also: `supabase/seeds/shp_to_sql.py` — Alternative shapefile-to-SQL converter
 - Requires: JDK 21+, Android Studio
 - Flow: `npm run build` → `npx cap sync` → `./gradlew assembleDebug`
 - Output: `android/app/build/outputs/apk/debug/app-debug.apk` (~9.1 MB)
+- Stored Location in Repo: `app-debug.apk` (at the repository root, updated whenever a new APK is generated)
 - App ID: `com.forestdept.eravat`
 
 ---
@@ -987,9 +987,6 @@ Also: `supabase/seeds/shp_to_sql.py` — Alternative shapefile-to-SQL converter
 |----------|---------|
 | `VITE_SUPABASE_URL` | Supabase URL (local override) |
 | `VITE_SUPABASE_ANON_KEY` | Anon key (local override) |
-| `TWILIO_ACCOUNT_SID` | Twilio account identifier |
-| `TWILIO_API_KEY_SID` | Twilio API key |
-| `TWILIO_API_KEY_SECRET` | Twilio API secret |
 
 > [!CAUTION]
 > The root `.env` file contains `SUPABASE_SERVICE_ROLE_KEY` which grants full database access. This should **never** be committed to version control. Verify `.gitignore` includes both `.env` and `.env.local`.
@@ -1065,7 +1062,7 @@ Also: `supabase/seeds/shp_to_sql.py` — Alternative shapefile-to-SQL converter
 |-----|-------|
 | README.md (root) | Only contains `# Eravat2.0` — essentially empty |
 | Gemini Context.txt | Empty file (0 bytes) |
-| SOURCE_OF_TRUTH §3.3 vs §5.3 | Describes both Twilio OTP and Phone/Email password — conflicting historical states |
+| SOURCE_OF_TRUTH §3.3 vs §5.3 | Describes both passwordless OTP/PIN and Phone/Email password — conflicting historical states |
 | schema.md | Last updated 2026-03-14, missing AUTH_ARCHITECTURE proposed changes |
 | INDEX.md | References `OTP_TESTING_GUIDE.md` which doesn't exist |
 | README.md (docs) | References `MobilePatrol.tsx` which was deleted |
@@ -1138,6 +1135,7 @@ From SUGGESTED_ENHANCEMENTS_AUDIT.md:
 | 2026-03-28 | Android APK rebuild (9.1 MB) |
 | 2026-05-12 | main + yash-dev merge, backup branches, total_elephants alignment |
 | 2026-05-13 | GitHub Pages logo fix, auth bootstrap resilience, publishable key, CI deploy |
+| 2026-06-26 | Android login crash fix (Firebase push notifications missing config check), APK updated at root |
 
 ---
 

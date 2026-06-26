@@ -1,12 +1,15 @@
 import { useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, MapPin, FileText, Compass, Camera, CheckCircle2, X } from 'lucide-react';
+import { ChevronLeft, MapPin, FileText, Compass, Camera, CheckCircle2, X, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ActivityFormProvider, useActivityForm, type FormStep } from '../../contexts/ActivityFormContext';
 import { DateTimeLocationStep } from './steps/DateTimeLocationStep';
 import { ObservationTypeStep } from './steps/ObservationTypeStep';
+import { DamageStep } from './steps/DamageStep';
 import { CompassBearingStep } from './steps/CompassBearingStep';
 import { PhotoStep } from './steps/PhotoStep';
+import { UnsavedChangesModal } from './UnsavedChangesModal';
+import { useCamera } from '../../hooks/useCamera';
 import { db } from '../../db';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,20 +18,54 @@ import { Network } from '@capacitor/network';
 import { syncData } from '../../services/syncService';
 
 function StepperContent() {
-    const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm } = useActivityForm();
+    const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm, activeSteps, updateFormData } = useActivityForm();
     const { profile } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [showExitWarning, setShowExitWarning] = useState(false);
     const navigate = useNavigate();
     const { t } = useLanguage();
+    const { takePhoto, isCapturing: loadingCamera } = useCamera();
 
-    const STEPS: { type: FormStep; label: string; icon: ReactNode }[] = [
-        { type: 'dateTimeLocation', label: t('rs_date_location'), icon: <MapPin className="w-4 h-4" /> },
-        { type: 'observationType', label: t('rs_observation'), icon: <FileText className="w-4 h-4" /> },
-        { type: 'compassBearing', label: t('rs_compass'), icon: <Compass className="w-4 h-4" /> },
-        { type: 'photo', label: t('rs_photo'), icon: <Camera className="w-4 h-4" /> },
-    ];
+    const ALL_STEPS: Record<FormStep, { label: string; icon: ReactNode }> = {
+        dateTimeLocation: { label: t('rs_date_location'), icon: <MapPin className="w-4 h-4" /> },
+        observationType: { label: t('rs_observation'), icon: <FileText className="w-4 h-4" /> },
+        damage: { label: t('rs_damage_label'), icon: <AlertTriangle className="w-4 h-4" /> },
+        compassBearing: { label: t('rs_compass'), icon: <Compass className="w-4 h-4" /> },
+        photo: { label: t('rs_photo'), icon: <Camera className="w-4 h-4" /> },
+    };
+
+    const isFormDirty = () => {
+        return formData.observation_type !== null || 
+               formData.activity_date !== '' || 
+               formData.activity_time !== '' || 
+               formData.damage_description !== '' || 
+               formData.damage_value !== null ||
+               formData.photo_url !== null;
+    };
+
+    const handleExitClick = () => {
+        if (isFormDirty()) {
+            setShowExitWarning(true);
+        } else {
+            resetForm();
+            navigate('/');
+        }
+    };
+
+    const handleConfirmExit = () => {
+        setShowExitWarning(false);
+        resetForm();
+        navigate('/');
+    };
+
+    const handleBottomBarCapture = async () => {
+        const result = await takePhoto();
+        if (result) {
+            updateFormData({ photo_url: result.dataUrl });
+        }
+    };
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
@@ -85,8 +122,6 @@ function StepperContent() {
                 } else {
                     console.error('[ReportStepper] Failed to parse photo_url: invalid data URL format');
                 }
-            } else {
-                console.log('[ReportStepper] No photo_url found in formData');
             }
 
             setSubmitted(true);
@@ -95,7 +130,6 @@ function StepperContent() {
             // Auto-sync immediately if online
             Network.getStatus().then(status => {
                 if (status.connected) {
-                    // Slight delay to ensure Dexie write is flushed
                     setTimeout(() => syncData().catch(console.error), 500);
                 }
             });
@@ -126,27 +160,33 @@ function StepperContent() {
 
     return (
         <div className="flex flex-col min-h-screen bg-background relative overflow-hidden">
+            <UnsavedChangesModal
+                isOpen={showExitWarning}
+                onConfirm={handleConfirmExit}
+                onCancel={() => setShowExitWarning(false)}
+            />
+
             {/* Premium Header with Exit Button */}
             <header className="sticky top-0 z-50 px-4 py-4 flex items-center justify-between bg-background/80 backdrop-blur-xl border-b border-border/50">
                 <button
-                    onClick={() => navigate('/')}
+                    onClick={handleExitClick}
                     className="p-2 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                     aria-label="Close and go back"
                 >
                     <X className="w-5 h-5" />
                 </button>
                 <h1 className="text-sm font-bold text-foreground">{t('report_activity')}</h1>
-                <div className="w-10" /> {/* Spacer for centering */}
+                <div className="w-10" />
             </header>
 
             {/* Main Content Area */}
             <div className="flex-1 space-y-6 pb-32 pt-6 max-w-2xl mx-auto w-full">
                 {/* Progress Header */}
                 <div className="space-y-6 px-4">
-                    {/* Animated Progress Bar - Centered and Padded */}
+                    {/* Animated Progress Bar */}
                     <div className="flex gap-2 max-w-md mx-auto">
-                        {STEPS.map((step, i) => (
-                            <div key={step.type} className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                        {activeSteps.map((stepType, i) => (
+                            <div key={stepType} className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                                 <motion.div
                                     initial={false}
                                     animate={{
@@ -162,24 +202,27 @@ function StepperContent() {
                         ))}
                     </div>
 
-                    {/* Step Tabs Horizontal Scroll - Centered Layout */}
+                    {/* Step Tabs Horizontal Scroll */}
                     <div className="flex justify-start md:justify-center">
                         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-4 mask-linear-fade">
-                            {STEPS.map((step, i) => (
-                                <div
-                                    key={step.type}
-                                    className={cn(
-                                        'flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] md:text-xs font-semibold whitespace-nowrap transition-all duration-300',
-                                        i === currentStepIndex
-                                            ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-100'
-                                            : i < currentStepIndex
-                                                ? 'bg-primary/10 text-primary border border-primary/20 scale-95 opacity-80'
-                                                : 'bg-muted text-muted-foreground border border-transparent scale-95 opacity-50'
-                                    )}
-                                >
-                                    {step.icon} {t(step.label)}
-                                </div>
-                            ))}
+                            {activeSteps.map((stepType, i) => {
+                                const stepMeta = ALL_STEPS[stepType];
+                                return (
+                                    <div
+                                        key={stepType}
+                                        className={cn(
+                                            'flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] md:text-xs font-semibold whitespace-nowrap transition-all duration-300',
+                                            i === currentStepIndex
+                                                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-100'
+                                                : i < currentStepIndex
+                                                    ? 'bg-primary/10 text-primary border border-primary/20 scale-95 opacity-80'
+                                                    : 'bg-muted text-muted-foreground border border-transparent scale-95 opacity-50'
+                                        )}
+                                    >
+                                        {stepMeta.icon} {stepMeta.label}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -211,6 +254,7 @@ function StepperContent() {
                         >
                             {currentStep === 'dateTimeLocation' && <DateTimeLocationStep />}
                             {currentStep === 'observationType' && <ObservationTypeStep />}
+                            {currentStep === 'damage' && <DamageStep />}
                             {currentStep === 'compassBearing' && <CompassBearingStep />}
                             {currentStep === 'photo' && <PhotoStep />}
                         </motion.div>
@@ -218,37 +262,61 @@ function StepperContent() {
                 </div>
             </div>
 
-            {/* Sticky Bottom Navigation Bar */}
+            {/* Sticky Bottom Navigation Bar (Thumb Zone Anchored) */}
             <div className="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6 pb-safe border-t border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
                 <div className="max-w-2xl mx-auto flex justify-between gap-4">
-                    <button
-                        type="button"
-                        onClick={goToPreviousStep}
-                        disabled={currentStepIndex === 0}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
-                    >
-                        <ChevronLeft className="w-5 h-5" /> {t('back')}
-                    </button>
-
-                    {isLastStep() ? (
-                        <button
-                            type="button"
-                            onClick={handleSubmit}
-                            disabled={isSubmitting}
-                            className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-emerald-500 text-white text-sm font-bold shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
-                        >
-                            <CheckCircle2 className="w-5 h-5" />
-                            {isSubmitting ? t('rs_saving') : t('rs_submit_offline')}
-                        </button>
+                    {currentStep === 'photo' && !formData.photo_url ? (
+                        <>
+                            <button
+                                type="button"
+                                onClick={handleSubmit}
+                                disabled={isSubmitting}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
+                            >
+                                {t('rs_submit_offline')} (Skip)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleBottomBarCapture}
+                                disabled={loadingCamera || isSubmitting}
+                                className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-primary text-primary-foreground text-sm font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                            >
+                                <Camera className="w-5 h-5" />
+                                {loadingCamera ? t('ps_opening_camera') : t('ps_take_photo')}
+                            </button>
+                        </>
                     ) : (
-                        <button
-                            type="button"
-                            onClick={goToNextStep}
-                            disabled={!isStepValid(currentStep)}
-                            className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-primary text-primary-foreground text-sm font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
-                        >
-                            {t('continue_btn')} <ChevronLeft className="w-5 h-5 rotate-180" />
-                        </button>
+                        <>
+                            <button
+                                type="button"
+                                onClick={goToPreviousStep}
+                                disabled={currentStepIndex === 0}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
+                            >
+                                <ChevronLeft className="w-5 h-5" /> {t('back')}
+                            </button>
+
+                            {isLastStep() ? (
+                                <button
+                                    type="button"
+                                    onClick={handleSubmit}
+                                    disabled={isSubmitting}
+                                    className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-emerald-500 text-white text-sm font-bold shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
+                                >
+                                    <CheckCircle2 className="w-5 h-5" />
+                                    {isSubmitting ? t('rs_saving') : t('rs_submit_offline')}
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={goToNextStep}
+                                    disabled={!isStepValid(currentStep)}
+                                    className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-primary text-primary-foreground text-sm font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
+                                >
+                                    {t('continue_btn')} <ChevronLeft className="w-5 h-5 rotate-180" />
+                                </button>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

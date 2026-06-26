@@ -30,13 +30,11 @@ test.describe('Admin Users Management Module', () => {
         await expect(registerBtn).toBeVisible({ timeout: 10_000 });
         await registerBtn.click();
 
-        // Default role is often "volunteer", which hides email/password fields.
         const roleSelect = page.locator('form select').first();
         await expect(roleSelect).toBeVisible({ timeout: 10_000 });
-        await roleSelect.selectOption('beat_guard');
 
-        const emailInput = page.locator('input[type="email"]');
-        await expect(emailInput).toBeVisible({ timeout: 10_000 });
+        const phoneInput = page.locator('input[type="tel"]');
+        await expect(phoneInput).toBeVisible({ timeout: 10_000 });
     });
 
     test('AUSR-004: Register modal cancel', async ({ page }) => {
@@ -44,21 +42,17 @@ test.describe('Admin Users Management Module', () => {
         await expect(registerBtn).toBeVisible({ timeout: 10_000 });
         await registerBtn.click();
 
-        const roleSelect = page.locator('form select').first();
-        await expect(roleSelect).toBeVisible({ timeout: 10_000 });
-        await roleSelect.selectOption('beat_guard');
-
-        const emailInput = page.locator('input[type="email"]');
-        await expect(emailInput).toBeVisible({ timeout: 10_000 });
+        const phoneInput = page.locator('input[type="tel"]');
+        await expect(phoneInput).toBeVisible({ timeout: 10_000 });
 
         // Cancel button text: t('profile.cancel') = "Cancel"
         const cancelBtn = page.locator('button').filter({ hasText: /Cancel/i }).first();
         await cancelBtn.click();
-        await expect(emailInput).not.toBeVisible({ timeout: 5_000 });
+        await expect(phoneInput).not.toBeVisible({ timeout: 5_000 });
     });
 
     test('AUSR-005: Register new user (CRUD create)', async ({ page }) => {
-        const uniqueEmail = `e2e-${Date.now()}@test.local`;
+        const uniquePhone = `9` + Math.floor(100000000 + Math.random() * 900000000);
 
         const registerBtn = page.getByRole('button', { name: /Register Personnel|Register/i }).first();
         await expect(registerBtn).toBeVisible({ timeout: 10_000 });
@@ -69,22 +63,14 @@ test.describe('Admin Users Management Module', () => {
         await expect(roleSelect).toBeVisible({ timeout: 10_000 });
         await roleSelect.selectOption('beat_guard');
 
-        const emailInput = modalForm.locator('input[type="email"]');
-        await expect(emailInput).toBeVisible({ timeout: 10_000 });
-
-        // Form fields: first_name, last_name (grid), email, password (grid), phone, role
         const textInputs = modalForm.locator('input[type="text"], input:not([type])');
 
-        // Fill first name and last name (first two text inputs in the form)
+        // Fill first name and last name
         await textInputs.first().fill('E2E');
         await textInputs.nth(1).fill('TestUser');
-        await emailInput.fill(uniqueEmail);
-        await modalForm.locator('input[type="password"]').fill('Test@1234');
 
         const phoneInput = modalForm.locator('input[type="tel"]');
-        if (await phoneInput.isVisible()) {
-            await phoneInput.fill('9000000001');
-        }
+        await phoneInput.fill(uniquePhone);
 
         // Location fields (required for profile completeness)
         const locInputs = modalForm.locator('input[type="number"]');
@@ -97,8 +83,6 @@ test.describe('Admin Users Management Module', () => {
 
         const submitBtn = modalForm.locator('button[type="submit"]');
         await submitBtn.click();
-        // The backend may accept or reject creation depending on configured policies.
-        // For this suite, just verify the UI stays responsive after submit.
         await expect(modalForm).toBeVisible({ timeout: 10_000 });
     });
 
@@ -111,7 +95,7 @@ test.describe('Admin Users Management Module', () => {
         await expect(table.or(noData)).toBeVisible();
     });
 
-    test('AUSR-007: Register with duplicate email shows error', async ({ page }) => {
+    test('AUSR-007: Register with duplicate phone shows error', async ({ page }) => {
         const registerBtn = page.getByRole('button', { name: /Register Personnel|Register/i }).first();
         await expect(registerBtn).toBeVisible({ timeout: 10_000 });
         await registerBtn.click();
@@ -121,19 +105,13 @@ test.describe('Admin Users Management Module', () => {
         await expect(roleSelect).toBeVisible({ timeout: 10_000 });
         await roleSelect.selectOption('beat_guard');
 
-        const emailInput = modalForm.locator('input[type="email"]');
-        await expect(emailInput).toBeVisible({ timeout: 10_000 });
-
         const textInputs = modalForm.locator('input[type="text"], input:not([type])');
         await textInputs.first().fill('Dup');
         await textInputs.nth(1).fill('Test');
-        await emailInput.fill('admin@test.local');
-        await modalForm.locator('input[type="password"]').fill('Test@1234');
 
         const phoneInput = modalForm.locator('input[type="tel"]');
-        if (await phoneInput.isVisible()) {
-            await phoneInput.fill('9000000002');
-        }
+        await phoneInput.fill('8899776655'); // Use the seeded E2E field staff phone
+        
         const locInputs = modalForm.locator('input[type="number"]');
         if (await locInputs.first().isVisible().catch(() => false)) {
             await locInputs.first().fill('22.9734');
@@ -145,7 +123,6 @@ test.describe('Admin Users Management Module', () => {
         const submitBtn = modalForm.locator('button[type="submit"]');
         await submitBtn.click();
 
-        // Duplicate handling differs by environment; ensure the UI stays responsive after submit.
         await expect(modalForm).toBeVisible({ timeout: 10_000 });
     });
 
@@ -159,14 +136,14 @@ test.describe('Admin Users Management Module', () => {
         await expect(roleSelect).toBeVisible({ timeout: 10_000 });
         await roleSelect.selectOption('beat_guard');
 
-        const emailInput = modalForm.locator('input[type="email"]');
-        await expect(emailInput).toBeVisible({ timeout: 10_000 });
+        const phoneInput = modalForm.locator('input[type="tel"]');
+        await expect(phoneInput).toBeVisible({ timeout: 10_000 });
 
         const submitBtn = modalForm.locator('button[type="submit"]');
         await submitBtn.click();
 
         // Modal should remain open (native HTML validation prevents submission)
-        await expect(emailInput).toBeVisible();
+        await expect(phoneInput).toBeVisible();
     });
 
     test('AUSR-009: User table has columns', async ({ page }) => {
@@ -174,7 +151,7 @@ test.describe('Admin Users Management Module', () => {
         const headerRow = table.locator('thead tr, th').first();
         if (await headerRow.isVisible({ timeout: 5_000 }).catch(() => false)) {
             const headerText = await headerRow.textContent();
-            expect(headerText).toMatch(/Name|Email|Role|Phone|Contact/i);
+            expect(headerText).toMatch(/Name|Role|Phone|Contact/i);
         }
     });
 

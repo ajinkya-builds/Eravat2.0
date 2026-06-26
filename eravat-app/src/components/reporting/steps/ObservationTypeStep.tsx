@@ -60,7 +60,7 @@ function CounterInput({ label, field, value, onChange }: { label: string; field:
 
 export function ObservationTypeStep() {
     const { formData, updateFormData } = useActivityForm();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     const handleNumberChange = (field: string, value: number) => {
         updateFormData({ [field]: value } as never);
@@ -88,7 +88,7 @@ export function ObservationTypeStep() {
                             <button
                                 key={value}
                                 type="button"
-                                onClick={() => updateFormData({ observation_type: value, indirect_sign_details: [], conflict_loss_details: [], loss_type: [] })}
+                                onClick={() => updateFormData({ observation_type: value, indirect_sign_details: [], conflict_loss_details: [], loss_type: [], report_damage_manually: false })}
                                 className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all ${isSelected ? colorMap[color] : 'border-border bg-muted/20 hover:bg-muted/50'}`}
                             >
                                 <div className={`p-2 rounded-xl ${isSelected ? `bg-white/20` : 'bg-muted'}`}>
@@ -103,6 +103,29 @@ export function ObservationTypeStep() {
                     })}
                 </div>
             </div>
+
+            {/* Manual damage override toggle (for direct and indirect signs) */}
+            {formData.observation_type && formData.observation_type !== 'loss' && (
+                <div className="p-4 rounded-2xl border border-border bg-muted/10 flex items-center justify-between">
+                    <div className="space-y-0.5 pr-4">
+                        <span className="text-sm font-semibold text-foreground">
+                            {language === 'hi' ? 'क्या संबंधित नुकसान दर्ज करना है?' : language === 'mr' ? 'संबंधित नुकसान नोंदवायचे का?' : 'Report associated conflict damage?'}
+                        </span>
+                        <p className="text-xs text-muted-foreground">
+                            {language === 'hi' ? 'फसल, पशुधन या संपत्ति के नुकसान का विवरण जोड़ने के लिए सक्रिय करें।' : language === 'mr' ? 'पीक, पशुधन किंवा मालमत्तेच्या नुकसानीचे तपशील जोडण्यासाठी सक्षम करा.' : 'Enable to log crop, livestock, or property loss details.'}
+                        </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input 
+                            type="checkbox" 
+                            checked={formData.report_damage_manually} 
+                            onChange={(e) => updateFormData({ report_damage_manually: e.target.checked })}
+                            className="sr-only peer" 
+                        />
+                        <div className="w-11 h-6 bg-muted dark:bg-muted/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                </div>
+            )}
 
             {/* Conditional fields */}
             <AnimatePresence mode="wait">

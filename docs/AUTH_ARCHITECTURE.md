@@ -46,11 +46,9 @@ marginal benefit. The reframe is: **OTP is the right tool for *enrollment* and
    Users must be able to log in and use the app *without* a network round-trip.
 2. **Scale (current commitment)** — at least 100 SMS/day baseline,
    ~500 active users in year 1.
-3. **Cost sensitivity** — current Twilio US long-code route costs ~₹6.90/SMS
-   (~30× more than DLT-compliant Indian routes).
+3. **Cost sensitivity** — external SMS gateway routes can be costly (e.g., US long-code routes cost ~₹6.90/SMS).
 4. **India regulatory** — DLT (TRAI / TCCCPR-2018) registration is mandatory for
-   enterprise SMS. Current setup has no DLT registration → real-world delivery is
-   unreliable even when Twilio logs show "delivered."
+   enterprise SMS. Without DLT registration, real-world delivery is unreliable.
 5. **Existing investment** — significant work has been done on Supabase Phone Auth:
    - `enforce_strict_otp_phone_format` trigger on `auth.users`
    - `auth.identities` provider='phone' fabrication trigger
@@ -365,7 +363,7 @@ ALTER TABLE public.profiles
 
 Lets admin policy drive device behaviour without app updates.
 
-### 6.4 Send SMS hook (replaces direct Twilio integration)
+### 6.4 Send SMS hook (replaces external SMS gateways)
 
 ```text
 supabase/functions/send-sms-hook/index.ts
@@ -415,11 +413,11 @@ Reconsider only if Supabase Auth is outgrown for unrelated reasons
 
 Assumes 500 active users, 100 SMS/day enrollment baseline, 14-day re-auth cycle.
 
-| Scenario                              |    SMS/month | Twilio US long-code |    MSG91 (DLT) | Saving/month |
-| ------------------------------------- | -----------: | ------------------: | -------------: | -----------: |
-| Today (every login = OTP)             |     ~15,000 | ~$1,250 (₹1.04L)    | ~$22 (₹1,830) |     ~$1,228 |
-| With PIN (enrollment + 14-day reauth) |     ~1,500 | ~$125               | ~$2.20         |        ~$123 |
-| Steady state, year 2                  |     ~2,000 | ~$167               | ~$3            |        ~$164 |
+| Scenario                              |    SMS/month | Staging (Test OTP) |    MSG91 (DLT) |
+| ------------------------------------- | -----------: | -----------------: | -------------: |
+| Today (every login = OTP)             |     ~15,000 |              Free  | ~$22 (₹1,830) |
+| With PIN (enrollment + 14-day reauth) |     ~1,500 |              Free  | ~$2.20         |
+| Steady state, year 2                  |     ~2,000 |              Free  | ~$3            |
 
 The PIN-first architecture also delivers an ~80% reduction in user-visible login
 friction and unblocks the no-network use case entirely. The cost win is a bonus.
@@ -489,7 +487,7 @@ friction and unblocks the no-network use case entirely. The cost win is a bonus.
 | Token replay                         | Refresh-token rotation. Short JWT TTL (1 hr).                                                                                                                              |
 | Server-side compromise               | Existing RLS + new hook means a leaked DB doesn't include device-side wrapped tokens. JWT signing keys would need to leak separately — Supabase manages those.             |
 | Network MitM on OTP                  | TLS pins via Capacitor config. Short-lived OTPs (Supabase default).                                                                                                        |
-| **SIM swap** (residual real-world risk) | India SIM-swap fraud is common. Mitigations: (1) admin marks recently-SIM-swapped numbers as "additional verification required"; (2) PIN re-entry on high-risk actions; (3) Twilio Lookup SIM-swap signal during enrollment. |
+| **SIM swap** (residual real-world risk) | India SIM-swap fraud is common. Mitigations: (1) admin marks recently-SIM-swapped numbers as "additional verification required"; (2) PIN re-entry on high-risk actions; (3) verification of registration logs. |
 
 ---
 
@@ -510,8 +508,7 @@ friction and unblocks the no-network use case entirely. The cost win is a bonus.
 - [ ] **MSG91 DLT registration details.** Header name candidates? Suggest
       `ERAVAT`. Principal Entity = "Forest Department, Madhya Pradesh" — confirm.
 - [ ] **PIN length default.** 6 digits proposed. Acceptable, or 4 / 8?
-- [ ] **Twilio account post-migration.** Close it entirely, or keep alive as
-      cold-standby fallback / future voice IVR / WhatsApp Business use cases?
+- [ ] **SMS Gateway post-migration.** Transition staging/production to DLT-compliant gateway when needed.
 - [ ] **Failed-attempt wipe threshold.** 15 failures proposed (full
       re-enrollment). Acceptable, or stricter (10) / looser (20)?
 
@@ -534,4 +531,4 @@ friction and unblocks the no-network use case entirely. The cost win is a bonus.
 
 | Date       | Author                    | Change                                                |
 | ---------- | ------------------------- | ----------------------------------------------------- |
-| 2026-05-13 | Ajinkya + AI architecture session | Initial draft (after Twilio audit revealed cost + DLT + offline gaps) |
+| 2026-05-13 | Ajinkya + AI architecture session | Initial draft (after audit revealed cost + DLT + offline gaps) |

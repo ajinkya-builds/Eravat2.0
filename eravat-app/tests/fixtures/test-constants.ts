@@ -16,12 +16,10 @@ export async function gotoAndReady(
 
 export const FIELD_STAFF = {
     phone: '8899776655',
-    password: 'pass123',
 } as const;
 
 export const ADMIN = {
     phone: '9988775566',
-    password: 'P@ss123',
 } as const;
 
 const LANG_VALUE: Record<'English' | 'Hindi' | 'Marathi', string> = {

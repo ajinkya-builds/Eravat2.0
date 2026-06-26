@@ -16,7 +16,7 @@ BEGIN
         -- Strip all non-numeric characters to get just the digits
         normalized_phone := regexp_replace(NEW.phone, '\D', '', 'g');
         
-        -- If it's a 10 digit Indian number, prepend 91 (Twilio Supabase stripped format)
+        -- If it's a 10 digit Indian number, prepend 91 (Supabase stripped format)
         IF length(normalized_phone) = 10 THEN
             normalized_phone := '91' || normalized_phone;
         -- If it's already 12 digits starting with 91, keep it
@@ -28,7 +28,7 @@ BEGIN
         END IF;
 
         -- 1. OVERRIDE the phone number on the actual auth.users record 
-        -- so it perfectly matches the `91XXXXXXXXXX` expected by Twilio/GoTrue.
+        -- so it perfectly matches the `91XXXXXXXXXX` expected by GoTrue.
         NEW.phone := normalized_phone;
 
         -- 2. AUTO-CONFIRM the phone number so Supabase allows OTP to be sent

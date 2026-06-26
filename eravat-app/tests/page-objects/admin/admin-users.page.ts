@@ -1,4 +1,4 @@
-import { type Page, type Locator, expect } from '@playwright/test';
+import { type Page, type Locator } from '@playwright/test';
 import { appPath } from '../../fixtures/test-constants';
 
 export class AdminUsersPage {
@@ -8,9 +8,7 @@ export class AdminUsersPage {
     readonly userTable: Locator;
     readonly noPersonnelText: Locator;
 
-    // Modal — located by the fixed overlay div
-    readonly emailInput: Locator;
-    readonly passwordInput: Locator;
+    // Modal
     readonly phoneInput: Locator;
     readonly roleSelect: Locator;
     readonly cancelButton: Locator;
@@ -25,10 +23,7 @@ export class AdminUsersPage {
         this.userTable = page.locator('table').first();
         this.noPersonnelText = page.locator('text=/No personnel|no.*found/i');
 
-        // Modal form fields — use global selectors since modal is rendered as fixed overlay
-        // These are only visible when modal is open
-        this.emailInput = page.locator('input[type="email"]');
-        this.passwordInput = page.locator('input[type="password"]');
+        // Modal form fields
         this.phoneInput = page.locator('input[type="tel"]').last();
         this.roleSelect = page.locator('select').first();
         this.cancelButton = page.locator('button[type="button"]').filter({ hasText: /Cancel/i }).first();

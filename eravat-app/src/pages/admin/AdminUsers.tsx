@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Search, UserPlus, Loader2, AlertTriangle, MapPin, ChevronRight, Shield, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '../../supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth, type UserProfile } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { canManageRole, GEOGRAPHIC_ROLES } from '../../lib/rbac';
 import { LocationFields } from '../../components/profile/LocationFields';
@@ -17,7 +17,6 @@ interface Profile {
     status?: string;
     created_at: string;
     // Joined
-    email?: string;
     beat_name?: string;
     range_name?: string;
     division_name?: string;
@@ -32,7 +31,7 @@ interface GeoRange extends GeoEntity { division_id: string; }
 interface GeoBeat extends GeoEntity { range_id: string; }
 
 const DEFAULT_NEW_USER = {
-    first_name: '', last_name: '', email: '', password: '', phone: '',
+    first_name: '', last_name: '', phone: '',
     role: 'volunteer', division_id: '', range_id: '', beat_id: '',
     latitude: null as number | null, longitude: null as number | null,
 };
@@ -60,11 +59,10 @@ export default function AdminUsers() {
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [showModal, setShowModal] = useState(false);
-    const [editUser, setEditUser] = useState<Profile & { password?: string, division_id?: string, range_id?: string, beat_id?: string } | null>(null);
+    const [editUser, setEditUser] = useState<Profile & { division_id?: string, range_id?: string, beat_id?: string } | null>(null);
     const [selected, setSelected] = useState<string[]>([]);
     const [confirmDelete, setConfirmDelete] = useState<{ ids: string[]; label: string } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [newUser, setNewUser] = useState(DEFAULT_NEW_USER);
     const [toast, setToast] = useState<string | null>(null);
 
     const fetchData = async () => {
@@ -156,18 +154,14 @@ export default function AdminUsers() {
 
     useEffect(() => { fetchData(); }, []);
 
-    const handleCreate = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleCreate = async (userData: typeof DEFAULT_NEW_USER) => {
         setIsSubmitting(true);
         setError(null);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Not authenticated');
 
-            const body: Record<string, unknown> = { ...newUser };
-            if (newUser.role === 'volunteer') {
-                body.onboard_volunteer = !newUser.email?.trim();
-            }
+            const body: Record<string, unknown> = { ...userData };
 
             const { data, error: fnErr } = await supabase.functions.invoke('create-user', {
                 body,
@@ -178,7 +172,6 @@ export default function AdminUsers() {
             if (data?.error) throw new Error(data.error);
 
             setShowModal(false);
-            setNewUser(DEFAULT_NEW_USER);
             setToast('Personnel registered successfully');
             setTimeout(() => setToast(null), 3000);
             await fetchData();
@@ -189,9 +182,7 @@ export default function AdminUsers() {
         }
     };
 
-    const handleUpdate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!editUser) return;
+    const handleUpdate = async (userData: Profile & { division_id?: string, range_id?: string, beat_id?: string }) => {
         setIsSubmitting(true);
         setError(null);
         try {
@@ -199,7 +190,7 @@ export default function AdminUsers() {
             if (!session) throw new Error('Not authenticated');
 
             const { data, error: fnErr } = await supabase.functions.invoke('update-user', {
-                body: editUser,
+                body: userData,
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
 
@@ -261,9 +252,6 @@ export default function AdminUsers() {
         [filtered, currentUserProfile?.role]
     );
 
-    const filteredRanges = ranges.filter(r => r.division_id === (editUser ? editUser.division_id : newUser.division_id));
-    const filteredBeats = beats.filter(b => b.range_id === (editUser ? editUser.range_id : newUser.range_id));
-
     // Determine if the current user can create ANY user types based on their role
     const canCreateAnyUser = currentUserProfile?.role && Object.values(ROLES).some(r => canManageRole(currentUserProfile.role, r.value));
 
@@ -282,7 +270,7 @@ export default function AdminUsers() {
                         </button>
                     )}
                     {canCreateAnyUser && (
-                        <button onClick={() => { setNewUser(DEFAULT_NEW_USER); setShowModal(true); }}
+                        <button onClick={() => setShowModal(true)}
                             className="bg-primary text-primary-foreground h-11 px-6 rounded-xl flex items-center gap-2 font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
                             <UserPlus size={18} /> {t('admin.users.registerPersonnel')}
                         </button>
@@ -354,11 +342,8 @@ export default function AdminUsers() {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="p-4">
-                                            <div className="flex flex-col gap-0.5">
-                                                <span className="text-sm">{p.email || 'N/A'}</span>
-                                                {p.phone && <span className="text-xs text-muted-foreground">{p.phone}</span>}
-                                            </div>
+                                        <td className="p-4 text-sm font-semibold">
+                                            {p.phone || 'N/A'}
                                         </td>
                                         <td className="p-4">
                                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase bg-secondary/50 border border-border">
@@ -389,8 +374,7 @@ export default function AdminUsers() {
                                                         ...p,
                                                         division_id: p.division_id || '',
                                                         range_id: p.range_id || '',
-                                                        beat_id: p.beat_id || '',
-                                                        password: '' // empty indicates no password change
+                                                        beat_id: p.beat_id || ''
                                                     } as any)}
                                                         className="p-2 text-muted-foreground hover:text-primary bg-muted/30 hover:bg-primary/10 rounded-lg transition-colors"
                                                         title="Edit">
@@ -412,233 +396,32 @@ export default function AdminUsers() {
                 )}
             </div>
 
-            {showModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <motion.div initial={{ scale: 0.93, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                        className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-xl font-bold mb-1">{t('admin.users.registerPersonnel')}</h2>
-                        <p className="text-sm text-muted-foreground mb-6">{t('admin.users.registerDesc')}</p>
+            <RegisterUserModal
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                onSubmit={handleCreate}
+                isSubmitting={isSubmitting}
+                divisions={divisions}
+                ranges={ranges}
+                beats={beats}
+                ROLES={ROLES}
+                GEOGRAPHIC_ROLES={GEOGRAPHIC_ROLES}
+                t={t}
+            />
 
-                        <form onSubmit={handleCreate} className="space-y-4">
-                            {newUser.role === 'volunteer' ? (
-                                <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('volunteer.onboardName')}</label>
-                                    <input
-                                        required
-                                        maxLength={200}
-                                        placeholder={t('volunteer.onboardNamePlaceholder')}
-                                        value={`${newUser.first_name}${newUser.last_name ? ` ${newUser.last_name}` : ''}`.trim()}
-                                        onChange={e => {
-                                            const parts = e.target.value.trim().split(/\s+/);
-                                            setNewUser({
-                                                ...newUser,
-                                                first_name: parts[0] || '',
-                                                last_name: parts.slice(1).join(' '),
-                                            });
-                                        }}
-                                        className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    />
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.firstName')}</label>
-                                        <input required maxLength={100} value={newUser.first_name} onChange={e => setNewUser({ ...newUser, first_name: e.target.value })}
-                                            className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.lastName')}</label>
-                                        <input required maxLength={100} value={newUser.last_name} onChange={e => setNewUser({ ...newUser, last_name: e.target.value })}
-                                            className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                                    </div>
-                                </div>
-                            )}
-
-                            {newUser.role !== 'volunteer' && (
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('login.email')}</label>
-                                        <input type="email" required value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })}
-                                            className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('login.password')}</label>
-                                        <input type="password" required minLength={8} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })}
-                                            className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                                    </div>
-                                </div>
-                            )}
-
-                            <div>
-                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.phoneNumber')}</label>
-                                <input type="tel" required maxLength={20} value={newUser.phone} onChange={e => setNewUser({ ...newUser, phone: e.target.value })} placeholder="+91 98765 43210"
-                                    className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.systemRole')}</label>
-                                <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value, division_id: '', range_id: '', beat_id: '' })}
-                                    className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm">
-                                    {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                                </select>
-                            </div>
-
-                            {newUser.role === 'volunteer' && (
-                                <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                                    <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
-                                    <select required value={newUser.beat_id} onChange={e => {
-                                        const beatId = e.target.value;
-                                        const beat = beats.find(b => b.id === beatId);
-                                        const range = beat ? ranges.find(r => r.id === beat.range_id) : undefined;
-                                        setNewUser({
-                                            ...newUser,
-                                            beat_id: beatId,
-                                            range_id: beat?.range_id || '',
-                                            division_id: range?.division_id || '',
-                                        });
-                                    }}
-                                        className="w-full p-3 rounded-xl bg-background border border-border text-sm">
-                                        <option value="">{t('admin.users.selectBeat')}</option>
-                                        {beats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                    </select>
-                                </div>
-                            )}
-
-                            <LocationFields
-                                value={{ latitude: newUser.latitude, longitude: newUser.longitude }}
-                                onChange={(loc) => setNewUser({ ...newUser, latitude: loc.latitude, longitude: loc.longitude })}
-                            />
-
-                            {(GEOGRAPHIC_ROLES as readonly string[]).includes(newUser.role) && (
-                                <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                                    <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
-                                    <select required value={newUser.division_id} onChange={e => setNewUser({ ...newUser, division_id: e.target.value, range_id: '', beat_id: '' })}
-                                        className="w-full p-3 rounded-xl bg-background border border-border text-sm">
-                                        <option value="">{t('admin.users.selectDivision')}</option>
-                                        {divisions.map(d => <option key={d.id} value={d.id}>{d.name} {d.code ? `(${d.code})` : ''}</option>)}
-                                    </select>
-                                    {['range_officer', 'beat_guard'].includes(newUser.role) && (
-                                        <select required value={newUser.range_id} disabled={!newUser.division_id} onChange={e => setNewUser({ ...newUser, range_id: e.target.value, beat_id: '' })}
-                                            className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
-                                            <option value="">{t('admin.users.selectRange')}</option>
-                                            {filteredRanges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                        </select>
-                                    )}
-                                    {newUser.role === 'beat_guard' && (
-                                        <select required value={newUser.beat_id} disabled={!newUser.range_id} onChange={e => setNewUser({ ...newUser, beat_id: e.target.value })}
-                                            className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
-                                            <option value="">{t('admin.users.selectBeat')}</option>
-                                            {filteredBeats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                        </select>
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="flex gap-3 pt-2">
-                                <button type="button" onClick={() => setShowModal(false)}
-                                    className="flex-1 h-12 rounded-xl border border-border font-semibold hover:bg-muted transition-colors text-sm">
-                                    {t('profile.cancel')}
-                                </button>
-                                <button type="submit" disabled={isSubmitting}
-                                    className="flex-1 h-12 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
-                                    {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-                                    {isSubmitting ? t('admin.users.registering') : t('admin.users.registerBtn')}
-                                </button>
-                            </div>
-                        </form>
-                    </motion.div>
-                </div>
-            )}
-
-            {editUser && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <motion.div initial={{ scale: 0.93, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                        className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-xl font-bold mb-1">{t('admin.users.editPersonnel')}</h2>
-                        <p className="text-sm text-muted-foreground mb-6">{t('admin.users.editDesc')}</p>
-
-                        <form onSubmit={handleUpdate} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.firstName')}</label>
-                                    <input required maxLength={100} value={editUser.first_name || ''} onChange={e => setEditUser({ ...editUser, first_name: e.target.value })}
-                                        className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.lastName')}</label>
-                                    <input required maxLength={100} value={editUser.last_name || ''} onChange={e => setEditUser({ ...editUser, last_name: e.target.value })}
-                                        className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.emailNoEdit')}</label>
-                                    <input type="email" disabled value={editUser.email || ''}
-                                        className="w-full p-3 rounded-xl bg-muted border border-border text-sm opacity-60 cursor-not-allowed" />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.newPassword')}</label>
-                                    <input type="password" minLength={8} value={editUser.password || ''} onChange={e => setEditUser({ ...editUser, password: e.target.value })}
-                                        placeholder={t('admin.users.leaveBlank')}
-                                        className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.phoneNumber')}</label>
-                                <input type="tel" required maxLength={20} value={editUser.phone || ''} onChange={e => setEditUser({ ...editUser, phone: e.target.value })} placeholder="+91 98765 43210"
-                                    className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.systemRole')}</label>
-                                <select value={editUser.role || ''} onChange={e => setEditUser({ ...editUser, role: e.target.value, division_id: '', range_id: '', beat_id: '' })}
-                                    className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm">
-                                    {ROLES.filter(r =>
-                                        editUser.id === currentUserProfile?.id
-                                            ? true
-                                            : canManageRole(currentUserProfile?.role, r.value)
-                                    ).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                                </select>
-                            </div>
-
-                            {(GEOGRAPHIC_ROLES as readonly string[]).includes(editUser.role) && (
-                                <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                                    <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
-                                    <select required value={editUser.division_id || ''} onChange={e => setEditUser({ ...editUser, division_id: e.target.value, range_id: '', beat_id: '' })}
-                                        className="w-full p-3 rounded-xl bg-background border border-border text-sm">
-                                        <option value="">{t('admin.users.selectDivision')}</option>
-                                        {divisions.map(d => <option key={d.id} value={d.id}>{d.name} {d.code ? `(${d.code})` : ''}</option>)}
-                                    </select>
-                                    {['range_officer', 'beat_guard'].includes(editUser.role) && (
-                                        <select required value={editUser.range_id || ''} disabled={!editUser.division_id} onChange={e => setEditUser({ ...editUser, range_id: e.target.value, beat_id: '' })}
-                                            className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
-                                            <option value="">{t('admin.users.selectRange')}</option>
-                                            {filteredRanges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                        </select>
-                                    )}
-                                    {editUser.role === 'beat_guard' && (
-                                        <select required value={editUser.beat_id || ''} disabled={!editUser.range_id} onChange={e => setEditUser({ ...editUser, beat_id: e.target.value })}
-                                            className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
-                                            <option value="">{t('admin.users.selectBeat')}</option>
-                                            {filteredBeats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                        </select>
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="flex gap-3 pt-2">
-                                <button type="button" onClick={() => setEditUser(null)}
-                                    className="flex-1 h-12 rounded-xl border border-border font-semibold hover:bg-muted transition-colors text-sm">
-                                    {t('profile.cancel')}
-                                </button>
-                                <button type="submit" disabled={isSubmitting}
-                                    className="flex-1 h-12 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
-                                    {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-                                    {isSubmitting ? t('admin.users.updating') : t('admin.settings.saveChanges')}
-                                </button>
-                            </div>
-                        </form>
-                    </motion.div>
-                </div>
-            )}
+            <EditUserModal
+                user={editUser}
+                onClose={() => setEditUser(null)}
+                onSubmit={handleUpdate}
+                isSubmitting={isSubmitting}
+                divisions={divisions}
+                ranges={ranges}
+                beats={beats}
+                ROLES={ROLES}
+                GEOGRAPHIC_ROLES={GEOGRAPHIC_ROLES}
+                currentUserProfile={currentUserProfile}
+                t={t}
+            />
 
             {confirmDelete && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -667,6 +450,305 @@ export default function AdminUsers() {
                     </motion.div>
                 </div>
             )}
+        </div>
+    );
+}
+
+// ─── Subcomponents ───────────────────────────────────────────────────────────
+
+interface RegisterUserModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (userData: typeof DEFAULT_NEW_USER) => Promise<void>;
+    isSubmitting: boolean;
+    divisions: GeoEntity[];
+    ranges: GeoRange[];
+    beats: GeoBeat[];
+    ROLES: typeof ROLES;
+    GEOGRAPHIC_ROLES: readonly string[];
+    t: (key: string) => string;
+}
+
+function RegisterUserModal({
+    isOpen,
+    onClose,
+    onSubmit,
+    isSubmitting,
+    divisions,
+    ranges,
+    beats,
+    ROLES,
+    GEOGRAPHIC_ROLES,
+    t
+}: RegisterUserModalProps) {
+    const [newUser, setNewUser] = useState(DEFAULT_NEW_USER);
+    const [volunteerFullName, setVolunteerFullName] = useState('');
+
+    useEffect(() => {
+        if (!isOpen) {
+            setNewUser(DEFAULT_NEW_USER);
+            setVolunteerFullName('');
+        }
+    }, [isOpen]);
+
+    const filteredRanges = ranges.filter(r => r.division_id === newUser.division_id);
+    const filteredBeats = beats.filter(b => b.range_id === newUser.range_id);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        void onSubmit(newUser);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div initial={{ scale: 0.93, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+                <h2 className="text-xl font-bold mb-1">{t('admin.users.registerPersonnel')}</h2>
+                <p className="text-sm text-muted-foreground mb-6">{t('admin.users.registerDesc')}</p>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {newUser.role === 'volunteer' ? (
+                        <div>
+                            <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('volunteer.onboardName')}</label>
+                            <input
+                                required
+                                maxLength={200}
+                                placeholder={t('volunteer.onboardNamePlaceholder')}
+                                value={volunteerFullName}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    setVolunteerFullName(val);
+                                    const parts = val.trim().split(/\s+/);
+                                    setNewUser({
+                                        ...newUser,
+                                        first_name: parts[0] || '',
+                                        last_name: parts.slice(1).join(' '),
+                                    });
+                                }}
+                                className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.firstName')}</label>
+                                <input required maxLength={100} value={newUser.first_name} onChange={e => setNewUser({ ...newUser, first_name: e.target.value })}
+                                    className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.lastName')}</label>
+                                <input required maxLength={100} value={newUser.last_name} onChange={e => setNewUser({ ...newUser, last_name: e.target.value })}
+                                    className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                            </div>
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.phoneNumber')}</label>
+                        <input type="tel" required maxLength={20} value={newUser.phone} onChange={e => setNewUser({ ...newUser, phone: e.target.value })} placeholder="+91 98765 43210"
+                            className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.systemRole')}</label>
+                        <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value, division_id: '', range_id: '', beat_id: '' })}
+                            className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm">
+                            {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                        </select>
+                    </div>
+
+                    {newUser.role === 'volunteer' && (
+                        <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                            <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
+                            <select required value={newUser.beat_id} onChange={e => {
+                                const beatId = e.target.value;
+                                const beat = beats.find(b => b.id === beatId);
+                                const range = beat ? ranges.find(r => r.id === beat.range_id) : undefined;
+                                setNewUser({
+                                    ...newUser,
+                                    beat_id: beatId,
+                                    range_id: beat?.range_id || '',
+                                    division_id: range?.division_id || '',
+                                });
+                            }}
+                                className="w-full p-3 rounded-xl bg-background border border-border text-sm">
+                                <option value="">{t('admin.users.selectBeat')}</option>
+                                {beats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
+                        </div>
+                    )}
+
+                    <LocationFields
+                        value={{ latitude: newUser.latitude, longitude: newUser.longitude }}
+                        onChange={(loc) => setNewUser({ ...newUser, latitude: loc.latitude, longitude: loc.longitude })}
+                    />
+
+                    {(GEOGRAPHIC_ROLES as readonly string[]).includes(newUser.role) && (
+                        <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                            <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
+                            <select required value={newUser.division_id} onChange={e => setNewUser({ ...newUser, division_id: e.target.value, range_id: '', beat_id: '' })}
+                                className="w-full p-3 rounded-xl bg-background border border-border text-sm">
+                                <option value="">{t('admin.users.selectDivision')}</option>
+                                {divisions.map(d => <option key={d.id} value={d.id}>{d.name} {d.code ? `(${d.code})` : ''}</option>)}
+                            </select>
+                            {['range_officer', 'beat_guard'].includes(newUser.role) && (
+                                <select required value={newUser.range_id} disabled={!newUser.division_id} onChange={e => setNewUser({ ...newUser, range_id: e.target.value, beat_id: '' })}
+                                    className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
+                                    <option value="">{t('admin.users.selectRange')}</option>
+                                    {filteredRanges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                </select>
+                            )}
+                            {newUser.role === 'beat_guard' && (
+                                <select required value={newUser.beat_id} disabled={!newUser.range_id} onChange={e => setNewUser({ ...newUser, beat_id: e.target.value })}
+                                    className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
+                                    <option value="">{t('admin.users.selectBeat')}</option>
+                                    {filteredBeats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                </select>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 pt-2">
+                        <button type="button" onClick={onClose}
+                            className="flex-1 h-12 rounded-xl border border-border font-semibold hover:bg-muted transition-colors text-sm">
+                            {t('profile.cancel')}
+                        </button>
+                        <button type="submit" disabled={isSubmitting}
+                            className="flex-1 h-12 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
+                            {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                            {isSubmitting ? t('admin.users.registering') : t('admin.users.registerBtn')}
+                        </button>
+                    </div>
+                </form>
+            </motion.div>
+        </div>
+    );
+}
+
+interface EditUserModalProps {
+    user: Profile & { division_id?: string, range_id?: string, beat_id?: string } | null;
+    onClose: () => void;
+    onSubmit: (userData: Profile & { division_id?: string, range_id?: string, beat_id?: string }) => Promise<void>;
+    isSubmitting: boolean;
+    divisions: GeoEntity[];
+    ranges: GeoRange[];
+    beats: GeoBeat[];
+    ROLES: typeof ROLES;
+    GEOGRAPHIC_ROLES: readonly string[];
+    currentUserProfile: UserProfile | null;
+    t: (key: string) => string;
+}
+
+function EditUserModal({
+    user,
+    onClose,
+    onSubmit,
+    isSubmitting,
+    divisions,
+    ranges,
+    beats,
+    ROLES,
+    GEOGRAPHIC_ROLES,
+    currentUserProfile,
+    t
+}: EditUserModalProps) {
+    const [editUser, setEditUser] = useState<Profile & { division_id?: string, range_id?: string, beat_id?: string } | null>(null);
+
+    useEffect(() => {
+        if (user) {
+            setEditUser({ ...user });
+        } else {
+            setEditUser(null);
+        }
+    }, [user]);
+
+    if (!user || !editUser) return null;
+
+    const filteredRanges = ranges.filter(r => r.division_id === editUser.division_id);
+    const filteredBeats = beats.filter(b => b.range_id === editUser.range_id);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        void onSubmit(editUser);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div initial={{ scale: 0.93, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+                <h2 className="text-xl font-bold mb-1">{t('admin.users.editPersonnel')}</h2>
+                <p className="text-sm text-muted-foreground mb-6">{t('admin.users.editDesc')}</p>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.firstName')}</label>
+                            <input required maxLength={100} value={editUser.first_name || ''} onChange={e => setEditUser({ ...editUser, first_name: e.target.value })}
+                                className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.lastName')}</label>
+                            <input required maxLength={100} value={editUser.last_name || ''} onChange={e => setEditUser({ ...editUser, last_name: e.target.value })}
+                                className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('profile.phoneNumber')}</label>
+                        <input type="tel" required maxLength={20} value={editUser.phone || ''} onChange={e => setEditUser({ ...editUser, phone: e.target.value })} placeholder="+91 98765 43210"
+                            className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.systemRole')}</label>
+                        <select value={editUser.role || ''} onChange={e => setEditUser({ ...editUser, role: e.target.value, division_id: '', range_id: '', beat_id: '' })}
+                            className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm">
+                            {ROLES.filter(r =>
+                                editUser.id === currentUserProfile?.id
+                                    ? true
+                                    : canManageRole(currentUserProfile?.role, r.value)
+                            ).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                        </select>
+                    </div>
+
+                    {(GEOGRAPHIC_ROLES as readonly string[]).includes(editUser.role) && (
+                        <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                            <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
+                            <select required value={editUser.division_id || ''} onChange={e => setEditUser({ ...editUser, division_id: e.target.value, range_id: '', beat_id: '' })}
+                                className="w-full p-3 rounded-xl bg-background border border-border text-sm">
+                                <option value="">{t('admin.users.selectDivision')}</option>
+                                {divisions.map(d => <option key={d.id} value={d.id}>{d.name} {d.code ? `(${d.code})` : ''}</option>)}
+                            </select>
+                            {['range_officer', 'beat_guard'].includes(editUser.role) && (
+                                <select required value={editUser.range_id || ''} disabled={!editUser.division_id} onChange={e => setEditUser({ ...editUser, range_id: e.target.value, beat_id: '' })}
+                                    className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
+                                    <option value="">{t('admin.users.selectRange')}</option>
+                                    {filteredRanges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                </select>
+                            )}
+                            {editUser.role === 'beat_guard' && (
+                                <select required value={editUser.beat_id || ''} disabled={!editUser.range_id} onChange={e => setEditUser({ ...editUser, beat_id: e.target.value })}
+                                    className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
+                                    <option value="">{t('admin.users.selectBeat')}</option>
+                                    {filteredBeats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                </select>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 pt-2">
+                        <button type="button" onClick={onClose}
+                            className="flex-1 h-12 rounded-xl border border-border font-semibold hover:bg-muted transition-colors text-sm">
+                            {t('profile.cancel')}
+                        </button>
+                        <button type="submit" disabled={isSubmitting}
+                            className="flex-1 h-12 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
+                            {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                            {isSubmitting ? t('admin.users.updating') : t('admin.settings.saveChanges')}
+                        </button>
+                    </div>
+                </form>
+            </motion.div>
         </div>
     );
 }

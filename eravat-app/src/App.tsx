@@ -17,6 +17,7 @@ import { AdminLayout } from './layouts/admin/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminObservations from './pages/admin/AdminObservations';
+import AdminMap from './pages/admin/AdminMap';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminDivisions from './pages/admin/AdminDivisions';
 import AdminConflictDashboard from './pages/admin/AdminConflictDashboard';
@@ -114,6 +115,7 @@ function App() {
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="divisions" element={<AdminDivisions />} />
                   <Route path="observations" element={<AdminObservations />} />
+                  <Route path="map" element={<AdminMap />} />
                   <Route path="notifications" element={<AdminNotifications />} />
                   <Route path="settings" element={<AdminSettings />} />
                 </Route>

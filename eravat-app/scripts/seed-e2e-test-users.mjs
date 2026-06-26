@@ -32,8 +32,6 @@ const admin = createClient(url, serviceKey, {
 
 const E2E_FIELD = {
   phone: '8899776655',
-  password: 'pass123',
-  email: 'e2e.beatguard@eravat.app',
   first_name: 'E2E',
   last_name: 'BeatGuard',
   role: 'beat_guard',
@@ -41,8 +39,6 @@ const E2E_FIELD = {
 
 const E2E_ADMIN = {
   phone: '9988775566',
-  password: 'P@ss123',
-  email: 'test_admin@gmail.com',
 };
 
 async function getGeoIds() {
@@ -76,15 +72,15 @@ async function findUserByPhone(phone) {
 
 async function upsertBeatGuard(geo) {
   const phoneE164 = `+91${E2E_FIELD.phone}`;
+  const phoneGoTrue = `91${E2E_FIELD.phone}`;
   let user = await findUserByPhone(E2E_FIELD.phone);
 
   if (user) {
     console.log(`[field] Existing user ${user.id} (profile/assignment sync only)`);
   } else {
     const { data, error } = await admin.auth.admin.createUser({
-      email: E2E_FIELD.email,
-      password: E2E_FIELD.password,
-      email_confirm: true,
+      phone: phoneGoTrue,
+      phone_confirm: true,
       user_metadata: {
         first_name: E2E_FIELD.first_name,
         last_name: E2E_FIELD.last_name,
@@ -120,14 +116,14 @@ async function upsertBeatGuard(geo) {
   }, { onConflict: 'user_id' });
   if (assignErr) throw assignErr;
 
-  const anon = createClient(url, env.VITE_SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY);
-  const { data: resolved } = await anon.rpc('get_email_by_phone', { p_phone: E2E_FIELD.phone });
-  const { error: signErr } = await anon.auth.signInWithPassword({
-    email: resolved,
-    password: E2E_FIELD.password,
-  });
-  if (signErr) throw new Error(`[field] Login verify failed: ${signErr.message}`);
-  console.log('[field] Login verified OK');
+  // Verify creation
+  const { data: verifyProf, error: verifyErr } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .single();
+  if (verifyErr || !verifyProf) throw new Error(`[field] Verification failed: profile row missing`);
+  console.log('[field] Created and verified OK');
 }
 
 async function syncAdminProfile() {
@@ -150,15 +146,9 @@ async function syncAdminProfile() {
 
 async function verifyAdmin() {
   await syncAdminProfile();
-  const anon = createClient(url, env.VITE_SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY);
-  const { data: email } = await anon.rpc('get_email_by_phone', { p_phone: E2E_ADMIN.phone });
-  if (!email) throw new Error('[admin] get_email_by_phone returned null');
-  const { error } = await anon.auth.signInWithPassword({
-    email,
-    password: E2E_ADMIN.password,
-  });
-  if (error) throw new Error(`[admin] Login verify failed: ${error.message}`);
-  console.log('[admin] Login verified OK');
+  const user = await findUserByPhone(E2E_ADMIN.phone);
+  if (!user) throw new Error('[admin] E2E admin user record missing in auth.users');
+  console.log('[admin] Admin verified OK');
 }
 
 async function main() {

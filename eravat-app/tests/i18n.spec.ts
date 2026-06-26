@@ -92,6 +92,6 @@ test.describe('Internationalization (i18n) Module', () => {
         await gotoAndReady(page, '/login');
 
         const bodyText = await page.locator('body').textContent();
-        expect(bodyText).toMatch(/पासवर्ड|ओटीपी|साइन इन|लॉगिन/i);
+        expect(bodyText).toMatch(/सत्यापन|कोड|भेजें|OTP|स्वागत/i);
     });
 });

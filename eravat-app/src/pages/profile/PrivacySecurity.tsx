@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Key, Fingerprint, Activity, ShieldAlert, LogOut, ChevronRight, Check } from 'lucide-react';
-import { supabase } from '../../supabase';
+import { ArrowLeft, Fingerprint, Activity, ShieldAlert, LogOut, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function PrivacySecurity() {
@@ -12,76 +11,6 @@ export default function PrivacySecurity() {
     // Toggles state
     const [biometricEnabled, setBiometricEnabled] = useState(false);
     const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
-
-    // Password change state
-    const [isChangingPassword, setIsChangingPassword] = useState(false);
-    const [currentPassword, setCurrentPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-
-    const handlePasswordChange = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setPasswordMessage(null);
-
-        if (!currentPassword) {
-            setPasswordMessage({ type: 'error', text: "Current password is required." });
-            return;
-        }
-
-        if (newPassword !== confirmPassword) {
-            setPasswordMessage({ type: 'error', text: "Passwords don't match." });
-            return;
-        }
-
-        if (newPassword.length < 8) {
-            setPasswordMessage({ type: 'error', text: "Password must be at least 8 characters." });
-            return;
-        }
-
-        setIsLoading(true);
-
-        try {
-            // First verify current password by attempting to re-authenticate
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user?.email) {
-                throw new Error("User email not found");
-            }
-
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-                email: user.email,
-                password: currentPassword
-            });
-
-            if (signInError) {
-                throw new Error("Current password is incorrect.");
-            }
-
-            // If verification successful, update password
-            const { error } = await supabase.auth.updateUser({
-                password: newPassword
-            });
-
-            if (error) throw error;
-
-            setPasswordMessage({ type: 'success', text: "Password updated successfully." });
-
-            // Reset and close after 2s
-            setTimeout(() => {
-                setIsChangingPassword(false);
-                setCurrentPassword('');
-                setNewPassword('');
-                setConfirmPassword('');
-                setPasswordMessage(null);
-            }, 2000);
-
-        } catch (error: any) {
-            setPasswordMessage({ type: 'error', text: error.message || "Failed to update password." });
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     return (
         <div className="min-h-screen bg-background pb-[80px]">
@@ -107,74 +36,6 @@ export default function PrivacySecurity() {
                 >
                     <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t('privacy.security')}</h2>
                     <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
-
-                        {/* Change Password Expanding Section */}
-                        <div className="flex flex-col">
-                            <button
-                                onClick={() => setIsChangingPassword(!isChangingPassword)}
-                                className="p-4 flex items-center justify-between hover:bg-muted/20 transition-colors text-left"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                                        <Key size={18} />
-                                    </div>
-                                    <span className="font-medium text-foreground">{t('privacy.changePassword')}</span>
-                                </div>
-                                <ChevronRight size={16} className={`text-muted-foreground transition-transform ${isChangingPassword ? 'rotate-90' : ''}`} />
-                            </button>
-
-                            <AnimatePresence>
-                                {isChangingPassword && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        className="overflow-hidden bg-muted/30"
-                                    >
-                                        <form onSubmit={handlePasswordChange} className="p-4 space-y-4 border-t border-border/50">
-                                            {passwordMessage && (
-                                                <div className={`p-3 rounded-xl text-sm ${passwordMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-destructive/10 text-destructive'}`}>
-                                                    {passwordMessage.text}
-                                                </div>
-                                            )}
-                                            <input
-                                                type="password"
-                                                placeholder="Current Password"
-                                                required
-                                                value={currentPassword}
-                                                onChange={(e) => setCurrentPassword(e.target.value)}
-                                                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary"
-                                            />
-                                            <input
-                                                type="password"
-                                                placeholder="New Password"
-                                                required
-                                                value={newPassword}
-                                                onChange={(e) => setNewPassword(e.target.value)}
-                                                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary"
-                                            />
-                                            <input
-                                                type="password"
-                                                placeholder="Confirm New Password"
-                                                required
-                                                value={confirmPassword}
-                                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary"
-                                            />
-                                            <div className="flex justify-end pt-2">
-                                                <button
-                                                    type="submit"
-                                                    disabled={isLoading || !currentPassword || !newPassword || !confirmPassword}
-                                                    className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 flex items-center gap-2"
-                                                >
-                                                    {isLoading ? 'Updating...' : <><Check size={16} /> Update</>}
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
 
                         {/* Biometric Toggle */}
                         <label className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/20 transition-colors">

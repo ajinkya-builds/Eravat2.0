@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Map, Plus, Settings, User, AlertTriangle } from 'lucide-react';
+import { Network } from '@capacitor/network';
 
 import { cn } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -13,8 +15,36 @@ import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
 export function AppLayout() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { sessionExpired, clearSessionExpired } = useAuth();
+    const [isOnline, setIsOnline] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+        Network.getStatus().then(status => {
+            if (isMounted) setIsOnline(status.connected);
+        });
+
+        const listener = Network.addListener('networkStatusChange', status => {
+            if (isMounted) setIsOnline(status.connected);
+        });
+
+        return () => {
+            isMounted = false;
+            void listener.then(l => l.remove());
+        };
+    }, []);
+
+    const getStatusLabel = () => {
+        const labels: Record<string, { online: string; offline: string }> = {
+            en: { online: 'Online', offline: 'Offline (Local Save)' },
+            hi: { online: 'ऑनलाइन', offline: 'ऑफलाइन (स्थानीय)' },
+            mr: { online: 'ऑनलाइन', offline: 'ऑफलाईन (स्थानिक)' }
+        };
+        const lang = (language || 'en').split('-')[0];
+        const dict = labels[lang] || labels.en;
+        return isOnline ? dict.online : dict.offline;
+    };
 
     const NAV_ITEMS = [
         { id: 'dashboard', path: '/', icon: Home, label: 'nav.dashboard' },
@@ -75,7 +105,21 @@ export function AppLayout() {
                     </div>
                     <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT</span>
                 </Link>
-                <NotificationBell />
+                <div className="flex items-center gap-3">
+                    <div className={cn(
+                        "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all duration-300",
+                        isOnline 
+                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/15 dark:text-emerald-500" 
+                            : "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/15 dark:text-amber-500"
+                    )}>
+                        <span className={cn(
+                            "w-1.5 h-1.5 rounded-full shrink-0",
+                            isOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                        )} />
+                        <span>{getStatusLabel()}</span>
+                    </div>
+                    <NotificationBell />
+                </div>
             </header>
 
             {/* Main Content Area */}

@@ -99,11 +99,11 @@ The application uses a "Shadow Database" pattern.
 
 ### 3.3 Authentication & Phone OTP Architecture (Added: 2026-03-15)
 
-Eravat 2.0 uses **Supabase Phone Authentication via Twilio**. To prevent the creation of "ghost users" during login attempts, the following strict architectural constraints are enforced:
+Eravat 2.0 uses **Supabase Phone Authentication** (with native test/sandbox OTP bypass for local/staging development, and passwordless OTP + local PIN lock). To prevent the creation of "ghost users" during login attempts, the following strict architectural constraints are enforced:
 
 1.  **Existing Users Only**: The system explicitly forbids OTP from creating new accounts. New users must be provisioned via the admin dashboard.
 2.  **RPC Verification Pre-Check**: Before sending an OTP, the client *must* query the `get_email_by_phone` SECURITY DEFINER RPC. This safely bypasses Row Level Security on the `profiles` table to confirm the last 10-digits of the user's phone exist in the database.
-3.  **Strict Identifiers (`auth.identities`)**: Supabase GoTrue OTP endpoints strictly match against the `auth.identities` table, **not** just `auth.users`, and apply provider-specific stripping (Twilio inherently strips `+` from the `+91` E.164 payload). 
+3.  **Strict Identifiers (`auth.identities`)**: Supabase GoTrue OTP endpoints strictly match against the `auth.identities` table, **not** just `auth.users`, and apply standard E.164 normalization stripping (which strips `+` from the `+91` payload). 
 4.  **Database Auto-Formatting Triggers**: To guarantee existing users and newly provisioned users can always log in without mismatch errors:
     *   A `BEFORE INSERT OR UPDATE` trigger on `auth.users` catches any incoming phone number, strips all non-numeric characters, and forces it into the exact `91XXXXXXXXXX` format (no `+` sign).
     *   An `AFTER INSERT OR UPDATE` trigger on `auth.users` instantly generates the required `provider: 'phone'` row within `auth.identities` using this same exact stripped format.

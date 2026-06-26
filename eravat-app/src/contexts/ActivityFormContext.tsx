@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 import type { ObservationType } from '../types/activity-report';
 
-export type FormStep = 'dateTimeLocation' | 'observationType' | 'compassBearing' | 'photo';
+export type FormStep = 'dateTimeLocation' | 'observationType' | 'damage' | 'compassBearing' | 'photo';
 
 export interface ActivityFormData {
     // Step 1: Date, Time, Location
@@ -27,6 +27,11 @@ export interface ActivityFormData {
     // Step 4: Photo
     photo_url: string | null;
     notes: string | null;
+
+    // Custom Damage fields
+    damage_description: string;
+    damage_value: number | null;
+    report_damage_manually: boolean;
 }
 
 interface ActivityFormContextValue {
@@ -39,9 +44,8 @@ interface ActivityFormContextValue {
     isStepValid: (step: FormStep) => boolean;
     isLastStep: () => boolean;
     resetForm: () => void;
+    activeSteps: FormStep[];
 }
-
-const STEPS: FormStep[] = ['dateTimeLocation', 'observationType', 'compassBearing', 'photo'];
 
 const DEFAULT_FORM: ActivityFormData = {
     activity_date: '',
@@ -60,6 +64,9 @@ const DEFAULT_FORM: ActivityFormData = {
     compass_bearing: null,
     photo_url: null,
     notes: null,
+    damage_description: '',
+    damage_value: null,
+    report_damage_manually: false,
 };
 
 const ActivityFormContext = createContext<ActivityFormContextValue | null>(null);
@@ -71,6 +78,19 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
     const updateFormData = useCallback((updates: Partial<ActivityFormData>) => {
         setFormData(prev => ({ ...prev, ...updates }));
     }, []);
+
+    // Dynamically calculate which steps are active based on the bypass logic
+    const activeSteps = useMemo(() => {
+        const steps: FormStep[] = ['dateTimeLocation', 'observationType'];
+        if (formData.observation_type === 'loss' || formData.report_damage_manually) {
+            steps.push('damage');
+        }
+        steps.push('compassBearing', 'photo');
+        return steps;
+    }, [formData.observation_type, formData.report_damage_manually]);
+
+    // Ensure stepIndex is always inside bounds of current activeSteps length
+    const normalizedStepIndex = Math.min(stepIndex, activeSteps.length - 1);
 
     const isStepValid = useCallback((step: FormStep): boolean => {
         switch (step) {
@@ -96,6 +116,13 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
                     return total > 0;
                 }
                 return true;
+            case 'damage':
+                // If it is active, requires at least one loss category selected (in loss_type)
+                // and a brief description.
+                if (formData.observation_type === 'loss') {
+                    return formData.loss_type.length > 0;
+                }
+                return true;
             case 'compassBearing':
                 return true; // Optional step - always valid
             case 'photo':
@@ -106,14 +133,14 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
     }, [formData]);
 
     const goToNextStep = useCallback(() => {
-        if (stepIndex < STEPS.length - 1) setStepIndex(i => i + 1);
-    }, [stepIndex]);
+        setStepIndex(i => Math.min(i + 1, activeSteps.length - 1));
+    }, [activeSteps.length]);
 
     const goToPreviousStep = useCallback(() => {
-        if (stepIndex > 0) setStepIndex(i => i - 1);
-    }, [stepIndex]);
+        setStepIndex(i => Math.max(i - 1, 0));
+    }, []);
 
-    const isLastStep = useCallback(() => stepIndex === STEPS.length - 1, [stepIndex]);
+    const isLastStep = useCallback(() => normalizedStepIndex === activeSteps.length - 1, [normalizedStepIndex, activeSteps.length]);
 
     const resetForm = useCallback(() => {
         setFormData(DEFAULT_FORM);
@@ -124,13 +151,14 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
         <ActivityFormContext.Provider value={{
             formData,
             updateFormData,
-            currentStep: STEPS[stepIndex],
-            currentStepIndex: stepIndex,
+            currentStep: activeSteps[normalizedStepIndex],
+            currentStepIndex: normalizedStepIndex,
             goToNextStep,
             goToPreviousStep,
             isStepValid,
             isLastStep,
             resetForm,
+            activeSteps,
         }}>
             {children}
         </ActivityFormContext.Provider>

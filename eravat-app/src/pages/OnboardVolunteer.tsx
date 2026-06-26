@@ -113,12 +113,7 @@ export default function OnboardVolunteer() {
                             <CheckCircle2 size={18} />
                             {`${success.name} ${t('volunteer.onboardSuccess')}`}
                         </div>
-                        {success.tempPassword && (
-                            <p className="text-xs text-muted-foreground">
-                                {t('volunteer.onboardTempPassword')}:{' '}
-                                <span className="font-mono font-semibold text-foreground">{success.tempPassword}</span>
-                            </p>
-                        )}
+
                         <p className="text-xs text-muted-foreground">{t('volunteer.onboardOtpHint')}</p>
                     </motion.div>
                 )}

@@ -690,6 +690,7 @@ const translations: Record<Language, Record<string, string>> = {
         rs_observation: "Observation",
         rs_compass: "Compass",
         rs_photo: "Photo",
+        rs_damage_label: "Damage",
 
         // FAQs
         faq_submit_report_q: "How do I submit a field report?",
@@ -1513,6 +1514,7 @@ const translations: Record<Language, Record<string, string>> = {
         rs_observation: "अवलोकन",
         rs_compass: "कम्पास",
         rs_photo: "फ़ोटो",
+        rs_damage_label: "नुकसान",
 
         // FAQs
         faq_submit_report_q: "मैं फ़ील्ड रिपोर्ट कैसे सबमिट करूँ?",
@@ -2302,6 +2304,7 @@ const translations: Record<Language, Record<string, string>> = {
         rs_observation: "निरीक्षण",
         rs_compass: "होकायंत्र",
         rs_photo: "फोटो",
+        rs_damage_label: "नुकसान",
 
         // FAQs
         faq_submit_report_q: "मी फील्ड अहवाल कसा सबमिट करू?",

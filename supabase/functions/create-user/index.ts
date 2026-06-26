@@ -19,7 +19,6 @@ function getCorsHeaders(req: Request) {
 
 const MAX_NAME_LENGTH = 100
 const MAX_PHONE_LENGTH = 20
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const GEOGRAPHIC_ROLES = ['dfo', 'rrt', 'range_officer', 'beat_guard'] as const
 const INDIA_FALLBACK_LAT = 22.9734
 const INDIA_FALLBACK_LNG = 78.6568
@@ -31,18 +30,6 @@ function normalisePhoneDigits(phone: string): string {
   if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2)
   if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1)
   return digits
-}
-
-function volunteerEmailFromPhone(phone: string): string {
-  return `v${normalisePhoneDigits(phone)}@volunteer.eravat.app`
-}
-
-function randomPassword(length = 12): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
-  let out = ''
-  const bytes = crypto.getRandomValues(new Uint8Array(length))
-  for (let i = 0; i < length; i++) out += chars[bytes[i] % chars.length]
-  return out
 }
 
 function isValidCoordinate(lat: number, lng: number): boolean {
@@ -74,7 +61,7 @@ serve(async (req) => {
   }
 
   try {
-    // ── 1. Authenticate the calling user (must be admin) ─────────────────────
+    // ── 1. Authenticate the calling user (must be admin/staff) ─────────────
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
@@ -124,8 +111,6 @@ serve(async (req) => {
 
     // ── 2. Parse request body ─────────────────────────────────────────────────
     let {
-      email,
-      password,
       first_name,
       last_name,
       full_name,
@@ -136,15 +121,12 @@ serve(async (req) => {
       beat_id,
       latitude,
       longitude,
-      onboard_volunteer,
     } = await req.json()
-
-    const isVolunteerOnboard = role === 'volunteer' && (onboard_volunteer === true || callerProfile.role === 'beat_guard')
 
     if (hasValue(full_name) && (!hasValue(first_name) || !hasValue(last_name))) {
       const parts = String(full_name).trim().split(/\s+/)
-      first_name = parts[0] || 'Volunteer'
-      last_name = parts.slice(1).join(' ') || 'Gram Mitra'
+      first_name = parts[0] || 'User'
+      last_name = parts.slice(1).join(' ') || ''
     }
 
     if (!role) {
@@ -165,19 +147,29 @@ serve(async (req) => {
       })
     }
 
-    if (role === 'volunteer') {
-      if (!hasValue(phone)) {
-        return new Response(JSON.stringify({ error: 'Phone number is required for volunteers.' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
-      if (!hasValue(first_name)) {
-        return new Response(JSON.stringify({ error: 'Name is required for volunteers.' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
-      if (!hasValue(last_name)) last_name = ''
+    // Phone validation (required for all users now)
+    if (!hasValue(phone)) {
+      return new Response(JSON.stringify({ error: 'Phone number is required.' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
+    const phoneDigits = normalisePhoneDigits(String(phone))
+    if (phoneDigits.length !== 10) {
+      return new Response(JSON.stringify({ error: 'Phone number must be a valid 10-digit Indian number.' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    const e164Phone = `91${phoneDigits}`
+
+    if (!hasValue(first_name)) {
+      return new Response(JSON.stringify({ error: 'First name is required.' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    if (!hasValue(last_name)) last_name = ''
+
+    if (role === 'volunteer') {
       if (callerProfile.role === 'beat_guard') {
         if (!callerAssignment?.beat_id) {
           return new Response(JSON.stringify({ error: 'Your beat assignment is missing. Contact your Range Officer.' }), {
@@ -194,29 +186,6 @@ serve(async (req) => {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
-
-      if (isVolunteerOnboard) {
-        email = volunteerEmailFromPhone(String(phone))
-        password = randomPassword()
-      }
-    } else {
-      if (!email || !password || !first_name || !last_name) {
-        return new Response(JSON.stringify({ error: 'Missing required fields: email, password, first_name, last_name, role' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
-    }
-
-    if (!email || !password) {
-      return new Response(JSON.stringify({ error: 'Missing credentials for account creation.' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    if (!EMAIL_REGEX.test(email)) {
-      return new Response(JSON.stringify({ error: 'Invalid email format' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
     }
 
     if (first_name.length > MAX_NAME_LENGTH || (last_name && last_name.length > MAX_NAME_LENGTH)) {
@@ -225,7 +194,7 @@ serve(async (req) => {
       })
     }
 
-    if (phone && phone.length > MAX_PHONE_LENGTH) {
+    if (phone.length > MAX_PHONE_LENGTH) {
       return new Response(JSON.stringify({ error: `Phone must be ${MAX_PHONE_LENGTH} characters or fewer` }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -251,7 +220,7 @@ serve(async (req) => {
     let profileLng = typeof longitude === 'number' ? longitude : parseFloat(longitude)
 
     if (!isValidCoordinate(profileLat, profileLng)) {
-      if (role === 'volunteer' && isVolunteerOnboard) {
+      if (role === 'volunteer') {
         return new Response(JSON.stringify({ error: 'GPS location is required when onboarding a volunteer.' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
@@ -307,14 +276,10 @@ serve(async (req) => {
       }
     }
 
-    const phoneDigits = phone ? normalisePhoneDigits(String(phone)) : null
-    const e164Phone = phoneDigits && phoneDigits.length === 10 ? `91${phoneDigits}` : undefined
-
+    // Create auth user with phone-only credentials
     const { data: authData, error: createErr } = await adminClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
       phone: e164Phone,
+      phone_confirm: true,
       user_metadata: {
         first_name,
         last_name,
@@ -340,7 +305,7 @@ serve(async (req) => {
         role,
         first_name: first_name.trim().slice(0, MAX_NAME_LENGTH),
         last_name: (last_name || '').trim().slice(0, MAX_NAME_LENGTH),
-        phone: phone ? phone.trim().slice(0, MAX_PHONE_LENGTH) : null,
+        phone: `+91${phoneDigits}`,
         is_active: true,
         latitude: profileLat,
         longitude: profileLng,
@@ -405,12 +370,10 @@ serve(async (req) => {
       success: true,
       user: {
         id: newUserId,
-        email: authData.user.email,
         first_name,
         last_name,
         role,
-        phone: phone || null,
-        temporary_password: isVolunteerOnboard ? password : undefined,
+        phone: `+91${phoneDigits}`,
       }
     }), {
       status: 200,

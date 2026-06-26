@@ -18,6 +18,8 @@ export interface LocalReport {
 
   // Timing
   device_timestamp: string;
+  activity_date: string;
+  activity_time: string;
 
   // Observation details (maps to `observations` table on sync)
   observation_type: 'direct' | 'indirect' | 'loss' | null;
@@ -32,6 +34,9 @@ export interface LocalReport {
 
   // Conflict damage (maps to `conflict_damages` table)
   loss_type: string[];
+  damage_description?: string;
+  damage_value?: number | null;
+  report_damage_manually?: boolean;
 
   // Photo (maps to `report_media` on sync)
   photo_url: string | null;

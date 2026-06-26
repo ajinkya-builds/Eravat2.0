@@ -71,17 +71,8 @@ test.describe('Edit Profile Module', () => {
         if (!isDisabled) {
             await saveBtn.click({ force: true });
         }
-        // Page should remain on edit or navigate away on success — either is acceptable
         const url = page.url();
         expect(url).toBeTruthy();
-    });
-
-    test('EDIT-005: Email field is read-only', async ({ page }) => {
-        const emailInput = page.locator('input[type="email"]').first();
-        if (await emailInput.isVisible({ timeout: 5_000 }).catch(() => false)) {
-            const isReadonly = await emailInput.getAttribute('readonly');
-            expect(isReadonly).not.toBeNull();
-        }
     });
 
     test('EDIT-006: Profile picture update', async ({ page }) => {

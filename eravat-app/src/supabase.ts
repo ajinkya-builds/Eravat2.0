@@ -37,7 +37,7 @@ if (import.meta.env.DEV && disableAutoRefresh) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    persistSession: true,
+    persistSession: false,
     autoRefreshToken: !disableAutoRefresh,
     detectSessionInUrl: true,
   },

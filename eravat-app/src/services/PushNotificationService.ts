@@ -59,6 +59,11 @@ export class PushNotificationService {
       return;
     }
 
+    if (import.meta.env.VITE_DISABLE_PUSH_NOTIFICATIONS === 'true') {
+      console.log('[PushNotificationService] Push notifications are disabled (missing google-services.json). Skipping registration.');
+      return;
+    }
+
     try {
       await attachListeners(userId);
 

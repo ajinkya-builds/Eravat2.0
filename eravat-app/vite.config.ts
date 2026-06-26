@@ -4,10 +4,21 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import { VitePWA } from "vite-plugin-pwa";
+import fs from "fs";
+import path from "path";
+
+// Auto-detect if google-services.json is missing to disable push notifications
+const hasGoogleServices = fs.existsSync(path.resolve(process.cwd(), "android/app/google-services.json"));
+if (!hasGoogleServices) {
+  process.env.VITE_DISABLE_PUSH_NOTIFICATIONS = "true";
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || (process.env.NETLIFY === "true" ? "/" : "/Eravat2.0/"),
+  define: {
+    'import.meta.env.VITE_DISABLE_PUSH_NOTIFICATIONS': JSON.stringify(process.env.VITE_DISABLE_PUSH_NOTIFICATIONS || 'false')
+  },
   plugins: [
     react(),
     tailwindcss(),

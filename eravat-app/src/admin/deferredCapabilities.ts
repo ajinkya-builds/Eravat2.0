@@ -25,7 +25,7 @@ export const DEFERRED_CAPABILITIES: DeferredCapability[] = [
     {
         id: 'voice_call_alerts',
         labelKey: 'admin.deferred.voiceCalls',
-        reason: 'No Twilio/voice dispatch pipeline or call_log table yet.',
+        reason: 'No voice dispatch pipeline or call_log table yet.',
     },
     {
         id: 'communication_hub',

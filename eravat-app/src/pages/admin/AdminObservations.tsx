@@ -69,7 +69,6 @@ export default function AdminObservations() {
     const [totalCount, setTotalCount] = useState(0);
     const [selected, setSelected] = useState<string[]>([]);
     const [editTarget, setEditTarget] = useState<ReportWithObs | null>(null);
-    const [editCounts, setEditCounts] = useState<{ male: number; female: number; calf: number; unknown: number } | null>(null);
     const [confirmState, setConfirmState] = useState<{ ids: string[]; label: string } | null>(null);
     const { t } = useLanguage();
 
@@ -154,31 +153,32 @@ export default function AdminObservations() {
         URL.revokeObjectURL(url);
     };
 
-    const handleSaveEdit = async () => {
-        if (!editTarget) return;
+    const handleSaveEdit = async (
+        reportData: ReportWithObs,
+        countsData: { male: number; female: number; calf: number; unknown: number } | null
+    ) => {
         try {
             const { error } = await supabase.from('reports').update({
-                notes: editTarget.notes,
-                status: editTarget.status,
-            }).eq('id', editTarget.id);
+                notes: reportData.notes,
+                status: reportData.status,
+            }).eq('id', reportData.id);
             if (error) throw error;
 
-            const obs = editTarget.observations?.[0];
-            if (obs && editCounts && ['direct', 'direct_sighting'].includes(obs.type)) {
+            const obs = reportData.observations?.[0];
+            if (obs && countsData && ['direct', 'direct_sighting'].includes(obs.type)) {
                 const { error: obsErr } = await supabase
                     .from('observations')
                     .update({
-                        male_count: editCounts.male,
-                        female_count: editCounts.female,
-                        calf_count: editCounts.calf,
-                        unknown_count: editCounts.unknown,
+                        male_count: countsData.male,
+                        female_count: countsData.female,
+                        calf_count: countsData.calf,
+                        unknown_count: countsData.unknown,
                     })
-                    .eq('report_id', editTarget.id);
+                    .eq('report_id', reportData.id);
                 if (obsErr) throw obsErr;
             }
 
             setEditTarget(null);
-            setEditCounts(null);
             fetchObservations(currentPage);
         } catch (err) { setError(err instanceof Error ? err.message : 'Save failed'); }
     };
@@ -309,69 +309,12 @@ export default function AdminObservations() {
                 </div>
             )}
 
-            {editTarget && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                        className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-lg font-bold">{t('admin.obs.editReport')}</h2>
-                            <button onClick={() => { setEditTarget(null); setEditCounts(null); }} className="p-2 rounded-lg hover:bg-muted"><X size={18} /></button>
-                        </div>
-
-                        {editTarget.observations?.[0] && ['direct', 'direct_sighting'].includes(editTarget.observations[0].type) && (
-                            <div className="space-y-2 p-3 bg-primary/5 rounded-xl border border-primary/10">
-                                <p className="text-xs font-semibold text-primary">Elephant Counts</p>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {(['male', 'female', 'calf', 'unknown'] as const).map(key => (
-                                        <div key={key}>
-                                            <label className="text-xs text-muted-foreground capitalize">{key}</label>
-                                            <input
-                                                type="number" min={0}
-                                                value={(editCounts ?? {
-                                                    male: editTarget.observations[0].male_count,
-                                                    female: editTarget.observations[0].female_count,
-                                                    calf: editTarget.observations[0].calf_count,
-                                                    unknown: editTarget.observations[0].unknown_count,
-                                                })[key]}
-                                                onChange={e => setEditCounts(prev => ({
-                                                    male: editTarget.observations[0].male_count,
-                                                    female: editTarget.observations[0].female_count,
-                                                    calf: editTarget.observations[0].calf_count,
-                                                    unknown: editTarget.observations[0].unknown_count,
-                                                    ...(prev ?? {}),
-                                                    [key]: parseInt(e.target.value) || 0,
-                                                }))}
-                                                className="w-full mt-0.5 px-2 py-1.5 rounded-lg bg-muted/50 border border-border text-sm"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('report.notes')}</label>
-                            <textarea rows={3} value={editTarget.notes ?? ''}
-                                onChange={e => setEditTarget({ ...editTarget, notes: e.target.value })}
-                                className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
-                        </div>
-                        <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('admin.users.status')}</label>
-                            <select value={editTarget.status}
-                                onChange={e => setEditTarget({ ...editTarget, status: e.target.value })}
-                                className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                                <option value="pending">{t('admin.obs.pending')}</option>
-                                <option value="synced">{t('admin.obs.synced')}</option>
-                                <option value="reviewed">{t('admin.obs.reviewed')}</option>
-                            </select>
-                        </div>
-                        <div className="flex gap-3 pt-2">
-                            <button onClick={() => { setEditTarget(null); setEditCounts(null); }} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">{t('profile.cancel')}</button>
-                            <button onClick={handleSaveEdit} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">{t('admin.settings.saveChanges')}</button>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
+            <EditReportModal
+                report={editTarget}
+                onClose={() => setEditTarget(null)}
+                onSave={handleSaveEdit}
+                t={t}
+            />
 
             {confirmState && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -397,6 +340,111 @@ export default function AdminObservations() {
                     </motion.div>
                 </div>
             )}
+        </div>
+    );
+}
+
+// ─── Subcomponents ───────────────────────────────────────────────────────────
+
+interface EditReportModalProps {
+    report: ReportWithObs | null;
+    onClose: () => void;
+    onSave: (
+        reportData: ReportWithObs,
+        countsData: { male: number; female: number; calf: number; unknown: number } | null
+    ) => Promise<void>;
+    t: (key: string) => string;
+}
+
+function EditReportModal({
+    report,
+    onClose,
+    onSave,
+    t
+}: EditReportModalProps) {
+    const [localReport, setLocalReport] = useState<ReportWithObs | null>(null);
+    const [localCounts, setLocalCounts] = useState<{ male: number; female: number; calf: number; unknown: number } | null>(null);
+
+    useEffect(() => {
+        if (report) {
+            setLocalReport({ ...report });
+            setLocalCounts(
+                report.observations?.[0]
+                    ? {
+                          male: report.observations[0].male_count,
+                          female: report.observations[0].female_count,
+                          calf: report.observations[0].calf_count,
+                          unknown: report.observations[0].unknown_count,
+                      }
+                    : null
+            );
+        } else {
+            setLocalReport(null);
+            setLocalCounts(null);
+        }
+    }, [report]);
+
+    if (!report || !localReport) return null;
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        void onSave(localReport, localCounts);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-bold">{t('admin.obs.editReport')}</h2>
+                    <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-muted"><X size={18} /></button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {localReport.observations?.[0] && ['direct', 'direct_sighting'].includes(localReport.observations[0].type) && localCounts && (
+                        <div className="space-y-2 p-3 bg-primary/5 rounded-xl border border-primary/10">
+                            <p className="text-xs font-semibold text-primary">Elephant Counts</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                {(['male', 'female', 'calf', 'unknown'] as const).map(key => (
+                                    <div key={key}>
+                                        <label className="text-xs text-muted-foreground capitalize">{key}</label>
+                                        <input
+                                            type="number" min={0}
+                                            value={localCounts[key]}
+                                            onChange={e => setLocalCounts(prev => prev ? {
+                                                ...prev,
+                                                [key]: parseInt(e.target.value) || 0,
+                                            } : null)}
+                                            className="w-full mt-0.5 px-2 py-1.5 rounded-lg bg-muted/50 border border-border text-sm"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('report.notes')}</label>
+                        <textarea rows={3} value={localReport.notes ?? ''}
+                            onChange={e => setLocalReport({ ...localReport, notes: e.target.value })}
+                            className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                    </div>
+                    <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('admin.users.status')}</label>
+                        <select value={localReport.status}
+                            onChange={e => setLocalReport({ ...localReport, status: e.target.value })}
+                            className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                            <option value="pending">{t('admin.obs.pending')}</option>
+                            <option value="synced">{t('admin.obs.synced')}</option>
+                            <option value="reviewed">{t('admin.obs.reviewed')}</option>
+                        </select>
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                        <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">{t('profile.cancel')}</button>
+                        <button type="submit" className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">{t('admin.settings.saveChanges')}</button>
+                    </div>
+                </form>
+            </motion.div>
         </div>
     );
 }

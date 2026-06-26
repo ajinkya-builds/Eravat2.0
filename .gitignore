@@ -44,3 +44,7 @@ supabase/.temp/
 
 # Local Netlify folder
 .netlify
+
+# Native APK
+app-debug.apk
+

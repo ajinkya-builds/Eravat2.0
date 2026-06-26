@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import PINLockScreen from './PINLockScreen';
 
 const ADMIN_ROLES = ['admin', 'ccf', 'dfo'];
 const PROFILE_LOAD_TIMEOUT_MS = 15_000;
@@ -17,7 +18,7 @@ function RouteLoadingScreen() {
 }
 
 export function ProtectedRoute() {
-    const { session, profile, loading } = useAuth();
+    const { session, profile, loading, isLocked } = useAuth();
     const location = useLocation();
     const [timedOut, setTimedOut] = useState(false);
 
@@ -31,6 +32,10 @@ export function ProtectedRoute() {
 
     if (loading || (session && !profile && !timedOut)) {
         return <RouteLoadingScreen />;
+    }
+
+    if (isLocked) {
+        return <PINLockScreen />;
     }
 
     if (!session || timedOut || !profile) {
@@ -51,7 +56,7 @@ export function ProtectedRoute() {
 }
 
 export function AdminRoute() {
-    const { session, profile, loading } = useAuth();
+    const { session, profile, loading, isLocked } = useAuth();
     const [timedOut, setTimedOut] = useState(false);
 
     useEffect(() => {
@@ -64,6 +69,10 @@ export function AdminRoute() {
 
     if (loading || (session && !profile && !timedOut)) {
         return <RouteLoadingScreen />;
+    }
+
+    if (isLocked) {
+        return <PINLockScreen />;
     }
 
     if (!session || timedOut) {

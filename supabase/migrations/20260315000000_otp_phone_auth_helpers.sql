@@ -1,6 +1,6 @@
 -- OTP Phone Authentication Helper Functions
 -- Created: 2026-03-15
--- Purpose: Support OTP-based phone authentication with Twilio
+-- Purpose: Support OTP-based phone authentication
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 1. Phone Format Validation Function

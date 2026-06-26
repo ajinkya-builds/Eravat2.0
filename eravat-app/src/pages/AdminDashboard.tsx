@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Users, Activity, AlertTriangle, ShieldCheck, Eye,
     PawPrint, TrendingUp, Tag, Leaf
@@ -68,9 +68,15 @@ export default function AdminDashboard() {
 
     // Feed
     const [recentReports, setRecentReports] = useState<{
-        id: string; type: string; beatName: string; userName: string; timeStr: string;
+        id: string; type: string; beatName: string; userName: string; userPhone?: string; timeStr: string;
         total: number; conflictCat?: string;
     }[]>([]);
+    const [dispatchMessage, setDispatchMessage] = useState<string | null>(null);
+
+    const handleDispatchRRT = (beatName: string, userName: string) => {
+        setDispatchMessage(`Rapid Response Team (RRT) successfully dispatched to ${beatName} Beat to support ${userName}!`);
+        setTimeout(() => setDispatchMessage(null), 5000);
+    };
 
     // ── Fetch ──────────────────────────────────────────────────────────────────
     useEffect(() => { fetchDashboardData(); }, []);
@@ -93,6 +99,11 @@ export default function AdminDashboard() {
                     device_timestamp,
                     beat_id,
                     geo_beats (name),
+                    profiles (
+                        first_name,
+                        last_name,
+                        phone
+                    ),
                     observations (
                         type,
                         male_count, female_count, calf_count, unknown_count,
@@ -202,11 +213,16 @@ export default function AdminDashboard() {
 
                 // Feed (last 8)
                 if (feedItems.length < 8) {
+                    const prof = rep.profiles;
+                    const reporterName = prof ? `${prof.first_name || ''} ${prof.last_name || ''}`.trim() || 'Officer' : 'Officer';
+                    const reporterPhone = prof?.phone || '';
+
                     feedItems.push({
                         id: rep.id,
                         type,
                         beatName,
-                        userName: 'Officer',
+                        userName: reporterName,
+                        userPhone: reporterPhone,
                         timeStr: format(repDate, 'MMM d, HH:mm'),
                         total,
                         conflictCat: rep.conflict_damages?.[0]?.category,
@@ -328,6 +344,23 @@ export default function AdminDashboard() {
                     <NotificationBell />
                 </div>
             </motion.div>
+
+            {/* RRT Dispatch Feedback Banner */}
+            <AnimatePresence>
+                {dispatchMessage && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="p-4 rounded-xl border border-primary/30 bg-primary/10 text-primary font-bold text-sm flex items-center justify-between shadow-md">
+                            <span>{dispatchMessage}</span>
+                            <button onClick={() => setDispatchMessage(null)} className="text-primary hover:opacity-80">✕</button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* ── KPI Cards ──────────────────────────────────────────────── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -508,38 +541,58 @@ export default function AdminDashboard() {
                             </div>
                         ) : recentReports.map((alert) => (
                             <div key={alert.id}
-                                className="p-3 rounded-xl bg-muted/40 border border-border/50 flex gap-3 items-start hover:bg-muted/60 transition-colors">
-                                <div className={`p-2 rounded-lg shrink-0 ${
-                                    alert.type === 'loss' ? 'bg-destructive/10 text-destructive' :
-                                    alert.type === 'indirect' ? 'bg-amber-500/10 text-amber-600' :
-                                    'bg-primary/10 text-primary'
-                                }`}>
-                                    {alert.type === 'loss' ? <AlertTriangle size={15} /> :
-                                     alert.type === 'indirect' ? <TrendingUp size={15} /> :
-                                     <Eye size={15} />}
+                                className="p-3 rounded-xl bg-muted/40 border border-border/50 flex flex-col gap-2 hover:bg-muted/60 transition-colors">
+                                <div className="flex gap-3 items-start w-full">
+                                    <div className={`p-2 rounded-lg shrink-0 ${
+                                        alert.type === 'loss' ? 'bg-destructive/10 text-destructive' :
+                                        alert.type === 'indirect' ? 'bg-amber-500/10 text-amber-600' :
+                                        'bg-primary/10 text-primary'
+                                    }`}>
+                                        {alert.type === 'loss' ? <AlertTriangle size={15} /> :
+                                         alert.type === 'indirect' ? <TrendingUp size={15} /> :
+                                         <Eye size={15} />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-foreground">
+                                            {alert.type === 'loss' ? t('conflict_reported') :
+                                             alert.type === 'indirect' ? t('indirect_sign_logged') :
+                                             t('direct_sighting_logged')}
+                                            {alert.type === 'direct' && alert.total > 0 && (
+                                                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                                                    · {alert.total} elephant{alert.total !== 1 ? 's' : ''}
+                                                </span>
+                                            )}
+                                            {alert.type === 'loss' && alert.conflictCat && (
+                                                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                                                    · {alert.conflictCat}
+                                                </span>
+                                            )}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground truncate">
+                                            {alert.beatName} · {alert.userName}
+                                        </p>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground/60 font-medium whitespace-nowrap shrink-0">
+                                        {alert.timeStr}
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-foreground">
-                                        {alert.type === 'loss' ? t('conflict_reported') :
-                                         alert.type === 'indirect' ? t('indirect_sign_logged') :
-                                         t('direct_sighting_logged')}
-                                        {alert.type === 'direct' && alert.total > 0 && (
-                                            <span className="ml-1 text-xs font-normal text-muted-foreground">
-                                                · {alert.total} elephant{alert.total !== 1 ? 's' : ''}
-                                            </span>
-                                        )}
-                                        {alert.type === 'loss' && alert.conflictCat && (
-                                            <span className="ml-1 text-xs font-normal text-muted-foreground">
-                                                · {alert.conflictCat}
-                                            </span>
-                                        )}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground truncate">
-                                        {alert.beatName} · {alert.userName}
-                                    </p>
-                                </div>
-                                <div className="text-xs text-muted-foreground/60 font-medium whitespace-nowrap shrink-0">
-                                    {alert.timeStr}
+                                {/* Action Buttons */}
+                                <div className="flex items-center gap-2 pl-10">
+                                    {alert.userPhone && (
+                                        <a
+                                            href={`tel:${alert.userPhone}`}
+                                            className="px-2.5 py-1 rounded-lg border border-border bg-background hover:bg-muted text-[10px] font-bold transition-colors inline-flex items-center gap-1 text-foreground"
+                                        >
+                                            📞 Call Guard
+                                        </a>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDispatchRRT(alert.beatName, alert.userName)}
+                                        className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold transition-all hover:opacity-90 active:scale-95"
+                                    >
+                                        ⚡ Dispatch RRT
+                                    </button>
                                 </div>
                             </div>
                         ))}

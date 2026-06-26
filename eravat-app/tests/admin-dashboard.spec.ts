@@ -5,6 +5,7 @@ import { ensureOnPage, loginAs } from './fixtures/auth.fixture';
 test.describe('Admin Dashboard Module', () => {
 
     test.beforeEach(async ({ page }) => {
+        page.on('console', msg => console.log('BROWSER CONSOLE:', msg.text()));
         await ensureOnPage(page, '/admin', ADMIN);
     });
 

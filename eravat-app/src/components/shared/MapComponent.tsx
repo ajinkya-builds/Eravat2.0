@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
-import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Layers, Eye, AlertTriangle, Footprints } from 'lucide-react';
@@ -139,6 +139,8 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const [obsPins, setObsPins] = useState<ObsPin[]>([]);
     const [loadingPins, setLoadingPins] = useState(false);
     const [pinFilter, setPinFilter] = useState<'all' | 'direct' | 'indirect' | 'loss'>('all');
+    const [showHeatmap, setShowHeatmap] = useState(false);
+    const [showAllTime, setShowAllTime] = useState(false);
 
     // ── Fetch observation pins ──────────────────────────────────────────────
     useEffect(() => {
@@ -321,7 +323,24 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     };
 
     // ── Derived ───────────────────────────────────────────────────────────────
-    const visiblePins = obsPins.filter(p => pinFilter === 'all' || p.type === pinFilter);
+    const isWithin48Hours = (timestamp: string) => {
+        try {
+            const date = new Date(timestamp);
+            const limit = new Date(Date.now() - 48 * 60 * 60 * 1000);
+            return date >= limit;
+        } catch {
+            return true;
+        }
+    };
+
+    const visiblePins = obsPins.filter(p => {
+        if (pinFilter !== 'all' && p.type !== pinFilter) return false;
+        if (!showAllTime) {
+            return isWithin48Hours(p.deviceTimestamp);
+        }
+        return true;
+    });
+
     const legacyPoints = reportPoints ?? [];
 
     const TYPE_LABELS: Record<string, string> = {
@@ -345,7 +364,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                         Territory Overview
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Select a region to highlight it on the map. Pins show recent observation locations.
+                        Select a region to highlight it on the map. Defaulting to recent (last 48h) observations.
                     </p>
                 </div>
 
@@ -386,6 +405,35 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                                 {f}
                             </button>
                         ))}
+                    </div>
+
+                    {/* Time & Heatmap Toggles */}
+                    <div className="flex items-center gap-3 bg-muted/40 rounded-xl p-1 px-2 border border-border text-xs font-semibold min-h-[32px]">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                            <input 
+                                type="checkbox" 
+                                checked={showAllTime} 
+                                onChange={(e) => {
+                                    setShowAllTime(e.target.checked);
+                                    if (!e.target.checked) setShowHeatmap(false);
+                                }}
+                                className="rounded border-border text-primary focus:ring-primary/20 accent-primary"
+                            />
+                            Show All Time
+                        </label>
+                        <span className="w-[1px] h-3 bg-border" />
+                        <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                            <input 
+                                type="checkbox" 
+                                checked={showHeatmap} 
+                                onChange={(e) => {
+                                    setShowHeatmap(e.target.checked);
+                                    if (e.target.checked) setShowAllTime(true);
+                                }}
+                                className="rounded border-border text-primary focus:ring-primary/20 accent-primary"
+                            />
+                            Heatmap
+                        </label>
                     </div>
                 </div>
             </div>
@@ -445,8 +493,25 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                             style={{ color: 'hsl(152, 60%, 46%)', weight: 4, opacity: 1, fillOpacity: 0.3 }} />
                     )}
 
-                    {/* Observation Pins (internal fetch) */}
-                    {visiblePins.map((pin) => {
+                    {/* Heatmap Overlay Layer */}
+                    {showHeatmap && visiblePins.map((pin) => {
+                        const color = pin.type === 'loss' ? 'hsl(0, 84.2%, 60.2%)' : pin.type === 'indirect' ? 'hsl(38, 92%, 50%)' : 'hsl(152, 60%, 46%)';
+                        return (
+                            <CircleMarker
+                                key={`heat-${pin.id}`}
+                                center={[pin.lat, pin.lng]}
+                                radius={28}
+                                pathOptions={{
+                                    fillColor: color,
+                                    fillOpacity: 0.22,
+                                    stroke: false,
+                                }}
+                            />
+                        );
+                    })}
+
+                    {/* Observation Pins (internal fetch, only when heatmap is off) */}
+                    {!showHeatmap && visiblePins.map((pin) => {
                         const total = pin.maleCount + pin.femaleCount + pin.calfCount + pin.unknownCount;
                         const dateStr = new Date(pin.deviceTimestamp).toLocaleString(undefined, {
                             month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'

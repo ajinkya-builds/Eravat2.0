@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
+import { QuickSOSButton } from '../components/shared/QuickSOSButton';
 
 export default function Dashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -131,6 +132,11 @@ export default function Dashboard() {
                         </div>
                     </motion.div>
                 ) : null}
+
+                {/* Quick SOS Trigger */}
+                <div className="mb-6 z-10">
+                    <QuickSOSButton />
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 z-10">
                     {/* Primary Action Button */}

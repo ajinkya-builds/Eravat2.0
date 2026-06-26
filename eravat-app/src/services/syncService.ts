@@ -303,7 +303,12 @@ export async function syncData() {
                         id: stableUuidFrom(`${report.id}:${idx}:${loss}`),
                         report_id: report.id,
                         category: mapLossCategory(loss),
-                        description: loss,
+                        description: idx === 0 
+                            ? (report.damage_description || loss) 
+                            : loss,
+                        estimated_value: idx === 0 
+                            ? (report.damage_value || null) 
+                            : null,
                     }));
 
                     const { error: damageError } = await supabase
