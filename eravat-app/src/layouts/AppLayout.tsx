@@ -21,17 +21,29 @@ export function AppLayout() {
 
     useEffect(() => {
         let isMounted = true;
+
+        const updateStatus = (connected: boolean) => {
+            if (isMounted) setIsOnline(connected);
+        };
+
         Network.getStatus().then(status => {
-            if (isMounted) setIsOnline(status.connected);
+            updateStatus(status.connected);
         });
 
         const listener = Network.addListener('networkStatusChange', status => {
-            if (isMounted) setIsOnline(status.connected);
+            updateStatus(status.connected);
         });
+
+        const handleOnline = () => updateStatus(true);
+        const handleOffline = () => updateStatus(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
 
         return () => {
             isMounted = false;
             void listener.then(l => l.remove());
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
         };
     }, []);
 

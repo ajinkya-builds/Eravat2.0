@@ -5,6 +5,7 @@ const translations: Record<Language, Record<string, string>> = {
         // ── Settings ──────────────────────────────────────────────────────
         settings: "Settings",
         app_settings: "App Settings",
+        ready_to_sync: "Ready to sync",
         app_preferences: "App preferences",
         appearance: "Appearance",
         choose_theme: "Choose your preferred theme",
@@ -952,6 +953,8 @@ const translations: Record<Language, Record<string, string>> = {
 
     hi: {
         settings: "सेटिंग्स",
+        app_settings: "ऐप सेटिंग्स",
+        ready_to_sync: "सिंक करने के लिए तैयार",
         app_preferences: "ऐप प्राथमिकताएँ",
         appearance: "दिखावट",
         choose_theme: "अपनी पसंदीदा थीम चुनें",
@@ -1773,6 +1776,8 @@ const translations: Record<Language, Record<string, string>> = {
 
     mr: {
         settings: "सेटिंग्ज",
+        app_settings: "ॲप सेटिंग्ज",
+        ready_to_sync: "सिंक करण्यासाठी तयार",
         app_preferences: "ॲप प्राधान्ये",
         appearance: "स्वरूप",
         choose_theme: "तुमची पसंतीची थीम निवडा",

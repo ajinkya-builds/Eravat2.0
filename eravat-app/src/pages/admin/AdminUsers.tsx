@@ -270,7 +270,7 @@ export default function AdminUsers() {
                         </button>
                     )}
                     {canCreateAnyUser && (
-                        <button onClick={() => setShowModal(true)}
+                        <button onClick={() => { setError(null); setShowModal(true); }}
                             className="bg-primary text-primary-foreground h-11 px-6 rounded-xl flex items-center gap-2 font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
                             <UserPlus size={18} /> {t('admin.users.registerPersonnel')}
                         </button>
@@ -370,12 +370,15 @@ export default function AdminUsers() {
                                         <td className="p-4 text-right">
                                             {canManageRole(currentUserProfile?.role, p.role) && (
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <button onClick={() => setEditUser({
-                                                        ...p,
-                                                        division_id: p.division_id || '',
-                                                        range_id: p.range_id || '',
-                                                        beat_id: p.beat_id || ''
-                                                    } as any)}
+                                                    <button onClick={() => {
+                                                        setError(null);
+                                                        setEditUser({
+                                                            ...p,
+                                                            division_id: p.division_id || '',
+                                                            range_id: p.range_id || '',
+                                                            beat_id: p.beat_id || ''
+                                                        } as any);
+                                                    }}
                                                         className="p-2 text-muted-foreground hover:text-primary bg-muted/30 hover:bg-primary/10 rounded-lg transition-colors"
                                                         title="Edit">
                                                         <Edit2 size={16} />
@@ -398,8 +401,9 @@ export default function AdminUsers() {
 
             <RegisterUserModal
                 isOpen={showModal}
-                onClose={() => setShowModal(false)}
+                onClose={() => { setShowModal(false); setError(null); }}
                 onSubmit={handleCreate}
+                error={error}
                 isSubmitting={isSubmitting}
                 divisions={divisions}
                 ranges={ranges}
@@ -411,8 +415,9 @@ export default function AdminUsers() {
 
             <EditUserModal
                 user={editUser}
-                onClose={() => setEditUser(null)}
+                onClose={() => { setEditUser(null); setError(null); }}
                 onSubmit={handleUpdate}
+                error={error}
                 isSubmitting={isSubmitting}
                 divisions={divisions}
                 ranges={ranges}
@@ -460,6 +465,7 @@ interface RegisterUserModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (userData: typeof DEFAULT_NEW_USER) => Promise<void>;
+    error: string | null;
     isSubmitting: boolean;
     divisions: GeoEntity[];
     ranges: GeoRange[];
@@ -473,6 +479,7 @@ function RegisterUserModal({
     isOpen,
     onClose,
     onSubmit,
+    error,
     isSubmitting,
     divisions,
     ranges,
@@ -609,6 +616,13 @@ function RegisterUserModal({
                         </div>
                     )}
 
+                    {error && (
+                        <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3.5 rounded-xl flex items-center gap-3 text-sm">
+                            <AlertTriangle size={16} className="shrink-0" />
+                            <span>{error}</span>
+                        </div>
+                    )}
+
                     <div className="flex gap-3 pt-2">
                         <button type="button" onClick={onClose}
                             className="flex-1 h-12 rounded-xl border border-border font-semibold hover:bg-muted transition-colors text-sm">
@@ -630,6 +644,7 @@ interface EditUserModalProps {
     user: Profile & { division_id?: string, range_id?: string, beat_id?: string } | null;
     onClose: () => void;
     onSubmit: (userData: Profile & { division_id?: string, range_id?: string, beat_id?: string }) => Promise<void>;
+    error: string | null;
     isSubmitting: boolean;
     divisions: GeoEntity[];
     ranges: GeoRange[];
@@ -644,6 +659,7 @@ function EditUserModal({
     user,
     onClose,
     onSubmit,
+    error,
     isSubmitting,
     divisions,
     ranges,
@@ -733,6 +749,13 @@ function EditUserModal({
                                     {filteredBeats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                 </select>
                             )}
+                        </div>
+                    )}
+
+                    {error && (
+                        <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3.5 rounded-xl flex items-center gap-3 text-sm">
+                            <AlertTriangle size={16} className="shrink-0" />
+                            <span>{error}</span>
                         </div>
                     )}
 

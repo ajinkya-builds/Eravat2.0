@@ -169,9 +169,9 @@ export default function TerritoryHistory() {
                             const d = item.conflict_damages?.[0];
                             const oType = o?.type ?? (d ? 'loss' : null);
 
-                            const typeLabel = oType === 'direct' ? t('admin.dashboard.directSighting')
-                                : oType === 'indirect' || oType === 'indirect_sign' ? t('admin.dashboard.indirectSign')
-                                    : oType === 'loss' ? t('admin.dashboard.conflictReported') : t('history.unknownActivity');
+                            const typeLabel = ['direct', 'direct_sighting'].includes(oType || '') ? t('admin.dashboard.directSighting')
+                                : ['indirect', 'indirect_sign'].includes(oType || '') ? t('admin.dashboard.indirectSign')
+                                    : ['loss', 'conflict_loss'].includes(oType || '') ? t('admin.dashboard.conflictReported') : t('history.unknownActivity');
 
                             const title = oType ? typeLabel : t('history.activityLogged');
 

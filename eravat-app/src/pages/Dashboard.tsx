@@ -5,12 +5,13 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { syncData } from '../services/syncService';
 import { cn } from '../lib/utils';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
 import { QuickSOSButton } from '../components/shared/QuickSOSButton';
+import { Network } from '@capacitor/network';
 
 export default function Dashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -18,6 +19,37 @@ export default function Dashboard() {
     const navigate = useNavigate();
     const { profile } = useAuth();
     const { t } = useLanguage();
+    const [isOnline, setIsOnline] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const updateStatus = (connected: boolean) => {
+            if (isMounted) {
+                setIsOnline(connected);
+            }
+        };
+
+        Network.getStatus().then(status => {
+            updateStatus(status.connected);
+        });
+
+        const listener = Network.addListener('networkStatusChange', status => {
+            updateStatus(status.connected);
+        });
+
+        const handleOnline = () => updateStatus(true);
+        const handleOffline = () => updateStatus(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            isMounted = false;
+            void listener.then(l => l.remove());
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
 
     // Count both pending and failed reports
     const pendingCount = useLiveQuery(
@@ -119,7 +151,7 @@ export default function Dashboard() {
                                 </div>
                                 <div>
                                     <p className="font-bold text-foreground">{pendingCount} {t('dashboard.pendingStatus')}</p>
-                                    <p className="text-xs text-muted-foreground">{t('dashboard.waitingSync')}</p>
+                                    <p className="text-xs text-muted-foreground">{isOnline ? t('ready_to_sync') : t('dashboard.waitingSync')}</p>
                                 </div>
                             </div>
                             <button

@@ -84,7 +84,7 @@ export function LocationFields({ value, onChange, required = true }: LocationFie
 
       {value.latitude != null && value.longitude != null && (
         <p className="text-xs text-emerald-600 font-medium">
-          {t('dtl_location_acquired')}: {value.latitude.toFixed(6)}, {value.longitude.toFixed(6)}
+          {t('dtl_location_acquired')} {value.latitude.toFixed(6)}, {value.longitude.toFixed(6)}
         </p>
       )}
     </div>

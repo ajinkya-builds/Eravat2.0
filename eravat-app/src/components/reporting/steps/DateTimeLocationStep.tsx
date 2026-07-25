@@ -129,7 +129,7 @@ export function DateTimeLocationStep() {
                 )}
                 {formData.latitude != null && formData.longitude != null && (
                     <p className="text-xs text-emerald-600 mt-1">
-                        ✓ {t('dtl_location_acquired')}: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
+                        ✓ {t('dtl_location_acquired')} {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
                     </p>
                 )}
             </div>

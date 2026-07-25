@@ -13,6 +13,7 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 function clamp(v: number) { return Math.min(MAX_KM, Math.max(MIN_KM, v)); }
 
 function RadiusSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+    const { t } = useLanguage();
     const pct = ((value - MIN_KM) / (MAX_KM - MIN_KM)) * 100;
     return (
         <div className="space-y-3">
@@ -25,24 +26,26 @@ function RadiusSlider({ value, onChange }: { value: number; onChange: (v: number
                     style={{ left: `calc(${pct}% - 10px)` }} />
             </div>
             <div className="flex justify-between text-xs text-muted-foreground select-none">
-                <span>{MIN_KM} km</span><span>{MAX_KM} km</span>
+                <span>{MIN_KM} {t('km')}</span><span>{MAX_KM} {t('km')}</span>
             </div>
         </div>
     );
 }
 
 function SaveIndicator({ state }: { state: SaveState }) {
+    const { t } = useLanguage();
     if (state === 'idle') return null;
     const config = {
-        saving: { icon: <Loader2 size={14} className="animate-spin" />, text: 'Saving…', cls: 'text-primary' },
-        saved:  { icon: <CheckCircle size={14} />, text: 'Saved', cls: 'text-emerald-500' },
-        error:  { icon: <AlertCircle size={14} />, text: 'Failed to save', cls: 'text-destructive' },
+        saving: { icon: <Loader2 size={14} className="animate-spin" />, text: t('saving'), cls: 'text-primary' },
+        saved:  { icon: <CheckCircle size={14} />, text: t('saved'), cls: 'text-emerald-500' },
+        error:  { icon: <AlertCircle size={14} />, text: t('save_failed'), cls: 'text-destructive' },
     }[state];
     return <motion.span key={state} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
         className={`flex items-center gap-1 text-xs font-medium ${config.cls}`}>{config.icon}{config.text}</motion.span>;
 }
 
 function RadiusPreview({ km }: { km: number }) {
+    const { t } = useLanguage();
     const r = 30 + (km / MAX_KM) * 90;
     return (
         <div className="relative mx-auto flex items-center justify-center" style={{ width: 220, height: 220 }} aria-hidden>
@@ -54,7 +57,7 @@ function RadiusPreview({ km }: { km: number }) {
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-emerald-400 shadow-lg shadow-primary/40 flex items-center justify-center">
                     <MapPin size={14} className="text-white" />
                 </div>
-                <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{km} km</span>
+                <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{km} {t('km')}</span>
             </div>
         </div>
     );
@@ -286,7 +289,7 @@ export default function AppSettings() {
                                         <input type="number" min={MIN_KM} max={MAX_KM} value={radius} onChange={handleInputChange}
                                             className="w-10 bg-transparent text-center text-sm font-bold text-primary focus:outline-none"
                                             aria-label="Alert radius value" />
-                                        <span className="text-xs font-semibold text-primary/70">km</span>
+                                        <span className="text-xs font-semibold text-primary/70">{t('km')}</span>
                                     </div>
                                 </div>
                             </div>
@@ -295,7 +298,7 @@ export default function AppSettings() {
 
                         <p className="text-xs text-muted-foreground leading-relaxed bg-muted/50 rounded-2xl px-4 py-3 border border-border/50">
                             {t('radius_note')}{' '}
-                            <span className="font-semibold text-foreground">{radius} km</span> {t('radius_note_suffix_user')}
+                            <span className="font-semibold text-foreground">{radius} {t('km')}</span> {t('radius_note_suffix_user')}
                         </p>
                     </div>
                 </div>
