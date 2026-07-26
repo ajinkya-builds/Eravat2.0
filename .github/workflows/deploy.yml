@@ -32,11 +32,12 @@ jobs:
         working-directory: eravat-app
         run: npm ci
 
-      - name: Build Web App (Production env)
+      - name: Build Web App for GitHub Pages
         working-directory: eravat-app
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_BASE_PATH: /Eravat2.0/
         run: npm run build
 
       - name: Deploy Web App to GitHub Pages
@@ -44,6 +45,16 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: eravat-app/dist
+
+      # Capacitor WebView loads from https://localhost/ — GH Pages base (/Eravat2.0/)
+      # must NOT be used here or the APK white-screens (asset 404s).
+      - name: Build Web App for Android (base /)
+        working-directory: eravat-app
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_BASE_PATH: /
+        run: npm run build
 
       - name: Sync Capacitor Android
         working-directory: eravat-app
@@ -70,7 +81,8 @@ jobs:
             echo "Uploading APK to Appetize.io..."
             response=$(curl -s https://$APPETIZE_API_TOKEN@api.appetize.io/v1/apps \
               -F "file=@eravat-app/android/app/build/outputs/apk/debug/app-debug.apk" \
-              -F "platform=android")
+              -F "platform=android" \
+              -F "publicKey=x3fpn3cbi2lc4py3epnl467ica")
             
             publicKey=$(echo $response | jq -r '.publicKey')
             
@@ -78,7 +90,7 @@ jobs:
               echo "Appetize.io upload successful!"
               echo "Appetize Public Key: $publicKey"
               echo "Appetize URL: https://appetize.io/app/$publicKey"
-              echo "### Production Android Emulator 📱" >> $GITHUB_STEP_SUMMARY
+              echo "### Production Android Emulator" >> $GITHUB_STEP_SUMMARY
               echo "Run the production app directly in your browser here: [Launch Emulator](https://appetize.io/app/$publicKey)" >> $GITHUB_STEP_SUMMARY
             else
               echo "Appetize upload failed: $response"
