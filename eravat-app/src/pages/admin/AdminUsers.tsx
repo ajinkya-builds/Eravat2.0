@@ -14,7 +14,6 @@ interface Profile {
     last_name: string;
     phone?: string;
     is_active: boolean;
-    status?: string;
     created_at: string;
     // Joined
     beat_name?: string;
@@ -55,6 +54,7 @@ export default function AdminUsers() {
     const [divisions, setDivisions] = useState<GeoEntity[]>([]);
     const [ranges, setRanges] = useState<GeoRange[]>([]);
     const [beats, setBeats] = useState<GeoBeat[]>([]);
+    const [beatsByRange, setBeatsByRange] = useState<Record<string, GeoBeat[]>>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
@@ -69,15 +69,18 @@ export default function AdminUsers() {
         setLoading(true);
         setError(null);
         try {
-            // Fetch profiles and geography together
+            // Profiles + assignments + light geo only.
+            // Do NOT fetch all geo_beats (1,200+) on cold load — load beats per-range in modals.
             const [
                 { data: profileData, error: pErr },
                 { data: assignmentData, error: aErr },
                 { data: divData },
                 { data: ranData },
-                { data: beaData },
             ] = await Promise.all([
-                supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+                supabase
+                    .from('profiles')
+                    .select('id, role, first_name, last_name, phone, is_active, created_at')
+                    .order('created_at', { ascending: false }),
                 supabase
                     .from('user_region_assignments')
                     .select(`
@@ -88,20 +91,18 @@ export default function AdminUsers() {
                     `),
                 supabase.from('geo_divisions').select('id, name, code').order('name'),
                 supabase.from('geo_ranges').select('id, name, code, division_id').order('name'),
-                supabase.from('geo_beats').select('id, name, code, range_id').order('name'),
             ]);
             if (pErr) throw pErr;
             if (aErr) throw aErr;
 
             setDivisions(divData || []);
             setRanges(ranData || []);
-            setBeats(beaData || []);
+            setBeats([]);
+            setBeatsByRange({});
 
             const divisionNameById = new Map((divData || []).map((d) => [d.id, d.name]));
             const rangeNameById = new Map((ranData || []).map((r) => [r.id, r.name]));
-            const beatNameById = new Map((beaData || []).map((b) => [b.id, b.name]));
             const rangeDivisionById = new Map((ranData || []).map((r) => [r.id, r.division_id]));
-            const beatRangeById = new Map((beaData || []).map((b) => [b.id, b.range_id]));
 
             const assignmentsByUser = new Map<string, any[]>();
             (assignmentData || []).forEach((a: any) => {
@@ -117,7 +118,7 @@ export default function AdminUsers() {
                 return 0;
             };
 
-            // Prefer relational names, but fallback to ID->name maps for schema drift cases.
+            // Prefer relational names from assignments; fall back to division/range ID maps.
             const flat: Profile[] = (profileData || []).map((p: any) => {
                 const userAssignments = assignmentsByUser.get(p.id) || [];
                 const assignment = userAssignments.sort((a, b) => {
@@ -125,7 +126,7 @@ export default function AdminUsers() {
                     if (primaryDelta !== 0) return primaryDelta;
                     return specificityScore(b) - specificityScore(a);
                 })[0];
-                const derivedRangeId = assignment?.range_id || (assignment?.beat_id ? beatRangeById.get(assignment.beat_id) : null);
+                const derivedRangeId = assignment?.range_id ?? null;
                 const derivedDivisionId = assignment?.division_id || (derivedRangeId ? rangeDivisionById.get(derivedRangeId) : null);
                 return {
                     ...p,
@@ -138,9 +139,7 @@ export default function AdminUsers() {
                     range_name:
                         assignment?.geo_ranges?.name ??
                         ((assignment?.range_id || derivedRangeId) ? rangeNameById.get(assignment?.range_id || derivedRangeId) ?? null : null),
-                    beat_name:
-                        assignment?.geo_beats?.name ??
-                        (assignment?.beat_id ? beatNameById.get(assignment.beat_id) ?? null : null),
+                    beat_name: assignment?.geo_beats?.name ?? null,
                     user_region_assignments: userAssignments,
                 };
             });
@@ -150,6 +149,30 @@ export default function AdminUsers() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const loadBeatsForRange = async (rangeId: string) => {
+        if (!rangeId) {
+            setBeats([]);
+            return;
+        }
+        if (beatsByRange[rangeId]) {
+            setBeats(beatsByRange[rangeId]);
+            return;
+        }
+        const { data, error: beatErr } = await supabase
+            .from('geo_beats')
+            .select('id, name, code, range_id')
+            .eq('range_id', rangeId)
+            .order('name');
+        if (beatErr) {
+            console.error('[AdminUsers] Failed to load beats for range', rangeId, beatErr);
+            setBeats([]);
+            return;
+        }
+        const list = data || [];
+        setBeatsByRange((prev) => ({ ...prev, [rangeId]: list }));
+        setBeats(list);
     };
 
     useEffect(() => { fetchData(); }, []);
@@ -326,7 +349,7 @@ export default function AdminUsers() {
                                     <tr><td colSpan={7} className="text-center py-16 text-muted-foreground">{t('admin.users.noPersonnel')}</td></tr>
                                 ) : filtered.map((p, i) => (
                                     <motion.tr key={p.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: i * 0.04 }} className="hover:bg-muted/20 group transition-colors">
+                                        transition={{ delay: Math.min(i, 15) * 0.02 }} className="hover:bg-muted/20 group transition-colors">
                                         <td className="p-4">
                                             {canManageRole(currentUserProfile?.role, p.role) ? (
                                                 <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggleSelect(p.id)} className="rounded border-border" />
@@ -372,12 +395,14 @@ export default function AdminUsers() {
                                                 <div className="flex items-center justify-end gap-2">
                                                     <button onClick={() => {
                                                         setError(null);
-                                                        setEditUser({
+                                                        const next = {
                                                             ...p,
                                                             division_id: p.division_id || '',
                                                             range_id: p.range_id || '',
                                                             beat_id: p.beat_id || ''
-                                                        } as any);
+                                                        } as any;
+                                                        setEditUser(next);
+                                                        if (next.range_id) void loadBeatsForRange(next.range_id);
                                                     }}
                                                         className="p-2 text-muted-foreground hover:text-primary bg-muted/30 hover:bg-primary/10 rounded-lg transition-colors"
                                                         title="Edit">
@@ -408,6 +433,7 @@ export default function AdminUsers() {
                 divisions={divisions}
                 ranges={ranges}
                 beats={beats}
+                onRangeChange={loadBeatsForRange}
                 ROLES={ROLES}
                 GEOGRAPHIC_ROLES={GEOGRAPHIC_ROLES}
                 t={t}
@@ -422,6 +448,7 @@ export default function AdminUsers() {
                 divisions={divisions}
                 ranges={ranges}
                 beats={beats}
+                onRangeChange={loadBeatsForRange}
                 ROLES={ROLES}
                 GEOGRAPHIC_ROLES={GEOGRAPHIC_ROLES}
                 currentUserProfile={currentUserProfile}
@@ -470,6 +497,7 @@ interface RegisterUserModalProps {
     divisions: GeoEntity[];
     ranges: GeoRange[];
     beats: GeoBeat[];
+    onRangeChange: (rangeId: string) => void | Promise<void>;
     ROLES: typeof ROLES;
     GEOGRAPHIC_ROLES: readonly string[];
     t: (key: string) => string;
@@ -484,6 +512,7 @@ function RegisterUserModal({
     divisions,
     ranges,
     beats,
+    onRangeChange,
     ROLES,
     GEOGRAPHIC_ROLES,
     t
@@ -499,7 +528,7 @@ function RegisterUserModal({
     }, [isOpen]);
 
     const filteredRanges = ranges.filter(r => r.division_id === newUser.division_id);
-    const filteredBeats = beats.filter(b => b.range_id === newUser.range_id);
+    const filteredBeats = beats.filter(b => !newUser.range_id || b.range_id === newUser.range_id);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -507,6 +536,11 @@ function RegisterUserModal({
     };
 
     if (!isOpen) return null;
+
+    const needsBeat = newUser.role === 'volunteer' || newUser.role === 'beat_guard';
+    const needsRange = needsBeat || newUser.role === 'range_officer';
+    const needsTerritory =
+        newUser.role === 'volunteer' || (GEOGRAPHIC_ROLES as readonly string[]).includes(newUser.role);
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -565,33 +599,12 @@ function RegisterUserModal({
                         </select>
                     </div>
 
-                    {newUser.role === 'volunteer' && (
-                        <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                            <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
-                            <select required value={newUser.beat_id} onChange={e => {
-                                const beatId = e.target.value;
-                                const beat = beats.find(b => b.id === beatId);
-                                const range = beat ? ranges.find(r => r.id === beat.range_id) : undefined;
-                                setNewUser({
-                                    ...newUser,
-                                    beat_id: beatId,
-                                    range_id: beat?.range_id || '',
-                                    division_id: range?.division_id || '',
-                                });
-                            }}
-                                className="w-full p-3 rounded-xl bg-background border border-border text-sm">
-                                <option value="">{t('admin.users.selectBeat')}</option>
-                                {beats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                            </select>
-                        </div>
-                    )}
-
                     <LocationFields
                         value={{ latitude: newUser.latitude, longitude: newUser.longitude }}
                         onChange={(loc) => setNewUser({ ...newUser, latitude: loc.latitude, longitude: loc.longitude })}
                     />
 
-                    {(GEOGRAPHIC_ROLES as readonly string[]).includes(newUser.role) && (
+                    {needsTerritory && (
                         <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
                             <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
                             <select required value={newUser.division_id} onChange={e => setNewUser({ ...newUser, division_id: e.target.value, range_id: '', beat_id: '' })}
@@ -599,15 +612,21 @@ function RegisterUserModal({
                                 <option value="">{t('admin.users.selectDivision')}</option>
                                 {divisions.map(d => <option key={d.id} value={d.id}>{d.name} {d.code ? `(${d.code})` : ''}</option>)}
                             </select>
-                            {['range_officer', 'beat_guard'].includes(newUser.role) && (
-                                <select required value={newUser.range_id} disabled={!newUser.division_id} onChange={e => setNewUser({ ...newUser, range_id: e.target.value, beat_id: '' })}
+                            {needsRange && (
+                                <select required value={newUser.range_id} disabled={!newUser.division_id}
+                                    onChange={e => {
+                                        const rangeId = e.target.value;
+                                        setNewUser({ ...newUser, range_id: rangeId, beat_id: '' });
+                                        void onRangeChange(rangeId);
+                                    }}
                                     className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
                                     <option value="">{t('admin.users.selectRange')}</option>
                                     {filteredRanges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                 </select>
                             )}
-                            {newUser.role === 'beat_guard' && (
-                                <select required value={newUser.beat_id} disabled={!newUser.range_id} onChange={e => setNewUser({ ...newUser, beat_id: e.target.value })}
+                            {needsBeat && (
+                                <select required value={newUser.beat_id} disabled={!newUser.range_id}
+                                    onChange={e => setNewUser({ ...newUser, beat_id: e.target.value })}
                                     className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
                                     <option value="">{t('admin.users.selectBeat')}</option>
                                     {filteredBeats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -649,6 +668,7 @@ interface EditUserModalProps {
     divisions: GeoEntity[];
     ranges: GeoRange[];
     beats: GeoBeat[];
+    onRangeChange: (rangeId: string) => void | Promise<void>;
     ROLES: typeof ROLES;
     GEOGRAPHIC_ROLES: readonly string[];
     currentUserProfile: UserProfile | null;
@@ -664,6 +684,7 @@ function EditUserModal({
     divisions,
     ranges,
     beats,
+    onRangeChange,
     ROLES,
     GEOGRAPHIC_ROLES,
     currentUserProfile,
@@ -682,7 +703,11 @@ function EditUserModal({
     if (!user || !editUser) return null;
 
     const filteredRanges = ranges.filter(r => r.division_id === editUser.division_id);
-    const filteredBeats = beats.filter(b => b.range_id === editUser.range_id);
+    const filteredBeats = beats.filter(b => !editUser.range_id || b.range_id === editUser.range_id);
+    const needsBeat = editUser.role === 'volunteer' || editUser.role === 'beat_guard';
+    const needsRange = needsBeat || editUser.role === 'range_officer';
+    const needsTerritory =
+        editUser.role === 'volunteer' || (GEOGRAPHIC_ROLES as readonly string[]).includes(editUser.role || '');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -727,7 +752,7 @@ function EditUserModal({
                         </select>
                     </div>
 
-                    {(GEOGRAPHIC_ROLES as readonly string[]).includes(editUser.role) && (
+                    {needsTerritory && (
                         <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
                             <p className="text-xs font-bold text-primary flex items-center gap-2"><MapPin size={12} /> {t('admin.users.assignTerritory')}</p>
                             <select required value={editUser.division_id || ''} onChange={e => setEditUser({ ...editUser, division_id: e.target.value, range_id: '', beat_id: '' })}
@@ -735,15 +760,21 @@ function EditUserModal({
                                 <option value="">{t('admin.users.selectDivision')}</option>
                                 {divisions.map(d => <option key={d.id} value={d.id}>{d.name} {d.code ? `(${d.code})` : ''}</option>)}
                             </select>
-                            {['range_officer', 'beat_guard'].includes(editUser.role) && (
-                                <select required value={editUser.range_id || ''} disabled={!editUser.division_id} onChange={e => setEditUser({ ...editUser, range_id: e.target.value, beat_id: '' })}
+                            {needsRange && (
+                                <select required value={editUser.range_id || ''} disabled={!editUser.division_id}
+                                    onChange={e => {
+                                        const rangeId = e.target.value;
+                                        setEditUser({ ...editUser, range_id: rangeId, beat_id: '' });
+                                        void onRangeChange(rangeId);
+                                    }}
                                     className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
                                     <option value="">{t('admin.users.selectRange')}</option>
                                     {filteredRanges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                 </select>
                             )}
-                            {editUser.role === 'beat_guard' && (
-                                <select required value={editUser.beat_id || ''} disabled={!editUser.range_id} onChange={e => setEditUser({ ...editUser, beat_id: e.target.value })}
+                            {needsBeat && (
+                                <select required value={editUser.beat_id || ''} disabled={!editUser.range_id}
+                                    onChange={e => setEditUser({ ...editUser, beat_id: e.target.value })}
                                     className="w-full p-3 rounded-xl bg-background border border-border text-sm disabled:opacity-40">
                                     <option value="">{t('admin.users.selectBeat')}</option>
                                     {filteredBeats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}

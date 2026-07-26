@@ -43,7 +43,7 @@ function printResults(data) {
   }
   console.log(`Successfully fetched ${data.length} reports:`);
   for (const r of data) {
-    console.log(`- ID: ${r.id}, Created At: ${r.created_at}, Type: ${r.report_type || r.observation_type}, Beat ID: ${r.beat_id}`);
+    console.log(`- ID: ${r.id}, Created At: ${r.server_created_at || r.device_timestamp}, Type: ${r.report_type || r.observation_type}, Beat ID: ${r.beat_id}`);
   }
 }
 

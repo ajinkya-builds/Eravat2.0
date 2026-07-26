@@ -84,7 +84,7 @@ The following secrets are configured in the GitHub repository to run CI/CD pipel
 ## 📱 Appetize Emulator Links
 
 * **Staging Emulator URL**: [Launch Staging Emulator](https://appetize.io/app/rthbx63kdvramzsyvwmxthkqd4)
-* **Production Emulator URL**: [Launch Production Emulator](https://appetize.io/app/oavntln3glgkubshddhtmv7gmy)
+* **Production Emulator URL**: [Launch Production Emulator](https://appetize.io/app/sokxjzw5umd3iff73m4c35lj7y) (updated 2026-07-26 — prior keys may be stale; each CI upload can mint a new publicKey)
 
 ---
 
