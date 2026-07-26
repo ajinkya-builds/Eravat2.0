@@ -356,8 +356,11 @@ serve(async (req) => {
         })
 
       if (assignErr) {
+        // Roll back so a failed registration never leaves an orphan user behind
+        await adminClient.from('profiles').delete().eq('id', newUserId)
+        await adminClient.auth.admin.deleteUser(newUserId)
         return new Response(JSON.stringify({
-          error: `Region assignment failed: ${assignErr.message}. The user was created but has no territory. You can edit them to assign territory.`,
+          error: `Region assignment failed: ${assignErr.message}. The user was not created — please try again.`,
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },

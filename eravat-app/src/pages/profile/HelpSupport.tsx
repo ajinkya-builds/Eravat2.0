@@ -142,7 +142,7 @@ export default function HelpSupport() {
                                 </div>
                                 <div>
                                     <div className="font-medium">{t('help.appVersion')}</div>
-                                    <div className="text-xs text-muted-foreground mt-0.5">Eravat 2.0 (Build 2025.2.1)</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">Eravat 2.0.0 (Android versionCode 2)</div>
                                 </div>
                             </div>
                         </div>

@@ -1,3 +1,6 @@
+-- Remote baseline schema dump (refreshed 2026-07-26T12:04Z from mnytrlcmdpkfhrzrtesf)
+-- For local bootstrap only. Historical incrementals live in migrations_applied_on_remote/
+
 
 
 
@@ -119,7 +122,7 @@ ALTER TYPE "public"."user_role" OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."assign_report_geography"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 DECLARE
   matched_beat_id uuid;
@@ -205,6 +208,42 @@ $$;
 ALTER FUNCTION "public"."can_read_report"("p_report_id" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."check_phone_registered"("p_phone" "text") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  v_exists boolean;
+  v_clean_p_phone text;
+BEGIN
+  -- Strip all non-digit characters from input
+  v_clean_p_phone := regexp_replace(p_phone, '\D', '', 'g');
+
+  -- Normalize to last 10 digits
+  IF length(v_clean_p_phone) > 10 THEN
+    v_clean_p_phone := right(v_clean_p_phone, 10);
+  END IF;
+
+  -- Match by last 10 digits of stored phone in active profiles
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.profiles p
+    WHERE right(regexp_replace(COALESCE(p.phone, ''), '\D', '', 'g'), 10) = v_clean_p_phone
+      AND p.is_active = true
+  ) INTO v_exists;
+
+  RETURN v_exists;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."check_phone_registered"("p_phone" "text") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."check_phone_registered"("p_phone" "text") IS 'Checks if a user with the specified phone number exists and is active, returning a boolean. Does not leak email or other profile data.';
+
+
+
 CREATE OR REPLACE FUNCTION "public"."ensure_phone_identity"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -248,33 +287,6 @@ $$;
 
 
 ALTER FUNCTION "public"."ensure_phone_identity"() OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_email_by_phone"("p_phone" "text") RETURNS "text"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-DECLARE
-  v_email text;
-  v_clean_p_phone text;
-BEGIN
-  -- Extract only digits from input
-  v_clean_p_phone := regexp_replace(p_phone, '\D', '', 'g');
-  
-  -- Match by last 10 digits
-  SELECT u.email INTO v_email
-  FROM auth.users u
-  INNER JOIN public.profiles p ON p.id = u.id
-  WHERE regexp_replace(p.phone, '\D', '', 'g') LIKE '%' || RIGHT(v_clean_p_phone, 10)
-    AND p.is_active = true
-  LIMIT 1;
-
-  RETURN v_email;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_email_by_phone"("p_phone" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_geo_centroid_lat_lng"("p_beat_id" "uuid" DEFAULT NULL::"uuid", "p_range_id" "uuid" DEFAULT NULL::"uuid", "p_division_id" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("latitude" double precision, "longitude" double precision)
@@ -419,7 +431,6 @@ BEGIN
     NEW.id,
     COALESCE(
       NULLIF(trim(both from NEW.raw_user_meta_data->>'first_name'), ''),
-      split_part(COALESCE(NEW.email, 'user'), '@', 1),
       'User'
     ),
     COALESCE(NULLIF(trim(both from NEW.raw_user_meta_data->>'last_name'), ''), ''),
@@ -464,7 +475,7 @@ BEGIN
         -- Strip all non-numeric characters to get just the digits
         normalized_phone := regexp_replace(NEW.phone, '\D', '', 'g');
         
-        -- If it's a 10 digit Indian number, prepend 91 (Twilio Supabase stripped format)
+        -- If it's a 10 digit Indian number, prepend 91 (Supabase stripped format)
         IF length(normalized_phone) = 10 THEN
             normalized_phone := '91' || normalized_phone;
         -- If it's already 12 digits starting with 91, keep it
@@ -475,11 +486,11 @@ BEGIN
             normalized_phone := '91' || substring(normalized_phone from 2);
         END IF;
 
-        -- 1. OVERRIDE the phone number on the actual auth.users record 
-        -- so it perfectly matches the `91XXXXXXXXXX` expected by Twilio/GoTrue.
+        -- OVERRIDE the phone number on the actual auth.users record 
+        -- so it perfectly matches the `91XXXXXXXXXX` expected by GoTrue.
         NEW.phone := normalized_phone;
 
-        -- 2. AUTO-CONFIRM the phone number so Supabase allows OTP to be sent
+        -- AUTO-CONFIRM the phone number
         NEW.phone_confirmed_at := COALESCE(NEW.phone_confirmed_at, now());
     END IF;
     
@@ -1515,6 +1526,18 @@ CREATE POLICY "Admins can update all profiles" ON "public"."profiles" FOR UPDATE
 
 
 
+CREATE POLICY "Allow public read access" ON "public"."geo_beats" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Allow public read access" ON "public"."geo_divisions" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Allow public read access" ON "public"."geo_ranges" FOR SELECT USING (true);
+
+
+
 CREATE POLICY "Authenticated users can insert audit entries" ON "public"."audit_log" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
 
 
@@ -1755,6 +1778,15 @@ ALTER TABLE "public"."audit_log" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."conflict_damages" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."geo_beats" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."geo_divisions" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."geo_ranges" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."notifications" ENABLE ROW LEVEL SECURITY;
@@ -4131,15 +4163,15 @@ GRANT ALL ON FUNCTION "public"."can_read_report"("p_report_id" "uuid") TO "servi
 
 
 
+GRANT ALL ON FUNCTION "public"."check_phone_registered"("p_phone" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."check_phone_registered"("p_phone" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."check_phone_registered"("p_phone" "text") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."ensure_phone_identity"() TO "anon";
 GRANT ALL ON FUNCTION "public"."ensure_phone_identity"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."ensure_phone_identity"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_email_by_phone"("p_phone" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_email_by_phone"("p_phone" "text") TO "service_role";
-GRANT ALL ON FUNCTION "public"."get_email_by_phone"("p_phone" "text") TO "anon";
 
 
 

@@ -552,7 +552,7 @@ export default function AdminSettings() {
                 <div className="space-y-4">
                     {[
                         { label: 'Web App', version: '2.0.0', status: 'Current' },
-                        { label: 'Android APK', version: '2.0.0', status: 'Current' },
+                        { label: 'Android APK', version: '2.0.0 (versionCode 2)', status: 'Current' },
                         { label: 'Supabase Backend', version: 'v2 (hosted)', status: 'Online' },
                         { label: 'PostGIS Extension', version: '3.4', status: 'Active' },
                     ].map((item) => (

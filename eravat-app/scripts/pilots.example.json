@@ -1,0 +1,21 @@
+[
+  {
+    "phone": "9988775566",
+    "role": "admin",
+    "first_name": "Ops",
+    "last_name": "Admin",
+    "otp": "123456",
+    "latitude": 23.2599,
+    "longitude": 77.4126
+  },
+  {
+    "phone": "8899776655",
+    "role": "beat_guard",
+    "first_name": "Pilot",
+    "last_name": "One",
+    "otp": "123456",
+    "latitude": 23.2599,
+    "longitude": 77.4126,
+    "_note": "Replace phones and add division_id/range_id/beat_id before production use. Copy this file to pilots.local.json (gitignored)."
+  }
+]

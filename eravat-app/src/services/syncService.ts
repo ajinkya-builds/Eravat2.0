@@ -198,8 +198,9 @@ export async function syncData() {
     let failureCount = 0;
 
     try {
-        // Verify user is authenticated before syncing
-        const { data: { user } } = await supabase.auth.getUser();
+        // Use local session (no network) so sync can proceed after reconnect
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
         if (!user) {
             return { success: false, error: 'Not authenticated' };
         }

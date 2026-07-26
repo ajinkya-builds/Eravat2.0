@@ -1,0 +1,40 @@
+name: Nightly production database backup
+
+on:
+  schedule:
+    # 18:30 UTC = 00:00 IST
+    - cron: '30 18 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump production database
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p backups
+          STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          supabase link --project-ref mnytrlcmdpkfhrzrtesf --password "$SUPABASE_DB_PASSWORD"
+          supabase db dump --linked -f "backups/prod-${STAMP}-schema.sql"
+          supabase db dump --linked --data-only --use-copy -f "backups/prod-${STAMP}-data.sql"
+          supabase db dump --linked --data-only --use-copy --schema auth -f "backups/prod-${STAMP}-auth.sql"
+          ls -lh backups/
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eravat-prod-backup-${{ github.run_id }}
+          path: backups/
+          retention-days: 30

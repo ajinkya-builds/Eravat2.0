@@ -77,6 +77,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const profileInflight = useRef(new Map<string, Promise<void>>());
     /** Log missing profile / fetch errors at most once per user until a profile loads. */
     const profileIssueLogged = useRef(new Set<string>());
+    /** In-memory PIN for re-encrypting after token refresh (never persisted). */
+    const activePinRef = useRef<string | null>(null);
 
     const fetchProfile = useCallback(async (userId: string) => {
         const existing = profileInflight.current.get(userId);
@@ -84,14 +86,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const run = (async () => {
             try {
-                console.log('[AuthContext] fetchProfile starting for userId:', userId);
+                if (import.meta.env.DEV) {
+                    console.log('[AuthContext] fetchProfile starting for userId:', userId);
+                }
                 const { data: profileData, error: profileError } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('id', userId)
                     .maybeSingle();
 
-                console.log('[AuthContext] fetchProfile db result:', { profileData, profileError });
+                if (import.meta.env.DEV) {
+                    console.log('[AuthContext] fetchProfile db result:', {
+                        hasProfile: !!profileData,
+                        profileError,
+                    });
+                }
                 if (profileError) {
                     if (!profileIssueLogged.current.has(userId)) {
                         profileIssueLogged.current.add(userId);
@@ -169,7 +178,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             const saved = localStorage.getItem('eravat_secure_session');
             if (saved) {
-                if (localStorage.getItem('eravat_bypass_pin_lock') === 'true') {
+                // E2E-only bypass — never active in production builds
+                if (
+                    import.meta.env.DEV &&
+                    localStorage.getItem('eravat_bypass_pin_lock') === 'true'
+                ) {
                     try {
                         const encryptedPayload = JSON.parse(saved) as EncryptedPayload;
                         const decryptedSession = await decryptSession(encryptedPayload, '1111');
@@ -219,14 +232,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         void checkSecureSession();
 
         const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
-            console.log('[AuthContext] onAuthStateChange event:', event, 'user:', newSession?.user?.id, 'isLocked:', isLocked);
+            if (import.meta.env.DEV) {
+                console.log('[AuthContext] onAuthStateChange event:', event, 'user:', newSession?.user?.id);
+            }
             if (cancelled) return;
 
             // If a saved session is present, ignore incoming state updates until unlocked
             const saved = localStorage.getItem('eravat_secure_session');
             if (saved && event !== 'SIGNED_OUT' && isLocked) {
-                console.log('[AuthContext] onAuthStateChange ignored because isLocked is true');
+                if (import.meta.env.DEV) {
+                    console.log('[AuthContext] onAuthStateChange ignored because isLocked is true');
+                }
                 return;
+            }
+
+            // Keep PIN-wrapped blob in sync when refresh tokens rotate
+            if (
+                (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') &&
+                newSession &&
+                localStorage.getItem('eravat_secure_session') &&
+                activePinRef.current
+            ) {
+                const pin = activePinRef.current;
+                void encryptSession(newSession, pin)
+                    .then((encrypted) => {
+                        localStorage.setItem('eravat_secure_session', JSON.stringify(encrypted));
+                    })
+                    .catch((err) => {
+                        if (import.meta.env.DEV) {
+                            console.warn('[AuthContext] Failed to re-encrypt session after refresh:', err);
+                        }
+                    });
             }
 
             setSession(newSession);
@@ -276,15 +312,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 phone: e164Phone,
                 options: {
                     channel: 'sms',
+                    // Only pre-provisioned users may log in (no self-signup via OTP)
+                    shouldCreateUser: false,
                 }
             });
 
             if (error) {
+                const msg = (error.message || '').toLowerCase();
+                // Pilot mode: SMS provider may be off while Dashboard Test OTP is configured.
+                // verifyOtp still accepts the fixed test code for enrolled numbers.
+                const providerDisabled =
+                    msg.includes('phone provider') ||
+                    msg.includes('unsupported phone provider') ||
+                    (error as { code?: string }).code === 'phone_provider_disabled';
+                if (providerDisabled) {
+                    if (import.meta.env.DEV) {
+                        console.warn(
+                            '[AuthContext] SMS provider disabled — proceeding to Test OTP verify UI'
+                        );
+                    }
+                    return { error: null, message: 'otp_sent' };
+                }
                 console.error('[AuthContext] OTP send error:', error);
                 const isRateLimit = (error as any).status === 429 || 
-                                    error.message.toLowerCase().includes('rate limit') || 
-                                    error.message.toLowerCase().includes('security purposes') ||
-                                    error.message.toLowerCase().includes('once every');
+                                    msg.includes('rate limit') || 
+                                    msg.includes('security purposes') ||
+                                    msg.includes('once every');
                 if (isRateLimit) {
                     return { error: new Error('Too many requests. Please try again later.'), message: 'rate_limit' };
                 }
@@ -370,7 +423,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             // Restore session in Supabase Auth
-            const { error: sessionError } = await supabase.auth.setSession({
+            const { data: setData, error: sessionError } = await supabase.auth.setSession({
                 access_token: decryptedSession.access_token,
                 refresh_token: decryptedSession.refresh_token
             });
@@ -380,9 +433,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 return { error: sessionError };
             }
 
+            const liveSession = setData.session ?? decryptedSession;
+            activePinRef.current = pin;
+            // Re-wrap with possibly-rotated tokens from setSession
+            try {
+                const encrypted = await encryptSession(liveSession, pin);
+                localStorage.setItem('eravat_secure_session', JSON.stringify(encrypted));
+            } catch (encErr) {
+                if (import.meta.env.DEV) {
+                    console.warn('[AuthContext] Failed to re-encrypt after unlock:', encErr);
+                }
+            }
+
             // Sync session state & profile in context
-            setSession(decryptedSession);
-            await fetchProfile(decryptedSession.user.id);
+            setSession(liveSession);
+            await fetchProfile(liveSession.user.id);
             setIsLocked(false);
 
             return { error: null };
@@ -401,6 +466,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             const encrypted = await encryptSession(session, pin);
             localStorage.setItem('eravat_secure_session', JSON.stringify(encrypted));
+            activePinRef.current = pin;
             setHasSavedSession(true);
             setIsLocked(false);
         } catch (err) {
@@ -410,6 +476,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const resetPIN = async () => {
         localStorage.removeItem('eravat_secure_session');
+        activePinRef.current = null;
         setHasSavedSession(false);
         setIsLocked(false);
         await signOut();
@@ -419,6 +486,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         wasAuthenticated[0].current = false; // explicit sign-out, not expiry
         profileIssueLogged.current.clear();
         localStorage.removeItem('eravat_secure_session');
+        activePinRef.current = null;
         setHasSavedSession(false);
         setIsLocked(false);
         if (session?.user?.id) {

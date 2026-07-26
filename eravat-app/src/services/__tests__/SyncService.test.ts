@@ -33,7 +33,9 @@ vi.mock('../../db', () => ({
 vi.mock('../../supabase', () => ({
   supabase: {
     auth: {
-      getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } }),
+      getSession: vi.fn().mockResolvedValue({
+        data: { session: { user: { id: 'test-user-id' } } },
+      }),
     },
     from: mockFrom,
     storage: {
@@ -55,12 +57,12 @@ describe('SyncService', () => {
   it('returns success and count 0 if no pending reports exist', async () => {
     const result = await syncData();
     expect(result).toEqual({ success: true, count: 0 });
-    expect(supabase.auth.getUser).toHaveBeenCalledTimes(1);
+    expect(supabase.auth.getSession).toHaveBeenCalledTimes(1);
     expect(db.reports.where).toHaveBeenCalledWith('sync_status');
   });
 
   it('fails safely if user is not authenticated', async () => {
-    (supabase.auth.getUser as any).mockResolvedValueOnce({ data: { user: null } });
+    (supabase.auth.getSession as any).mockResolvedValueOnce({ data: { session: null } });
 
     const result = await syncData();
     expect(result).toEqual({ success: false, error: 'Not authenticated' });

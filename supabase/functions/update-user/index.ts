@@ -64,7 +64,7 @@ serve(async (req) => {
     }
 
     // 2. Parse request body
-    const {
+    let {
       id, // Target user ID
       first_name,
       last_name,
@@ -148,6 +148,11 @@ serve(async (req) => {
       if (phone) {
         const digits = phone.replace(/\D/g, '')
         const tenDigits = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : (digits.length === 11 && digits.startsWith('0') ? digits.slice(1) : digits)
+        if (tenDigits.length !== 10) {
+          return new Response(JSON.stringify({ error: 'Phone number must be a valid 10-digit Indian number.' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
         normalizedPhoneDigits = tenDigits
         updatesToAuth.phone = `91${tenDigits}`
       } else {
@@ -194,10 +199,19 @@ serve(async (req) => {
 
     // 8. Update Region Assignments
     const finalRole = role || targetProfile.role
+    const isGeographicRole = GEOGRAPHIC_ROLES.includes(finalRole as (typeof GEOGRAPHIC_ROLES)[number])
+    const territoryProvided = hasValue(division_id) || hasValue(range_id) || hasValue(beat_id)
 
-    if (GEOGRAPHIC_ROLES.includes(finalRole as (typeof GEOGRAPHIC_ROLES)[number])) {
-      if (!hasValue(division_id)) {
+    // Volunteers have territory too (beat-level). Only touch their assignment when
+    // territory fields are actually sent, so partial updates never wipe it.
+    if (isGeographicRole || (finalRole === 'volunteer' && territoryProvided)) {
+      if (isGeographicRole && !hasValue(division_id)) {
         return new Response(JSON.stringify({ error: 'Division is required for this role.' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (finalRole === 'volunteer' && !hasValue(beat_id)) {
+        return new Response(JSON.stringify({ error: 'Beat assignment is required for volunteers.' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
@@ -210,6 +224,24 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: 'Beat is required for beat guard role.' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
+      }
+
+      // Backfill range/division from the beat for volunteers (mirrors create-user)
+      if (finalRole === 'volunteer' && hasValue(beat_id) && (!hasValue(range_id) || !hasValue(division_id))) {
+        const { data: beatRow } = await adminClient
+          .from('geo_beats')
+          .select('id, range_id')
+          .eq('id', beat_id)
+          .single()
+        if (beatRow?.range_id) {
+          range_id = beatRow.range_id
+          const { data: rangeRow } = await adminClient
+            .from('geo_ranges')
+            .select('division_id')
+            .eq('id', beatRow.range_id)
+            .single()
+          if (rangeRow?.division_id) division_id = rangeRow.division_id
+        }
       }
 
       if (hasValue(range_id)) {
@@ -268,7 +300,8 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
-    } else {
+    } else if (finalRole !== 'volunteer') {
+      // Non-territorial roles (admin, ccf, biologist, veterinarian) carry no assignment
       await adminClient
         .from('user_region_assignments')
         .delete()

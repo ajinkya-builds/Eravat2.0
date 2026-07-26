@@ -126,10 +126,10 @@ File: `eravat-app/.env.local`
 
 ```
 VITE_SUPABASE_URL=https://mnytrlcmdpkfhrzrtesf.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_pxNb78WOGaRxX64ZGZPaog_i0nJqbCC
+VITE_SUPABASE_PUBLISHABLE_KEY=<Dashboard → API → Publishable key>
 ```
 
-> **Note:** Use the Dashboard **Publishable** key (`sb_publishable_...`) with `@supabase/supabase-js` v2.
+> **Note:** Use the Dashboard **Publishable** key (`sb_publishable_...`) with `@supabase/supabase-js` v2. Never commit real keys.
 
 ---
 

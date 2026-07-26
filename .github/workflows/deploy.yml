@@ -32,6 +32,14 @@ jobs:
         working-directory: eravat-app
         run: npm ci
 
+      - name: Typecheck
+        working-directory: eravat-app
+        run: npx tsc --noEmit -p tsconfig.app.json
+
+      - name: Unit tests
+        working-directory: eravat-app
+        run: npm run test:run
+
       - name: Build Web App for GitHub Pages
         working-directory: eravat-app
         env:
@@ -60,13 +68,51 @@ jobs:
         working-directory: eravat-app
         run: npx cap sync android
 
+      - name: Decode release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "ANDROID_KEYSTORE_BASE64 not set — release APK will be skipped; debug APK still built."
+            echo "HAS_RELEASE_KEYSTORE=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > eravat-app/android/release.jks
+          cat > eravat-app/android/keystore.properties <<EOF
+          storeFile=$(pwd)/eravat-app/android/release.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+          # Strip accidental leading spaces from heredoc indentation
+          sed -i 's/^[[:space:]]*//' eravat-app/android/keystore.properties
+          echo "HAS_RELEASE_KEYSTORE=true" >> "$GITHUB_ENV"
+
+      - name: Build Android Release APK
+        if: env.HAS_RELEASE_KEYSTORE == 'true'
+        working-directory: eravat-app/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
       - name: Build Android Debug APK
         working-directory: eravat-app/android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload Android APK Artifact
+      - name: Upload Android Release APK Artifact
+        if: env.HAS_RELEASE_KEYSTORE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Eravat-Production-Release-APK
+          path: eravat-app/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      - name: Upload Android Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Eravat-Production-APK
@@ -77,10 +123,14 @@ jobs:
         env:
           APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
         run: |
+          APK="eravat-app/android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK" ]; then
+            APK="eravat-app/android/app/build/outputs/apk/debug/app-debug.apk"
+          fi
           if [ -n "$APPETIZE_API_TOKEN" ]; then
-            echo "Uploading APK to Appetize.io..."
+            echo "Uploading APK to Appetize.io ($APK)..."
             response=$(curl -s https://$APPETIZE_API_TOKEN@api.appetize.io/v1/apps \
-              -F "file=@eravat-app/android/app/build/outputs/apk/debug/app-debug.apk" \
+              -F "file=@$APK" \
               -F "platform=android" \
               -F "publicKey=x3fpn3cbi2lc4py3epnl467ica")
             

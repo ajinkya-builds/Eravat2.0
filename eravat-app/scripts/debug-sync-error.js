@@ -1,7 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
-const prodUrl = 'https://mnytrlcmdpkfhrzrtesf.supabase.co';
-const serviceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ueXRybGNtZHBrZmhyenJ0ZXNmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTYwNzYwNCwiZXhwIjoyMDg3MTgzNjA0fQ.ysj8mfaBMR6sR1RaZAxePJI3Bf3IEqo07PrfROVF7sc';
+const prodUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!prodUrl || !serviceRoleKey) {
+  console.error(
+    'Missing SUPABASE_URL (or VITE_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY in the environment.'
+  );
+  process.exit(1);
+}
 
 async function main() {
   const supabase = createClient(prodUrl, serviceRoleKey, {

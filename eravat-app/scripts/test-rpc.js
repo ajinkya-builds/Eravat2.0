@@ -1,13 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-const stagingUrl = 'https://ttjtyvxfiqhjdngkgdkf.supabase.co';
-const stagingKey = 'sb_publishable_4UmDpkNy1B1QPasCHuHkSQ_RxR-PEDe';
+const stagingUrl = process.env.STAGE_SUPABASE_URL || process.env.STAGE_VITE_SUPABASE_URL;
+const stagingKey =
+  process.env.STAGE_SUPABASE_PUBLISHABLE_KEY || process.env.STAGE_VITE_SUPABASE_PUBLISHABLE_KEY;
 
-const prodUrl = 'https://mnytrlcmdpkfhrzrtesf.supabase.co';
-const prodKey = 'sb_publishable_pxNb78WOGaRxX64ZGZPaog_i0nJqbCC';
+const prodUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const prodKey =
+  process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 async function checkDb(name, url, key) {
   console.log(`\n=== Checking ${name} DB ===`);
+  if (!url || !key) {
+    console.error(`Missing URL/key for ${name}. Set env vars and retry.`);
+    return;
+  }
   try {
     const supabase = createClient(url, key);
     
