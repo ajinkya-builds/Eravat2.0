@@ -176,56 +176,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const checkSecureSession = async () => {
             if (secureSessionCheckCompleted.current) return;
 
-            const saved = localStorage.getItem('eravat_secure_session');
-            if (saved) {
-                // E2E-only bypass — never active in production builds
-                if (
-                    import.meta.env.DEV &&
-                    localStorage.getItem('eravat_bypass_pin_lock') === 'true'
-                ) {
-                    try {
-                        const encryptedPayload = JSON.parse(saved) as EncryptedPayload;
-                        const decryptedSession = await decryptSession(encryptedPayload, '1111');
-                        const { error: setSessionErr } = await supabase.auth.setSession({
-                            access_token: decryptedSession.access_token,
-                            refresh_token: decryptedSession.refresh_token
-                        });
-                        if (setSessionErr) {
-                            throw setSessionErr;
-                        }
-                        if (!cancelled) {
-                            setSession(decryptedSession);
-                            void fetchProfile(decryptedSession.user.id);
-                            setHasSavedSession(true);
-                            setIsLocked(false);
-                            setIsCheckingSecureSession(false);
-                            secureSessionCheckCompleted.current = true;
-                        }
-                        return;
-                    } catch (err) {
-                        console.error('[AuthContext] E2E auto-unlock failed:', err);
-                        if (!cancelled) {
-                            setHasSavedSession(true);
-                            setIsLocked(true);
-                            setIsCheckingSecureSession(false);
-                            secureSessionCheckCompleted.current = true;
-                        }
-                    }
-                } else {
-                    if (!cancelled) {
-                        setHasSavedSession(true);
-                        setIsLocked(true);
-                        setIsCheckingSecureSession(false);
-                        secureSessionCheckCompleted.current = true;
-                    }
-                }
-            } else {
-                if (!cancelled) {
-                    setHasSavedSession(false);
-                    setIsLocked(false);
-                    setIsCheckingSecureSession(false);
-                    secureSessionCheckCompleted.current = true;
-                }
+            // The security PIN gate has been removed: sessions now persist
+            // natively via the Supabase client (persistSession), so the app
+            // opens directly and works offline. Clear any legacy PIN-encrypted
+            // blob left by older builds and never lock.
+            localStorage.removeItem('eravat_secure_session');
+            if (!cancelled) {
+                setHasSavedSession(false);
+                setIsLocked(false);
+                setIsCheckingSecureSession(false);
+                secureSessionCheckCompleted.current = true;
             }
         };
 

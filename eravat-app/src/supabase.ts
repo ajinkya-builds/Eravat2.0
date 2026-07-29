@@ -37,7 +37,10 @@ if (import.meta.env.DEV && disableAutoRefresh) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    persistSession: false,
+    // Persist the session natively (localStorage) so the app reopens without a
+    // security PIN and remains usable offline. The PIN gate was removed because
+    // field staff found it a hurdle and it blocked offline access.
+    persistSession: true,
     autoRefreshToken: !disableAutoRefresh,
     detectSessionInUrl: true,
   },

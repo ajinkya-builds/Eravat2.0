@@ -257,7 +257,7 @@ export default function Dashboard() {
                             </div>
                         ) : recentSightings.length === 0 ? (
                             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                                No sightings in your territory yet. Tap Report Activity to add one.
+                                No sightings in your territory yet. Tap Add Sighting to add one.
                             </div>
                         ) : (
                             <ul className="divide-y divide-border/40">
