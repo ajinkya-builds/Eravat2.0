@@ -56,7 +56,12 @@ describe('SyncService', () => {
 
   it('returns success and count 0 if no pending reports exist', async () => {
     const result = await syncData();
-    expect(result).toEqual({ success: true, count: 0 });
+    expect(result).toEqual({
+      success: true,
+      count: 0,
+      total: 0,
+      message: 'Nothing to sync',
+    });
     expect(supabase.auth.getSession).toHaveBeenCalledTimes(1);
     expect(db.reports.where).toHaveBeenCalledWith('sync_status');
   });
