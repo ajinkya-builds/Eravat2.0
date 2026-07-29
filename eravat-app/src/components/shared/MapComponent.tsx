@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
-import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap, CircleMarker } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap, CircleMarker, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Layers, Eye, AlertTriangle, Footprints } from 'lucide-react';
+import { Layers, Eye, AlertTriangle, Footprints, Maximize2, Minimize2, LocateFixed, Satellite, Map as MapIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Buffer } from 'buffer';
 import wkx from 'wkx';
 import * as turf from '@turf/turf';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 // ─── Custom Marker Icons ──────────────────────────────────────────────────────
 
@@ -34,21 +35,60 @@ const iconMap = {
     default:  createIcon('hsl(215.4, 16.3%, 46.9%)', 12)
 };
 
-// ─── Fit bounds helper ────────────────────────────────────────────────────────
+const userIcon = new L.DivIcon({
+    className: 'custom-leaflet-marker',
+    html: `<div style="
+        background-color: hsl(217, 91%, 60%);
+        width: 16px; height: 16px; border-radius: 50%;
+        border: 3px solid white; box-shadow: 0 0 0 4px hsla(217,91%,60%,0.35), 0 2px 6px rgba(0,0,0,0.45);
+    "></div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+});
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function MapBounds({ geojsonData }: { geojsonData: any }) {
+// ─── Map helpers (children of MapContainer) ────────────────────────────────────
+
+/** Fit the map to the union of the selected boundary, visible pins, and user location. */
+function FitToData({
+    geojsonData,
+    pins,
+    userLoc,
+    fitKey,
+}: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    geojsonData: any;
+    pins: { lat: number; lng: number }[];
+    userLoc: { lat: number; lng: number } | null;
+    fitKey: string;
+}) {
     const map = useMap();
     useEffect(() => {
-        if (geojsonData) {
-            try {
+        try {
+            const bounds = L.latLngBounds([]);
+            if (geojsonData) {
                 const layer = L.geoJSON(geojsonData);
-                map.fitBounds(layer.getBounds(), { padding: [50, 50], maxZoom: 12 });
-            } catch (e) {
-                console.error('Could not fit bounds to geometry', e);
+                if (layer.getBounds().isValid()) bounds.extend(layer.getBounds());
             }
+            pins.forEach((p) => bounds.extend([p.lat, p.lng]));
+            if (userLoc) bounds.extend([userLoc.lat, userLoc.lng]);
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+            }
+        } catch (e) {
+            console.error('Could not fit bounds', e);
         }
-    }, [geojsonData, map]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [fitKey]);
+    return null;
+}
+
+/** Recompute leaflet size after container resize (e.g. fullscreen toggle). */
+function MapResizer({ trigger }: { trigger: unknown }) {
+    const map = useMap();
+    useEffect(() => {
+        const id = setTimeout(() => map.invalidateSize(), 250);
+        return () => clearTimeout(id);
+    }, [trigger, map]);
     return null;
 }
 
@@ -85,14 +125,28 @@ interface ObsPin {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function parseWkbHex(hexStr: string): { lat: number; lng: number } | null {
+/**
+ * Parse a PostGIS location value into lat/lng. Handles the common shapes returned
+ * by PostgREST across environments: EWKB/WKB hex string, or a GeoJSON Point object.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseLocation(loc: any): { lat: number; lng: number } | null {
+    if (!loc) return null;
     try {
-        const buf = Buffer.from(hexStr, 'hex');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const geom = wkx.Geometry.parse(buf) as any;
-        const gj = geom.toGeoJSON();
-        if (gj.type === 'Point') {
-            return { lat: gj.coordinates[1], lng: gj.coordinates[0] };
+        if (typeof loc === 'string') {
+            const buf = Buffer.from(loc, 'hex');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const geom = wkx.Geometry.parse(buf) as any;
+            const gj = geom.toGeoJSON();
+            if (gj?.type === 'Point') return { lat: gj.coordinates[1], lng: gj.coordinates[0] };
+            return null;
+        }
+        // GeoJSON object form
+        if (loc.type === 'Point' && Array.isArray(loc.coordinates)) {
+            return { lat: loc.coordinates[1], lng: loc.coordinates[0] };
+        }
+        if (Array.isArray(loc.coordinates)) {
+            return { lat: loc.coordinates[1], lng: loc.coordinates[0] };
         }
         return null;
     } catch {
@@ -109,6 +163,16 @@ const obsTypeMap: Record<string, 'direct' | 'indirect' | 'loss'> = {
     loss: 'loss',
 };
 
+const RADIUS_OPTIONS = [0, 10, 25, 50, 100];
+
+function getInitialBaseLayer(): 'streets' | 'satellite' {
+    try {
+        const saved = localStorage.getItem('eravat_app_settings');
+        if (saved && JSON.parse(saved).mapStyle === 'satellite') return 'satellite';
+    } catch { /* ignore */ }
+    return 'streets';
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface MapComponentProps {
@@ -119,6 +183,8 @@ interface MapComponentProps {
 }
 
 export function MapComponent({ reportPoints, showObservationPins = true }: MapComponentProps) {
+    const { t } = useLanguage();
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [divisions, setDivisions] = useState<any[]>([]);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,6 +196,8 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const [selectedRange, setSelectedRange] = useState('');
     const [selectedBeat, setSelectedBeat] = useState('');
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [allDivisionsGeo, setAllDivisionsGeo] = useState<any>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [divisionGeo, setDivisionGeo] = useState<any>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -143,7 +211,18 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const [loadingPins, setLoadingPins] = useState(false);
     const [pinFilter, setPinFilter] = useState<'all' | 'direct' | 'indirect' | 'loss'>('all');
     const [showHeatmap, setShowHeatmap] = useState(false);
-    const [showAllTime, setShowAllTime] = useState(true);
+
+    // Date range filter (empty = all time)
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+
+    // Base layer, fullscreen, user location + radius
+    const [baseLayer, setBaseLayer] = useState<'streets' | 'satellite'>(getInitialBaseLayer);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
+    const [locating, setLocating] = useState(false);
+    const [locError, setLocError] = useState<string | null>(null);
+    const [radiusKm, setRadiusKm] = useState(0);
 
     // ── Fetch observation pins (scoped to selected territory when set) ─────
     useEffect(() => {
@@ -153,7 +232,6 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
         const fetchPins = async () => {
             setLoadingPins(true);
             try {
-                // Resolve beat IDs for the active geo filter so counts match the selection
                 let beatIds: string[] | null = null;
                 if (selectedBeat) {
                     beatIds = [selectedBeat];
@@ -229,8 +307,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                 const pins: ObsPin[] = [];
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (data || []).forEach((rep: any) => {
-                    if (!rep.location) return;
-                    const coords = parseWkbHex(rep.location);
+                    const coords = parseLocation(rep.location);
                     if (!coords) return;
 
                     const obs = rep.observations?.[0];
@@ -272,10 +349,22 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
         return () => { cancelled = true; };
     }, [showObservationPins, selectedDivision, selectedRange, selectedBeat]);
 
-    // ── Divisions ─────────────────────────────────────────────────────────────
+    // ── All divisions outline (shown when no single division is selected) ──────
     useEffect(() => {
-        supabase.from('geo_divisions').select('id, name').order('name').then(({ data }) => {
-            if (data) setDivisions(data);
+        supabase.from('geo_divisions').select('id, name, boundary').order('name').then(({ data }) => {
+            if (!data) return;
+            setDivisions(data.map((d) => ({ id: d.id, name: d.name })));
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const features: any[] = [];
+            data.forEach((d) => {
+                if (!d.boundary) return;
+                try {
+                    const geom = wkx.Geometry.parse(Buffer.from(d.boundary, 'hex'));
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    features.push(turf.feature(geom.toGeoJSON() as any, { name: d.name }));
+                } catch { /* skip unparseable boundary */ }
+            });
+            setAllDivisionsGeo(features.length ? turf.featureCollection(features) : null);
         });
     }, []);
 
@@ -322,7 +411,6 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parseGeometry = (beatsData: any[]) => {
         if (!beatsData?.length) return null;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const features = beatsData.filter(b => b.boundary).map(beat => {
             const buf = Buffer.from(beat.boundary, 'hex');
             const geom = wkx.Geometry.parse(buf);
@@ -384,18 +472,43 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
         setLoadingGeo(false);
     };
 
-    // ── Derived ───────────────────────────────────────────────────────────────
-    const isWithin48Hours = (timestamp: string) => {
-        try {
-            const date = new Date(timestamp);
-            const limit = new Date(Date.now() - 48 * 60 * 60 * 1000);
-            return date >= limit;
-        } catch {
-            return true;
+    const locateUser = () => {
+        if (!('geolocation' in navigator)) {
+            setLocError(t('map.locationUnavailable'));
+            return;
         }
+        setLocating(true);
+        setLocError(null);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                if (!radiusKm) setRadiusKm(50);
+                setLocating(false);
+            },
+            (err) => {
+                setLocError(err.code === err.PERMISSION_DENIED ? t('map.locationDenied') : t('map.locationError'));
+                setLocating(false);
+            },
+            { enableHighAccuracy: true, timeout: 15000 }
+        );
     };
 
-    const timedPins = obsPins.filter((p) => (showAllTime ? true : isWithin48Hours(p.deviceTimestamp)));
+    // ── Derived ───────────────────────────────────────────────────────────────
+    const inDateRange = (timestamp: string) => {
+        if (!startDate && !endDate) return true;
+        const d = new Date(timestamp);
+        if (startDate && d < new Date(`${startDate}T00:00:00`)) return false;
+        if (endDate && d > new Date(`${endDate}T23:59:59`)) return false;
+        return true;
+    };
+
+    const withinRadius = (p: ObsPin) => {
+        if (!userLoc || !radiusKm) return true;
+        const dist = turf.distance([userLoc.lng, userLoc.lat], [p.lng, p.lat], { units: 'kilometers' });
+        return dist <= radiusKm;
+    };
+
+    const timedPins = obsPins.filter((p) => inDateRange(p.deviceTimestamp) && withinRadius(p));
 
     const visiblePins = timedPins.filter((p) => {
         if (pinFilter !== 'all' && p.type !== pinFilter) return false;
@@ -411,10 +524,13 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const legacyPoints = reportPoints ?? [];
 
     const TYPE_LABELS: Record<string, string> = {
-        direct: 'Direct Sighting',
-        indirect: 'Indirect Sign',
-        loss: 'Conflict / Loss',
+        direct: t('map.legendDirect'),
+        indirect: t('map.legendIndirect'),
+        loss: t('map.legendLoss'),
     };
+
+    const activeGeo = beatGeo || rangeGeo || divisionGeo;
+    const fitKey = `${selectedDivision}|${selectedRange}|${selectedBeat}|${visiblePins.length}|${userLoc ? `${userLoc.lat},${userLoc.lng}` : ''}|${radiusKm}`;
 
     return (
         <motion.div
@@ -428,10 +544,10 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                 <div>
                     <h3 className="text-lg font-bold flex items-center gap-2">
                         <Layers className="text-primary" size={20} />
-                        Territory Overview
+                        {t('map.territoryOverview')}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Select a division, range, or beat to filter sightings and update the counts below.
+                        {t('map.filterHint')}
                     </p>
                 </div>
 
@@ -440,19 +556,19 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     {/* Geo filters */}
                     <select value={selectedDivision} onChange={(e) => setSelectedDivision(e.target.value)}
                         className="input-field bg-background max-w-[160px] text-sm">
-                        <option value="">All Divisions</option>
+                        <option value="">{t('map.allDivisions')}</option>
                         {divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                     <select value={selectedRange} onChange={(e) => setSelectedRange(e.target.value)}
                         disabled={!selectedDivision}
                         className="input-field bg-background max-w-[160px] text-sm disabled:opacity-50">
-                        <option value="">All Ranges</option>
+                        <option value="">{t('map.allRanges')}</option>
                         {ranges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                     </select>
                     <select value={selectedBeat} onChange={(e) => setSelectedBeat(e.target.value)}
                         disabled={!selectedRange}
                         className="input-field bg-background max-w-[160px] text-sm disabled:opacity-50">
-                        <option value="">All Beats</option>
+                        <option value="">{t('map.allBeats')}</option>
                         {beats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                     </select>
 
@@ -461,7 +577,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                         {(['all', 'direct', 'indirect', 'loss'] as const).map(f => (
                             <button key={f}
                                 onClick={() => setPinFilter(f)}
-                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all capitalize ${
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                                     pinFilter === f
                                         ? f === 'loss' ? 'bg-destructive text-destructive-foreground'
                                             : f === 'indirect' ? 'bg-amber-500 text-white'
@@ -469,75 +585,112 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                                                     : 'bg-primary text-primary-foreground'
                                         : 'text-muted-foreground hover:text-foreground'
                                 }`}>
-                                {f}
+                                {t(`map.filter_${f}`)}
                             </button>
                         ))}
-                    </div>
-
-                    {/* Time & Heatmap Toggles */}
-                    <div className="flex items-center gap-3 bg-muted/40 rounded-xl p-1 px-2 border border-border text-xs font-semibold min-h-[32px]">
-                        <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
-                            <input 
-                                type="checkbox" 
-                                checked={showAllTime} 
-                                onChange={(e) => {
-                                    setShowAllTime(e.target.checked);
-                                    if (!e.target.checked) setShowHeatmap(false);
-                                }}
-                                className="rounded border-border text-primary focus:ring-primary/20 accent-primary"
-                            />
-                            Show All Time
-                        </label>
-                        <span className="w-[1px] h-3 bg-border" />
-                        <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
-                            <input 
-                                type="checkbox" 
-                                checked={showHeatmap} 
-                                onChange={(e) => {
-                                    setShowHeatmap(e.target.checked);
-                                    if (e.target.checked) setShowAllTime(true);
-                                }}
-                                className="rounded border-border text-primary focus:ring-primary/20 accent-primary"
-                            />
-                            Heatmap
-                        </label>
                     </div>
                 </div>
             </div>
 
-            {/* Legend — counts reflect active division/range/beat (+ time) filter */}
+            {/* Date range + radius + heatmap row */}
+            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
+                <div className="flex items-center gap-2 bg-muted/40 rounded-xl p-1.5 px-3 border border-border">
+                    <span className="text-muted-foreground">{t('map.from')}</span>
+                    <input type="date" value={startDate} max={endDate || undefined}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="bg-transparent outline-none text-foreground" />
+                    <span className="text-muted-foreground">{t('map.to')}</span>
+                    <input type="date" value={endDate} min={startDate || undefined}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="bg-transparent outline-none text-foreground" />
+                    {(startDate || endDate) && (
+                        <button onClick={() => { setStartDate(''); setEndDate(''); }}
+                            className="text-primary hover:underline ml-1">{t('map.clear')}</button>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-2 bg-muted/40 rounded-xl p-1.5 px-3 border border-border">
+                    <button onClick={locateUser} disabled={locating}
+                        className="flex items-center gap-1.5 text-primary hover:underline disabled:opacity-50">
+                        <LocateFixed size={14} />
+                        {locating ? t('map.locating') : t('map.myLocation')}
+                    </button>
+                    <span className="w-[1px] h-3 bg-border" />
+                    <span className="text-muted-foreground">{t('map.radius')}</span>
+                    <select value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))}
+                        className="bg-transparent outline-none text-foreground">
+                        {RADIUS_OPTIONS.map((r) => (
+                            <option key={r} value={r}>{r === 0 ? t('map.radiusOff') : `${r} ${t('km')}`}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground bg-muted/40 rounded-xl p-1.5 px-3 border border-border">
+                    <input type="checkbox" checked={showHeatmap}
+                        onChange={(e) => setShowHeatmap(e.target.checked)}
+                        className="rounded border-border text-primary focus:ring-primary/20 accent-primary" />
+                    {t('map.heatmap')}
+                </label>
+
+                {locError && <span className="text-destructive">{locError}</span>}
+            </div>
+
+            {/* Legend — counts reflect active filters */}
             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
-                    Direct Sighting ({typeCounts.direct})
+                    {t('map.legendDirect')} ({typeCounts.direct})
                 </span>
                 <span className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" />
-                    Indirect Sign ({typeCounts.indirect})
+                    {t('map.legendIndirect')} ({typeCounts.indirect})
                 </span>
                 <span className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />
-                    Conflict / Loss ({typeCounts.loss})
+                    {t('map.legendLoss')} ({typeCounts.loss})
                 </span>
                 <span className="text-muted-foreground/80">
-                    Total {timedPins.length}
-                    {selectedBeat ? ' in beat' : selectedRange ? ' in range' : selectedDivision ? ' in division' : ''}
+                    {t('map.total')} {timedPins.length}
+                    {selectedBeat ? ` ${t('map.inBeat')}` : selectedRange ? ` ${t('map.inRange')}` : selectedDivision ? ` ${t('map.inDivision')}` : ''}
                 </span>
                 {loadingPins && (
                     <span className="flex items-center gap-1 text-primary">
                         <div className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                        Fetching pins…
+                        {t('map.fetchingPins')}
                     </span>
                 )}
             </div>
 
             {/* Map */}
-            <div className="relative w-full h-[520px] rounded-xl overflow-hidden border border-border z-0">
+            <div className={
+                isFullscreen
+                    ? 'fixed inset-0 z-[9999] bg-background'
+                    : 'relative w-full h-[520px] rounded-xl overflow-hidden border border-border z-0'
+            }>
                 {(loadingGeo) && (
                     <div className="absolute inset-0 bg-background/50 z-[1000] flex items-center justify-center backdrop-blur-sm">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                     </div>
                 )}
+
+                {/* Overlay controls: base layer + fullscreen */}
+                <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-2">
+                    <button
+                        onClick={() => setBaseLayer(b => b === 'satellite' ? 'streets' : 'satellite')}
+                        title={baseLayer === 'satellite' ? t('map.streets') : t('map.satellite')}
+                        className="p-2 rounded-lg bg-background/90 border border-border shadow hover:bg-background text-foreground"
+                    >
+                        {baseLayer === 'satellite' ? <MapIcon size={16} /> : <Satellite size={16} />}
+                    </button>
+                    <button
+                        onClick={() => setIsFullscreen(f => !f)}
+                        title={isFullscreen ? t('map.exitFullscreen') : t('map.fullscreen')}
+                        className="p-2 rounded-lg bg-background/90 border border-border shadow hover:bg-background text-foreground"
+                    >
+                        {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                    </button>
+                </div>
+
                 <MapContainer
                     center={[23.4733, 77.9479]}
                     zoom={6}
@@ -545,12 +698,26 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     className="w-full h-full"
                     style={{ zIndex: 1 }}
                 >
-                    <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                    />
+                    {baseLayer === 'satellite' ? (
+                        <TileLayer
+                            attribution='Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
+                            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                            maxZoom={19}
+                        />
+                    ) : (
+                        <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                        />
+                    )}
 
-                    {/* Geo overlays */}
+                    {/* All-divisions outline when no single division is selected */}
+                    {!selectedDivision && allDivisionsGeo && (
+                        <GeoJSON key="all-divisions" data={allDivisionsGeo}
+                            style={{ color: 'hsl(215.4, 16.3%, 46.9%)', weight: 1.5, opacity: 0.6, fillOpacity: 0.04 }} />
+                    )}
+
+                    {/* Geo overlays for the active selection */}
                     {divisionGeo && (
                         <GeoJSON key={`div-${JSON.stringify(divisionGeo)}`} data={divisionGeo}
                             style={{ color: 'hsl(215.4, 16.3%, 46.9%)', weight: 2, opacity: 0.5, fillOpacity: 0.05 }} />
@@ -562,6 +729,19 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     {beatGeo && (
                         <GeoJSON key={`bt-${JSON.stringify(beatGeo)}`} data={beatGeo}
                             style={{ color: 'hsl(152, 60%, 46%)', weight: 4, opacity: 1, fillOpacity: 0.3 }} />
+                    )}
+
+                    {/* User location + radius */}
+                    {userLoc && (
+                        <>
+                            <Marker position={[userLoc.lat, userLoc.lng]} icon={userIcon}>
+                                <Popup>{t('map.youAreHere')}</Popup>
+                            </Marker>
+                            {radiusKm > 0 && (
+                                <Circle center={[userLoc.lat, userLoc.lng]} radius={radiusKm * 1000}
+                                    pathOptions={{ color: 'hsl(217, 91%, 60%)', weight: 1.5, fillOpacity: 0.06 }} />
+                            )}
+                        </>
                     )}
 
                     {/* Heatmap Overlay Layer */}
@@ -581,7 +761,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                         );
                     })}
 
-                    {/* Observation Pins (internal fetch, only when heatmap is off) */}
+                    {/* Observation Pins (only when heatmap is off) */}
                     {!showHeatmap && visiblePins.map((pin) => {
                         const total = pin.maleCount + pin.femaleCount + pin.calfCount + pin.unknownCount;
                         const dateStr = new Date(pin.deviceTimestamp).toLocaleString(undefined, {
@@ -594,29 +774,25 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                             >
                                 <Popup className="rounded-xl overflow-hidden min-w-[200px]">
                                     <div className="p-1 space-y-2">
-                                        {/* Type badge */}
                                         <div className="flex items-center gap-2">
                                             {pin.type === 'direct' && <Eye size={14} className="text-emerald-600" />}
                                             {pin.type === 'indirect' && <Footprints size={14} className="text-amber-600" />}
                                             {pin.type === 'loss' && <AlertTriangle size={14} className="text-red-600" />}
                                             <p className="font-bold text-sm m-0">{TYPE_LABELS[pin.type]}</p>
                                         </div>
-                                        {/* Location & time */}
                                         <p className="text-xs text-gray-500 m-0">{pin.beatName} · {dateStr}</p>
-                                        {/* Elephant counts for direct */}
                                         {pin.type === 'direct' && total > 0 && (
                                             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs rounded-lg bg-gray-50 p-2 mt-1">
-                                                <span className="text-gray-400">Total</span><span className="font-semibold">{total}</span>
-                                                {pin.maleCount > 0 && <><span className="text-gray-400">Male</span><span>{pin.maleCount}</span></>}
-                                                {pin.femaleCount > 0 && <><span className="text-gray-400">Female</span><span>{pin.femaleCount}</span></>}
-                                                {pin.calfCount > 0 && <><span className="text-gray-400">Calf</span><span>{pin.calfCount}</span></>}
-                                                {pin.unknownCount > 0 && <><span className="text-gray-400">Unknown</span><span>{pin.unknownCount}</span></>}
+                                                <span className="text-gray-400">{t('map.total')}</span><span className="font-semibold">{total}</span>
+                                                {pin.maleCount > 0 && <><span className="text-gray-400">{t('map.male')}</span><span>{pin.maleCount}</span></>}
+                                                {pin.femaleCount > 0 && <><span className="text-gray-400">{t('map.female')}</span><span>{pin.femaleCount}</span></>}
+                                                {pin.calfCount > 0 && <><span className="text-gray-400">{t('map.calf')}</span><span>{pin.calfCount}</span></>}
+                                                {pin.unknownCount > 0 && <><span className="text-gray-400">{t('map.unknown')}</span><span>{pin.unknownCount}</span></>}
                                                 {pin.compassBearing !== undefined && (
-                                                    <><span className="text-gray-400">Bearing</span><span>{pin.compassBearing}°</span></>
+                                                    <><span className="text-gray-400">{t('map.bearing')}</span><span>{pin.compassBearing}°</span></>
                                                 )}
                                             </div>
                                         )}
-                                        {/* Indirect signs */}
                                         {pin.type === 'indirect' && pin.indirectSigns && pin.indirectSigns.length > 0 && (
                                             <div className="flex flex-wrap gap-1 mt-1">
                                                 {pin.indirectSigns.map(s => (
@@ -652,7 +828,8 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                         </Marker>
                     ))}
 
-                    <MapBounds geojsonData={beatGeo || rangeGeo || divisionGeo} />
+                    <FitToData geojsonData={activeGeo} pins={visiblePins} userLoc={userLoc} fitKey={fitKey} />
+                    <MapResizer trigger={isFullscreen} />
                 </MapContainer>
             </div>
         </motion.div>
