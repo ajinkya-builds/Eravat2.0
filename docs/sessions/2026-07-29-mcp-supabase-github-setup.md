@@ -6,12 +6,12 @@ Arm Desktop Cursor and Cloud Agents with shared Supabase + GitHub MCP for Eravat
 
 ## Changes
 
-- Added [`.cursor/mcp.json`](../../.cursor/mcp.json): HTTP servers for Supabase (scoped to `mnytrlcmdpkfhrzrtesf`) and GitHub (`api.githubcopilot.com/mcp/` + `${env:GITHUB_PAT}`).
-- Added [`docs/MCP_SETUP.md`](../MCP_SETUP.md) with Mac OAuth/PAT steps and Cloud Agents dashboard registration (required — repo file alone does not enable Cloud Agent MCPs).
-- Linked from `SUPABASE_OPERATIONS.md`, `LOCAL_DEVELOPMENT.md`, and `INDEX.md`.
+- [`.cursor/mcp.json`](../../.cursor/mcp.json): `supabase-prod` (`mnytrlcmdpkfhrzrtesf`), `supabase-staging` (`ttjtyvxfiqhjdngkgdkf`), `github` (`${env:GITHUB_PAT}`).
+- [`docs/MCP_SETUP.md`](../MCP_SETUP.md): copy-paste Cloud Agents + Desktop auth steps.
+- Cursor rule + doc links.
 
 ## Manual follow-up (human)
 
-1. Desktop: authenticate Supabase OAuth; export `GITHUB_PAT`.
-2. Cloud Agents: add the same HTTP servers under [cursor.com/agents](https://cursor.com/agents) MCP / Integrations & MCP; OAuth + encrypted GitHub header.
-3. Start a **new** Cloud Agent run to verify both servers appear.
+1. Cloud Agents MCP UI: add all three HTTP servers; OAuth both Supabase; GitHub PAT header.
+2. Desktop Tools & MCP: same auth (not the Plugins release page).
+3. Start a **new** Cloud Agent to verify.

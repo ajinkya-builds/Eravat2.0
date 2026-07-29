@@ -1,101 +1,86 @@
-# MCP setup — Supabase + GitHub (project-wide)
+# MCP setup — do this once (Supabase prod + staging + GitHub)
 
-This repo declares shared MCP servers in [`.cursor/mcp.json`](../.cursor/mcp.json) so **Desktop Cursor**, **Cloud Agents**, and teammates can use the same tooling.
+Agents **cannot** finish OAuth or paste PATs for you. Repo config is already set in [`.cursor/mcp.json`](../.cursor/mcp.json). You only need to enable + authenticate the same servers in Cursor.
 
-| Server | URL | Auth |
-|--------|-----|------|
-| **supabase** | `https://mcp.supabase.com/mcp?project_ref=mnytrlcmdpkfhrzrtesf&features=docs,database,debugging,development,functions` | Browser OAuth (preferred). Optional PAT for headless/CI. |
-| **github** | `https://api.githubcopilot.com/mcp/` | GitHub Personal Access Token in `Authorization` header |
+| Server name | Points at | Project ref |
+|-------------|-----------|-------------|
+| `supabase-prod` | Production DB | `mnytrlcmdpkfhrzrtesf` |
+| `supabase-staging` | Staging DB | `ttjtyvxfiqhjdngkgdkf` |
+| `github` | GitHub API (PRs, issues, Actions) | — |
 
-Scoped Supabase project: **`mnytrlcmdpkfhrzrtesf`** (Eravat 2.0 prod). Account-level tools are disabled when `project_ref` is set.
-
-> **Important:** Committing `.cursor/mcp.json` configures the **IDE**. Cloud Agents only see MCP servers that are also **enabled in the Cursor Agents / team MCP dashboard**, plus per-user auth.
-
----
-
-## 1. Desktop Cursor (your Mac)
-
-1. Pull this branch / `main` so `.cursor/mcp.json` is present.
-2. Open the repo in Cursor → **Settings → Cursor Settings → Tools & MCP**.
-3. Confirm **supabase** and **github** appear.
-4. **Supabase:** click Connect / Authenticate → complete browser OAuth → pick the org that owns `mnytrlcmdpkfhrzrtesf`.
-5. **GitHub:** create a [fine-grained or classic PAT](https://github.com/settings/tokens) with repo + (as needed) Actions / PR scopes.
-6. Export it in your shell profile (never commit the token):
-
-   ```bash
-   export GITHUB_PAT=ghp_your_token_here
-   ```
-
-   Restart Cursor so `${env:GITHUB_PAT}` resolves. Alternatively paste the Bearer token in the MCP server’s Headers UI (stored locally, not in git).
-
-7. Ask the agent: “List Supabase tables via MCP” and “List open PRs via GitHub MCP” to verify.
+> Cloud Agents **ignore** `.cursor/mcp.json` until the same servers are added under [cursor.com/agents](https://cursor.com/agents) → MCP (or Dashboard → Integrations & MCP).
 
 ---
 
-## 2. Cloud Agents (project-wide for this repo)
+## A. Cloud Agents (required for agents like this one)
 
-Cloud Agents **do not** automatically load `.cursor/mcp.json`. Register the same HTTP servers in the dashboard:
+Do these **3 adds** on [cursor.com/agents](https://cursor.com/agents) → open the **MCP** dropdown → **Add MCP server** (type **HTTP**).
 
-1. Open [cursor.com/agents](https://cursor.com/agents) → MCP dropdown → **Add MCP server**  
-   **or** (Teams) **Dashboard → Integrations & MCP**.
-2. Add **HTTP** servers (recommended; credentials stay out of the VM):
+### 1) Supabase production
 
-   **Supabase**
+| Field | Value |
+|-------|--------|
+| Name | `supabase-prod` |
+| URL | `https://mcp.supabase.com/mcp?project_ref=mnytrlcmdpkfhrzrtesf&features=docs,database,debugging,development,functions` |
+| Auth | Click **Connect / Authenticate** → browser OAuth → choose the Supabase org that owns Eravat prod |
 
-   - Name: `supabase`
-   - URL: `https://mcp.supabase.com/mcp?project_ref=mnytrlcmdpkfhrzrtesf&features=docs,database,debugging,development,functions`
-   - Auth: complete **OAuth** when prompted (per user).
+### 2) Supabase staging
 
-   **GitHub**
+| Field | Value |
+|-------|--------|
+| Name | `supabase-staging` |
+| URL | `https://mcp.supabase.com/mcp?project_ref=ttjtyvxfiqhjdngkgdkf&features=docs,database,debugging,development,functions` |
+| Auth | Same OAuth (usually already done after #1) |
 
-   - Name: `github`
-   - URL: `https://api.githubcopilot.com/mcp/`
-   - Headers: `Authorization` = `Bearer <GITHUB_PAT>`  
-     (stored encrypted/redacted in the dashboard — do not put the raw PAT in the repo.)
+### 3) GitHub
 
-3. Enable both servers for Cloud Agents / link to the team marketplace if you want teammates to install them once.
-4. Start a **new** Cloud Agent run and ask it to list MCP tools — `supabase` and `github` should appear alongside `cursor-cloud`.
+| Field | Value |
+|-------|--------|
+| Name | `github` |
+| URL | `https://api.githubcopilot.com/mcp/` |
+| Headers | Key: `Authorization` · Value: `Bearer ` + your PAT (one space after Bearer) |
 
-OAuth is **per-user**, even for team-shared servers. Each person who runs agents must authenticate Supabase once.
+**Create the PAT** (if you don’t have one): https://github.com/settings/tokens  
+- Classic: enable `repo`, `read:org`, `workflow` (optional but useful)  
+- Or fine-grained: this repo `ajinkya-builds/Eravat2.0` with Contents/PRs/Issues/Actions read-write as you prefer  
 
-### Optional: Supabase PAT for headless Cloud Agents
+Paste the token **only** in the MCP header field — never in chat or git.
 
-If browser OAuth is awkward, create a [Supabase access token](https://supabase.com/dashboard/account/tokens) and set the HTTP header in the Cloud Agents MCP form:
-
-```http
-Authorization: Bearer <SUPABASE_ACCESS_TOKEN>
-```
-
-Do not commit that token. Prefer OAuth when available.
-
----
-
-## 3. What agents can do once connected
-
-| Supabase MCP | GitHub MCP |
-|--------------|------------|
-| `list_tables`, `execute_sql`, `apply_migration`, `list_migrations` | Issues, PRs, file contents, search, Actions (per PAT scopes) |
-| `get_logs`, `get_advisors` | Repo metadata |
-| `list_edge_functions`, `deploy_edge_function` | |
-| `search_docs`, `get_project_url`, `get_publishable_keys` | |
-
-Repo policy for DB changes remains: update `supabase/migrations/`, apply remotely, verify — see [`SUPABASE_OPERATIONS.md`](./SUPABASE_OPERATIONS.md).
+Then: **enable** all three for Cloud Agents → start a **new** Cloud Agent (this run cannot pick them up mid-flight).
 
 ---
 
-## 4. Security notes
+## B. Desktop Cursor (your Mac) — same three servers
 
-- MCP runs with **your** Supabase/GitHub permissions.
-- This project intentionally scopes Supabase MCP to **production** `mnytrlcmdpkfhrzrtesf` (same as go-live ops). Review every write/`apply_migration` / `deploy_edge_function` call.
-- Never commit PATs, service role keys, or OAuth secrets. Use `${env:…}` or dashboard encrypted headers.
-- Keep Cursor’s tool-call approval on for destructive operations.
+1. Merge/pull so `.cursor/mcp.json` is present.
+2. **Settings → Tools & MCP** (not Plugins).
+3. You should see `supabase-prod`, `supabase-staging`, `github`.
+4. Authenticate both Supabase entries (OAuth).
+5. For GitHub either:
+   - `export GITHUB_PAT=ghp_…` in your shell and restart Cursor, or  
+   - paste `Bearer ghp_…` in that server’s Headers UI.
+6. Ignore the Plugins → Supabase card that opens a GitHub **release** page — that is the plugin package, not auth.
 
 ---
 
-## 5. Verify checklist
+## C. How you’ll know it worked
 
-- [ ] `.cursor/mcp.json` present on the branch you use
-- [ ] Desktop: Supabase OAuth connected; `GITHUB_PAT` set
-- [ ] Cloud Agents dashboard: both HTTP servers added + enabled
-- [ ] New Cloud Agent run sees `supabase` and `github` in MCP tools
-- [ ] Smoke: `list_tables` / `list_migrations` and a GitHub `list_pull_requests` (or equivalent) succeed
+Ask a **new** Cloud Agent:
+
+> List your MCP servers. Using supabase-prod and supabase-staging, list tables (or migrations) on each. Using github, list open PRs on Eravat2.0.
+
+Expected: tools from `supabase-prod`, `supabase-staging`, `github`, plus `cursor-cloud`.
+
+---
+
+## D. Optional: Supabase access token instead of OAuth
+
+Only if OAuth fails in Cloud Agents: create a token at https://supabase.com/dashboard/account/tokens and set header `Authorization: Bearer <token>` on both Supabase HTTP servers in the Agents MCP UI.
+
+---
+
+## Security
+
+- MCP uses **your** permissions on those projects.
+- Prefer staging for experiments; treat prod writes carefully.
+- Never commit PATs. Dashboard headers are encrypted/redacted after save.

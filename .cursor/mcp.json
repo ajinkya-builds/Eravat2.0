@@ -1,7 +1,10 @@
 {
   "mcpServers": {
-    "supabase": {
+    "supabase-prod": {
       "url": "https://mcp.supabase.com/mcp?project_ref=mnytrlcmdpkfhrzrtesf&features=docs,database,debugging,development,functions"
+    },
+    "supabase-staging": {
+      "url": "https://mcp.supabase.com/mcp?project_ref=ttjtyvxfiqhjdngkgdkf&features=docs,database,debugging,development,functions"
     },
     "github": {
       "url": "https://api.githubcopilot.com/mcp/",
