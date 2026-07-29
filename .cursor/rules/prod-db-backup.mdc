@@ -1,0 +1,20 @@
+---
+description: Location of the full production DB backup taken before further go-live changes
+alwaysApply: true
+---
+
+# Production DB backup reference
+
+Full backup of live prod Supabase project `mnytrlcmdpkfhrzrtesf` (Eravat 2.0):
+
+- **Folder:** `backups/full-20260727T052931Z/` (gitignored; local only)
+- **Pointer:** `backups/LATEST_FULL_STAMP.txt` → `full-20260727T052931Z`
+- **Taken:** 2026-07-27 ~05:29 UTC
+- **Includes:** schema + data for public/auth/storage/extensions/migrations, roles, RLS/policies inventory (`09-inventory.txt`), edge function list, GRANTs
+- **Compressed:** `00-full-plain.sql.gz` (full single-file dump)
+
+At dump time: 11 divisions / 80 ranges / 1,222 beats; 6 auth users/profiles (go-live pilots); 0 reports/activity; geo RLS on; `report_media` private/empty.
+
+Earlier pre-wipe dumps (if still present): `backups/prod-prewipe-*`.
+
+Do not commit `backups/` contents. Use this snapshot if restore/rollback of current prod state is needed.

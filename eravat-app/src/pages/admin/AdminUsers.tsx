@@ -325,102 +325,180 @@ export default function AdminUsers() {
                         <Loader2 className="animate-spin text-primary" size={28} />
                         <p className="text-sm text-muted-foreground">{t('au_loading')}</p>
                     </div>
+                ) : filtered.length === 0 ? (
+                    <div className="text-center py-16 text-muted-foreground">{t('admin.users.noPersonnel')}</div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-muted/40 border-b border-border">
-                                    <th className="p-4 w-10">
-                                        <input type="checkbox"
-                                            onChange={e => setSelected(e.target.checked ? manageableIds : [])}
-                                            checked={selected.length === manageableIds.length && manageableIds.length > 0}
-                                            className="rounded border-border" />
-                                    </th>
-                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.name')}</th>
-                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.contact')}</th>
-                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.role')}</th>
-                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.territory')}</th>
-                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.status')}</th>
-                                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">{t('admin.users.actions')}</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border/40">
-                                {filtered.length === 0 ? (
-                                    <tr><td colSpan={7} className="text-center py-16 text-muted-foreground">{t('admin.users.noPersonnel')}</td></tr>
-                                ) : filtered.map((p, i) => (
-                                    <motion.tr key={p.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: Math.min(i, 15) * 0.02 }} className="hover:bg-muted/20 group transition-colors">
-                                        <td className="p-4">
-                                            {canManageRole(currentUserProfile?.role, p.role) ? (
-                                                <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggleSelect(p.id)} className="rounded border-border" />
-                                            ) : <span className="w-4 block" />}
-                                        </td>
-                                        <td className="p-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
-                                                    {(p.first_name?.[0] ?? '') + (p.last_name?.[0] ?? '')}
-                                                </div>
-                                                <div>
-                                                    <p className="font-semibold text-sm">{p.first_name} {p.last_name}</p>
-                                                </div>
+                    <>
+                        {/* Mobile card layout */}
+                        <div className="md:hidden divide-y divide-border/40">
+                            {filtered.map((p, i) => (
+                                <motion.div
+                                    key={p.id}
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: Math.min(i, 15) * 0.02 }}
+                                    className="p-4 flex flex-col gap-3"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        {canManageRole(currentUserProfile?.role, p.role) ? (
+                                            <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggleSelect(p.id)} className="rounded border-border mt-2.5 shrink-0" />
+                                        ) : <span className="w-4 block shrink-0 mt-2.5" />}
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                                                {(p.first_name?.[0] ?? '') + (p.last_name?.[0] ?? '')}
                                             </div>
-                                        </td>
-                                        <td className="p-4 text-sm font-semibold">
-                                            {p.phone || 'N/A'}
-                                        </td>
-                                        <td className="p-4">
-                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase bg-secondary/50 border border-border">
-                                                {p.role === 'admin' && <Shield size={10} className="text-emerald-500" />}
-                                                {p.role?.replace('_', ' ') ?? 'N/A'}
-                                            </span>
-                                        </td>
-                                        <td className="p-4">
-                                            <div className="flex items-center gap-1.5 text-sm text-foreground/80">
-                                                <MapPin size={13} className="text-primary shrink-0" />
-                                                <span className="font-medium">{p.beat_name || p.range_name || p.division_name || 'Global'}</span>
+                                            <div className="min-w-0">
+                                                <p className="font-semibold text-sm truncate">{p.first_name} {p.last_name}</p>
+                                                <p className="text-sm font-semibold text-foreground/80 mt-0.5">{p.phone || 'N/A'}</p>
                                             </div>
-                                            {((p.beat_name && (p.range_name || p.division_name)) || (p.range_name && p.division_name)) && (
-                                                <p className="text-[10px] text-muted-foreground pl-5 mt-0.5 flex items-center gap-1">
-                                                    {p.division_name} <ChevronRight size={8} /> {p.range_name}
-                                                </p>
-                                            )}
-                                        </td>
-                                        <td className="p-4">
-                                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${p.is_active ? 'bg-emerald-500/15 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
-                                                {p.is_active ? t('admin.users.active') : t('admin.users.inactive')}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            {canManageRole(currentUserProfile?.role, p.role) && (
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button onClick={() => {
-                                                        setError(null);
-                                                        const next = {
-                                                            ...p,
-                                                            division_id: p.division_id || '',
-                                                            range_id: p.range_id || '',
-                                                            beat_id: p.beat_id || ''
-                                                        } as any;
-                                                        setEditUser(next);
-                                                        if (next.range_id) void loadBeatsForRange(next.range_id);
-                                                    }}
-                                                        className="p-2 text-muted-foreground hover:text-primary bg-muted/30 hover:bg-primary/10 rounded-lg transition-colors"
-                                                        title="Edit">
-                                                        <Edit2 size={16} />
-                                                    </button>
-                                                    <button onClick={() => setConfirmDelete({ ids: [p.id], label: t('admin.users.deleteDesc') })}
-                                                        className="p-2 text-muted-foreground hover:text-destructive bg-muted/30 hover:bg-destructive/10 rounded-lg transition-colors"
-                                                        title="Delete">
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2 pl-7">
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase bg-secondary/50 border border-border">
+                                            {p.role === 'admin' && <Shield size={10} className="text-emerald-500" />}
+                                            {p.role?.replace('_', ' ') ?? 'N/A'}
+                                        </span>
+                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${p.is_active ? 'bg-emerald-500/15 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
+                                            {p.is_active ? t('admin.users.active') : t('admin.users.inactive')}
+                                        </span>
+                                    </div>
+
+                                    <div className="pl-7">
+                                        <div className="flex items-center gap-1.5 text-sm text-foreground/80">
+                                            <MapPin size={13} className="text-primary shrink-0" />
+                                            <span className="font-medium">{p.beat_name || p.range_name || p.division_name || 'Global'}</span>
+                                        </div>
+                                        {((p.beat_name && (p.range_name || p.division_name)) || (p.range_name && p.division_name)) && (
+                                            <p className="text-[10px] text-muted-foreground pl-5 mt-0.5 flex items-center gap-1">
+                                                {p.division_name} <ChevronRight size={8} /> {p.range_name}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {canManageRole(currentUserProfile?.role, p.role) && (
+                                        <div className="flex items-center gap-2 pl-7">
+                                            <button onClick={() => {
+                                                setError(null);
+                                                const next = {
+                                                    ...p,
+                                                    division_id: p.division_id || '',
+                                                    range_id: p.range_id || '',
+                                                    beat_id: p.beat_id || ''
+                                                } as any;
+                                                setEditUser(next);
+                                                if (next.range_id) void loadBeatsForRange(next.range_id);
+                                            }}
+                                                className="p-2 text-muted-foreground hover:text-primary bg-muted/30 hover:bg-primary/10 rounded-lg transition-colors"
+                                                title="Edit">
+                                                <Edit2 size={16} />
+                                            </button>
+                                            <button onClick={() => setConfirmDelete({ ids: [p.id], label: t('admin.users.deleteDesc') })}
+                                                className="p-2 text-muted-foreground hover:text-destructive bg-muted/30 hover:bg-destructive/10 rounded-lg transition-colors"
+                                                title="Delete">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            ))}
+                        </div>
+
+                        {/* Desktop / tablet table */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-muted/40 border-b border-border">
+                                        <th className="p-4 w-10">
+                                            <input type="checkbox"
+                                                onChange={e => setSelected(e.target.checked ? manageableIds : [])}
+                                                checked={selected.length === manageableIds.length && manageableIds.length > 0}
+                                                className="rounded border-border" />
+                                        </th>
+                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.name')}</th>
+                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.contact')}</th>
+                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.role')}</th>
+                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.territory')}</th>
+                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin.users.status')}</th>
+                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right">{t('admin.users.actions')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border/40">
+                                    {filtered.map((p, i) => (
+                                        <motion.tr key={p.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: Math.min(i, 15) * 0.02 }} className="hover:bg-muted/20 group transition-colors">
+                                            <td className="p-4">
+                                                {canManageRole(currentUserProfile?.role, p.role) ? (
+                                                    <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggleSelect(p.id)} className="rounded border-border" />
+                                                ) : <span className="w-4 block" />}
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                                                        {(p.first_name?.[0] ?? '') + (p.last_name?.[0] ?? '')}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-semibold text-sm">{p.first_name} {p.last_name}</p>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </td>
-                                    </motion.tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                            </td>
+                                            <td className="p-4 text-sm font-semibold">
+                                                {p.phone || 'N/A'}
+                                            </td>
+                                            <td className="p-4">
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase bg-secondary/50 border border-border">
+                                                    {p.role === 'admin' && <Shield size={10} className="text-emerald-500" />}
+                                                    {p.role?.replace('_', ' ') ?? 'N/A'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex items-center gap-1.5 text-sm text-foreground/80">
+                                                    <MapPin size={13} className="text-primary shrink-0" />
+                                                    <span className="font-medium">{p.beat_name || p.range_name || p.division_name || 'Global'}</span>
+                                                </div>
+                                                {((p.beat_name && (p.range_name || p.division_name)) || (p.range_name && p.division_name)) && (
+                                                    <p className="text-[10px] text-muted-foreground pl-5 mt-0.5 flex items-center gap-1">
+                                                        {p.division_name} <ChevronRight size={8} /> {p.range_name}
+                                                    </p>
+                                                )}
+                                            </td>
+                                            <td className="p-4">
+                                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${p.is_active ? 'bg-emerald-500/15 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
+                                                    {p.is_active ? t('admin.users.active') : t('admin.users.inactive')}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                {canManageRole(currentUserProfile?.role, p.role) && (
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button onClick={() => {
+                                                            setError(null);
+                                                            const next = {
+                                                                ...p,
+                                                                division_id: p.division_id || '',
+                                                                range_id: p.range_id || '',
+                                                                beat_id: p.beat_id || ''
+                                                            } as any;
+                                                            setEditUser(next);
+                                                            if (next.range_id) void loadBeatsForRange(next.range_id);
+                                                        }}
+                                                            className="p-2 text-muted-foreground hover:text-primary bg-muted/30 hover:bg-primary/10 rounded-lg transition-colors"
+                                                            title="Edit">
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                        <button onClick={() => setConfirmDelete({ ids: [p.id], label: t('admin.users.deleteDesc') })}
+                                                            className="p-2 text-muted-foreground hover:text-destructive bg-muted/30 hover:bg-destructive/10 rounded-lg transition-colors"
+                                                            title="Delete">
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </motion.tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
             </div>
 
@@ -602,6 +680,7 @@ function RegisterUserModal({
                     <LocationFields
                         value={{ latitude: newUser.latitude, longitude: newUser.longitude }}
                         onChange={(loc) => setNewUser({ ...newUser, latitude: loc.latitude, longitude: loc.longitude })}
+                        required={newUser.role === 'volunteer'}
                     />
 
                     {needsTerritory && (

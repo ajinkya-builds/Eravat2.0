@@ -109,33 +109,35 @@ export function AppLayout() {
                 )}
             </AnimatePresence>
 
-            {/* Global Header with Logo */}
-            <header className="fixed top-0 left-0 right-0 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 flex items-center justify-between px-4 md:px-6 shadow-sm">
-                <Link to="/" className="flex items-center gap-2 active:scale-95 transition-transform">
-                    <div className="w-10 h-10 relative flex items-center justify-center overflow-visible">
-                        <img src={ELEPHANT_LOGO_URL} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
+            {/* Global Header with Logo — padded below system status bar */}
+            <header className="fixed top-0 left-0 right-0 pt-safe bg-background/80 backdrop-blur-md border-b border-border z-40 shadow-sm">
+                <div className="h-16 flex items-center justify-between px-4 md:px-6">
+                    <Link to="/" className="flex items-center gap-2 active:scale-95 transition-transform">
+                        <div className="w-10 h-10 relative flex items-center justify-center overflow-visible">
+                            <img src={ELEPHANT_LOGO_URL} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
+                        </div>
+                        <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT</span>
+                    </Link>
+                    <div className="flex items-center gap-3">
+                        <div className={cn(
+                            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all duration-300",
+                            isOnline 
+                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/15 dark:text-emerald-500" 
+                                : "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/15 dark:text-amber-500"
+                        )}>
+                            <span className={cn(
+                                "w-1.5 h-1.5 rounded-full shrink-0",
+                                isOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                            )} />
+                            <span>{getStatusLabel()}</span>
+                        </div>
+                        <NotificationBell />
                     </div>
-                    <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT</span>
-                </Link>
-                <div className="flex items-center gap-3">
-                    <div className={cn(
-                        "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all duration-300",
-                        isOnline 
-                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/15 dark:text-emerald-500" 
-                            : "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/15 dark:text-amber-500"
-                    )}>
-                        <span className={cn(
-                            "w-1.5 h-1.5 rounded-full shrink-0",
-                            isOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
-                        )} />
-                        <span>{getStatusLabel()}</span>
-                    </div>
-                    <NotificationBell />
                 </div>
             </header>
 
-            {/* Main Content Area */}
-            <main className="flex-1 w-full pt-16 pb-20 relative z-10">
+            {/* Main Content Area — clear fixed header + status bar */}
+            <main className="flex-1 w-full pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-[calc(5rem+env(safe-area-inset-bottom,0px))] relative z-10">
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={location.pathname}
@@ -152,7 +154,7 @@ export function AppLayout() {
 
             {/* Modern Glassmorphic Bottom Navigation */}
             {!hideBottomNav && (
-                <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 pt-2">
+                <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe pt-2" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))' }}>
                     <div className="mx-auto max-w-md">
                         <div className="glass-card rounded-2xl p-2 px-4 flex items-center justify-between premium-shadow relative">
 

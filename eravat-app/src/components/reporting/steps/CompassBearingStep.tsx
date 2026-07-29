@@ -5,6 +5,54 @@ import { useActivityForm } from '../../../contexts/ActivityFormContext';
 import { cn } from '../../../lib/utils';
 import { useLanguage } from '../../../contexts/LanguageContext';
 
+const SMOOTH_FACTOR = 0.18;
+const UI_DEADBAND_DEG = 1.5;
+const UI_MIN_INTERVAL_MS = 80;
+
+function normalizeDeg(deg: number): number {
+    return ((deg % 360) + 360) % 360;
+}
+
+/** Shortest-path lerp on a circle (handles 359° ↔ 1°). */
+function circularLerp(current: number, next: number, factor: number): number {
+    const diff = ((next - current + 540) % 360) - 180;
+    return normalizeDeg(current + diff * factor);
+}
+
+function circularDelta(a: number, b: number): number {
+    return Math.abs(((b - a + 540) % 360) - 180);
+}
+
+function screenOrientationOffset(): number {
+    const so = window.screen?.orientation?.angle;
+    if (typeof so === 'number' && !Number.isNaN(so)) return so;
+    const legacy = (window as unknown as { orientation?: number }).orientation;
+    if (typeof legacy === 'number' && !Number.isNaN(legacy)) return legacy;
+    return 0;
+}
+
+type OrientationSource = 'absolute' | 'relative' | 'webkit';
+
+function extractRawHeading(event: DeviceOrientationEvent, source: OrientationSource): number | null {
+    // iOS: true/magnetic north from webkit
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const webkit = (event as any).webkitCompassHeading;
+    if (webkit !== undefined && webkit !== null && !Number.isNaN(Number(webkit))) {
+        return normalizeDeg(Number(webkit) + screenOrientationOffset());
+    }
+
+    if (event.alpha === null || Number.isNaN(event.alpha)) return null;
+
+    // Absolute events: alpha is already degrees from magnetic north (0 = north).
+    // Relative deviceorientation: Chrome often needs (360 - alpha).
+    const base =
+        source === 'absolute' || event.absolute === true
+            ? event.alpha
+            : 360 - event.alpha;
+
+    return normalizeDeg(base + screenOrientationOffset());
+}
+
 export function CompassBearingStep() {
     const { formData, updateFormData } = useActivityForm();
     const [heading, setHeading] = useState<number | null>(formData.compass_bearing ?? null);
@@ -12,26 +60,56 @@ export function CompassBearingStep() {
     const [isLocked, setIsLocked] = useState(false);
     const [permissionError, setPermissionError] = useState<string | null>(null);
     const { t } = useLanguage();
+
     const listenerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
+    const eventNameRef = useRef<'deviceorientationabsolute' | 'deviceorientation' | null>(null);
+    const isLockedRef = useRef(false);
+    const smoothedRef = useRef<number | null>(
+        formData.compass_bearing != null ? Number(formData.compass_bearing) : null
+    );
+    const lastUiHeadingRef = useRef<number | null>(smoothedRef.current);
+    const lastUiAtRef = useRef(0);
+    const sourceRef = useRef<OrientationSource>('relative');
+
+    const detachListener = () => {
+        if (listenerRef.current && eventNameRef.current) {
+            window.removeEventListener(eventNameRef.current, listenerRef.current as EventListener, true);
+        }
+        listenerRef.current = null;
+        eventNameRef.current = null;
+    };
+
+    const publishHeading = (deg: number, force = false) => {
+        const now = performance.now();
+        const last = lastUiHeadingRef.current;
+        const elapsed = now - lastUiAtRef.current;
+        if (
+            !force &&
+            last != null &&
+            circularDelta(last, deg) < UI_DEADBAND_DEG &&
+            elapsed < UI_MIN_INTERVAL_MS
+        ) {
+            return;
+        }
+        const rounded = Math.round(deg);
+        lastUiHeadingRef.current = rounded;
+        lastUiAtRef.current = now;
+        setHeading(rounded);
+        if (!isLockedRef.current) {
+            updateFormData({ compass_bearing: rounded });
+        }
+    };
 
     const handleOrientation = (event: DeviceOrientationEvent) => {
-        if (isLocked) return;
-        let deg: number | null = null;
+        if (isLockedRef.current) return;
 
-        // iOS: webkitCompassHeading gives true north bearing
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const webkit = (event as any).webkitCompassHeading;
-        if (webkit !== undefined && webkit !== null) {
-            deg = Math.round(webkit);
-        } else if (event.alpha !== null) {
-            // Android fallback
-            deg = Math.round((360 - event.alpha) % 360);
-        }
+        const raw = extractRawHeading(event, sourceRef.current);
+        if (raw === null) return;
 
-        if (deg !== null) {
-            setHeading(deg);
-            if (!isLocked) updateFormData({ compass_bearing: deg });
-        }
+        const prev = smoothedRef.current;
+        const smoothed = prev == null ? raw : circularLerp(prev, raw, SMOOTH_FACTOR);
+        smoothedRef.current = smoothed;
+        publishHeading(smoothed);
     };
 
     const startTracking = async () => {
@@ -51,33 +129,51 @@ export function CompassBearingStep() {
             }
         }
         setPermissionError(null);
-        listenerRef.current = handleOrientation;
+        detachListener();
 
-        // Try deviceorientationabsolute first (for Android Chrome), fallback to deviceorientation
+        const handler = handleOrientation;
+        listenerRef.current = handler;
+
+        // Prefer absolute magnetic heading on Android Chrome / WebView
         if ('ondeviceorientationabsolute' in window) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (window as any).addEventListener('deviceorientationabsolute', handleOrientation, true);
+            sourceRef.current = 'absolute';
+            eventNameRef.current = 'deviceorientationabsolute';
+            window.addEventListener('deviceorientationabsolute', handler as EventListener, true);
         } else {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (window as any).addEventListener('deviceorientation', handleOrientation, true);
+            sourceRef.current = 'relative';
+            eventNameRef.current = 'deviceorientation';
+            window.addEventListener('deviceorientation', handler as EventListener, true);
         }
 
+        isLockedRef.current = false;
+        setIsLocked(false);
         setIsTracking(true);
     };
 
     const stopTracking = () => {
-        if (listenerRef.current) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (window as any).removeEventListener('deviceorientationabsolute', listenerRef.current, true);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (window as any).removeEventListener('deviceorientation', listenerRef.current, true);
-            listenerRef.current = null;
-        }
+        detachListener();
+        isLockedRef.current = false;
         setIsTracking(false);
         setIsLocked(false);
     };
 
-    useEffect(() => () => { if (listenerRef.current) window.removeEventListener('deviceorientation', listenerRef.current, true); }, []);
+    const toggleLock = () => {
+        const next = !isLockedRef.current;
+        isLockedRef.current = next;
+        setIsLocked(next);
+        if (next) {
+            const locked =
+                smoothedRef.current != null
+                    ? Math.round(smoothedRef.current)
+                    : (heading ?? formData.compass_bearing ?? 0);
+            smoothedRef.current = locked;
+            lastUiHeadingRef.current = locked;
+            setHeading(locked);
+            updateFormData({ compass_bearing: locked });
+        }
+    };
+
+    useEffect(() => () => detachListener(), []);
 
     const displayHeading = heading ?? formData.compass_bearing ?? 0;
 
@@ -93,12 +189,16 @@ export function CompassBearingStep() {
                 <div className="relative">
                     <div
                         className={cn(
-                            "w-56 h-56 rounded-full border-[6px] flex items-center justify-center transition-all duration-300",
+                            "w-56 h-56 rounded-full border-[6px] flex items-center justify-center",
                             isTracking && !isLocked
                                 ? "border-primary/50 bg-primary/10 shadow-[0_0_40px_rgba(var(--primary),0.3)]"
                                 : "border-border bg-muted/20"
                         )}
-                        style={{ transform: `rotate(${displayHeading}deg)` }}
+                        style={{
+                            transform: `rotate(${displayHeading}deg)`,
+                            // Avoid CSS transition fighting sensor updates (looks like jitter)
+                            transition: isTracking && !isLocked ? 'none' : 'transform 200ms ease-out',
+                        }}
                     >
                         <Navigation className={cn("w-20 h-20 transition-colors", isTracking && !isLocked ? "text-primary" : "text-muted-foreground")} />
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-primary rounded-full shadow-lg shadow-primary/40 border-4 border-background" />
@@ -133,7 +233,7 @@ export function CompassBearingStep() {
                     <>
                         <button
                             type="button"
-                            onClick={() => { setIsLocked((l: boolean) => !l); if (!isLocked) updateFormData({ compass_bearing: heading ?? 0 }); }}
+                            onClick={toggleLock}
                             className="flex items-center gap-2 px-4 py-2 rounded-xl glass-card border border-border text-sm font-medium"
                         >
                             {isLocked ? <><Unlock className="w-4 h-4" /> {t('cb_unlock')}</> : <><Lock className="w-4 h-4" /> {t('cb_lock')}</>}
@@ -163,8 +263,11 @@ export function CompassBearingStep() {
                     onChange={e => {
                         const v = parseInt(e.target.value);
                         if (!isNaN(v) && v >= 0 && v <= 360) {
-                            setHeading(v);
-                            updateFormData({ compass_bearing: v });
+                            const deg = normalizeDeg(v);
+                            smoothedRef.current = deg;
+                            lastUiHeadingRef.current = deg;
+                            setHeading(deg);
+                            updateFormData({ compass_bearing: deg });
                         }
                     }}
                     className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"

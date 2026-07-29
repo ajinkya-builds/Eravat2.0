@@ -251,7 +251,7 @@ export default function Login() {
     };
 
     return (
-        <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background">
+        <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background pt-safe pb-safe">
             {/* Dynamic Background Elements */}
             <div className="absolute top-[-15%] left-[-10%] w-[60%] h-[60%] rounded-full bg-primary/20 blur-[120px] mix-blend-multiply" />
             <div className="absolute bottom-[-10%] right-[-20%] w-[70%] h-[70%] rounded-full bg-emerald-500/15 blur-[120px] mix-blend-multiply" />

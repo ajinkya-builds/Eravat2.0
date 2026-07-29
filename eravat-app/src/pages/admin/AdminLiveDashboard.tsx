@@ -16,7 +16,7 @@ const WINDOWS = [1, 3, 7, 30, 60, 90, 180] as const;
 
 export default function AdminLiveDashboard() {
     const { t } = useLanguage();
-    const [windowDays, setWindowDays] = useState<number>(1);
+    const [windowDays, setWindowDays] = useState<number>(30);
     const { divisions, filters, setFilters, reports, loading, error, reload } = useAdminFilters(windowDays);
 
     const scopedReports = useMemo(() => {

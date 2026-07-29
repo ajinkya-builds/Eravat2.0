@@ -193,14 +193,21 @@ max_frequency = "1s"
 
 # Use pre-defined map of phone number to OTP for testing.
 [auth.sms.test_otp]
-# Local + mirror of production pilot Test OTP map (also set in Dashboard).
-# Format: 91 + 10-digit phone = fixed OTP
+# Format: 91 + 10-digit phone = fixed OTP (also set in Dashboard per project).
+# Production pilot cohort
 "918899776655" = "123456"
 "919988775566" = "123456"
 "919876500001" = "123456"
 "919876500002" = "123456"
 "919876500003" = "123456"
 "919876500004" = "123456"
+# Staging go-live test cohort
+"919999990001" = "123456" # Staging System (admin)
+"919926445678" = "123456" # Anoop Kumar Mishra (admin)
+"919893686945" = "123456" # Bhura Gaykwad (dfo)
+"918319149748" = "123456" # Mukesh Kumar Ahirwar (range_officer)
+"918889184712" = "123456" # Ashok Kumar Kol (beat_guard)
+"917400503240" = "123456" # Santhosh Burman (volunteer)
 
 # Configure logged in session timeouts.
 # [auth.sessions]

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, MapPin, FileText, Compass, Camera, CheckCircle2, X, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -22,11 +22,27 @@ function StepperContent() {
     const { profile } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [submittedOnline, setSubmittedOnline] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [showExitWarning, setShowExitWarning] = useState(false);
+    const [isOnline, setIsOnline] = useState(true);
     const navigate = useNavigate();
     const { t } = useLanguage();
     const { takePhoto, isCapturing: loadingCamera } = useCamera();
+
+    useEffect(() => {
+        let mounted = true;
+        Network.getStatus().then(status => {
+            if (mounted) setIsOnline(status.connected);
+        });
+        const listener = Network.addListener('networkStatusChange', status => {
+            if (mounted) setIsOnline(status.connected);
+        });
+        return () => {
+            mounted = false;
+            void listener.then(l => l.remove());
+        };
+    }, []);
 
     const ALL_STEPS: Record<FormStep, { label: string; icon: ReactNode }> = {
         dateTimeLocation: { label: t('rs_date_location'), icon: <MapPin className="w-4 h-4" /> },
@@ -124,15 +140,16 @@ function StepperContent() {
                 }
             }
 
+            const net = await Network.getStatus();
+            const online = Boolean(net.connected);
+            setSubmittedOnline(online);
             setSubmitted(true);
             resetForm();
 
-            // Auto-sync immediately if online
-            Network.getStatus().then(status => {
-                if (status.connected) {
-                    setTimeout(() => syncData().catch(console.error), 500);
-                }
-            });
+            // Auto-sync immediately if online (manual home sync may then show 0 pending — expected)
+            if (online) {
+                setTimeout(() => syncData().catch(console.error), 500);
+            }
 
             setTimeout(() => navigate('/'), 2000);
         } catch (err) {
@@ -152,7 +169,9 @@ function StepperContent() {
                 </div>
                 <div className="text-center">
                     <h2 className="text-xl font-bold text-foreground mb-2">{t('rs_report_saved')}</h2>
-                    <p className="text-muted-foreground text-sm">{t('rs_stored_locally')}</p>
+                    <p className="text-muted-foreground text-sm">
+                        {submittedOnline ? t('rs_syncing_now') : t('rs_stored_locally')}
+                    </p>
                 </div>
             </motion.div>
         );
@@ -273,7 +292,7 @@ function StepperContent() {
                                 disabled={isSubmitting}
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
                             >
-                                {t('rs_submit_offline')} (Skip)
+                                {(isOnline ? t('rs_submit') : t('rs_submit_offline'))} (Skip)
                             </button>
                             <button
                                 type="button"
@@ -304,7 +323,9 @@ function StepperContent() {
                                     className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-emerald-500 text-white text-sm font-bold shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
                                 >
                                     <CheckCircle2 className="w-5 h-5" />
-                                    {isSubmitting ? t('rs_saving') : t('rs_submit_offline')}
+                                    {isSubmitting
+                                        ? t('rs_saving')
+                                        : (isOnline ? t('rs_submit') : t('rs_submit_offline'))}
                                 </button>
                             ) : (
                                 <button

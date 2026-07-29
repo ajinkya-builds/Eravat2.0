@@ -163,7 +163,26 @@ export function AdminDataTable({
 
     return (
         <div className="glass-card rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Mobile: stacked cards — no horizontal scroll */}
+            <div className="md:hidden divide-y divide-border/50">
+                {rows.map((row, idx) => (
+                    <div key={idx} className="p-4 space-y-2.5">
+                        {columns.map((col) => (
+                            <div key={col.key} className="flex items-start justify-between gap-3">
+                                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground shrink-0 pt-0.5">
+                                    {col.label}
+                                </span>
+                                <div className={`text-sm text-right min-w-0 ${col.className ?? ''}`}>
+                                    {row[col.key]}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ))}
+            </div>
+
+            {/* Desktop / tablet: table */}
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="border-b border-border bg-muted/40">

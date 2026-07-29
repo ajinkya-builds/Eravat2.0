@@ -1,0 +1,237 @@
+/**
+ * Staging E2E via Playwright (same web bundle as Android APK).
+ * Prereq: VITE_BASE_PATH=/ npx vite preview --port 4173 --strictPort
+ * Run: node scripts/staging-e2e-playwright.mjs
+ */
+import { chromium } from '@playwright/test';
+import { mkdir, writeFile } from 'fs/promises';
+import { join } from 'path';
+
+const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/e2e-playwright');
+const BASE = 'http://localhost:4173';
+const USERS = {
+  beat_guard: { phone: '8889184712', pin: '1234', role: 'beat_guard' },
+  admin: { phone: '9926445678', pin: '5678', role: 'admin' },
+  unenrolled: { phone: '9000000001' },
+};
+
+const results = [];
+
+async function shot(page, name) {
+  await page.screenshot({ path: join(OUT, `${name}.png`), fullPage: true });
+}
+
+async function check(name, fn) {
+  try {
+    await fn();
+    results.push({ name, ok: true });
+    console.log('PASS', name);
+  } catch (e) {
+    results.push({ name, ok: false, error: e.message });
+    console.log('FAIL', name, e.message);
+  }
+}
+
+async function clearSession(page) {
+  await page.goto(`${BASE}/login`);
+  await page.context().clearCookies();
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+  await page.reload();
+}
+
+async function loginOTP(page, phone) {
+  await page.goto(`${BASE}/login`);
+  await page.getByPlaceholder('9876543210').waitFor({ timeout: 10000 });
+  await page.getByPlaceholder('9876543210').fill(phone);
+  await page.getByRole('button', { name: /Send OTP/i }).click();
+  await page.getByPlaceholder('Enter 6-digit code').waitFor({ timeout: 15000 });
+  await page.getByPlaceholder('Enter 6-digit code').fill('123456');
+  await page.getByRole('button', { name: /Verify/i }).click();
+  await page.getByText(/Create.*PIN|Set.*PIN|Enter.*PIN/i).first().waitFor({ timeout: 15000 });
+}
+
+async function setPIN(page, pin) {
+  for (const d of pin) {
+    await page.getByRole('button', { name: d, exact: true }).click();
+  }
+  await page.waitForTimeout(400);
+  for (const d of pin) {
+    await page.getByRole('button', { name: d, exact: true }).click();
+  }
+  await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 20000 });
+}
+
+async function unlockPIN(page, pin) {
+  if (!(await page.getByText(/Enter.*PIN|Unlock/i).count())) return;
+  for (const d of pin) {
+    await page.getByRole('button', { name: d, exact: true }).click();
+  }
+  await page.waitForTimeout(1500);
+}
+
+await mkdir(OUT, { recursive: true });
+
+const browser = await chromium.launch();
+const context = await browser.newContext();
+const page = await context.newPage();
+
+await check('Login screen loads', async () => {
+  await page.goto(`${BASE}/login`);
+  await page.getByText(/Welcome Back/i).waitFor({ timeout: 10000 });
+  await page.getByPlaceholder('9876543210').waitFor();
+  await shot(page, '01-login');
+});
+
+await check('Unenrolled phone rejected', async () => {
+  await clearSession(page);
+  await page.getByPlaceholder('9876543210').fill(USERS.unenrolled.phone);
+  await page.getByRole('button', { name: /Send OTP/i }).click();
+  await page.getByText(/Invalid credentials/i).waitFor({ timeout: 10000 });
+  await shot(page, '02-unenrolled');
+});
+
+await check('Beat guard OTP login + PIN', async () => {
+  await clearSession(page);
+  await loginOTP(page, USERS.beat_guard.phone);
+  await setPIN(page, USERS.beat_guard.pin);
+  await shot(page, '03-dashboard');
+});
+
+await check('Dashboard content', async () => {
+  await page.goto(`${BASE}/`);
+  await unlockPIN(page, USERS.beat_guard.pin);
+  await page.getByText(/Report|Activity|Welcome|sighting/i).first().waitFor({ timeout: 15000 });
+  await shot(page, '04-dashboard-home');
+});
+
+await check('Report wizard opens', async () => {
+  await page.goto(`${BASE}/report`);
+  await unlockPIN(page, USERS.beat_guard.pin);
+  await page.waitForTimeout(2000);
+  const body = await page.content();
+  if (!/location|observation|date|time|sighting|activity/i.test(body)) {
+    throw new Error('Report wizard missing expected fields');
+  }
+  await shot(page, '05-report');
+});
+
+await check('Map loads Leaflet', async () => {
+  await page.goto(`${BASE}/map`);
+  await unlockPIN(page, USERS.beat_guard.pin);
+  await page.locator('.leaflet-container').waitFor({ timeout: 25000 });
+  await shot(page, '06-map');
+});
+
+await check('Profile page', async () => {
+  await page.goto(`${BASE}/profile`);
+  await unlockPIN(page, USERS.beat_guard.pin);
+  await page.waitForTimeout(2000);
+  const body = await page.content();
+  if (!/profile|phone|role|territory/i.test(body)) throw new Error('Profile page missing');
+  await shot(page, '07-profile');
+});
+
+await check('Settings page', async () => {
+  await page.goto(`${BASE}/settings`);
+  await unlockPIN(page, USERS.beat_guard.pin);
+  await page.waitForTimeout(2000);
+  await shot(page, '08-settings');
+});
+
+await check('History page', async () => {
+  await page.goto(`${BASE}/history`);
+  await unlockPIN(page, USERS.beat_guard.pin);
+  await page.waitForTimeout(3000);
+  const body = await page.content();
+  if (!/history|report|sighting|observation/i.test(body)) throw new Error('History page missing');
+  await shot(page, '09-history');
+});
+
+await check('Beat guard blocked from admin', async () => {
+  await page.goto(`${BASE}/admin`);
+  await unlockPIN(page, USERS.beat_guard.pin);
+  await page.waitForTimeout(2500);
+  await shot(page, '10-beat-guard-admin');
+  const body = (await page.content()).toLowerCase();
+  if (body.includes('command center') || body.includes('user management')) {
+    throw new Error('Beat guard reached admin UI');
+  }
+});
+
+// Admin journeys in fresh context
+const adminContext = await browser.newContext();
+const adminPage = await adminContext.newPage();
+
+await check('Admin login', async () => {
+  await adminPage.goto(`${BASE}/login`);
+  await adminPage.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+  await adminPage.reload();
+  await loginOTP(adminPage, USERS.admin.phone);
+  await setPIN(adminPage, USERS.admin.pin);
+  await shot(adminPage, '11-admin-login');
+});
+
+await check('Admin dashboard', async () => {
+  await adminPage.goto(`${BASE}/admin`);
+  await unlockPIN(adminPage, USERS.admin.pin);
+  await adminPage.waitForTimeout(3000);
+  const body = (await adminPage.content()).toLowerCase();
+  if (!body.includes('admin') && !body.includes('dashboard') && !body.includes('observation')) {
+    throw new Error('Admin dashboard not loaded');
+  }
+  await shot(adminPage, '12-admin-dashboard');
+});
+
+await check('Admin users page', async () => {
+  await adminPage.goto(`${BASE}/admin/users`);
+  await unlockPIN(adminPage, USERS.admin.pin);
+  await adminPage.waitForTimeout(4000);
+  const body = await adminPage.content();
+  if (!/user|phone|role|search/i.test(body)) throw new Error('Admin users page missing');
+  await shot(adminPage, '13-admin-users');
+});
+
+await check('Admin observations', async () => {
+  await adminPage.goto(`${BASE}/admin/observations`);
+  await unlockPIN(adminPage, USERS.admin.pin);
+  await adminPage.waitForTimeout(4000);
+  const body = await adminPage.content();
+  if (!/observation|report|sighting/i.test(body)) throw new Error('Admin observations missing');
+  await shot(adminPage, '14-admin-observations');
+});
+
+await check('Admin map', async () => {
+  await adminPage.goto(`${BASE}/admin/map`);
+  await unlockPIN(adminPage, USERS.admin.pin);
+  await adminPage.locator('.leaflet-container').waitFor({ timeout: 25000 });
+  await shot(adminPage, '15-admin-map');
+});
+
+await check('PIN lock after reload', async () => {
+  await page.reload();
+  await page.waitForTimeout(1500);
+  const locked = (await page.getByText(/Enter.*PIN|Unlock/i).count()) > 0;
+  if (!locked) throw new Error('PIN lock screen not shown after reload');
+  await unlockPIN(page, USERS.beat_guard.pin);
+  await shot(page, '16-pin-unlock');
+});
+
+await adminContext.close();
+await browser.close();
+
+const summary = {
+  passed: results.filter((r) => r.ok).length,
+  failed: results.filter((r) => !r.ok).length,
+  results,
+  testedAt: new Date().toISOString(),
+  baseUrl: BASE,
+};
+await writeFile(join(OUT, 'results.json'), JSON.stringify(summary, null, 2));
+console.log('\nSUMMARY', summary);
+process.exit(summary.failed ? 1 : 0);

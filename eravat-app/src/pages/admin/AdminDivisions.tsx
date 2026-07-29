@@ -156,21 +156,113 @@ interface TerritoryRowProps {
     isModified?: boolean;
     disabled?: boolean;
     delay?: number;
+    /** 'table' = <tr> cells; 'card' = stacked mobile card */
+    variant?: 'table' | 'card';
 }
 
 function TerritoryRow({
     geoId, level, label, code, meta, officers, selectedUserId,
-    roleLabel, savingState, expanded, hasChildren, onToggle, onChange, onSave, isModified, disabled, delay = 0
+    roleLabel, savingState, expanded, hasChildren, onToggle, onChange, onSave, isModified, disabled, delay = 0,
+    variant = 'table',
 }: TerritoryRowProps) {
     const isSaving = savingState[geoId] === 'saving';
     const isSaved = savingState[geoId] === 'saved';
 
     const levelStyles = {
-        division: { indent: 'pl-0', iconBg: 'bg-violet-500/10', iconColor: 'text-violet-600', icon: Building2, badge: 'bg-violet-500/10 text-violet-600 border-violet-500/20', rowBg: 'bg-card' },
-        range: { indent: 'pl-5', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-600', icon: MapPin, badge: 'bg-blue-500/10 text-blue-600 border-blue-500/20', rowBg: 'bg-muted/20' },
-        beat: { indent: 'pl-10', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600', icon: TreePine, badge: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20', rowBg: 'bg-muted/10' },
+        division: {
+            indent: 'pl-0', cardPad: 'pl-0',
+            iconBg: 'bg-violet-500/10', iconColor: 'text-violet-600', icon: Building2,
+            badge: 'bg-violet-500/10 text-violet-600 border-violet-500/20', rowBg: 'bg-card',
+        },
+        range: {
+            indent: 'pl-5', cardPad: 'pl-3',
+            iconBg: 'bg-blue-500/10', iconColor: 'text-blue-600', icon: MapPin,
+            badge: 'bg-blue-500/10 text-blue-600 border-blue-500/20', rowBg: 'bg-muted/20',
+        },
+        beat: {
+            indent: 'pl-10', cardPad: 'pl-6',
+            iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600', icon: TreePine,
+            badge: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20', rowBg: 'bg-muted/10',
+        },
     }[level];
     const Icon = levelStyles.icon;
+
+    const nameBlock = (
+        <div className="flex items-center gap-2 min-w-0">
+            <button
+                onClick={onToggle}
+                className={`p-0.5 rounded text-muted-foreground transition-colors shrink-0 ${hasChildren ? 'hover:bg-muted cursor-pointer' : 'opacity-0 cursor-default pointer-events-none'}`}
+            >
+                {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            </button>
+            <div className={`p-1.5 rounded-md shrink-0 ${levelStyles.iconBg}`}>
+                <Icon size={12} className={levelStyles.iconColor} />
+            </div>
+            <div className="min-w-0 flex-1">
+                <span className="text-sm font-semibold text-foreground truncate block">{label}</span>
+                {meta && <span className="text-[11px] text-muted-foreground">{meta}</span>}
+            </div>
+            {code && (
+                <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full border ${levelStyles.badge} shrink-0`}>
+                    {code}
+                </span>
+            )}
+        </div>
+    );
+
+    const roleBadge = (
+        <span className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-full border ${levelStyles.badge}`}>
+            <Shield size={9} /> {roleLabel}
+        </span>
+    );
+
+    const combobox = (
+        <SearchableCombobox
+            value={selectedUserId}
+            options={officers}
+            placeholder={`Search ${roleLabel}…`}
+            onChange={(uid) => onChange(geoId, uid)}
+            disabled={disabled}
+        />
+    );
+
+    const saveButton = (
+        <AnimatePresence>
+            {(isModified || isSaving || isSaved) && (
+                <motion.button
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    onClick={() => onSave(geoId)}
+                    disabled={isSaving}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-primary text-primary-foreground disabled:opacity-40 hover:bg-primary/90 active:scale-95 transition-all shadow-sm shadow-primary/20 whitespace-nowrap"
+                >
+                    {isSaving ? <Loader2 size={11} className="animate-spin" /> : isSaved ? <Check size={11} /> : null}
+                    {isSaving ? 'Saving' : isSaved ? 'Saved!' : 'Save'}
+                </motion.button>
+            )}
+        </AnimatePresence>
+    );
+
+    if (variant === 'card') {
+        return (
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay }}
+                className={`border-b border-border/30 p-3 flex flex-col gap-2.5 ${levelStyles.rowBg} ${levelStyles.cardPad}`}
+            >
+                <div className="flex items-center justify-between gap-2">
+                    {nameBlock}
+                    {roleBadge}
+                </div>
+                <div className="flex flex-col gap-2">
+                    {combobox}
+                    <div className="flex justify-end min-h-[28px]">{saveButton}</div>
+                </div>
+            </motion.div>
+        );
+    }
 
     return (
         <motion.tr
@@ -179,67 +271,10 @@ function TerritoryRow({
             transition={{ delay }}
             className={`group border-b border-border/30 hover:bg-primary/5 transition-colors ${levelStyles.rowBg}`}
         >
-            {/* Territory name cell */}
-            <td className={`py-2.5 pr-4 ${levelStyles.indent}`}>
-                <div className="flex items-center gap-2">
-                    {/* Expand toggle */}
-                    <button
-                        onClick={onToggle}
-                        className={`p-0.5 rounded text-muted-foreground transition-colors ${hasChildren ? 'hover:bg-muted cursor-pointer' : 'opacity-0 cursor-default pointer-events-none'}`}
-                    >
-                        {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                    </button>
-                    <div className={`p-1.5 rounded-md shrink-0 ${levelStyles.iconBg}`}>
-                        <Icon size={12} className={levelStyles.iconColor} />
-                    </div>
-                    <div className="min-w-0">
-                        <span className="text-sm font-semibold text-foreground truncate">{label}</span>
-                        {meta && <span className="text-[11px] text-muted-foreground ml-1.5">{meta}</span>}
-                    </div>
-                    {code && (
-                        <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full border ${levelStyles.badge} shrink-0`}>
-                            {code}
-                        </span>
-                    )}
-                </div>
-            </td>
-
-            {/* Contact type cell */}
-            <td className="py-2.5 pr-4 w-32">
-                <span className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-full border ${levelStyles.badge}`}>
-                    <Shield size={9} /> {roleLabel}
-                </span>
-            </td>
-
-            {/* Searchable select cell */}
-            <td className="py-2.5 pr-3 w-64">
-                <SearchableCombobox
-                    value={selectedUserId}
-                    options={officers}
-                    placeholder={`Search ${roleLabel}…`}
-                    onChange={(uid) => onChange(geoId, uid)}
-                    disabled={disabled}
-                />
-            </td>
-
-            {/* Save button cell */}
-            <td className="py-2.5 w-20">
-                <AnimatePresence>
-                    {(isModified || isSaving || isSaved) && (
-                        <motion.button
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            onClick={() => onSave(geoId)}
-                            disabled={isSaving}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-primary text-primary-foreground disabled:opacity-40 hover:bg-primary/90 active:scale-95 transition-all shadow-sm shadow-primary/20 whitespace-nowrap"
-                        >
-                            {isSaving ? <Loader2 size={11} className="animate-spin" /> : isSaved ? <Check size={11} /> : null}
-                            {isSaving ? 'Saving' : isSaved ? 'Saved!' : 'Save'}
-                        </motion.button>
-                    )}
-                </AnimatePresence>
-            </td>
+            <td className={`py-2.5 pr-4 ${levelStyles.indent}`}>{nameBlock}</td>
+            <td className="py-2.5 pr-4 w-32">{roleBadge}</td>
+            <td className="py-2.5 pr-3 w-64">{combobox}</td>
+            <td className="py-2.5 w-20">{saveButton}</td>
         </motion.tr>
     );
 }
@@ -319,10 +354,23 @@ export default function AdminDivisions() {
             const roList: OfficerOption[] = [];
             const bgList: OfficerOption[] = [];
 
-            // Use priority: is_primary_contact=true beats any regular assignment
+            // Prefer is_primary_contact=true; fall back to territory assignment by role
+            // so seeded personnel still appear in Divisions & Contacts slots.
             const divMap: Record<string, { userId: string; isPrimary: boolean }> = {};
             const ranMap: Record<string, { userId: string; isPrimary: boolean }> = {};
             const beaMap: Record<string, { userId: string; isPrimary: boolean }> = {};
+
+            const preferSlot = (
+                map: Record<string, { userId: string; isPrimary: boolean }>,
+                geoId: string,
+                userId: string,
+                isPrimary: boolean,
+            ) => {
+                const existing = map[geoId];
+                if (!existing || (isPrimary && !existing.isPrimary)) {
+                    map[geoId] = { userId, isPrimary };
+                }
+            };
 
             (profileData || []).forEach((p: any) => {
                 const label = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || 'Unknown';
@@ -341,21 +389,20 @@ export default function AdminDivisions() {
 
                 assignments.forEach((a: any) => {
                     const isPrimary = Boolean(a.is_primary_contact);
-                    if (!isPrimary) return; // Skip non-primary assignments for the "Primary Contact" slots
 
-                    // Division-level assignment (dfo with only division_id set)
-                    if (p.role === 'dfo' && a.division_id && !a.range_id) {
-                        divMap[a.division_id] = { userId: p.id, isPrimary };
+                    // Division-level: DFO with division (range optional/null)
+                    if (p.role === 'dfo' && a.division_id && !a.range_id && !a.beat_id) {
+                        preferSlot(divMap, a.division_id, p.id, isPrimary);
                     }
 
-                    // Range-level assignment
+                    // Range-level: Range Officer with range, no beat
                     if (p.role === 'range_officer' && a.range_id && !a.beat_id) {
-                        ranMap[a.range_id] = { userId: p.id, isPrimary };
+                        preferSlot(ranMap, a.range_id, p.id, isPrimary);
                     }
 
-                    // Beat-level assignment
+                    // Beat-level: Beat Guard with beat
                     if (p.role === 'beat_guard' && a.beat_id) {
-                        beaMap[a.beat_id] = { userId: p.id, isPrimary };
+                        preferSlot(beaMap, a.beat_id, p.id, isPrimary);
                     }
                 });
             });
@@ -567,132 +614,144 @@ export default function AdminDivisions() {
                 </div>
             ) : (
                 <div className="glass-card rounded-2xl overflow-hidden border border-border/50">
-                    <table className="w-full border-collapse text-sm">
-                        <thead>
-                            <tr className="bg-muted/50 border-b border-border">
-                                <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{t('au_territory')}</th>
-                                <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-32">{t('au_role')}</th>
-                                <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-64">{t('ad_primary_contact')}</th>
-                                <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-20"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {/* Filtered sets to prevent duplicate primary contacts */}
-                            {(() => {
-                                const assignedDfoIds = new Set(Object.values(divisionContacts));
-                                const assignedRoIds = new Set(Object.values(rangeContacts));
-                                const assignedBgIds = new Set(Object.values(beatContacts));
+                    {(() => {
+                        const assignedDfoIds = new Set(Object.values(divisionContacts));
+                        const assignedRoIds = new Set(Object.values(rangeContacts));
+                        const assignedBgIds = new Set(Object.values(beatContacts));
 
-                                return filteredDivisions.map((div, di) => {
-                                    const divRanges = ranges.filter(r => r.division_id === div.id);
-                                    const isDivExpanded = expandedDivisions.has(div.id);
-                                    const currentDfoId = divisionContacts[div.id] ?? '';
-                                    const isDfoModified = currentDfoId !== (initialDivContacts[div.id] ?? '');
+                        const renderTerritoryTree = (variant: 'table' | 'card') =>
+                            filteredDivisions.map((div, di) => {
+                                const divRanges = ranges.filter(r => r.division_id === div.id);
+                                const isDivExpanded = expandedDivisions.has(div.id);
+                                const currentDfoId = divisionContacts[div.id] ?? '';
+                                const isDfoModified = currentDfoId !== (initialDivContacts[div.id] ?? '');
 
-                                    return [
-                                        // Division row
-                                        <TerritoryRow
-                                            key={div.id}
-                                            geoId={div.id}
-                                            level="division"
-                                            label={div.name}
-                                            code={div.code}
-                                            meta={div.state}
-                                            officers={dfos.filter(o => !assignedDfoIds.has(o.id) || o.id === currentDfoId)}
-                                            selectedUserId={currentDfoId}
-                                            roleLabel="DFO"
-                                            savingState={savingState}
-                                            expanded={isDivExpanded}
-                                            isModified={isDfoModified}
-                                            disabled={!canManageDivisions}
-                                            hasChildren={divRanges.length > 0}
-                                            onToggle={() => setExpandedDivisions(prev => {
-                                                const n = new Set(prev);
-                                                n.has(div.id) ? n.delete(div.id) : n.add(div.id);
-                                                return n;
-                                            })}
-                                            onChange={(id, uid) => setDivisionContacts(c => ({ ...c, [id]: uid }))}
-                                            onSave={(id) => saveContact(id, divisionContacts[id], 'division')}
-                                            delay={di * 0.04}
-                                        />,
+                                return [
+                                    <TerritoryRow
+                                        key={`${variant}-${div.id}`}
+                                        variant={variant}
+                                        geoId={div.id}
+                                        level="division"
+                                        label={div.name}
+                                        code={div.code}
+                                        meta={div.state}
+                                        officers={dfos.filter(o => !assignedDfoIds.has(o.id) || o.id === currentDfoId)}
+                                        selectedUserId={currentDfoId}
+                                        roleLabel="DFO"
+                                        savingState={savingState}
+                                        expanded={isDivExpanded}
+                                        isModified={isDfoModified}
+                                        disabled={!canManageDivisions}
+                                        hasChildren={divRanges.length > 0}
+                                        onToggle={() => setExpandedDivisions(prev => {
+                                            const n = new Set(prev);
+                                            n.has(div.id) ? n.delete(div.id) : n.add(div.id);
+                                            return n;
+                                        })}
+                                        onChange={(id, uid) => setDivisionContacts(c => ({ ...c, [id]: uid }))}
+                                        onSave={(id) => saveContact(id, divisionContacts[id], 'division')}
+                                        delay={di * 0.04}
+                                    />,
 
-                                        // Range rows
-                                        ...(!isDivExpanded ? [] : divRanges.flatMap((range, ri) => {
-                                            const rangeBeats = beats.filter(b => b.range_id === range.id);
-                                            const isRangeExpanded = expandedRanges.has(range.id);
-                                            const currentRoId = rangeContacts[range.id] ?? '';
-                                            const isRoModified = currentRoId !== (initialRanContacts[range.id] ?? '');
+                                    ...(!isDivExpanded ? [] : divRanges.flatMap((range, ri) => {
+                                        const rangeBeats = beats.filter(b => b.range_id === range.id);
+                                        const isRangeExpanded = expandedRanges.has(range.id);
+                                        const currentRoId = rangeContacts[range.id] ?? '';
+                                        const isRoModified = currentRoId !== (initialRanContacts[range.id] ?? '');
 
-                                            // DFOs can only edit ranges within their own division
-                                            const rangeEditAllowed = canManageRanges && (
-                                                ['admin', 'ccf'].includes(userRole) ||
-                                                (userRole === 'dfo' && div.id === myDivisionId)
-                                            );
+                                        const rangeEditAllowed = canManageRanges && (
+                                            ['admin', 'ccf'].includes(userRole) ||
+                                            (userRole === 'dfo' && div.id === myDivisionId)
+                                        );
 
-                                            return [
-                                                <TerritoryRow
-                                                    key={range.id}
-                                                    geoId={range.id}
-                                                    level="range"
-                                                    label={range.name}
-                                                    code={range.code}
-                                                    officers={rangeOfficers.filter(o => !assignedRoIds.has(o.id) || o.id === currentRoId)}
-                                                    selectedUserId={currentRoId}
-                                                    roleLabel="Range Officer"
-                                                    savingState={savingState}
-                                                    expanded={isRangeExpanded}
-                                                    isModified={isRoModified}
-                                                    disabled={!rangeEditAllowed}
-                                                    hasChildren={rangeBeats.length > 0}
-                                                    onToggle={() => setExpandedRanges(prev => {
-                                                        const n = new Set(prev);
-                                                        n.has(range.id) ? n.delete(range.id) : n.add(range.id);
-                                                        return n;
-                                                    })}
-                                                    onChange={(id, uid) => setRangeContacts(c => ({ ...c, [id]: uid }))}
-                                                    onSave={(id) => saveContact(id, rangeContacts[id], 'range', div.id)}
-                                                    delay={di * 0.04 + ri * 0.02}
-                                                />,
+                                        return [
+                                            <TerritoryRow
+                                                key={`${variant}-${range.id}`}
+                                                variant={variant}
+                                                geoId={range.id}
+                                                level="range"
+                                                label={range.name}
+                                                code={range.code}
+                                                officers={rangeOfficers.filter(o => !assignedRoIds.has(o.id) || o.id === currentRoId)}
+                                                selectedUserId={currentRoId}
+                                                roleLabel="Range Officer"
+                                                savingState={savingState}
+                                                expanded={isRangeExpanded}
+                                                isModified={isRoModified}
+                                                disabled={!rangeEditAllowed}
+                                                hasChildren={rangeBeats.length > 0}
+                                                onToggle={() => setExpandedRanges(prev => {
+                                                    const n = new Set(prev);
+                                                    n.has(range.id) ? n.delete(range.id) : n.add(range.id);
+                                                    return n;
+                                                })}
+                                                onChange={(id, uid) => setRangeContacts(c => ({ ...c, [id]: uid }))}
+                                                onSave={(id) => saveContact(id, rangeContacts[id], 'range', div.id)}
+                                                delay={di * 0.04 + ri * 0.02}
+                                            />,
 
-                                                // Beat rows
-                                                ...(!isRangeExpanded ? [] : rangeBeats.map((beat, bi) => {
-                                                    const currentBgId = beatContacts[beat.id] ?? '';
-                                                    const isBgModified = currentBgId !== (initialBeaContacts[beat.id] ?? '');
+                                            ...(!isRangeExpanded ? [] : rangeBeats.map((beat, bi) => {
+                                                const currentBgId = beatContacts[beat.id] ?? '';
+                                                const isBgModified = currentBgId !== (initialBeaContacts[beat.id] ?? '');
 
-                                                    // DFOs: only in their division; ROs: only in their range
-                                                    const beatEditAllowed = canManageBeats && (
-                                                        ['admin', 'ccf'].includes(userRole) ||
-                                                        (userRole === 'dfo' && div.id === myDivisionId) ||
-                                                        (userRole === 'range_officer' && range.id === myRangeId)
-                                                    );
+                                                const beatEditAllowed = canManageBeats && (
+                                                    ['admin', 'ccf'].includes(userRole) ||
+                                                    (userRole === 'dfo' && div.id === myDivisionId) ||
+                                                    (userRole === 'range_officer' && range.id === myRangeId)
+                                                );
 
-                                                    return (
-                                                        <TerritoryRow
-                                                            key={beat.id}
-                                                            geoId={beat.id}
-                                                            level="beat"
-                                                            label={beat.name}
-                                                            code={beat.code}
-                                                            officers={beatGuards.filter(o => !assignedBgIds.has(o.id) || o.id === currentBgId)}
-                                                            selectedUserId={currentBgId}
-                                                            roleLabel="Beat Guard"
-                                                            savingState={savingState}
-                                                            isModified={isBgModified}
-                                                            disabled={!beatEditAllowed}
-                                                            hasChildren={false}
-                                                            onChange={(id, uid) => setBeatContacts(c => ({ ...c, [id]: uid }))}
-                                                            onSave={(id) => saveContact(id, beatContacts[id], 'beat', div.id, range.id)}
-                                                            delay={di * 0.04 + ri * 0.02 + bi * 0.01}
-                                                        />
-                                                    );
-                                                })),
-                                            ];
-                                        })),
-                                    ];
-                                });
-                            })()}
-                        </tbody>
-                    </table>
+                                                return (
+                                                    <TerritoryRow
+                                                        key={`${variant}-${beat.id}`}
+                                                        variant={variant}
+                                                        geoId={beat.id}
+                                                        level="beat"
+                                                        label={beat.name}
+                                                        code={beat.code}
+                                                        officers={beatGuards.filter(o => !assignedBgIds.has(o.id) || o.id === currentBgId)}
+                                                        selectedUserId={currentBgId}
+                                                        roleLabel="Beat Guard"
+                                                        savingState={savingState}
+                                                        isModified={isBgModified}
+                                                        disabled={!beatEditAllowed}
+                                                        hasChildren={false}
+                                                        onChange={(id, uid) => setBeatContacts(c => ({ ...c, [id]: uid }))}
+                                                        onSave={(id) => saveContact(id, beatContacts[id], 'beat', div.id, range.id)}
+                                                        delay={di * 0.04 + ri * 0.02 + bi * 0.01}
+                                                    />
+                                                );
+                                            })),
+                                        ];
+                                    })),
+                                ];
+                            });
+
+                        return (
+                            <>
+                                {/* Mobile stacked cards */}
+                                <div className="md:hidden">
+                                    {renderTerritoryTree('card')}
+                                </div>
+
+                                {/* Tablet / desktop table */}
+                                <div className="hidden md:block overflow-x-auto">
+                                    <table className="w-full min-w-[640px] border-collapse text-sm">
+                                        <thead>
+                                            <tr className="bg-muted/50 border-b border-border">
+                                                <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{t('au_territory')}</th>
+                                                <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-32">{t('au_role')}</th>
+                                                <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-64">{t('ad_primary_contact')}</th>
+                                                <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-20"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {renderTerritoryTree('table')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        );
+                    })()}
                 </div>
             )}
         </div>

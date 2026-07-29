@@ -1,0 +1,20 @@
+---
+description: Apply Supabase schema and edge function changes to the live project, not only local migration files.
+globs:
+  - supabase/**
+  - docs/**
+alwaysApply: true
+---
+
+# Supabase — always apply to remote
+
+Project ref: `mnytrlcmdpkfhrzrtesf`
+
+When the user asks for database, RLS, trigger, RPC, or Edge Function work:
+
+1. Update repo under `supabase/migrations/` or `supabase/functions/`.
+2. **Apply on the live Supabase project** using the Supabase MCP (`apply_migration`, `execute_sql`, `deploy_edge_function`) or CLI (`supabase db push`, `supabase functions deploy`).
+3. Verify remotely (`list_migrations`, column checks, function list).
+4. Do **not** treat migration files alone as complete.
+
+See `docs/SUPABASE_OPERATIONS.md`.

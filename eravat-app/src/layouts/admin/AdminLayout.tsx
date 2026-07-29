@@ -120,24 +120,26 @@ export function AdminLayout() {
             <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[100px] pointer-events-none z-0" />
             <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-[100px] pointer-events-none z-0" />
 
-            <div className="md:hidden flex items-center justify-between p-4 bg-card border-b border-border z-30 relative">
-                <Link to="/" className="flex items-center gap-2 active:scale-95 transition-transform">
-                    <div className="w-10 h-10 relative flex items-center justify-center overflow-visible">
-                        <img src={ELEPHANT_LOGO_URL} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
+            <div className="md:hidden pt-safe bg-card border-b border-border z-30 relative">
+                <div className="flex items-center justify-between p-4">
+                    <Link to="/" className="flex items-center gap-2 active:scale-95 transition-transform">
+                        <div className="w-10 h-10 relative flex items-center justify-center overflow-visible">
+                            <img src={ELEPHANT_LOGO_URL} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
+                        </div>
+                        <h1 aria-label="ERAVAT Admin" className="font-bold text-lg bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT Admin</h1>
+                    </Link>
+                    <div className="flex items-center gap-2">
+                        <NotificationBell />
+                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 bg-muted rounded-md text-foreground">
+                            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                        </button>
                     </div>
-                    <h1 aria-label="ERAVAT Admin" className="font-bold text-lg bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT Admin</h1>
-                </Link>
-                <div className="flex items-center gap-2">
-                    <NotificationBell />
-                    <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 bg-muted rounded-md text-foreground">
-                        {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-                    </button>
                 </div>
             </div>
 
             <aside className={cn(
                 'fixed md:relative z-20 top-0 left-0 h-full w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out flex flex-col premium-shadow',
-                isMobileMenuOpen ? 'translate-x-0 pt-16 md:pt-0' : '-translate-x-full md:translate-x-0 pt-0',
+                isMobileMenuOpen ? 'translate-x-0 pt-[calc(4rem+env(safe-area-inset-top,0px))] md:pt-0' : '-translate-x-full md:translate-x-0 pt-0',
             )}>
                 <div className="p-6 hidden md:block border-b border-border/50">
                     <Link to="/" className="flex items-center gap-3 active:scale-95 transition-transform group">

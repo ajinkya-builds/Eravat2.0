@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ShieldCheck, History, User, Activity, CloudOff, RefreshCw, ChevronRight, UserPlus } from 'lucide-react';
+import { ShieldCheck, History, User, Activity, CloudOff, RefreshCw, ChevronRight, UserPlus, MapPin, Loader2 } from 'lucide-react';
 import { canOnboardVolunteers } from '../lib/rbac';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
@@ -12,14 +12,26 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
 import { QuickSOSButton } from '../components/shared/QuickSOSButton';
 import { Network } from '@capacitor/network';
+import { supabase } from '../supabase';
+import { formatDistanceToNow } from 'date-fns';
+
+type RecentSighting = {
+    id: string;
+    device_timestamp: string;
+    beat_name?: string | null;
+    obs_type?: string | null;
+    elephant_total: number;
+};
 
 export default function Dashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const navigate = useNavigate();
-    const { profile } = useAuth();
+    const { profile, user } = useAuth();
     const { t } = useLanguage();
     const [isOnline, setIsOnline] = useState(true);
+    const [recentSightings, setRecentSightings] = useState<RecentSighting[]>([]);
+    const [recentLoading, setRecentLoading] = useState(true);
 
     useEffect(() => {
         let isMounted = true;
@@ -51,7 +63,51 @@ export default function Dashboard() {
         };
     }, []);
 
-    // Count both pending and failed reports
+    useEffect(() => {
+        if (!user?.id) return;
+        let cancelled = false;
+        const loadRecent = async () => {
+            setRecentLoading(true);
+            const { data, error } = await supabase
+                .from('reports')
+                .select(`
+                    id,
+                    device_timestamp,
+                    geo_beats ( name ),
+                    observations ( type, male_count, female_count, calf_count, unknown_count )
+                `)
+                .order('device_timestamp', { ascending: false })
+                .limit(8);
+
+            if (cancelled) return;
+            if (error) {
+                console.error('[Dashboard] recent sightings', error);
+                setRecentSightings([]);
+            } else {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const rows: RecentSighting[] = (data || []).map((r: any) => {
+                    const obs = r.observations?.[0];
+                    const elephant_total =
+                        (obs?.male_count || 0) +
+                        (obs?.female_count || 0) +
+                        (obs?.calf_count || 0) +
+                        (obs?.unknown_count || 0);
+                    return {
+                        id: r.id,
+                        device_timestamp: r.device_timestamp,
+                        beat_name: r.geo_beats?.name ?? null,
+                        obs_type: obs?.type ?? null,
+                        elephant_total,
+                    };
+                });
+                setRecentSightings(rows);
+            }
+            setRecentLoading(false);
+        };
+        void loadRecent();
+        return () => { cancelled = true; };
+    }, [user?.id]);
+
     const pendingCount = useLiveQuery(
         () => db.reports.where('sync_status').anyOf(['pending', 'failed']).count(),
         []
@@ -64,21 +120,25 @@ export default function Dashboard() {
         try {
             const result = await syncData();
             if (result.success) {
-                setSyncMessage({
-                    type: 'success',
-                    text: `Synced ${result.count} of ${result.total || result.count} reports successfully!`
-                });
+                const skipped = Boolean((result as { skipped?: boolean }).skipped);
+                const total = result.total ?? result.count;
+                let text: string;
+                if (skipped) {
+                    text = t('sync_in_progress') || 'Sync already in progress…';
+                } else if (result.count === 0) {
+                    text = t('sync_already_done') || 'Everything is already synced.';
+                } else {
+                    text = `Synced ${result.count} of ${total} reports successfully!`;
+                }
+                setSyncMessage({ type: 'success', text });
+                setTimeout(() => setSyncMessage(null), 3000);
             } else {
                 setSyncMessage({
                     type: 'error',
                     text: result.error?.toString() || 'Sync failed. Please try again.'
                 });
             }
-            // Auto-clear success message after 3 seconds
-            if (result.success) {
-                setTimeout(() => setSyncMessage(null), 3000);
-            }
-        } catch (err) {
+        } catch {
             setSyncMessage({
                 type: 'error',
                 text: 'Sync failed. Please check your connection.'
@@ -91,9 +151,17 @@ export default function Dashboard() {
     const hasAdminAccess = ['admin', 'ccf', 'dfo'].includes(profile?.role || '');
     const canOnboard = canOnboardVolunteers(profile?.role);
 
+    const typeLabel = (type?: string | null) => {
+        if (!type) return 'Observation';
+        const lower = type.toLowerCase();
+        if (lower.includes('direct')) return 'Direct';
+        if (lower.includes('indirect')) return 'Indirect';
+        if (lower.includes('loss') || lower.includes('conflict')) return 'Conflict';
+        return type;
+    };
+
     return (
         <div className="relative min-h-screen w-full bg-background overflow-hidden flex flex-col pt-6 px-6 pb-24">
-            {/* Dynamic Background Elements */}
             <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[100px] pointer-events-none" />
             <div className="absolute bottom-[20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-500/10 blur-[100px] pointer-events-none" />
 
@@ -117,12 +185,10 @@ export default function Dashboard() {
                     </div>
                 </motion.div>
 
-                {/* Sync Feedback Message */}
                 {syncMessage && (
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.95, opacity: 0 }}
                         className="mb-4 z-10"
                     >
                         <div className={cn(
@@ -137,7 +203,6 @@ export default function Dashboard() {
                     </motion.div>
                 )}
 
-                {/* Offline Sync Status Indicator (Only shows if there are pending items) */}
                 {pendingCount ? (
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0 }}
@@ -165,13 +230,66 @@ export default function Dashboard() {
                     </motion.div>
                 ) : null}
 
-                {/* Quick SOS Trigger */}
                 <div className="mb-6 z-10">
                     <QuickSOSButton />
                 </div>
 
+                <motion.section
+                    initial={{ y: 16, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.05 }}
+                    className="mb-6 z-10"
+                >
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg font-bold text-foreground">Recent Sightings</h2>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/history')}
+                            className="text-xs font-semibold text-primary flex items-center gap-1"
+                        >
+                            View all <ChevronRight size={12} />
+                        </button>
+                    </div>
+                    <div className="glass-card rounded-2xl border border-border/50 overflow-hidden">
+                        {recentLoading ? (
+                            <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground text-sm">
+                                <Loader2 size={16} className="animate-spin" /> Loading…
+                            </div>
+                        ) : recentSightings.length === 0 ? (
+                            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                                No sightings in your territory yet. Tap Report Activity to add one.
+                            </div>
+                        ) : (
+                            <ul className="divide-y divide-border/40">
+                                {recentSightings.map((s) => (
+                                    <li key={s.id}>
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/history')}
+                                            className="w-full px-4 py-3 flex items-start gap-3 text-left hover:bg-muted/30 transition-colors"
+                                        >
+                                            <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
+                                                <MapPin size={16} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-semibold text-sm text-foreground truncate">
+                                                    {s.beat_name || 'Unknown beat'} · {typeLabel(s.obs_type)}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-0.5">
+                                                    {formatDistanceToNow(new Date(s.device_timestamp), { addSuffix: true })}
+                                                    {s.elephant_total > 0 ? ` · ${s.elephant_total} elephants` : ''}
+                                                </p>
+                                            </div>
+                                            <ChevronRight size={14} className="text-muted-foreground shrink-0 mt-1" />
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </motion.section>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 z-10">
-                    {/* Primary Action Button */}
                     <motion.button
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
@@ -193,7 +311,6 @@ export default function Dashboard() {
                         </div>
                     </motion.button>
 
-                    {/* Secondary Action Buttons */}
                     <div className="grid grid-cols-2 gap-4 h-48">
                         <motion.button
                             initial={{ y: 20, opacity: 0 }}

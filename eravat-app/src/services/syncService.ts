@@ -183,14 +183,14 @@ export async function syncData() {
         if (import.meta.env.DEV) {
             console.log('[SyncService] Sync already in progress, skipping');
         }
-        return { success: true, count: 0, message: 'Sync already in progress' };
+        return { success: true, count: 0, total: 0, skipped: true, message: 'Sync already in progress' };
     }
 
     if (!tryAcquireCrossTabSyncLock()) {
         if (import.meta.env.DEV) {
             console.log('[SyncService] Sync locked by another tab, skipping');
         }
-        return { success: true, count: 0, message: 'Sync already in progress in another tab' };
+        return { success: true, count: 0, total: 0, skipped: true, message: 'Sync already in progress in another tab' };
     }
 
     isSyncing = true;
@@ -213,7 +213,7 @@ export async function syncData() {
             .toArray();
 
         if (reportsToSync.length === 0) {
-            return { success: true, count: 0 };
+            return { success: true, count: 0, total: 0, message: 'Nothing to sync' };
         }
 
         for (const report of reportsToSync) {

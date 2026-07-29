@@ -69,6 +69,9 @@ interface ObsPin {
     lat: number;
     lng: number;
     type: 'direct' | 'indirect' | 'loss';
+    beatId: string | null;
+    rangeId: string | null;
+    divisionId: string | null;
     beatName: string;
     maleCount: number;
     femaleCount: number;
@@ -140,21 +143,66 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const [loadingPins, setLoadingPins] = useState(false);
     const [pinFilter, setPinFilter] = useState<'all' | 'direct' | 'indirect' | 'loss'>('all');
     const [showHeatmap, setShowHeatmap] = useState(false);
-    const [showAllTime, setShowAllTime] = useState(false);
+    const [showAllTime, setShowAllTime] = useState(true);
 
-    // ── Fetch observation pins ──────────────────────────────────────────────
+    // ── Fetch observation pins (scoped to selected territory when set) ─────
     useEffect(() => {
         if (!showObservationPins) return;
-        const fetch = async () => {
+        let cancelled = false;
+
+        const fetchPins = async () => {
             setLoadingPins(true);
             try {
-                const { data, error } = await supabase
+                // Resolve beat IDs for the active geo filter so counts match the selection
+                let beatIds: string[] | null = null;
+                if (selectedBeat) {
+                    beatIds = [selectedBeat];
+                } else if (selectedRange) {
+                    const { data: rangeBeats } = await supabase
+                        .from('geo_beats')
+                        .select('id')
+                        .eq('range_id', selectedRange);
+                    beatIds = (rangeBeats || []).map((b) => b.id);
+                } else if (selectedDivision) {
+                    const { data: divRanges } = await supabase
+                        .from('geo_ranges')
+                        .select('id')
+                        .eq('division_id', selectedDivision);
+                    const rangeIds = (divRanges || []).map((r) => r.id);
+                    if (rangeIds.length === 0) {
+                        beatIds = [];
+                    } else {
+                        const { data: divBeats } = await supabase
+                            .from('geo_beats')
+                            .select('id')
+                            .in('range_id', rangeIds);
+                        beatIds = (divBeats || []).map((b) => b.id);
+                    }
+                }
+
+                if (cancelled) return;
+
+                if (beatIds && beatIds.length === 0) {
+                    setObsPins([]);
+                    return;
+                }
+
+                let query = supabase
                     .from('reports')
                     .select(`
                         id,
+                        beat_id,
                         location,
                         device_timestamp,
-                        geo_beats (name),
+                        geo_beats (
+                            id,
+                            name,
+                            range_id,
+                            geo_ranges (
+                                id,
+                                division_id
+                            )
+                        ),
                         observations (
                             type,
                             male_count,
@@ -168,9 +216,15 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     `)
                     .not('location', 'is', null)
                     .order('device_timestamp', { ascending: false })
-                    .limit(300);
+                    .limit(beatIds ? 1000 : 500);
 
+                if (beatIds) {
+                    query = query.in('beat_id', beatIds);
+                }
+
+                const { data, error } = await query;
                 if (error) throw error;
+                if (cancelled) return;
 
                 const pins: ObsPin[] = [];
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -182,13 +236,18 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     const obs = rep.observations?.[0];
                     const rawType = obs?.type ?? 'direct';
                     const type = obsTypeMap[rawType] ?? 'direct';
+                    const beat = rep.geo_beats;
+                    const range = beat?.geo_ranges;
 
                     pins.push({
                         id: rep.id,
                         lat: coords.lat,
                         lng: coords.lng,
                         type,
-                        beatName: rep.geo_beats?.name ?? 'Field',
+                        beatId: rep.beat_id ?? beat?.id ?? null,
+                        rangeId: beat?.range_id ?? range?.id ?? null,
+                        divisionId: range?.division_id ?? null,
+                        beatName: beat?.name ?? 'Field',
                         maleCount: obs?.male_count ?? 0,
                         femaleCount: obs?.female_count ?? 0,
                         calfCount: obs?.calf_count ?? 0,
@@ -203,12 +262,15 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                 setObsPins(pins);
             } catch (err) {
                 console.error('Error fetching observation pins:', err);
+                if (!cancelled) setObsPins([]);
             } finally {
-                setLoadingPins(false);
+                if (!cancelled) setLoadingPins(false);
             }
         };
-        fetch();
-    }, [showObservationPins]);
+
+        void fetchPins();
+        return () => { cancelled = true; };
+    }, [showObservationPins, selectedDivision, selectedRange, selectedBeat]);
 
     // ── Divisions ─────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -333,13 +395,18 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
         }
     };
 
-    const visiblePins = obsPins.filter(p => {
+    const timedPins = obsPins.filter((p) => (showAllTime ? true : isWithin48Hours(p.deviceTimestamp)));
+
+    const visiblePins = timedPins.filter((p) => {
         if (pinFilter !== 'all' && p.type !== pinFilter) return false;
-        if (!showAllTime) {
-            return isWithin48Hours(p.deviceTimestamp);
-        }
         return true;
     });
+
+    const typeCounts = {
+        direct: timedPins.filter((p) => p.type === 'direct').length,
+        indirect: timedPins.filter((p) => p.type === 'indirect').length,
+        loss: timedPins.filter((p) => p.type === 'loss').length,
+    };
 
     const legacyPoints = reportPoints ?? [];
 
@@ -364,7 +431,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                         Territory Overview
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Select a region to highlight it on the map. Defaulting to recent (last 48h) observations.
+                        Select a division, range, or beat to filter sightings and update the counts below.
                     </p>
                 </div>
 
@@ -438,19 +505,23 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                 </div>
             </div>
 
-            {/* Legend */}
+            {/* Legend — counts reflect active division/range/beat (+ time) filter */}
             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
-                    Direct Sighting ({obsPins.filter(p => p.type === 'direct').length})
+                    Direct Sighting ({typeCounts.direct})
                 </span>
                 <span className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" />
-                    Indirect Sign ({obsPins.filter(p => p.type === 'indirect').length})
+                    Indirect Sign ({typeCounts.indirect})
                 </span>
                 <span className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />
-                    Conflict / Loss ({obsPins.filter(p => p.type === 'loss').length})
+                    Conflict / Loss ({typeCounts.loss})
+                </span>
+                <span className="text-muted-foreground/80">
+                    Total {timedPins.length}
+                    {selectedBeat ? ' in beat' : selectedRange ? ' in range' : selectedDivision ? ' in division' : ''}
                 </span>
                 {loadingPins && (
                     <span className="flex items-center gap-1 text-primary">
