@@ -1715,6 +1715,8 @@ const translations: Record<Language, Record<string, string>> = {
         "volunteer.onboardGpsRequired": "जीपीएस स्थान आवश्यक है।",
         "volunteer.onboardFailed": "स्वयंसेवक पंजीकृत नहीं किया जा सका।",
         "volunteer.onboardForbidden": "आपके पास स्वयंसेवक जोड़ने की अनुमति नहीं है।",
+        "profile.gpsLocation": "जीपीएस स्थान",
+        "profile.captureGps": "वर्तमान जीपीएस उपयोग करें",
         "profile.phoneWarning":
             "आपका फ़ोन नंबर सिस्टम द्वारा प्रबंधित किया जाता है और इसे यहाँ बदला नहीं जा सकता। इसे अपडेट करने के लिए अपने एडमिन से संपर्क करें।",
         "profile.updateSuccess": "प्रोफ़ाइल सफलतापूर्वक अपडेट हो गई।",
@@ -2531,6 +2533,8 @@ const translations: Record<Language, Record<string, string>> = {
         "volunteer.onboardGpsRequired": "जीपीएस स्थान आवश्यक आहे.",
         "volunteer.onboardFailed": "स्वयंसेवक नोंदवता आला नाही.",
         "volunteer.onboardForbidden": "तुम्हाला स्वयंसेवक जोडण्याची परवानगी नाही.",
+        "profile.gpsLocation": "जीपीएस स्थान",
+        "profile.captureGps": "सध्याचे जीपीएस वापरा",
         "profile.phoneWarning":
             "तुमचा फोन नंबर सिस्टमद्वारे व्यवस्थापित केला जातो आणि तो येथे बदलता येत नाही. तो अपडेट करण्यासाठी तुमच्या प्रशासकाशी संपर्क साधा.",
         "profile.updateSuccess": "प्रोफाइल यशस्वीरित्या अपडेट झाली.",
