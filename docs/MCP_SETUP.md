@@ -1,86 +1,61 @@
-# MCP setup — do this once (Supabase prod + staging + GitHub)
+# MCP setup — Desktop vs Cloud (verified)
 
-Agents **cannot** finish OAuth or paste PATs for you. Repo config is already set in [`.cursor/mcp.json`](../.cursor/mcp.json). You only need to enable + authenticate the same servers in Cursor.
+## What works where
 
-| Server name | Points at | Project ref |
-|-------------|-----------|-------------|
-| `supabase-prod` | Production DB | `mnytrlcmdpkfhrzrtesf` |
-| `supabase-staging` | Staging DB | `ttjtyvxfiqhjdngkgdkf` |
-| `github` | GitHub API (PRs, issues, Actions) | — |
+| Surface | How MCP is configured | Notes |
+|---------|----------------------|--------|
+| **Desktop Cursor (Mac)** | `.cursor/mcp.json` + **Customize → MCPs** | Repo file already declares `supabase-prod`, `supabase-staging`, `github`. |
+| **Cloud Agents — Pro** | **Only** via [cursor.com/agents](https://cursor.com/agents) → **New Agent** → MCP controls under the prompt | **Not** on Integrations. Pro does not show “Add MCP” there. |
+| **Cloud Agents — Teams** | Also [Dashboard → Integrations](https://cursor.com/dashboard/integrations) → **Team MCP Servers** / Add MCP | Team-plan UI. Missing on Pro is expected. |
 
-> Cloud Agents **ignore** `.cursor/mcp.json` until the same servers are added under [cursor.com/agents](https://cursor.com/agents) → MCP (or Dashboard → Integrations & MCP).
-
----
-
-## A. Cloud Agents (required for agents like this one)
-
-Do these **3 adds** on [cursor.com/agents](https://cursor.com/agents) → open the **MCP** dropdown → **Add MCP server** (type **HTTP**).
-
-### 1) Supabase production
-
-| Field | Value |
-|-------|--------|
-| Name | `supabase-prod` |
-| URL | `https://mcp.supabase.com/mcp?project_ref=mnytrlcmdpkfhrzrtesf&features=docs,database,debugging,development,functions` |
-| Auth | Click **Connect / Authenticate** → browser OAuth → choose the Supabase org that owns Eravat prod |
-
-### 2) Supabase staging
-
-| Field | Value |
-|-------|--------|
-| Name | `supabase-staging` |
-| URL | `https://mcp.supabase.com/mcp?project_ref=ttjtyvxfiqhjdngkgdkf&features=docs,database,debugging,development,functions` |
-| Auth | Same OAuth (usually already done after #1) |
-
-### 3) GitHub
-
-| Field | Value |
-|-------|--------|
-| Name | `github` |
-| URL | `https://api.githubcopilot.com/mcp/` |
-| Headers | Key: `Authorization` · Value: `Bearer ` + your PAT (one space after Bearer) |
-
-**Create the PAT** (if you don’t have one): https://github.com/settings/tokens  
-- Classic: enable `repo`, `read:org`, `workflow` (optional but useful)  
-- Or fine-grained: this repo `ajinkya-builds/Eravat2.0` with Contents/PRs/Issues/Actions read-write as you prefer  
-
-Paste the token **only** in the MCP header field — never in chat or git.
-
-Then: **enable** all three for Cloud Agents → start a **new** Cloud Agent (this run cannot pick them up mid-flight).
+Official correction from Cursor staff (Mar 2026): Cloud Agents do **not** auto-load `.cursor/mcp.json`. Configure via `cursor.com/agents`; Team Plan also gets `cursor.com/dashboard/integrations`.
 
 ---
 
-## B. Desktop Cursor (your Mac) — same three servers
+## Repo config (Desktop)
 
-1. Merge/pull so `.cursor/mcp.json` is present.
-2. **Settings → Tools & MCP** (not Plugins).
-3. You should see `supabase-prod`, `supabase-staging`, `github`.
-4. Authenticate both Supabase entries (OAuth).
-5. For GitHub either:
-   - `export GITHUB_PAT=ghp_…` in your shell and restart Cursor, or  
-   - paste `Bearer ghp_…` in that server’s Headers UI.
-6. Ignore the Plugins → Supabase card that opens a GitHub **release** page — that is the plugin package, not auth.
+[`.cursor/mcp.json`](../.cursor/mcp.json):
 
----
-
-## C. How you’ll know it worked
-
-Ask a **new** Cloud Agent:
-
-> List your MCP servers. Using supabase-prod and supabase-staging, list tables (or migrations) on each. Using github, list open PRs on Eravat2.0.
-
-Expected: tools from `supabase-prod`, `supabase-staging`, `github`, plus `cursor-cloud`.
+| Name | Project |
+|------|---------|
+| `supabase-prod` | `mnytrlcmdpkfhrzrtesf` |
+| `supabase-staging` | `ttjtyvxfiqhjdngkgdkf` |
+| `github` | `https://api.githubcopilot.com/mcp/` + `${env:GITHUB_PAT}` |
 
 ---
 
-## D. Optional: Supabase access token instead of OAuth
+## Cloud Agents on Pro — where Add MCP actually is
 
-Only if OAuth fails in Cloud Agents: create a token at https://supabase.com/dashboard/account/tokens and set header `Authorization: Bearer <token>` on both Supabase HTTP servers in the Agents MCP UI.
+Do **not** use Integrations (GitHub/Slack page). That page has no MCP on Pro.
+
+1. Open **https://cursor.com/agents**
+2. Start **New Agent** (empty compose screen — not an already-running chat).
+3. Leave the prompt **empty**.
+4. Below the prompt, open the **MCP** dropdown / icon.
+5. Click **+** → add custom HTTP (or library entry), then **Add MCP**.
+
+Verified UI path from Cursor forum (Apr 2026): *New Agent → MCP dropdown below prompt → + → Add MCP*.
+
+Add:
+
+**supabase-prod**  
+`https://mcp.supabase.com/mcp?project_ref=mnytrlcmdpkfhrzrtesf&features=docs,database,debugging,development,functions`
+
+**supabase-staging**  
+`https://mcp.supabase.com/mcp?project_ref=ttjtyvxfiqhjdngkgdkf&features=docs,database,debugging,development,functions`
+
+**github**  
+URL `https://api.githubcopilot.com/mcp/`  
+Header `Authorization: Bearer <PAT>` (literal token in Cloud UI; `${env:…}` interpolation is unreliable there per Cursor staff).
+
+6. Enable the toggles for the new agent, then send the prompt / start the run.
+
+If that MCP control is still missing on New Agent, that is a product/UI gap on your account — not something an agent can fix from the VM. Use Desktop for Supabase until Cursor Support confirms Cloud MCP for your plan, or use a Team plan Integrations → Team MCP Servers path.
 
 ---
 
-## Security
+## Honest limits
 
-- MCP uses **your** permissions on those projects.
-- Prefer staging for experiments; treat prod writes carefully.
-- Never commit PATs. Dashboard headers are encrypted/redacted after save.
+- This Cloud Agent run only has `cursor-cloud` until you add/enable servers on a **new** agent.
+- Desktop auth does not transfer to Cloud.
+- Integrations “GitHub Connected” ≠ GitHub MCP.
