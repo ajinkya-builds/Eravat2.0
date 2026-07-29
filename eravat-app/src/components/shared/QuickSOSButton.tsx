@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertOctagon, Loader2, MapPin, Check, X } from 'lucide-react';
-import { Geolocation } from '@capacitor/geolocation';
 import { Network } from '@capacitor/network';
 import { db } from '../../db';
 import { syncData } from '../../services/syncService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useGeolocation } from '../../hooks/useGeolocation';
 
 export function QuickSOSButton() {
     const { profile } = useAuth();
     const { language } = useLanguage();
+    const { fetchLocation } = useGeolocation();
     const [status, setStatus] = useState<'idle' | 'locating' | 'confirm' | 'saving' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -92,17 +93,15 @@ export function QuickSOSButton() {
         setErrorMessage('');
 
         try {
-            const perm = await Geolocation.requestPermissions();
-            if (perm.location === 'denied') {
+            // Shared hook: Capacitor Geolocation on native, browser API on web
+            // (Capacitor's requestPermissions is "Not implemented on web").
+            const position = await fetchLocation();
+            if (!position?.coords) {
                 setStatus('error');
                 setErrorMessage(strings.permissionDenied);
+                setTimeout(() => setStatus('idle'), 4000);
                 return;
             }
-
-            const position = await Geolocation.getCurrentPosition({
-                enableHighAccuracy: true,
-                timeout: 10000,
-            });
 
             setCoords({
                 latitude: position.coords.latitude,
