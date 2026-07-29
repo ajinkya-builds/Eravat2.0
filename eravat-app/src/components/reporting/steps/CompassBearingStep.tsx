@@ -134,16 +134,18 @@ export function CompassBearingStep() {
         const handler = handleOrientation;
         listenerRef.current = handler;
 
-        // Prefer absolute magnetic heading on Android Chrome / WebView
-        if ('ondeviceorientationabsolute' in window) {
-            sourceRef.current = 'absolute';
-            eventNameRef.current = 'deviceorientationabsolute';
-            window.addEventListener('deviceorientationabsolute', handler as EventListener, true);
-        } else {
-            sourceRef.current = 'relative';
-            eventNameRef.current = 'deviceorientation';
-            window.addEventListener('deviceorientation', handler as EventListener, true);
-        }
+        // Prefer absolute magnetic heading on Android Chrome / WebView.
+        // Avoid `'x' in window` — when the prop exists on Window's type, the else
+        // branch is narrowed to `never` and tsc fails in CI.
+        const supportsAbsolute =
+            typeof (window as Window & { ondeviceorientationabsolute?: unknown })
+                .ondeviceorientationabsolute !== 'undefined';
+        const eventName = supportsAbsolute
+            ? 'deviceorientationabsolute'
+            : 'deviceorientation';
+        sourceRef.current = supportsAbsolute ? 'absolute' : 'relative';
+        eventNameRef.current = eventName;
+        window.addEventListener(eventName, handler as EventListener, true);
 
         isLockedRef.current = false;
         setIsLocked(false);
