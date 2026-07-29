@@ -32,7 +32,6 @@ interface HistoryItem {
     device_timestamp: string;
     status: string;
     location?: string | null;
-    report_media?: { file_path: string }[];
     geo_beats?: {
         name: string;
         geo_ranges?: {
@@ -76,9 +75,18 @@ export default function TerritoryHistory() {
     const handleShare = async (item: HistoryItem, text: string, coords: { lat: number; lng: number } | null) => {
         const url = coords ? mapsLink(coords.lat, coords.lng) : undefined;
         let file: File | undefined;
-        const path = item.report_media?.[0]?.file_path;
-        if (path) {
-            try {
+        // Fetch media lazily with select('*') so the History list never breaks if
+        // the media path column differs across environments (file_path/storage_path/path).
+        try {
+            const { data: media } = await supabase
+                .from('report_media')
+                .select('*')
+                .eq('report_id', item.id)
+                .limit(1);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const row: any = media?.[0];
+            const path = row?.storage_path || row?.file_path || row?.path;
+            if (path) {
                 const { data } = await supabase.storage.from('report_media').createSignedUrl(path, 3600);
                 if (data?.signedUrl) {
                     const resp = await fetch(data.signedUrl);
@@ -87,8 +95,8 @@ export default function TerritoryHistory() {
                         file = new File([blob], `sighting-${item.id}.jpg`, { type: blob.type || 'image/jpeg' });
                     }
                 }
-            } catch { /* share text only if photo cannot be fetched */ }
-        }
+            }
+        } catch { /* share text only if photo cannot be fetched */ }
         const res = await shareOrCopy({ title: t('share.reportTitle'), text, url, file });
         if (res === 'copied') setShareMsg(t('share.copied'));
         else if (res === 'failed') setShareMsg(t('share.failed'));
@@ -108,7 +116,7 @@ export default function TerritoryHistory() {
             // Fetch reports (RLS scopes to territory owned by the user)
             const reportsPromise = supabase
                 .from('reports')
-                .select('id, device_timestamp, status, location, geo_beats(name, geo_ranges(name)), observations(*), conflict_damages(*), report_media(file_path)')
+                .select('id, device_timestamp, status, location, geo_beats(name, geo_ranges(name)), observations(*), conflict_damages(*)')
                 .order('server_created_at', { ascending: false })
                 .limit(50);
 
@@ -153,7 +161,7 @@ export default function TerritoryHistory() {
             const [reportsRes, notifRes] = await Promise.all([
                 supabase
                     .from('reports')
-                    .select('id, device_timestamp, status, location, geo_beats(name, geo_ranges(name)), observations(*), conflict_damages(*), report_media(file_path)')
+                    .select('id, device_timestamp, status, location, geo_beats(name, geo_ranges(name)), observations(*), conflict_damages(*)')
                     .order('server_created_at', { ascending: false })
                     .limit(50),
                 supabase
