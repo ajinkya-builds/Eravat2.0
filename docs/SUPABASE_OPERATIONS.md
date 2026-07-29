@@ -3,6 +3,8 @@
 > **Project:** `mnytrlcmdpkfhrzrtesf`  
 > **Dashboard:** https://supabase.com/dashboard/project/mnytrlcmdpkfhrzrtesf
 
+**MCP setup (Desktop + Cloud Agents):** see [`MCP_SETUP.md`](./MCP_SETUP.md). Project config lives in [`.cursor/mcp.json`](../.cursor/mcp.json).
+
 ---
 
 ## Required workflow (always)

@@ -1,0 +1,12 @@
+---
+description: Prefer project MCP servers (Supabase + GitHub) once authenticated; point humans to docs/MCP_SETUP.md for Cloud Agent dashboard enablement.
+alwaysApply: true
+---
+
+# MCP — project tooling
+
+Shared config: `.cursor/mcp.json` (Supabase scoped to `mnytrlcmdpkfhrzrtesf`, GitHub remote MCP).
+
+- If Supabase/GitHub MCP tools are missing in a Cloud Agent, tell the user to enable them in [cursor.com/agents](https://cursor.com/agents) MCP / Integrations & MCP and complete OAuth/PAT — see `docs/MCP_SETUP.md`. Do not pretend MCP is available when only `cursor-cloud` is listed.
+- Prefer MCP `apply_migration` / `execute_sql` / `deploy_edge_function` for live Supabase work when those tools are present; keep matching files under `supabase/`.
+- Never commit PATs or put raw secrets in `.cursor/mcp.json`; use `${env:GITHUB_PAT}` or dashboard encrypted headers.
