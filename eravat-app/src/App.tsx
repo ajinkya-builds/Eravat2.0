@@ -10,6 +10,7 @@ import PrivacySecurity from './pages/profile/PrivacySecurity';
 import HelpSupport from './pages/profile/HelpSupport';
 import CompleteProfileLocation from './pages/profile/CompleteProfileLocation';
 import OnboardVolunteer from './pages/OnboardVolunteer';
+import NearbySightings from './pages/NearbySightings';
 import FAQ from './pages/profile/FAQ';
 import PrivacyPolicy from './pages/profile/PrivacyPolicy';
 import MapPage from './pages/MapPage';
@@ -34,20 +35,10 @@ import { useEffect } from 'react';
 import { Network } from '@capacitor/network';
 import { syncData } from './services/syncService';
 
-function shouldAutoSync(connectionType: string): boolean {
-  try {
-    const saved = localStorage.getItem('eravat_app_settings');
-    if (!saved) return true;
-    const { autoSync = true, wifiOnly = false } = JSON.parse(saved) as {
-      autoSync?: boolean;
-      wifiOnly?: boolean;
-    };
-    if (!autoSync) return false;
-    if (wifiOnly && connectionType !== 'wifi') return false;
-    return true;
-  } catch {
-    return true;
-  }
+// Auto-upload is always on once connectivity returns (review §5.2): there is no
+// longer a user toggle or a "Wi-Fi only" restriction to accidentally block it.
+function shouldAutoSync(): boolean {
+  return true;
 }
 
 function NetworkSync() {
@@ -56,17 +47,17 @@ function NetworkSync() {
   useEffect(() => {
     if (!session) return;
 
-    const maybeSync = (connected: boolean, connectionType: string) => {
-      if (connected && shouldAutoSync(connectionType)) {
+    const maybeSync = (connected: boolean) => {
+      if (connected && shouldAutoSync()) {
         void syncData();
       }
     };
 
     Network.getStatus().then(status => {
-      maybeSync(status.connected, status.connectionType);
+      maybeSync(status.connected);
     });
     const listener = Network.addListener('networkStatusChange', status => {
-      maybeSync(status.connected, status.connectionType);
+      maybeSync(status.connected);
     });
     return () => { listener.then(l => l.remove()); };
   }, [session]);
@@ -94,6 +85,7 @@ function App() {
                   <Route path="/profile" element={<UserProfile />} />
                   <Route path="/profile/edit" element={<EditProfile />} />
                   <Route path="/history" element={<TerritoryHistory />} />
+                  <Route path="/nearby" element={<NearbySightings />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/privacy" element={<PrivacySecurity />} />
                   <Route path="/help" element={<HelpSupport />} />

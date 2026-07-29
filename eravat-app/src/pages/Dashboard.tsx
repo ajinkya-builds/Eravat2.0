@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ShieldCheck, History, User, Activity, CloudOff, RefreshCw, ChevronRight, UserPlus, MapPin, Loader2 } from 'lucide-react';
+import { ShieldCheck, History, User, Activity, CloudOff, RefreshCw, ChevronRight, UserPlus, MapPin, Loader2, Navigation } from 'lucide-react';
 import { canOnboardVolunteers } from '../lib/rbac';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
@@ -344,6 +344,26 @@ export default function Dashboard() {
                             </div>
                         </motion.button>
                     </div>
+
+                    {/* Nearby Sightings — top-priority quick action (review §2.4, §9.4) */}
+                    <motion.button
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.32 }}
+                        onClick={() => navigate('/nearby')}
+                        className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-blue-500/20"
+                    >
+                        <div className="flex items-center gap-5">
+                            <div className="p-4 bg-blue-500/10 text-blue-600 rounded-2xl">
+                                <Navigation size={28} />
+                            </div>
+                            <div className="text-left">
+                                <h2 className="text-xl font-bold text-foreground">{t('dashboard.nearbyAction')}</h2>
+                                <p className="text-sm text-muted-foreground">{t('dashboard.nearbyDesc')}</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    </motion.button>
 
                     {canOnboard && (
                         <motion.button
