@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabase';
+import { useGeolocation } from '../../hooks/useGeolocation';
 import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap, CircleMarker, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -220,9 +221,9 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const [baseLayer, setBaseLayer] = useState<'streets' | 'satellite'>(getInitialBaseLayer);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
-    const [locating, setLocating] = useState(false);
-    const [locError, setLocError] = useState<string | null>(null);
     const [radiusKm, setRadiusKm] = useState(0);
+    const { fetchLocation, loading: locating, error: geoError } = useGeolocation();
+    const mapWrapperRef = useRef<HTMLDivElement>(null);
 
     // ── Fetch observation pins (scoped to selected territory when set) ─────
     useEffect(() => {
@@ -472,25 +473,32 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
         setLoadingGeo(false);
     };
 
-    const locateUser = () => {
-        if (!('geolocation' in navigator)) {
-            setLocError(t('map.locationUnavailable'));
-            return;
+    // Uses the shared geolocation hook (Capacitor on native, browser API on web)
+    // so the permission flow matches the rest of the app.
+    const locateUser = async () => {
+        const pos = await fetchLocation();
+        if (pos?.coords) {
+            setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            if (!radiusKm) setRadiusKm(50);
         }
-        setLocating(true);
-        setLocError(null);
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-                if (!radiusKm) setRadiusKm(50);
-                setLocating(false);
-            },
-            (err) => {
-                setLocError(err.code === err.PERMISSION_DENIED ? t('map.locationDenied') : t('map.locationError'));
-                setLocating(false);
-            },
-            { enableHighAccuracy: true, timeout: 15000 }
-        );
+    };
+
+    // True fullscreen via the Fullscreen API (CSS `fixed` is trapped by the
+    // page's transformed ancestors, so it would not cover the header/nav).
+    useEffect(() => {
+        const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', onFsChange);
+        return () => document.removeEventListener('fullscreenchange', onFsChange);
+    }, []);
+
+    const toggleFullscreen = () => {
+        const el = mapWrapperRef.current;
+        if (!el) return;
+        if (!document.fullscreenElement) {
+            el.requestFullscreen?.().catch((e) => console.error('Fullscreen failed', e));
+        } else {
+            void document.exitFullscreen?.();
+        }
     };
 
     // ── Derived ───────────────────────────────────────────────────────────────
@@ -632,7 +640,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     {t('map.heatmap')}
                 </label>
 
-                {locError && <span className="text-destructive">{locError}</span>}
+                {geoError && <span className="text-destructive">{geoError}</span>}
             </div>
 
             {/* Legend — counts reflect active filters */}
@@ -662,11 +670,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
             </div>
 
             {/* Map */}
-            <div className={
-                isFullscreen
-                    ? 'fixed inset-0 z-[9999] bg-background'
-                    : 'relative w-full h-[520px] rounded-xl overflow-hidden border border-border z-0'
-            }>
+            <div ref={mapWrapperRef} className="relative w-full h-[520px] rounded-xl overflow-hidden border border-border z-0 bg-background">
                 {(loadingGeo) && (
                     <div className="absolute inset-0 bg-background/50 z-[1000] flex items-center justify-center backdrop-blur-sm">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -683,7 +687,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                         {baseLayer === 'satellite' ? <MapIcon size={16} /> : <Satellite size={16} />}
                     </button>
                     <button
-                        onClick={() => setIsFullscreen(f => !f)}
+                        onClick={toggleFullscreen}
                         title={isFullscreen ? t('map.exitFullscreen') : t('map.fullscreen')}
                         className="p-2 rounded-lg bg-background/90 border border-border shadow hover:bg-background text-foreground"
                     >
