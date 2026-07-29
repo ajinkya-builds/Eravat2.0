@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertOctagon, Loader2, MapPin, Check, X } from 'lucide-react';
 import { Network } from '@capacitor/network';
@@ -233,8 +234,11 @@ export function QuickSOSButton() {
                 </div>
             </motion.button>
 
-            {/* Confirmation dialog — prevents accidental one-tap uploads (review §7) */}
-            <AnimatePresence>
+            {/* Confirmation dialog — prevents accidental one-tap uploads (review §7).
+                Rendered via a portal so `fixed` positioning is relative to the
+                viewport and not trapped by transformed ancestors (framer-motion). */}
+            {createPortal(
+                <AnimatePresence>
                 {status === 'confirm' && coords && (
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -248,7 +252,7 @@ export function QuickSOSButton() {
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.95, y: 10 }}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full max-w-sm glass-card rounded-3xl border border-border p-6 space-y-4 bg-background"
+                            className="w-full max-w-sm glass-card rounded-3xl border border-border p-6 space-y-4 bg-background max-h-[90vh] overflow-y-auto"
                         >
                             <div className="flex items-center gap-3">
                                 <div className="p-2.5 rounded-2xl bg-destructive/10 text-destructive">
@@ -307,7 +311,9 @@ export function QuickSOSButton() {
                         </motion.div>
                     </motion.div>
                 )}
-            </AnimatePresence>
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 }
