@@ -152,10 +152,10 @@ function normalizeTextArray(value: unknown): string[] | null {
 function mapLossCategory(loss: string): string {
     const normalized = loss.trim().toLowerCase();
     if (normalized === 'no loss') return 'none';
-    if (normalized === 'crop') return 'crop';
+    if (normalized === 'crop' || normalized === 'grain') return 'crop';
     if (normalized === 'livestock') return 'livestock';
-    // Keep category aligned with existing DB enum values.
-    // Store specific loss text in description.
+    // DB enum is crop | property | livestock | human_injury | human_death.
+    // Map fencing / naka / other / legacy labels into property; keep detail in description.
     return 'property';
 }
 
@@ -304,11 +304,14 @@ export async function syncData() {
                         id: stableUuidFrom(`${report.id}:${idx}:${loss}`),
                         report_id: report.id,
                         category: mapLossCategory(loss),
-                        description: idx === 0 
-                            ? (report.damage_description || loss) 
-                            : loss,
-                        estimated_value: idx === 0 
-                            ? (report.damage_value || null) 
+                        description:
+                            idx === 0
+                                ? (report.damage_description?.trim()
+                                    ? report.damage_description.trim()
+                                    : loss)
+                                : loss,
+                        estimated_value: idx === 0
+                            ? (report.damage_value || null)
                             : null,
                     }));
 

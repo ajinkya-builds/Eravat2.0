@@ -1,8 +1,25 @@
 export type UserRole = 'dfo' | 'range_officer' | 'beat_guard' | 'rrt' | 'ccf' | 'biologist' | 'veterinarian' | 'admin' | 'volunteer';
 export type UserPosition = 'DFO' | 'Range Officer' | 'Beat Guard' | 'Response Team' | 'Conservator' | 'Biologist' | 'Veterinarian' | 'Admin' | 'Volunteer';
+/** `loss` kept for legacy synced rows; UI no longer offers it as a top-level type. */
 export type ObservationType = 'direct' | 'indirect' | 'loss';
-export type LossType = 'No loss' | 'property' | 'crop' | 'livestock' | 'fencing' | 'solar panels' | 'FD establishment' | 'Other';
-export type IndirectSightingType = 'Pugmark' | 'Dung' | 'Broken Branches' | 'Sound' | 'Eyewitness';
+export type LossType =
+    | 'No loss'
+    | 'crop'
+    | 'grain'
+    | 'property'
+    | 'livestock'
+    | 'fencing'
+    | 'naka_chaouki'
+    | 'solar panels'
+    | 'FD establishment'
+    | 'Other';
+export type IndirectSightingType =
+    | 'Footprint/Pug Mark'
+    | 'Pugmark'
+    | 'Dung'
+    | 'Broken Branches'
+    | 'Sound'
+    | 'Eyewitness';
 
 export interface ActivityReport {
     id: string;

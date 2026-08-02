@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, MapPin, FileText, Compass, Camera, CheckCircle2, X, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, MapPin, FileText, Compass, Camera, CheckCircle2, X, AlertTriangle, ClipboardCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ActivityFormProvider, useActivityForm, type FormStep } from '../../contexts/ActivityFormContext';
 import { DateTimeLocationStep } from './steps/DateTimeLocationStep';
@@ -8,6 +8,7 @@ import { ObservationTypeStep } from './steps/ObservationTypeStep';
 import { DamageStep } from './steps/DamageStep';
 import { CompassBearingStep } from './steps/CompassBearingStep';
 import { PhotoStep } from './steps/PhotoStep';
+import { ReviewStep } from './steps/ReviewStep';
 import { UnsavedChangesModal } from './UnsavedChangesModal';
 import { useCamera } from '../../hooks/useCamera';
 import { db } from '../../db';
@@ -16,9 +17,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Network } from '@capacitor/network';
 import { syncData } from '../../services/syncService';
+import { stampPhotoWithMeta } from '../../lib/stampPhoto';
 
 function StepperContent() {
-    const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm, activeSteps, updateFormData } = useActivityForm();
+    const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm, activeSteps, updateFormData, elephantTotal } = useActivityForm();
     const { profile } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
@@ -50,15 +52,17 @@ function StepperContent() {
         damage: { label: t('rs_damage_label'), icon: <AlertTriangle className="w-4 h-4" /> },
         compassBearing: { label: t('rs_compass'), icon: <Compass className="w-4 h-4" /> },
         photo: { label: t('rs_photo'), icon: <Camera className="w-4 h-4" /> },
+        review: { label: t('rs_review'), icon: <ClipboardCheck className="w-4 h-4" /> },
     };
 
     const isFormDirty = () => {
-        return formData.observation_type !== null || 
-               formData.activity_date !== '' || 
-               formData.activity_time !== '' || 
-               formData.damage_description !== '' || 
+        return formData.observation_type !== null ||
+               formData.activity_date !== '' ||
+               formData.activity_time !== '' ||
+               formData.damage_description !== '' ||
                formData.damage_value !== null ||
-               formData.photo_url !== null;
+               formData.photo_url !== null ||
+               Boolean(formData.description);
     };
 
     const handleExitClick = () => {
@@ -78,9 +82,14 @@ function StepperContent() {
 
     const handleBottomBarCapture = async () => {
         const result = await takePhoto();
-        if (result) {
-            updateFormData({ photo_url: result.dataUrl });
-        }
+        if (!result) return;
+        const stamped = await stampPhotoWithMeta(result.dataUrl, {
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            activityDate: formData.activity_date,
+            activityTime: formData.activity_time,
+        });
+        updateFormData({ photo_url: stamped });
     };
 
     const handleSubmit = async () => {
@@ -89,40 +98,52 @@ function StepperContent() {
             setSubmitError('Your profile is not loaded. Please wait and try again.');
             return;
         }
+        if (!isStepValid('review') || !formData.photo_url || formData.compass_bearing == null) {
+            setSubmitError(t('rv_incomplete'));
+            return;
+        }
         setIsSubmitting(true);
         setSubmitError(null);
         try {
             const reportId = crypto.randomUUID();
+            const notes = formData.description?.trim() || formData.notes || null;
 
-            // 1. Save flat report to Dexie
             await db.reports.add({
                 id: reportId,
                 user_id: profile.id,
-                ...formData,
+                activity_date: formData.activity_date,
+                activity_time: formData.activity_time,
+                latitude: formData.latitude,
+                longitude: formData.longitude,
+                observation_type: formData.observation_type,
+                compass_bearing: formData.compass_bearing,
+                photo_url: formData.photo_url,
+                damage_description: formData.damage_description,
+                damage_value: formData.damage_value,
+                report_damage_manually: formData.report_damage_manually,
                 obs_id: crypto.randomUUID(),
                 male_count: formData.male_count || 0,
                 female_count: formData.female_count || 0,
                 calf_count: formData.calf_count || 0,
                 unknown_count: formData.unknown_count || 0,
-                indirect_sign_details: formData.indirect_sign_details || null,
-                conflict_loss_details: formData.conflict_loss_details || null,
-                loss_type: formData.loss_type || null,
-                division_id: profile?.division_id || null,
-                range_id: profile?.range_id || null,
-                beat_id: profile?.beat_id || null,
+                total_elephants: elephantTotal,
+                indirect_sign_details: formData.indirect_sign_details || [],
+                conflict_loss_details: formData.conflict_loss_details || [],
+                loss_type: formData.loss_type || [],
+                division_id: formData.division_id || profile.division_id || null,
+                range_id: formData.range_id || profile.range_id || null,
+                beat_id: formData.beat_id || profile.beat_id || null,
+                notes,
                 device_timestamp: new Date().toISOString(),
                 sync_status: 'pending',
                 status: 'submitted',
             });
 
-            // 2. Save media if exists
             if (formData.photo_url) {
-                console.log('[ReportStepper] Attempting to save media for report:', reportId);
                 const match = formData.photo_url.match(/^data:([^;,]+)(?:;charset=[^;,]+)?;base64,([\s\S]+)$/);
                 if (match) {
                     const mimeType = match[1].toLowerCase() === 'image/jpg' ? 'image/jpeg' : match[1].toLowerCase();
                     const base64Data = match[2];
-                    
                     try {
                         await db.report_media.add({
                             id: crypto.randomUUID(),
@@ -131,7 +152,6 @@ function StepperContent() {
                             file_data: base64Data,
                             sync_status: 'pending'
                         });
-                        console.log('[ReportStepper] Media saved to local Dexie store');
                     } catch (dexieErr) {
                         console.error('[ReportStepper] Failed to add media to Dexie:', dexieErr);
                     }
@@ -146,7 +166,6 @@ function StepperContent() {
             setSubmitted(true);
             resetForm();
 
-            // Auto-sync immediately if online (manual home sync may then show 0 pending — expected)
             if (online) {
                 setTimeout(() => syncData().catch(console.error), 500);
             }
@@ -185,7 +204,6 @@ function StepperContent() {
                 onCancel={() => setShowExitWarning(false)}
             />
 
-            {/* Premium Header with Exit Button */}
             <header className="sticky top-0 z-50 px-4 py-4 flex items-center justify-between bg-background/80 backdrop-blur-xl border-b border-border/50">
                 <button
                     onClick={handleExitClick}
@@ -198,11 +216,8 @@ function StepperContent() {
                 <div className="w-10" />
             </header>
 
-            {/* Main Content Area */}
             <div className="flex-1 space-y-6 pb-32 pt-6 max-w-2xl mx-auto w-full">
-                {/* Progress Header */}
                 <div className="space-y-6 px-4">
-                    {/* Animated Progress Bar */}
                     <div className="flex gap-2 max-w-md mx-auto">
                         {activeSteps.map((stepType, i) => (
                             <div key={stepType} className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -221,7 +236,6 @@ function StepperContent() {
                         ))}
                     </div>
 
-                    {/* Step Tabs Horizontal Scroll */}
                     <div className="flex justify-start md:justify-center">
                         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-4 mask-linear-fade">
                             {activeSteps.map((stepType, i) => {
@@ -246,7 +260,6 @@ function StepperContent() {
                     </div>
                 </div>
 
-                {/* Error Message */}
                 {submitError && (
                     <div className="px-4">
                         <motion.div
@@ -260,7 +273,6 @@ function StepperContent() {
                     </div>
                 )}
 
-                {/* Current Step Content */}
                 <div className="px-4">
                     <AnimatePresence mode="wait">
                         <motion.div
@@ -276,23 +288,22 @@ function StepperContent() {
                             {currentStep === 'damage' && <DamageStep />}
                             {currentStep === 'compassBearing' && <CompassBearingStep />}
                             {currentStep === 'photo' && <PhotoStep />}
+                            {currentStep === 'review' && <ReviewStep />}
                         </motion.div>
                     </AnimatePresence>
                 </div>
             </div>
 
-            {/* Sticky Bottom Navigation Bar (Thumb Zone Anchored) */}
             <div className="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6 pb-safe border-t border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
                 <div className="max-w-2xl mx-auto flex justify-between gap-4">
                     {currentStep === 'photo' && !formData.photo_url ? (
                         <>
                             <button
                                 type="button"
-                                onClick={handleSubmit}
-                                disabled={isSubmitting}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
+                                onClick={goToPreviousStep}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all"
                             >
-                                {(isOnline ? t('rs_submit') : t('rs_submit_offline'))} (Skip)
+                                <ChevronLeft className="w-5 h-5" /> {t('back')}
                             </button>
                             <button
                                 type="button"
@@ -319,7 +330,7 @@ function StepperContent() {
                                 <button
                                     type="button"
                                     onClick={handleSubmit}
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || !isStepValid(currentStep)}
                                     className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-emerald-500 text-white text-sm font-bold shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
                                 >
                                     <CheckCircle2 className="w-5 h-5" />

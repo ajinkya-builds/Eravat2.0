@@ -182,7 +182,7 @@ export function CompassBearingStep() {
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
             <div className="text-center space-y-2">
-                <h3 className="font-semibold text-foreground">{t('cb_compass_bearing')}</h3>
+                <h3 className="font-semibold text-foreground">{t('cb_compass_bearing')} <span className="text-destructive">*</span></h3>
                 <p className="text-xs text-muted-foreground">{t('cb_record_direction')}</p>
             </div>
 

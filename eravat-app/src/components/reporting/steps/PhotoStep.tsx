@@ -3,6 +3,7 @@ import { X, RefreshCw, ImageIcon } from 'lucide-react';
 import { useActivityForm } from '../../../contexts/ActivityFormContext';
 import { useCamera } from '../../../hooks/useCamera';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { stampPhotoWithMeta } from '../../../lib/stampPhoto';
 
 export function PhotoStep() {
     const { formData, updateFormData } = useActivityForm();
@@ -11,9 +12,14 @@ export function PhotoStep() {
 
     const handleCapture = async () => {
         const result = await takePhoto();
-        if (result) {
-            updateFormData({ photo_url: result.dataUrl });
-        }
+        if (!result) return;
+        const stamped = await stampPhotoWithMeta(result.dataUrl, {
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            activityDate: formData.activity_date,
+            activityTime: formData.activity_time,
+        });
+        updateFormData({ photo_url: stamped });
     };
 
     const handleClear = () => updateFormData({ photo_url: null });
@@ -21,8 +27,8 @@ export function PhotoStep() {
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
             <div className="text-center space-y-2">
-                <h3 className="font-semibold text-foreground">{t('ps_photo_evidence')}</h3>
-                <p className="text-xs text-muted-foreground">{t('ps_optional_photo')}</p>
+                <h3 className="font-semibold text-foreground">{t('ps_photo_evidence')} <span className="text-destructive">*</span></h3>
+                <p className="text-xs text-muted-foreground">{t('ps_required_photo')}</p>
             </div>
 
             {formData.photo_url ? (
@@ -50,6 +56,7 @@ export function PhotoStep() {
                         </button>
                     </div>
                     <p className="text-xs text-emerald-600 mt-2 text-center font-semibold">{t('ps_photo_captured')}</p>
+                    <p className="text-xs text-muted-foreground mt-1 text-center">{t('ps_stamp_note')}</p>
                 </div>
             ) : (
                 <button

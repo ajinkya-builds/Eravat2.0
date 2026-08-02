@@ -1,14 +1,23 @@
 import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 import type { ObservationType } from '../types/activity-report';
 
-export type FormStep = 'dateTimeLocation' | 'observationType' | 'damage' | 'compassBearing' | 'photo';
+export type FormStep =
+    | 'dateTimeLocation'
+    | 'observationType'
+    | 'damage'
+    | 'compassBearing'
+    | 'photo'
+    | 'review';
 
 export interface ActivityFormData {
-    // Step 1: Date, Time, Location
+    // Step 1: Date, Time, Location + territory confirm
     activity_date: string;
     activity_time: string;
     latitude: number | null;
     longitude: number | null;
+    division_id: string | null;
+    range_id: string | null;
+    beat_id: string | null;
 
     // Step 2: Observation Type
     observation_type: ObservationType | null;
@@ -20,6 +29,8 @@ export interface ActivityFormData {
     indirect_sign_details: string[];
     conflict_loss_details: string[];
     loss_type: string[];
+    /** Free-text description for Direct / Indirect observation */
+    description: string;
 
     // Step 3: Compass Bearing
     compass_bearing: number | null;
@@ -45,6 +56,7 @@ interface ActivityFormContextValue {
     isLastStep: () => boolean;
     resetForm: () => void;
     activeSteps: FormStep[];
+    elephantTotal: number;
 }
 
 const DEFAULT_FORM: ActivityFormData = {
@@ -52,6 +64,9 @@ const DEFAULT_FORM: ActivityFormData = {
     activity_time: '',
     latitude: null,
     longitude: null,
+    division_id: null,
+    range_id: null,
+    beat_id: null,
     observation_type: null,
     total_elephants: 0,
     male_count: 0,
@@ -61,6 +76,7 @@ const DEFAULT_FORM: ActivityFormData = {
     indirect_sign_details: [],
     conflict_loss_details: [],
     loss_type: [],
+    description: '',
     compass_bearing: null,
     photo_url: null,
     notes: null,
@@ -68,6 +84,10 @@ const DEFAULT_FORM: ActivityFormData = {
     damage_value: null,
     report_damage_manually: false,
 };
+
+function countTotal(data: ActivityFormData): number {
+    return (data.male_count || 0) + (data.female_count || 0) + (data.calf_count || 0) + (data.unknown_count || 0);
+}
 
 const ActivityFormContext = createContext<ActivityFormContextValue | null>(null);
 
@@ -79,54 +99,56 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
         setFormData(prev => ({ ...prev, ...updates }));
     }, []);
 
-    // Dynamically calculate which steps are active based on the bypass logic
+    const elephantTotal = useMemo(() => countTotal(formData), [formData]);
+
     const activeSteps = useMemo(() => {
         const steps: FormStep[] = ['dateTimeLocation', 'observationType'];
         if (formData.observation_type === 'loss' || formData.report_damage_manually) {
             steps.push('damage');
         }
-        steps.push('compassBearing', 'photo');
+        steps.push('compassBearing', 'photo', 'review');
         return steps;
     }, [formData.observation_type, formData.report_damage_manually]);
 
-    // Ensure stepIndex is always inside bounds of current activeSteps length
     const normalizedStepIndex = Math.min(stepIndex, activeSteps.length - 1);
 
     const isStepValid = useCallback((step: FormStep): boolean => {
         switch (step) {
-            case 'dateTimeLocation':
-                // Check required fields exist
+            case 'dateTimeLocation': {
                 if (!formData.activity_date || !formData.activity_time || formData.latitude == null || formData.longitude == null) {
                     return false;
                 }
-                // Validate lat/lng ranges
                 if (formData.latitude < -90 || formData.latitude > 90) return false;
                 if (formData.longitude < -180 || formData.longitude > 180) return false;
-                // Validate date is not in the future
+                if (!formData.division_id || !formData.range_id || !formData.beat_id) return false;
                 const activityDateTime = new Date(`${formData.activity_date}T${formData.activity_time}`);
                 if (activityDateTime > new Date()) return false;
                 return true;
-            case 'observationType':
+            }
+            case 'observationType': {
                 if (!formData.observation_type) return false;
-                if (formData.observation_type === 'indirect') return formData.indirect_sign_details.length > 0;
+                if (formData.observation_type === 'indirect') {
+                    if (formData.indirect_sign_details.length === 0) return false;
+                }
+                if (formData.observation_type === 'direct' || formData.observation_type === 'indirect') {
+                    // Counts optional for indirect (may be unknown), but if any counters used total is fine.
+                    // Direct still requires at least 1 elephant.
+                    if (formData.observation_type === 'direct' && countTotal(formData) <= 0) return false;
+                }
                 if (formData.observation_type === 'loss') return formData.loss_type.length > 0;
-                // direct sighting - require at least 1 elephant
-                if (formData.observation_type === 'direct') {
-                    const total = formData.male_count + formData.female_count + formData.calf_count + formData.unknown_count;
-                    return total > 0;
-                }
                 return true;
-            case 'damage':
-                // If it is active, requires at least one loss category selected (in loss_type)
-                // and a brief description.
-                if (formData.observation_type === 'loss') {
-                    return formData.loss_type.length > 0;
-                }
+            }
+            case 'damage': {
+                if (formData.loss_type.length === 0) return false;
+                if (formData.loss_type.includes('Other') && !formData.damage_description.trim()) return false;
                 return true;
+            }
             case 'compassBearing':
-                return true; // Optional step - always valid
+                return formData.compass_bearing != null && Number.isFinite(formData.compass_bearing);
             case 'photo':
-                return true; // Optional step - always valid
+                return Boolean(formData.photo_url);
+            case 'review':
+                return true;
             default:
                 return false;
         }
@@ -140,7 +162,10 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
         setStepIndex(i => Math.max(i - 1, 0));
     }, []);
 
-    const isLastStep = useCallback(() => normalizedStepIndex === activeSteps.length - 1, [normalizedStepIndex, activeSteps.length]);
+    const isLastStep = useCallback(
+        () => normalizedStepIndex === activeSteps.length - 1,
+        [normalizedStepIndex, activeSteps.length]
+    );
 
     const resetForm = useCallback(() => {
         setFormData(DEFAULT_FORM);
@@ -159,6 +184,7 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
             isLastStep,
             resetForm,
             activeSteps,
+            elephantTotal,
         }}>
             {children}
         </ActivityFormContext.Provider>
