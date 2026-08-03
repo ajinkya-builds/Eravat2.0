@@ -10,6 +10,8 @@ import PrivacySecurity from './pages/profile/PrivacySecurity';
 import HelpSupport from './pages/profile/HelpSupport';
 import CompleteProfileLocation from './pages/profile/CompleteProfileLocation';
 import OnboardVolunteer from './pages/OnboardVolunteer';
+import OnboardVillager from './pages/OnboardVillager';
+import VillagersList from './pages/VillagersList';
 import NearbySightings from './pages/NearbySightings';
 import FAQ from './pages/profile/FAQ';
 import PrivacyPolicy from './pages/profile/PrivacyPolicy';
@@ -92,6 +94,8 @@ function App() {
                   <Route path="/faq" element={<FAQ />} />
                   <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                   <Route path="/volunteers/onboard" element={<OnboardVolunteer />} />
+                  <Route path="/villagers/onboard" element={<OnboardVillager />} />
+                  <Route path="/villagers" element={<VillagersList />} />
                 </Route>
 
               </Route>

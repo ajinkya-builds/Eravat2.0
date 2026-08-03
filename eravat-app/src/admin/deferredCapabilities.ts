@@ -75,12 +75,12 @@ export const DEFERRED_CAPABILITIES: DeferredCapability[] = [
     {
         id: 'villager_accounts',
         labelKey: 'admin.deferred.villagers',
-        reason: 'profiles holds forest personnel only; no villager user type in auth.',
+        reason: 'Hathi Mitra registry is alert-only; no villager auth/profile login by design.',
     },
     {
         id: 'affected_villagers',
         labelKey: 'admin.deferred.affectedVillagers',
-        reason: 'No villager registry or proximity recipient model.',
+        reason: 'villagers table + alert_opt_in exist; SMS/voice proximity dispatch matrix not wired yet.',
     },
     {
         id: 'kml_overlays',

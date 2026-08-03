@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
-import { ShieldCheck, History, User, Activity, CloudOff, RefreshCw, ChevronRight, UserPlus, MapPin, Loader2, Navigation } from 'lucide-react';
-import { canOnboardVolunteers } from '../lib/rbac';
+import { ShieldCheck, History, User, Activity, CloudOff, RefreshCw, ChevronRight, UserPlus, MapPin, Loader2, Navigation, Users } from 'lucide-react';
+import { canOnboardVolunteers, canOnboardVillagers, canReadVillagers } from '../lib/rbac';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { syncData } from '../services/syncService';
@@ -150,6 +150,8 @@ export default function Dashboard() {
 
     const hasAdminAccess = ['admin', 'ccf', 'dfo'].includes(profile?.role || '');
     const canOnboard = canOnboardVolunteers(profile?.role);
+    const canOnboardHathiMitra = canOnboardVillagers(profile?.role);
+    const canBrowseVillagers = canReadVillagers(profile?.role);
 
     const typeLabel = (type?: string | null) => {
         if (!type) return 'Observation';
@@ -364,6 +366,48 @@ export default function Dashboard() {
                         </div>
                         <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                     </motion.button>
+
+                    {canOnboardHathiMitra && (
+                        <motion.button
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.34 }}
+                            onClick={() => navigate('/villagers/onboard')}
+                            className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-amber-500/20"
+                        >
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 bg-amber-500/10 text-amber-700 rounded-2xl">
+                                    <Users size={28} />
+                                </div>
+                                <div className="text-left">
+                                    <h2 className="text-xl font-bold text-foreground">{t('hathiMitra.onboardTitle')}</h2>
+                                    <p className="text-sm text-muted-foreground">{t('hathiMitra.onboardDesc')}</p>
+                                </div>
+                            </div>
+                            <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        </motion.button>
+                    )}
+
+                    {!canOnboardHathiMitra && canBrowseVillagers && (
+                        <motion.button
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.34 }}
+                            onClick={() => navigate('/villagers')}
+                            className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-amber-500/20"
+                        >
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 bg-amber-500/10 text-amber-700 rounded-2xl">
+                                    <Users size={28} />
+                                </div>
+                                <div className="text-left">
+                                    <h2 className="text-xl font-bold text-foreground">{t('hathiMitra.listTitle')}</h2>
+                                    <p className="text-sm text-muted-foreground">{t('hathiMitra.listDesc')}</p>
+                                </div>
+                            </div>
+                            <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        </motion.button>
+                    )}
 
                     {canOnboard && (
                         <motion.button

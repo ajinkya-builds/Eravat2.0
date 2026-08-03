@@ -31,3 +31,16 @@ export function canManageRole(callerRole?: string, targetRole?: string): boolean
 export function canOnboardVolunteers(role?: string): boolean {
   return canManageRole(role, 'volunteer');
 }
+
+/** Field staff who may register Hathi Mitra (villager alert recipients). */
+export function canOnboardVillagers(role?: string): boolean {
+  return !!role && ['admin', 'ccf', 'dfo', 'range_officer', 'beat_guard'].includes(role);
+}
+
+/** Staff who may search / list villagers for ops and future alerts. */
+export function canReadVillagers(role?: string): boolean {
+  return (
+    canOnboardVillagers(role) ||
+    !!role && ['rrt', 'biologist', 'veterinarian'].includes(role)
+  );
+}
