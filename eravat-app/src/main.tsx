@@ -4,6 +4,7 @@ import { defineCustomElements } from '@ionic/pwa-elements/loader';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import './index.css'
+import './lib/posthog'
 import App from './App.tsx'
 import { AppErrorBoundary } from './components/AppErrorBoundary.tsx'
 

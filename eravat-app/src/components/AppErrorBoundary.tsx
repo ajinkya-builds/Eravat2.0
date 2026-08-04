@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import posthog from '../lib/posthog';
 
 interface Props {
   children: ReactNode;
@@ -22,6 +23,7 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[AppErrorBoundary]', error, info.componentStack);
+    posthog.captureException(error, { component_stack: info.componentStack });
   }
 
   private handleReload = () => {

@@ -7,6 +7,7 @@ import { db } from '../../db';
 import { syncData } from '../../services/syncService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import posthog from '../../lib/posthog';
 
 export function QuickSOSButton() {
     const { profile } = useAuth();
@@ -113,6 +114,7 @@ export function QuickSOSButton() {
                 obs_id: crypto.randomUUID(),
             });
 
+            posthog.capture('sos_sighting_submitted');
             setStatus('success');
 
             // Trigger immediate background sync

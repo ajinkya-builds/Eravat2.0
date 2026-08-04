@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { LocationFields } from '../components/profile/LocationFields';
 import { canOnboardVolunteers } from '../lib/rbac';
+import posthog from '../lib/posthog';
 
 export default function OnboardVolunteer() {
     const navigate = useNavigate();
@@ -67,6 +68,7 @@ export default function OnboardVolunteer() {
             if (fnErr) throw fnErr;
             if (data?.error) throw new Error(data.error);
 
+            posthog.capture('volunteer_onboarded', { role: 'volunteer' });
             setSuccess({
                 name: fullName.trim(),
                 tempPassword: data?.user?.temporary_password,
