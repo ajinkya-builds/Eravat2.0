@@ -16,6 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Network } from '@capacitor/network';
 import { syncData } from '../../services/syncService';
+import posthog from '../../lib/posthog';
 
 function StepperContent() {
     const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm, activeSteps, updateFormData } = useActivityForm();
@@ -143,6 +144,11 @@ function StepperContent() {
             const net = await Network.getStatus();
             const online = Boolean(net.connected);
             setSubmittedOnline(online);
+            posthog.capture('activity_report_submitted', {
+                observation_type: formData.observation_type,
+                photo_attached: Boolean(formData.photo_url),
+                submitted_online: online,
+            });
             setSubmitted(true);
             resetForm();
 

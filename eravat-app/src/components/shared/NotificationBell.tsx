@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/LanguageContext';
+import posthog from '../../lib/posthog';
 
 export function NotificationBell() {
     const { profile, user } = useAuth();
@@ -70,6 +71,7 @@ export function NotificationBell() {
                 prev.map(n => n.id === id ? { ...n, is_read: true } : n)
             );
             setUnreadCount(prev => Math.max(0, prev - 1));
+            posthog.capture('notification_marked_read');
         }
     };
 
@@ -83,6 +85,7 @@ export function NotificationBell() {
         if (success) {
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
             setUnreadCount(0);
+            posthog.capture('notifications_marked_read', { notification_count: unreadIds.length });
         }
     };
 

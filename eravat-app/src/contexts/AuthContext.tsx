@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
 import { PushNotificationService } from '../services/PushNotificationService';
+import posthog from '../lib/posthog';
 import { encryptSession, decryptSession, type EncryptedPayload } from '../utils/crypto';
 
 // Matches the `profiles` table + joined user_region_assignments
@@ -79,6 +80,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const profileIssueLogged = useRef(new Set<string>());
     /** In-memory PIN for re-encrypting after token refresh (never persisted). */
     const activePinRef = useRef<string | null>(null);
+    /** PostHog identity is persisted by the browser SDK; this guards direct account switches. */
+    const identifiedUserIdRef = useRef<string | null>(null);
+
+    const identifyUser = useCallback((userId: string) => {
+        const currentUserId = identifiedUserIdRef.current ?? posthog.get_property('$user_id');
+        if (currentUserId && currentUserId !== userId) {
+            posthog.reset();
+        }
+        if (currentUserId !== userId) {
+            posthog.identify(userId);
+        }
+        identifiedUserIdRef.current = userId;
+    }, []);
 
     const fetchProfile = useCallback(async (userId: string) => {
         const existing = profileInflight.current.get(userId);
@@ -194,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             throw setSessionErr;
                         }
                         if (!cancelled) {
+                            identifyUser(decryptedSession.user.id);
                             setSession(decryptedSession);
                             void fetchProfile(decryptedSession.user.id);
                             setHasSavedSession(true);
@@ -267,12 +282,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             setSession(newSession);
             if (newSession?.user) {
+                identifyUser(newSession.user.id);
+
                 wasAuthenticated[0].current = true;
                 void fetchProfile(newSession.user.id);
                 PushNotificationService.register(newSession.user.id).catch(err =>
                     console.error('[AuthContext] Failed to register push notifications:', err)
                 );
             } else {
+                if (event === 'SIGNED_OUT' && identifiedUserIdRef.current) {
+                    posthog.reset();
+                    identifiedUserIdRef.current = null;
+                }
                 profileIssueLogged.current.clear();
                 if (wasAuthenticated[0].current && event !== 'SIGNED_OUT') {
                     setSessionExpired(true);
@@ -286,7 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             cancelled = true;
             listener.subscription.unsubscribe();
         };
-    }, [fetchProfile, isLocked]);
+    }, [fetchProfile, identifyUser, isLocked]);
 
     const signInWithPhoneOTP = async (phone: string) => {
         try {
@@ -446,6 +467,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             // Sync session state & profile in context
+            identifyUser(liveSession.user.id);
             setSession(liveSession);
             await fetchProfile(liveSession.user.id);
             setIsLocked(false);
@@ -484,6 +506,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signOut = async () => {
         wasAuthenticated[0].current = false; // explicit sign-out, not expiry
+        posthog.reset();
+        identifiedUserIdRef.current = null;
         profileIssueLogged.current.clear();
         localStorage.removeItem('eravat_secure_session');
         activePinRef.current = null;
