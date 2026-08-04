@@ -10,6 +10,7 @@ import { Buffer } from 'buffer';
 import wkx from 'wkx';
 import * as turf from '@turf/turf';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { trackClick, trackFailed, trackFilter } from '../../lib/analytics';
 
 // ─── Custom Marker Icons ──────────────────────────────────────────────────────
 
@@ -287,18 +288,21 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                             male_count,
                             female_count,
                             calf_count,
-                            unknown_count,
-                            compass_bearing,
-                            indirect_sign_details,
-                            conflict_loss_details
+                            unknown_count
                         )
                     `)
                     .not('location', 'is', null)
                     .order('device_timestamp', { ascending: false })
-                    .limit(beatIds ? 1000 : 500);
+                    .limit(beatIds ? 300 : 200);
 
                 if (beatIds) {
                     query = query.in('beat_id', beatIds);
+                }
+                if (startDate) {
+                    query = query.gte('device_timestamp', `${startDate}T00:00:00`);
+                }
+                if (endDate) {
+                    query = query.lte('device_timestamp', `${endDate}T23:59:59`);
                 }
 
                 const { data, error } = await query;
@@ -330,9 +334,6 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                         femaleCount: obs?.female_count ?? 0,
                         calfCount: obs?.calf_count ?? 0,
                         unknownCount: obs?.unknown_count ?? 0,
-                        compassBearing: obs?.compass_bearing ?? undefined,
-                        indirectSigns: obs?.indirect_sign_details ?? [],
-                        conflictLossDetails: obs?.conflict_loss_details ?? [],
                         deviceTimestamp: rep.device_timestamp,
                     });
                 });
@@ -348,16 +349,27 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
 
         void fetchPins();
         return () => { cancelled = true; };
-    }, [showObservationPins, selectedDivision, selectedRange, selectedBeat]);
+    }, [showObservationPins, selectedDivision, selectedRange, selectedBeat, startDate, endDate]);
 
-    // ── All divisions outline (shown when no single division is selected) ──────
+    // ── Division list (light) + optional outline polygons ──────────────────────
     useEffect(() => {
-        supabase.from('geo_divisions').select('id, name, boundary').order('name').then(({ data }) => {
-            if (!data) return;
-            setDivisions(data.map((d) => ({ id: d.id, name: d.name })));
+        let cancelled = false;
+        void (async () => {
+            const { data: light } = await supabase
+                .from('geo_divisions')
+                .select('id, name')
+                .order('name');
+            if (cancelled || !light) return;
+            setDivisions(light.map((d) => ({ id: d.id, name: d.name })));
+
+            const { data: withBoundary } = await supabase
+                .from('geo_divisions')
+                .select('id, name, boundary')
+                .order('name');
+            if (cancelled || !withBoundary) return;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const features: any[] = [];
-            data.forEach((d) => {
+            withBoundary.forEach((d) => {
                 if (!d.boundary) return;
                 try {
                     const geom = wkx.Geometry.parse(Buffer.from(d.boundary, 'hex'));
@@ -366,7 +378,8 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                 } catch { /* skip unparseable boundary */ }
             });
             setAllDivisionsGeo(features.length ? turf.featureCollection(features) : null);
-        });
+        })();
+        return () => { cancelled = true; };
     }, []);
 
     // ── Ranges ────────────────────────────────────────────────────────────────
@@ -428,47 +441,107 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const fetchGeoData = async (type: string, id: string) => {
         setLoadingGeo(true);
         try {
+            const parseOne = (boundary: string | null | undefined) => {
+                if (!boundary) return null;
+                try {
+                    const geom = wkx.Geometry.parse(Buffer.from(boundary, 'hex'));
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    return (geom.toGeoJSON() as any);
+                } catch {
+                    return null;
+                }
+            };
+
             if (type === 'beat') {
                 const { data: bData } = await supabase.from('geo_beats').select('boundary, range_id').eq('id', id);
-                setBeatGeo(parseGeometry(bData || []));
+                setBeatGeo(parseGeometry(bData || []) || parseOne(bData?.[0]?.boundary));
                 const rangeId = bData?.[0]?.range_id;
                 if (rangeId) {
-                    const { data: rData } = await supabase.from('geo_beats').select('boundary').eq('range_id', rangeId);
-                    setRangeGeo(parseGeometry(rData || []));
-                    const { data: rangeRow } = await supabase.from('geo_ranges').select('division_id').eq('id', rangeId).single();
+                    const { data: rangeRow } = await supabase
+                        .from('geo_ranges')
+                        .select('boundary, division_id')
+                        .eq('id', rangeId)
+                        .maybeSingle();
+                    const rangeBoundary = parseOne(rangeRow?.boundary);
+                    if (rangeBoundary) {
+                        setRangeGeo(rangeBoundary);
+                    } else {
+                        const { data: rData } = await supabase.from('geo_beats').select('boundary').eq('range_id', rangeId);
+                        setRangeGeo(parseGeometry(rData || []));
+                    }
                     if (rangeRow?.division_id) {
+                        const { data: divRow } = await supabase
+                            .from('geo_divisions')
+                            .select('boundary')
+                            .eq('id', rangeRow.division_id)
+                            .maybeSingle();
+                        const divBoundary = parseOne(divRow?.boundary);
+                        if (divBoundary) {
+                            setDivisionGeo(divBoundary);
+                        } else {
+                            const { data: divRanges } = await supabase.from('geo_ranges').select('id').eq('division_id', rangeRow.division_id);
+                            const ids = divRanges?.map(r => r.id) || [];
+                            const { data: divBeats } = await supabase.from('geo_beats').select('boundary').in('range_id', ids);
+                            setDivisionGeo(parseGeometry(divBeats || []));
+                        }
+                    }
+                }
+            } else if (type === 'range') {
+                setBeatGeo(null);
+                const { data: rangeRow } = await supabase
+                    .from('geo_ranges')
+                    .select('boundary, division_id')
+                    .eq('id', id)
+                    .maybeSingle();
+                const rangeBoundary = parseOne(rangeRow?.boundary);
+                if (rangeBoundary) {
+                    setRangeGeo(rangeBoundary);
+                } else {
+                    const { data: rData } = await supabase.from('geo_beats').select('boundary').eq('range_id', id);
+                    setRangeGeo(parseGeometry(rData || []));
+                }
+                if (rangeRow?.division_id) {
+                    const { data: divRow } = await supabase
+                        .from('geo_divisions')
+                        .select('boundary')
+                        .eq('id', rangeRow.division_id)
+                        .maybeSingle();
+                    const divBoundary = parseOne(divRow?.boundary);
+                    if (divBoundary) {
+                        setDivisionGeo(divBoundary);
+                    } else {
                         const { data: divRanges } = await supabase.from('geo_ranges').select('id').eq('division_id', rangeRow.division_id);
                         const ids = divRanges?.map(r => r.id) || [];
                         const { data: divBeats } = await supabase.from('geo_beats').select('boundary').in('range_id', ids);
                         setDivisionGeo(parseGeometry(divBeats || []));
                     }
                 }
-            } else if (type === 'range') {
-                setBeatGeo(null);
-                const { data: rData } = await supabase.from('geo_beats').select('boundary').eq('range_id', id);
-                setRangeGeo(parseGeometry(rData || []));
-                const { data: rangeRow } = await supabase.from('geo_ranges').select('division_id').eq('id', id).single();
-                if (rangeRow?.division_id) {
-                    const { data: divRanges } = await supabase.from('geo_ranges').select('id').eq('division_id', rangeRow.division_id);
-                    const ids = divRanges?.map(r => r.id) || [];
-                    const { data: divBeats } = await supabase.from('geo_beats').select('boundary').in('range_id', ids);
-                    setDivisionGeo(parseGeometry(divBeats || []));
-                }
             } else if (type === 'division') {
                 setBeatGeo(null);
                 setRangeGeo(null);
-                const { data: divRanges } = await supabase.from('geo_ranges').select('id').eq('division_id', id);
-                const ids = divRanges?.map(r => r.id) || [];
-                if (ids.length > 0) {
-                    const { data: divBeats } = await supabase.from('geo_beats').select('boundary').in('range_id', ids);
-                    setDivisionGeo(parseGeometry(divBeats || []));
+                const { data: divRow } = await supabase
+                    .from('geo_divisions')
+                    .select('boundary')
+                    .eq('id', id)
+                    .maybeSingle();
+                const divBoundary = parseOne(divRow?.boundary);
+                if (divBoundary) {
+                    setDivisionGeo(divBoundary);
                 } else {
-                    setDivisionGeo(null);
+                    const { data: divRanges } = await supabase.from('geo_ranges').select('id').eq('division_id', id);
+                    const ids = divRanges?.map(r => r.id) || [];
+                    if (ids.length > 0) {
+                        const { data: divBeats } = await supabase.from('geo_beats').select('boundary').in('range_id', ids);
+                        setDivisionGeo(parseGeometry(divBeats || []));
+                    } else {
+                        setDivisionGeo(null);
+                    }
                 }
             }
         } catch (error) {
             console.error('Error fetching geo data:', error);
             setDivisionGeo(null); setRangeGeo(null); setBeatGeo(null);
+            trackFailed('map.fetch_geo', 'fetch_failed', { screen: 'map' });
         }
         setLoadingGeo(false);
     };
@@ -476,10 +549,13 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     // Uses the shared geolocation hook (Capacitor on native, browser API on web)
     // so the permission flow matches the rest of the app.
     const locateUser = async () => {
+        trackClick('map.locate', { screen: 'map' });
         const pos = await fetchLocation();
         if (pos?.coords) {
             setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
             if (!radiusKm) setRadiusKm(50);
+        } else {
+            trackFailed('map.locate', 'geolocation_failed', { screen: 'map' });
         }
     };
 
@@ -494,8 +570,11 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const toggleFullscreen = () => {
         const el = mapWrapperRef.current;
         if (!el) return;
+        trackClick('map.fullscreen', { screen: 'map', enabling: !document.fullscreenElement });
         if (!document.fullscreenElement) {
-            el.requestFullscreen?.().catch((e) => console.error('Fullscreen failed', e));
+            el.requestFullscreen?.().catch(() => {
+                trackFailed('map.fullscreen', 'request_failed', { screen: 'map' });
+            });
         } else {
             void document.exitFullscreen?.();
         }
@@ -562,18 +641,36 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                 {/* Controls */}
                 <div className="flex flex-wrap gap-3 items-center">
                     {/* Geo filters */}
-                    <select value={selectedDivision} onChange={(e) => setSelectedDivision(e.target.value)}
+                    <select
+                        value={selectedDivision}
+                        onChange={(e) => {
+                            const v = e.target.value;
+                            setSelectedDivision(v);
+                            trackFilter('map.division', v ? 'set' : 'cleared', { screen: 'map' });
+                        }}
                         className="input-field bg-background max-w-[160px] text-sm">
                         <option value="">{t('map.allDivisions')}</option>
                         {divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
-                    <select value={selectedRange} onChange={(e) => setSelectedRange(e.target.value)}
+                    <select
+                        value={selectedRange}
+                        onChange={(e) => {
+                            const v = e.target.value;
+                            setSelectedRange(v);
+                            trackFilter('map.range', v ? 'set' : 'cleared', { screen: 'map' });
+                        }}
                         disabled={!selectedDivision}
                         className="input-field bg-background max-w-[160px] text-sm disabled:opacity-50">
                         <option value="">{t('map.allRanges')}</option>
                         {ranges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                     </select>
-                    <select value={selectedBeat} onChange={(e) => setSelectedBeat(e.target.value)}
+                    <select
+                        value={selectedBeat}
+                        onChange={(e) => {
+                            const v = e.target.value;
+                            setSelectedBeat(v);
+                            trackFilter('map.beat', v ? 'set' : 'cleared', { screen: 'map' });
+                        }}
                         disabled={!selectedRange}
                         className="input-field bg-background max-w-[160px] text-sm disabled:opacity-50">
                         <option value="">{t('map.allBeats')}</option>
@@ -584,7 +681,13 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     <div className="flex gap-1.5 bg-muted/40 rounded-xl p-1 border border-border">
                         {(['all', 'direct', 'indirect', 'loss'] as const).map(f => (
                             <button key={f}
-                                onClick={() => setPinFilter(f)}
+                                type="button"
+                                data-ph-action={`map.filter_pin.${f}`}
+                                data-ph-screen="map"
+                                onClick={() => {
+                                    setPinFilter(f);
+                                    trackFilter('map.pin_type', f, { screen: 'map' });
+                                }}
                                 className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                                     pinFilter === f
                                         ? f === 'loss' ? 'bg-destructive text-destructive-foreground'
@@ -605,27 +708,45 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                 <div className="flex items-center gap-2 bg-muted/40 rounded-xl p-1.5 px-3 border border-border">
                     <span className="text-muted-foreground">{t('map.from')}</span>
                     <input type="date" value={startDate} max={endDate || undefined}
-                        onChange={(e) => setStartDate(e.target.value)}
+                        onChange={(e) => {
+                            setStartDate(e.target.value);
+                            trackFilter('map.start_date', e.target.value || 'cleared', { screen: 'map' });
+                        }}
                         className="bg-transparent outline-none text-foreground" />
                     <span className="text-muted-foreground">{t('map.to')}</span>
                     <input type="date" value={endDate} min={startDate || undefined}
-                        onChange={(e) => setEndDate(e.target.value)}
+                        onChange={(e) => {
+                            setEndDate(e.target.value);
+                            trackFilter('map.end_date', e.target.value || 'cleared', { screen: 'map' });
+                        }}
                         className="bg-transparent outline-none text-foreground" />
                     {(startDate || endDate) && (
-                        <button onClick={() => { setStartDate(''); setEndDate(''); }}
+                        <button
+                            type="button"
+                            data-ph-action="map.clear_dates"
+                            data-ph-screen="map"
+                            onClick={() => {
+                                setStartDate('');
+                                setEndDate('');
+                                trackFilter('map.date_range', 'cleared', { screen: 'map' });
+                            }}
                             className="text-primary hover:underline ml-1">{t('map.clear')}</button>
                     )}
                 </div>
 
                 <div className="flex items-center gap-2 bg-muted/40 rounded-xl p-1.5 px-3 border border-border">
-                    <button onClick={locateUser} disabled={locating}
+                    <button type="button" onClick={locateUser} disabled={locating}
                         className="flex items-center gap-1.5 text-primary hover:underline disabled:opacity-50">
                         <LocateFixed size={14} />
                         {locating ? t('map.locating') : t('map.myLocation')}
                     </button>
                     <span className="w-[1px] h-3 bg-border" />
                     <span className="text-muted-foreground">{t('map.radius')}</span>
-                    <select value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))}
+                    <select value={radiusKm} onChange={(e) => {
+                            const v = Number(e.target.value);
+                            setRadiusKm(v);
+                            trackFilter('map.radius_km', v, { screen: 'map' });
+                        }}
                         className="bg-transparent outline-none text-foreground">
                         {RADIUS_OPTIONS.map((r) => (
                             <option key={r} value={r}>{r === 0 ? t('map.radiusOff') : `${r} ${t('km')}`}</option>
@@ -635,7 +756,10 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
 
                 <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground bg-muted/40 rounded-xl p-1.5 px-3 border border-border">
                     <input type="checkbox" checked={showHeatmap}
-                        onChange={(e) => setShowHeatmap(e.target.checked)}
+                        onChange={(e) => {
+                            setShowHeatmap(e.target.checked);
+                            trackFilter('map.heatmap', e.target.checked, { screen: 'map' });
+                        }}
                         className="rounded border-border text-primary focus:ring-primary/20 accent-primary" />
                     {t('map.heatmap')}
                 </label>
@@ -680,13 +804,21 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                 {/* Overlay controls: base layer + fullscreen */}
                 <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-2">
                     <button
-                        onClick={() => setBaseLayer(b => b === 'satellite' ? 'streets' : 'satellite')}
+                        type="button"
+                        onClick={() => {
+                            setBaseLayer(b => {
+                                const next = b === 'satellite' ? 'streets' : 'satellite';
+                                trackFilter('map.base_layer', next, { screen: 'map' });
+                                return next;
+                            });
+                        }}
                         title={baseLayer === 'satellite' ? t('map.streets') : t('map.satellite')}
                         className="p-2 rounded-lg bg-background/90 border border-border shadow hover:bg-background text-foreground"
                     >
                         {baseLayer === 'satellite' ? <MapIcon size={16} /> : <Satellite size={16} />}
                     </button>
                     <button
+                        type="button"
                         onClick={toggleFullscreen}
                         title={isFullscreen ? t('map.exitFullscreen') : t('map.fullscreen')}
                         className="p-2 rounded-lg bg-background/90 border border-border shadow hover:bg-background text-foreground"

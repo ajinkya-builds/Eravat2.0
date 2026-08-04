@@ -58,6 +58,7 @@ export default function AdminUsers() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editUser, setEditUser] = useState<Profile & { division_id?: string, range_id?: string, beat_id?: string } | null>(null);
     const [selected, setSelected] = useState<string[]>([]);
@@ -65,34 +66,46 @@ export default function AdminUsers() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
 
-    const fetchData = async () => {
+    const fetchData = async (searchTerm = debouncedSearch) => {
         setLoading(true);
         setError(null);
         try {
-            // Profiles + assignments + light geo only.
-            // Do NOT fetch all geo_beats (1,200+) on cold load — load beats per-range in modals.
+            const trimmed = searchTerm.trim();
+            let profileQuery = supabase
+                .from('profiles')
+                .select('id, role, first_name, last_name, phone, is_active, created_at')
+                .order('created_at', { ascending: false })
+                .limit(trimmed.length >= 2 ? 50 : 100);
+
+            if (trimmed.length >= 2) {
+                profileQuery = profileQuery.or(
+                    `first_name.ilike.%${trimmed}%,last_name.ilike.%${trimmed}%,phone.ilike.%${trimmed}%`
+                );
+            }
+
             const [
                 { data: profileData, error: pErr },
-                { data: assignmentData, error: aErr },
                 { data: divData },
                 { data: ranData },
             ] = await Promise.all([
-                supabase
-                    .from('profiles')
-                    .select('id, role, first_name, last_name, phone, is_active, created_at')
-                    .order('created_at', { ascending: false }),
-                supabase
+                profileQuery,
+                supabase.from('geo_divisions').select('id, name, code').order('name'),
+                supabase.from('geo_ranges').select('id, name, code, division_id').order('name'),
+            ]);
+            if (pErr) throw pErr;
+
+            const profileIds = (profileData || []).map((p) => p.id);
+            const { data: assignmentData, error: aErr } = profileIds.length
+                ? await supabase
                     .from('user_region_assignments')
                     .select(`
                         user_id, division_id, range_id, beat_id, is_primary_contact,
                         geo_divisions (name),
                         geo_ranges (name),
                         geo_beats (name)
-                    `),
-                supabase.from('geo_divisions').select('id, name, code').order('name'),
-                supabase.from('geo_ranges').select('id, name, code, division_id').order('name'),
-            ]);
-            if (pErr) throw pErr;
+                    `)
+                    .in('user_id', profileIds)
+                : { data: [], error: null };
             if (aErr) throw aErr;
 
             setDivisions(divData || []);
@@ -118,7 +131,6 @@ export default function AdminUsers() {
                 return 0;
             };
 
-            // Prefer relational names from assignments; fall back to division/range ID maps.
             const flat: Profile[] = (profileData || []).map((p: any) => {
                 const userAssignments = assignmentsByUser.get(p.id) || [];
                 const assignment = userAssignments.sort((a, b) => {
@@ -175,8 +187,14 @@ export default function AdminUsers() {
         setBeats(list);
     };
 
-    useEffect(() => { fetchData(); }, []);
+    useEffect(() => {
+        const handle = window.setTimeout(() => setDebouncedSearch(search), 300);
+        return () => window.clearTimeout(handle);
+    }, [search]);
 
+    useEffect(() => { void fetchData(debouncedSearch); }, [debouncedSearch]);
+
+    const filtered = useMemo(() => profiles, [profiles]);
     const handleCreate = async (userData: typeof DEFAULT_NEW_USER) => {
         setIsSubmitting(true);
         setError(null);
@@ -264,11 +282,6 @@ export default function AdminUsers() {
 
     const toggleSelect = (id: string) =>
         setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-
-    const filtered = useMemo(() =>
-        profiles.filter(p => `${p.first_name} ${p.last_name}`.toLowerCase().includes(search.toLowerCase())),
-        [profiles, search]
-    );
 
     const manageableIds = useMemo(() =>
         filtered.filter(p => canManageRole(currentUserProfile?.role, p.role)).map(p => p.id),

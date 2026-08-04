@@ -4,6 +4,14 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
 import { PushNotificationService } from '../services/PushNotificationService';
 import { encryptSession, decryptSession, type EncryptedPayload } from '../utils/crypto';
+import {
+    isProfileCacheFresh,
+    shouldLoadProfileOnAuthEvent,
+    shouldRegisterPushOnAuthEvent,
+} from '../lib/authPerf';
+import { track } from '../lib/analytics';
+import { identifyUser, resetUser } from '../lib/posthogClient';
+import { logger } from '../lib/logger';
 
 // Matches the `profiles` table + joined user_region_assignments
 export interface UserProfile {
@@ -79,8 +87,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const profileIssueLogged = useRef(new Set<string>());
     /** In-memory PIN for re-encrypting after token refresh (never persisted). */
     const activePinRef = useRef<string | null>(null);
+    /** Avoid profile refetch storms on TOKEN_REFRESHED / concurrent tabs. */
+    const profileCacheRef = useRef<{ userId: string | null; fetchedAt: number | null }>({
+        userId: null,
+        fetchedAt: null,
+    });
 
-    const fetchProfile = useCallback(async (userId: string) => {
+    const fetchProfile = useCallback(async (userId: string, opts?: { force?: boolean }) => {
+        if (
+            !opts?.force &&
+            isProfileCacheFresh(profileCacheRef.current.userId, userId, profileCacheRef.current.fetchedAt)
+        ) {
+            return;
+        }
+
         const existing = profileInflight.current.get(userId);
         if (existing) return existing;
 
@@ -104,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (profileError) {
                     if (!profileIssueLogged.current.has(userId)) {
                         profileIssueLogged.current.add(userId);
-                        console.warn('[AuthContext] profiles fetch failed:', profileError.message);
+                        logger.warn('AuthContext', 'profiles fetch failed', { message: profileError.message });
                     }
                     setProfile(null);
                     return;
@@ -113,17 +133,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (!profileData) {
                     if (!profileIssueLogged.current.has(userId)) {
                         profileIssueLogged.current.add(userId);
-                        console.warn(
-                            '[AuthContext] No profiles row for this user. If you just deployed DB fixes, run the profiles backfill migration; id:',
-                            userId
-                        );
+                        logger.warn('AuthContext', 'No profiles row for user', { userId });
                     }
                     setProfile(null);
                     return;
                 }
 
                 if (profileData.is_active === false) {
-                    console.warn('[AuthContext] Inactive user attempted access:', userId);
+                    logger.warn('AuthContext', 'Inactive user attempted access', { userId });
                     await supabase.auth.signOut();
                     setProfile(null);
                     return;
@@ -144,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     .eq('user_id', userId)
                     .maybeSingle();
 
-                setProfile({
+                const nextProfile = {
                     ...profileData,
                     division_id: assignment?.division_id ?? null,
                     range_id: assignment?.range_id ?? null,
@@ -152,7 +169,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     division_name: (assignment?.geo_divisions as any)?.name ?? null,
                     range_name: (assignment?.geo_ranges as any)?.name ?? null,
                     beat_name: (assignment?.geo_beats as any)?.name ?? null,
-                } as UserProfile);
+                } as UserProfile;
+                setProfile(nextProfile);
+                identifyUser(userId, {
+                    role: nextProfile.role,
+                    division_id: nextProfile.division_id ?? undefined,
+                    range_id: nextProfile.range_id ?? undefined,
+                    beat_id: nextProfile.beat_id ?? undefined,
+                });
+                profileCacheRef.current = { userId, fetchedAt: Date.now() };
             } catch {
                 // Profile fetch failed
             }
@@ -167,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const refreshProfile = async () => {
-        if (session?.user?.id) await fetchProfile(session.user.id);
+        if (session?.user?.id) await fetchProfile(session.user.id, { force: true });
     };
 
     useEffect(() => {
@@ -228,12 +253,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(newSession);
             if (newSession?.user) {
                 wasAuthenticated[0].current = true;
-                void fetchProfile(newSession.user.id);
-                PushNotificationService.register(newSession.user.id).catch(err =>
-                    console.error('[AuthContext] Failed to register push notifications:', err)
-                );
+                const userId = newSession.user.id;
+                if (
+                    shouldLoadProfileOnAuthEvent(event) ||
+                    !isProfileCacheFresh(profileCacheRef.current.userId, userId, profileCacheRef.current.fetchedAt)
+                ) {
+                    void fetchProfile(userId, { force: event === 'USER_UPDATED' });
+                }
+                if (shouldRegisterPushOnAuthEvent(event)) {
+                    PushNotificationService.register(userId).catch(err =>
+                        console.error('[AuthContext] Failed to register push notifications:', err)
+                    );
+                }
             } else {
                 profileIssueLogged.current.clear();
+                profileCacheRef.current = { userId: null, fetchedAt: null };
                 if (wasAuthenticated[0].current && event !== 'SIGNED_OUT') {
                     setSessionExpired(true);
                 }
@@ -258,7 +292,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .rpc('check_phone_registered', { p_phone: tenDigit });
 
             if (rpcError || !isRegistered) {
-                console.warn('[AuthContext] Phone not found via RPC:', tenDigit);
+                logger.warn('AuthContext', 'Phone not enrolled', { reason: rpcError?.message ?? 'not_registered' });
+                track('auth.unenrolled_rejected');
                 return {
                     error: new Error('Invalid credentials. Please try again.'),
                     message: 'user_not_found'
@@ -291,22 +326,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             '[AuthContext] SMS provider disabled — proceeding to Test OTP verify UI'
                         );
                     }
+                    track('auth.otp_sent', { provider: 'test_otp' });
                     return { error: null, message: 'otp_sent' };
                 }
-                console.error('[AuthContext] OTP send error:', error);
+                logger.error('AuthContext', 'OTP send failed', error, { error_code: 'send_failed' });
                 const isRateLimit = (error as any).status === 429 || 
                                     msg.includes('rate limit') || 
                                     msg.includes('security purposes') ||
                                     msg.includes('once every');
                 if (isRateLimit) {
+                    track('auth.otp_failed', { error_code: 'rate_limit' });
                     return { error: new Error('Too many requests. Please try again later.'), message: 'rate_limit' };
                 }
+                track('auth.otp_failed', { error_code: 'send_failed' });
                 return { error: new Error('Unable to send verification code. Please try again.'), message: 'send_failed' };
             }
+            track('auth.otp_sent', { provider: 'sms' });
             return { error: null, message: 'otp_sent' };
 
         } catch (err) {
-            console.error('[AuthContext] Unexpected error in signInWithPhoneOTP:', err);
+            logger.error('AuthContext', 'Unexpected error in signInWithPhoneOTP', err);
+            track('auth.otp_failed', { error_code: 'unexpected_error' });
             return { error: new Error('An unexpected error occurred. Please try again.'), message: 'unexpected_error' };
         }
 
@@ -333,7 +373,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             if (error) {
-                console.error('[AuthContext] OTP verification error:', error);
+                logger.error('AuthContext', 'OTP verification failed', error);
+                track('auth.otp_failed', { error_code: 'verify_failed' });
                 return {
                     error: new Error('Invalid or expired verification code. Please try again.')
                 };
@@ -342,6 +383,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (import.meta.env.DEV) {
                 console.log('[AuthContext] OTP verified successfully');
             }
+            track('auth.otp_verified');
             setSessionExpired(false);
 
             // Sync session in context immediately (needed for PIN registration step)
@@ -357,7 +399,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             return { error: null, mfaRequired: false };
         } catch (err) {
-            console.error('[AuthContext] Unexpected error in verifyOTP:', err);
+            logger.error('AuthContext', 'Unexpected error in verifyOTP', err);
+            track('auth.otp_failed', { error_code: 'unexpected_error' });
             return {
                 error: new Error('An unexpected error occurred. Please try again.')
             };
@@ -389,7 +432,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             if (sessionError) {
-                console.error('[AuthContext] setSession failed:', sessionError);
+                logger.error('AuthContext', 'setSession failed after PIN unlock', sessionError);
+                track('auth.pin_unlock_failed', { error_code: 'set_session' });
                 return { error: sessionError };
             }
 
@@ -409,28 +453,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(liveSession);
             await fetchProfile(liveSession.user.id);
             setIsLocked(false);
+            track('auth.pin_unlock_succeeded');
 
             return { error: null };
         } catch (err: any) {
-            console.error('[AuthContext] PIN unlock failed:', err);
+            logger.error('AuthContext', 'PIN unlock failed', err);
+            track('auth.pin_unlock_failed', { error_code: 'invalid_pin' });
             return { error: new Error('Invalid PIN. Please try again.') };
         }
     };
 
     const registerPIN = async (pin: string) => {
         if (!session) {
-            console.warn('[AuthContext] registerPIN called but no active session exists.');
+            logger.warn('AuthContext', 'registerPIN called with no session');
             return;
         }
 
         try {
+            track('auth.pin_setup_started');
             const encrypted = await encryptSession(session, pin);
             localStorage.setItem('eravat_secure_session', JSON.stringify(encrypted));
             activePinRef.current = pin;
             setHasSavedSession(true);
             setIsLocked(false);
+            track('auth.pin_setup_completed');
         } catch (err) {
-            console.error('[AuthContext] Failed to encrypt session with PIN:', err);
+            logger.error('AuthContext', 'Failed to encrypt session with PIN', err);
         }
     };
 
@@ -455,6 +503,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabase.auth.signOut();
         setProfile(null);
         setSessionExpired(false);
+        resetUser();
     };
 
     const clearSessionExpired = () => setSessionExpired(false);

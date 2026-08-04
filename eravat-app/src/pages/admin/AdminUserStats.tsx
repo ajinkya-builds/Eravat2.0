@@ -81,6 +81,9 @@ export default function AdminUserStats() {
                 <select
                     className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
                     value={divisionFilter}
+                    data-ph-filter="admin.user_stats.division"
+                    data-ph-value-mode="presence"
+                    data-ph-screen="admin.user_stats"
                     onChange={(e) => setDivisionFilter(e.target.value)}
                 >
                     <option value="">{t('admin.filters.allDivisions')}</option>

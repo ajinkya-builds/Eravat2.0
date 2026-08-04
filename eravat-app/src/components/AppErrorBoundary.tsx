@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { logger } from '../lib/logger';
 
 interface Props {
   children: ReactNode;
@@ -21,7 +22,9 @@ export class AppErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[AppErrorBoundary]', error, info.componentStack);
+    logger.error('AppErrorBoundary', 'Render crash', error, {
+      component_stack: info.componentStack?.slice(0, 2000),
+    });
   }
 
   private handleReload = () => {

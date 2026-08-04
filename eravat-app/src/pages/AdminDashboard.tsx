@@ -65,6 +65,7 @@ export default function AdminDashboard() {
     const [elephantBarData, setElephantBarData] = useState<ElephantBar[]>([]);
     const [indirectTags, setIndirectTags] = useState<{ tag: string; count: number }[]>([]);
     const [roleKpis, setRoleKpis] = useState<RoleKpi[]>([]);
+    const [showAdminMap, setShowAdminMap] = useState(false);
 
     // Feed
     const [recentReports, setRecentReports] = useState<{
@@ -84,17 +85,15 @@ export default function AdminDashboard() {
     const fetchDashboardData = async () => {
         setLoading(true);
         try {
-            // 1. Personnel count
-            const { count: userCount } = await supabase
-                .from('profiles')
-                .select('*', { count: 'exact', head: true });
-            setTotalPersonnel(userCount ?? 0);
-
-            // 2. Reports for last 30 days (metrics, charts, feed)
             const since30 = subDays(new Date(), 30).toISOString();
-            const { data: reportsData } = await supabase
-                .from('reports')
-                .select(`
+            const [
+                { count: userCount },
+                { data: reportsData },
+            ] = await Promise.all([
+                supabase.from('profiles').select('*', { count: 'exact', head: true }),
+                supabase
+                    .from('reports')
+                    .select(`
                     id,
                     device_timestamp,
                     beat_id,
@@ -112,9 +111,11 @@ export default function AdminDashboard() {
                     ),
                     conflict_damages (category)
                 `)
-                .gte('device_timestamp', since30)
-                .order('device_timestamp', { ascending: false })
-                .limit(500);
+                    .gte('device_timestamp', since30)
+                    .order('device_timestamp', { ascending: false })
+                    .limit(500),
+            ]);
+            setTotalPersonnel(userCount ?? 0);
 
             if (!reportsData) return;
 
@@ -381,10 +382,20 @@ export default function AdminDashboard() {
                 ))}
             </div>
 
-            {/* ── Map ────────────────────────────────────────────────────── */}
+            {/* ── Map (deferred — Leaflet is expensive on admin home) ───── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-2">
                 <div className="lg:col-span-3">
-                    <MapComponent showObservationPins={true} />
+                    {showAdminMap ? (
+                        <MapComponent showObservationPins={true} />
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => setShowAdminMap(true)}
+                            className="w-full rounded-xl border border-border bg-card/60 px-4 py-8 text-sm font-medium text-muted-foreground hover:bg-muted/40 transition-colors"
+                        >
+                            Show live map
+                        </button>
+                    )}
                 </div>
             </div>
 

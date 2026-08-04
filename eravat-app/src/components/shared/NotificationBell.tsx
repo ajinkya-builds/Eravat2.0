@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { track } from '../../lib/analytics';
 
 export function NotificationBell() {
     const { profile, user } = useAuth();
@@ -16,7 +17,7 @@ export function NotificationBell() {
     const { t } = useLanguage();
 
     useEffect(() => {
-        if (!profile || !user) return;
+        if (!user?.id || !profile) return;
 
         // Load initial notifications
         const loadNotifications = async () => {
@@ -43,7 +44,7 @@ export function NotificationBell() {
             // Clean up subscription
             channel.unsubscribe();
         };
-    }, [profile, user]);
+    }, [user?.id, profile?.id]);
 
     useEffect(() => {
         // Close dropdown on click outside
@@ -70,6 +71,7 @@ export function NotificationBell() {
                 prev.map(n => n.id === id ? { ...n, is_read: true } : n)
             );
             setUnreadCount(prev => Math.max(0, prev - 1));
+            track('notification_marked_read');
         }
     };
 
@@ -83,6 +85,7 @@ export function NotificationBell() {
         if (success) {
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
             setUnreadCount(0);
+            track('notifications_marked_read', { notification_count: unreadIds.length });
         }
     };
 

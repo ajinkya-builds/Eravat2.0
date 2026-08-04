@@ -8,6 +8,7 @@ import { syncData } from '../../services/syncService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
+import { track } from '../../lib/analytics';
 
 export function QuickSOSButton() {
     const { profile } = useAuth();
@@ -159,6 +160,7 @@ export function QuickSOSButton() {
                 obs_id: crypto.randomUUID(),
             });
 
+            track('sos_sighting_submitted');
             setStatus('success');
 
             Network.getStatus().then(net => {

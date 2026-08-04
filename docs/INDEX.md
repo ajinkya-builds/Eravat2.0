@@ -31,6 +31,7 @@ docs/
 ├── ROLE_CAPABILITY_MATRIX.md   ← Role intents vs implementation + gaps
 ├── schema.md                   ← Database schema quick reference
 ├── SYNC_RUNBOOK.md             ← Sync troubleshooting playbook
+├── OBSERVABILITY_AND_ANALYTICS.md ← Logging, errors, funnels (PostHog free-tier plan)
 ├── AUTH_ARCHITECTURE.md        ← Offline-first auth proposal (draft — decision pending)
 ├── MANUAL_TESTING.md           ← QA Test specifications for PWA/Offline Edge Cases
 └── sessions/

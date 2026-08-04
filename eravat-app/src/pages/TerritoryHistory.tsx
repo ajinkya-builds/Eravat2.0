@@ -116,7 +116,23 @@ export default function TerritoryHistory() {
             // Fetch reports (RLS scopes to territory owned by the user)
             const reportsPromise = supabase
                 .from('reports')
-                .select('id, device_timestamp, status, location, geo_beats(name, geo_ranges(name)), observations(*), conflict_damages(*)')
+                .select(`
+                    id,
+                    device_timestamp,
+                    status,
+                    location,
+                    geo_beats(name, geo_ranges(name)),
+                    observations(
+                        type,
+                        male_count,
+                        female_count,
+                        calf_count,
+                        unknown_count,
+                        indirect_sign_details,
+                        conflict_loss_details
+                    ),
+                    conflict_damages(category, description)
+                `)
                 .order('server_created_at', { ascending: false })
                 .limit(50);
 
@@ -126,7 +142,8 @@ export default function TerritoryHistory() {
                 .select('report_id')
                 .eq('user_id', user.id)
                 .eq('notification_type', 'proximity')
-                .not('report_id', 'is', null);
+                .not('report_id', 'is', null)
+                .limit(200);
 
             const [reportsRes, notifRes] = await Promise.all([reportsPromise, notifPromise]);
 

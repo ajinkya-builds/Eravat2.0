@@ -1,5 +1,7 @@
 import { db } from '../db';
 import { supabase } from '../supabase';
+import { track } from '../lib/analytics';
+import { logger } from '../lib/logger';
 
 let isSyncing = false;
 const SYNC_LOCK_KEY = 'eravat_sync_lock';
@@ -42,6 +44,11 @@ function releaseCrossTabSyncLock(): void {
     } catch {
         // ignore lock cleanup errors
     }
+}
+
+/** Cheap pending-queue check — no lock, no network. */
+export async function countPendingSyncReports(): Promise<number> {
+    return db.reports.where('sync_status').anyOf(['pending', 'failed']).count();
 }
 let mediaPathColumnHint: 'file_path' | 'storage_path' | 'path' | 'media_path' | 'object_path' | null = null;
 
@@ -196,12 +203,14 @@ export async function syncData() {
     isSyncing = true;
     let successCount = 0;
     let failureCount = 0;
+    const syncStartedAt = Date.now();
 
     try {
         // Use local session (no network) so sync can proceed after reconnect
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user;
         if (!user) {
+            track('sync.failed', { error_code: 'not_authenticated' });
             return { success: false, error: 'Not authenticated' };
         }
 
@@ -215,6 +224,8 @@ export async function syncData() {
         if (reportsToSync.length === 0) {
             return { success: true, count: 0, total: 0, message: 'Nothing to sync' };
         }
+
+        track('sync.started', { pending_count: reportsToSync.length });
 
         for (const report of reportsToSync) {
             try {
@@ -251,7 +262,8 @@ export async function syncData() {
                     });
 
                 if (reportError) {
-                    console.error('[SyncService] Report upsert error:', reportError);
+                    logger.error('SyncService', 'Report upsert error', reportError, { stage: 'report_upsert' });
+                    track('sync.failed', { error_code: 'report_upsert', stage: 'report_upsert' });
                     await db.reports.update(report.id, { sync_status: 'failed' });
                     failureCount++;
                     continue;
@@ -396,7 +408,8 @@ export async function syncData() {
                 }
 
                 if (hasMediaError) {
-                    console.error('[SyncService] media upload error');
+                    logger.error('SyncService', 'media upload error', undefined, { stage: 'media_upload' });
+                    track('sync.media_failed', { error_code: 'media_upload' });
                     await db.reports.update(report.id, { sync_status: 'failed' });
                     failureCount++;
                     continue;
@@ -406,10 +419,23 @@ export async function syncData() {
                 successCount++;
 
             } catch (err) {
-                console.error('[SyncService] Unexpected error syncing report:', err);
+                logger.error('SyncService', 'Unexpected error syncing report', err, { stage: 'unexpected' });
+                track('sync.failed', { error_code: 'unexpected', stage: 'unexpected' });
                 await db.reports.update(report.id, { sync_status: 'failed' });
                 failureCount++;
             }
+        }
+
+        const duration_ms = Date.now() - syncStartedAt;
+        if (failureCount === 0) {
+            track('sync.completed', { uploaded: successCount, duration_ms, pending_count: reportsToSync.length });
+        } else {
+            track('sync.failed', {
+                error_code: 'partial_or_full_failure',
+                uploaded: successCount,
+                failed: failureCount,
+                duration_ms,
+            });
         }
 
         return {
@@ -419,6 +445,8 @@ export async function syncData() {
             failed: failureCount
         };
     } catch (error) {
+        logger.error('SyncService', 'Sync aborted', error);
+        track('sync.failed', { error_code: 'aborted' });
         return { success: false, error };
     } finally {
         isSyncing = false;

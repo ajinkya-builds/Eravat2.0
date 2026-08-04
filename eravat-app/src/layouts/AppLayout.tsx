@@ -166,6 +166,8 @@ export function AppLayout() {
                                     return (
                                         <button
                                             key={item.id}
+                                            data-ph-action={`nav.${item.id}`}
+                                            data-ph-screen="app_shell"
                                             onClick={() => navigate(item.path)}
                                             className="relative -top-6 bg-gradient-to-br from-primary to-emerald-600 text-primary-foreground p-4 rounded-full shadow-lg hover:shadow-primary/50 hover:scale-105 active:scale-95 transition-all duration-300"
                                         >
@@ -177,6 +179,8 @@ export function AppLayout() {
                                 return (
                                     <button
                                         key={item.id}
+                                        data-ph-action={`nav.${item.id}`}
+                                        data-ph-screen="app_shell"
                                         onClick={() => navigate(item.path)}
                                         className="relative p-2 flex flex-col items-center justify-center gap-1 min-w-[64px] transition-all"
                                     >

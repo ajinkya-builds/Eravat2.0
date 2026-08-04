@@ -18,6 +18,8 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { Network } from '@capacitor/network';
 import { syncData } from '../../services/syncService';
 import { stampPhotoWithMeta } from '../../lib/stampPhoto';
+import { track } from '../../lib/analytics';
+import { logger } from '../../lib/logger';
 
 function StepperContent() {
     const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm, activeSteps, updateFormData, elephantTotal } = useActivityForm();
@@ -35,7 +37,10 @@ function StepperContent() {
     useEffect(() => {
         let mounted = true;
         Network.getStatus().then(status => {
-            if (mounted) setIsOnline(status.connected);
+            if (mounted) {
+                setIsOnline(status.connected);
+                track('report.wizard_opened', { online: Boolean(status.connected) });
+            }
         });
         const listener = Network.addListener('networkStatusChange', status => {
             if (mounted) setIsOnline(status.connected);
@@ -45,6 +50,10 @@ function StepperContent() {
             void listener.then(l => l.remove());
         };
     }, []);
+
+    useEffect(() => {
+        track('report.step_viewed', { step: currentStep });
+    }, [currentStep]);
 
     const ALL_STEPS: Record<FormStep, { label: string; icon: ReactNode }> = {
         dateTimeLocation: { label: t('rs_date_location'), icon: <MapPin className="w-4 h-4" /> },
@@ -107,6 +116,8 @@ function StepperContent() {
         try {
             const reportId = crypto.randomUUID();
             const notes = formData.description?.trim() || formData.notes || null;
+            const hasMedia = Boolean(formData.photo_url);
+            track('report.save_started', { has_media: hasMedia, online: isOnline, report_type: formData.observation_type ?? 'unknown' });
 
             await db.reports.add({
                 id: reportId,
@@ -153,26 +164,40 @@ function StepperContent() {
                             sync_status: 'pending'
                         });
                     } catch (dexieErr) {
-                        console.error('[ReportStepper] Failed to add media to Dexie:', dexieErr);
+                        logger.error('ReportStepper', 'Failed to add media to Dexie', dexieErr);
                     }
                 } else {
-                    console.error('[ReportStepper] Failed to parse photo_url: invalid data URL format');
+                    logger.error('ReportStepper', 'Invalid photo_url data URL format');
                 }
             }
 
             const net = await Network.getStatus();
             const online = Boolean(net.connected);
+            const reportType = formData.observation_type ?? 'unknown';
             setSubmittedOnline(online);
             setSubmitted(true);
             resetForm();
+            track('report.save_succeeded', {
+                report_type: reportType,
+                queued: !online,
+                online,
+                has_media: hasMedia,
+            });
+            // Wizard dashboard event name (keep in sync with PostHog Analytics basics)
+            track('activity_report_submitted', {
+                observation_type: reportType,
+                photo_attached: hasMedia,
+                submitted_online: online,
+            });
 
             if (online) {
-                setTimeout(() => syncData().catch(console.error), 500);
+                setTimeout(() => syncData().catch((err) => logger.error('ReportStepper', 'Post-save sync failed', err)), 500);
             }
 
             setTimeout(() => navigate('/'), 2000);
         } catch (err) {
-            console.error('Failed to save report:', err);
+            logger.error('ReportStepper', 'Failed to save report', err, { online: isOnline });
+            track('report.save_failed', { error_code: 'save_exception', online: isOnline });
             setSubmitError(err instanceof Error ? err.message : 'Failed to save report. Please try again.');
         } finally {
             setIsSubmitting(false);

@@ -64,6 +64,8 @@ export default function AppSettings() {
                                 <button
                                     type="button"
                                     data-testid="theme-light"
+                                    data-ph-action="settings.theme.light"
+                                    data-ph-screen="settings"
                                     onClick={() => setTheme('light')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'light' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                                 >
@@ -72,6 +74,8 @@ export default function AppSettings() {
                                 <button
                                     type="button"
                                     data-testid="theme-dark"
+                                    data-ph-action="settings.theme.dark"
+                                    data-ph-screen="settings"
                                     onClick={() => setTheme('dark')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'dark' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                                 >
@@ -80,6 +84,8 @@ export default function AppSettings() {
                                 <button
                                     type="button"
                                     data-testid="theme-system"
+                                    data-ph-action="settings.theme.system"
+                                    data-ph-screen="settings"
                                     onClick={() => setTheme('system')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'system' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                                 >
@@ -97,6 +103,8 @@ export default function AppSettings() {
                             </div>
                             <select
                                 data-testid="language-select"
+                                data-ph-filter="settings.language"
+                                data-ph-screen="settings"
                                 value={globalLanguage}
                                 onChange={(e) => setGlobalLanguage(e.target.value as 'en' | 'hi' | 'mr')}
                                 className="bg-background border border-border rounded-lg px-2 py-1 text-sm outline-none"
@@ -121,6 +129,8 @@ export default function AppSettings() {
                                 <span className="font-medium">{t('map_style')}</span>
                             </div>
                             <select
+                                data-ph-filter="settings.map_style"
+                                data-ph-screen="settings"
                                 value={mapStyle}
                                 onChange={(e) => setMapStyle(e.target.value as 'terrain' | 'satellite')}
                                 className="bg-background border border-border rounded-lg px-2 py-1 text-sm outline-none"

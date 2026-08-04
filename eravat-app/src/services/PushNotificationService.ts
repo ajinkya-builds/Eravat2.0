@@ -64,6 +64,11 @@ export class PushNotificationService {
       return;
     }
 
+    // Avoid re-register storms on auth refresh / resume for the same session user.
+    if (listenersAttached && activeUserId === userId) {
+      return;
+    }
+
     try {
       await attachListeners(userId);
 

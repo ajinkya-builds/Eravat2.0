@@ -1,15 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Activity, ShieldAlert, LogOut, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { getAnalyticsConsent, setAnalyticsConsent } from '../../lib/analyticsConsent';
+import { applyAnalyticsConsent } from '../../lib/posthogClient';
+import { track } from '../../lib/analytics';
 
 export default function PrivacySecurity() {
     const navigate = useNavigate();
     const { t } = useLanguage();
-
-    // Toggles state
     const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
+
+    useEffect(() => {
+        setAnalyticsEnabled(getAnalyticsConsent());
+    }, []);
+
+    const handleAnalyticsToggle = (enabled: boolean) => {
+        setAnalyticsEnabled(enabled);
+        setAnalyticsConsent(enabled);
+        applyAnalyticsConsent(enabled);
+        // Record the preference change only when enabling (opt-out stops capture).
+        if (enabled) {
+            track('privacy.analytics_opt_in');
+        }
+    };
 
     return (
         <div className="min-h-screen bg-background pb-[80px]">
@@ -58,7 +73,12 @@ export default function PrivacySecurity() {
                                 </div>
                             </div>
                             <div className="relative inline-block w-12 h-6 align-middle select-none">
-                                <input type="checkbox" className="toggle-checkbox peer absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer z-10" checked={analyticsEnabled} onChange={(e) => setAnalyticsEnabled(e.target.checked)} />
+                                <input
+                                    type="checkbox"
+                                    className="toggle-checkbox peer absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer z-10"
+                                    checked={analyticsEnabled}
+                                    onChange={(e) => handleAnalyticsToggle(e.target.checked)}
+                                />
                                 <label className="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer bg-muted peer-checked:bg-primary transition-colors"></label>
                             </div>
                         </label>
@@ -79,10 +99,8 @@ export default function PrivacySecurity() {
                             <div className="font-semibold text-sm">{t('privacy.signOutAll')}</div>
                             <div className="text-xs opacity-80 font-medium">{t('privacy.revokeWarning')}</div>
                         </div>
-                        <ChevronRight size={16} />
                     </button>
                 </motion.div>
-
             </div>
         </div>
     );

@@ -49,6 +49,8 @@ export default function AdminLiveDashboard() {
                     <button
                         key={days}
                         type="button"
+                        data-ph-action={`admin.live.window.${days}d`}
+                        data-ph-screen="admin.live"
                         onClick={() => {
                             setWindowDays(days);
                             setFilters({ ...filters, startDate: subDays(new Date(), days), endDate: new Date() });

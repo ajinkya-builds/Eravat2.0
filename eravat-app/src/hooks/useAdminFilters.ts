@@ -8,6 +8,7 @@ import {
     type GeoDivision,
 } from '../services/adminAnalyticsService';
 import { useAuth } from '../contexts/AuthContext';
+import { trackFailed } from '../lib/analytics';
 
 const DIVISION_SCOPED_ROLES = new Set(['dfo', 'range_officer']);
 
@@ -37,6 +38,7 @@ export function useAdminFilters(defaultDays = 30) {
             setDivisions(data);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load divisions');
+            trackFailed('admin.load_divisions', 'fetch_failed', { screen: 'admin' });
         }
     }, []);
 
@@ -48,6 +50,7 @@ export function useAdminFilters(defaultDays = 30) {
             setReports(data);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load reports');
+            trackFailed('admin.apply_filters', 'fetch_failed', { screen: 'admin' });
         } finally {
             setLoading(false);
         }

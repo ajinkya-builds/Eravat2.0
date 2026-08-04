@@ -56,7 +56,7 @@ export function VillageAutocomplete({
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }, 220);
+    }, 300);
 
     return () => {
       cancelled = true;

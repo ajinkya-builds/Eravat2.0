@@ -9,6 +9,7 @@ import { supabase } from '../supabase';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { formatDistanceToNow } from 'date-fns';
+import { trackClick, trackFailed, trackFilter } from '../lib/analytics';
 
 type NearbyItem = {
     id: string;
@@ -60,6 +61,46 @@ export default function NearbySightings() {
     const loadNearby = async (loc: { lat: number; lng: number }, radius: number) => {
         setLoading(true);
         try {
+            const { data: rpcRows, error: rpcError } = await supabase.rpc('reports_nearby', {
+                p_lng: loc.lng,
+                p_lat: loc.lat,
+                p_radius_m: radius * 1000,
+                p_limit: 50,
+            });
+
+            if (!rpcError && Array.isArray(rpcRows)) {
+                const rows: NearbyItem[] = rpcRows.map((rep: {
+                    id: string;
+                    device_timestamp: string;
+                    beat_name?: string | null;
+                    obs_type?: string | null;
+                    male_count?: number;
+                    female_count?: number;
+                    calf_count?: number;
+                    unknown_count?: number;
+                    distance_m?: number;
+                    lat?: number;
+                    lng?: number;
+                }) => ({
+                    id: rep.id,
+                    lat: rep.lat ?? loc.lat,
+                    lng: rep.lng ?? loc.lng,
+                    type: obsTypeMap[rep.obs_type ?? 'direct'] ?? 'direct',
+                    beatName: rep.beat_name ?? 'Field',
+                    total:
+                        (rep.male_count || 0) +
+                        (rep.female_count || 0) +
+                        (rep.calf_count || 0) +
+                        (rep.unknown_count || 0),
+                    deviceTimestamp: rep.device_timestamp,
+                    distanceKm: (rep.distance_m || 0) / 1000,
+                }));
+                rows.sort((a, b) => a.distanceKm - b.distanceKm);
+                setItems(rows);
+                setLoaded(true);
+                return;
+            }
+
             const { data, error } = await supabase
                 .from('reports')
                 .select(`
@@ -69,7 +110,7 @@ export default function NearbySightings() {
                 `)
                 .not('location', 'is', null)
                 .order('device_timestamp', { ascending: false })
-                .limit(500);
+                .limit(100);
             if (error) throw error;
 
             const rows: NearbyItem[] = [];
@@ -99,22 +140,27 @@ export default function NearbySightings() {
             console.error('[NearbySightings] load failed', err);
             setItems([]);
             setLoaded(true);
+            trackFailed('nearby.load', 'fetch_failed', { screen: 'nearby' });
         } finally {
             setLoading(false);
         }
     };
 
     const handleLocate = async () => {
+        trackClick('nearby.locate', { screen: 'nearby' });
         const pos = await fetchLocation();
         if (pos?.coords) {
             const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             setUserLoc(loc);
             void loadNearby(loc, radiusKm);
+        } else {
+            trackFailed('nearby.locate', 'geolocation_failed', { screen: 'nearby' });
         }
     };
 
     const handleRadiusChange = (r: number) => {
         setRadiusKm(r);
+        trackFilter('nearby.radius_km', r, { screen: 'nearby' });
         if (userLoc) void loadNearby(userLoc, r);
     };
 

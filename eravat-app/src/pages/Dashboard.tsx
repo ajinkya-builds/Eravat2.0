@@ -14,6 +14,7 @@ import { QuickSOSButton } from '../components/shared/QuickSOSButton';
 import { Network } from '@capacitor/network';
 import { supabase } from '../supabase';
 import { formatDistanceToNow } from 'date-fns';
+import { trackClick, trackFailed } from '../lib/analytics';
 
 type RecentSighting = {
     id: string;
@@ -83,6 +84,7 @@ export default function Dashboard() {
             if (error) {
                 console.error('[Dashboard] recent sightings', error);
                 setRecentSightings([]);
+                trackFailed('dashboard.recent_sightings', 'fetch_failed', { screen: 'dashboard' });
             } else {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const rows: RecentSighting[] = (data || []).map((r: any) => {
@@ -115,6 +117,7 @@ export default function Dashboard() {
 
     const handleManualSync = async () => {
         if (!pendingCount || isSyncing) return;
+        trackClick('dashboard.manual_sync', { screen: 'dashboard', pending_count: pendingCount });
         setIsSyncing(true);
         setSyncMessage(null);
         try {
@@ -133,12 +136,14 @@ export default function Dashboard() {
                 setSyncMessage({ type: 'success', text });
                 setTimeout(() => setSyncMessage(null), 3000);
             } else {
+                trackFailed('dashboard.manual_sync', 'sync_failed', { screen: 'dashboard' });
                 setSyncMessage({
                     type: 'error',
                     text: result.error?.toString() || 'Sync failed. Please try again.'
                 });
             }
         } catch {
+            trackFailed('dashboard.manual_sync', 'sync_exception', { screen: 'dashboard' });
             setSyncMessage({
                 type: 'error',
                 text: 'Sync failed. Please check your connection.'
@@ -246,6 +251,8 @@ export default function Dashboard() {
                         <h2 className="text-lg font-bold text-foreground">Recent Sightings</h2>
                         <button
                             type="button"
+                            data-ph-action="dashboard.view_all_sightings"
+                            data-ph-screen="dashboard"
                             onClick={() => navigate('/history')}
                             className="text-xs font-semibold text-primary flex items-center gap-1"
                         >
@@ -296,6 +303,8 @@ export default function Dashboard() {
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.1 }}
+                        data-ph-action="dashboard.add_sighting"
+                        data-ph-screen="dashboard"
                         onClick={() => navigate('/report')}
                         className="group relative overflow-hidden rounded-3xl p-6 text-left flex flex-col justify-between h-48 border border-primary/20 bg-gradient-to-br from-primary/10 to-emerald-500/5 hover:from-primary/20 hover:to-emerald-500/10 transition-colors shadow-lg shadow-primary/5"
                     >
@@ -318,6 +327,8 @@ export default function Dashboard() {
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.2 }}
+                            data-ph-action="dashboard.open_profile"
+                            data-ph-screen="dashboard"
                             onClick={() => navigate('/profile')}
                             className="group glass-card rounded-3xl p-5 text-left flex flex-col justify-between hover:bg-muted/40 transition-colors border border-border/50"
                         >
@@ -334,6 +345,8 @@ export default function Dashboard() {
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.3 }}
+                            data-ph-action="dashboard.open_history"
+                            data-ph-screen="dashboard"
                             onClick={() => navigate('/history')}
                             className="group glass-card rounded-3xl p-5 text-left flex flex-col justify-between hover:bg-muted/40 transition-colors border border-border/50"
                         >
@@ -352,6 +365,8 @@ export default function Dashboard() {
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.32 }}
+                        data-ph-action="dashboard.open_nearby"
+                        data-ph-screen="dashboard"
                         onClick={() => navigate('/nearby')}
                         className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-blue-500/20"
                     >
@@ -372,6 +387,8 @@ export default function Dashboard() {
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.34 }}
+                            data-ph-action="dashboard.onboard_villager"
+                            data-ph-screen="dashboard"
                             onClick={() => navigate('/villagers/onboard')}
                             className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-amber-500/20"
                         >
@@ -393,6 +410,8 @@ export default function Dashboard() {
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.34 }}
+                            data-ph-action="dashboard.open_villagers"
+                            data-ph-screen="dashboard"
                             onClick={() => navigate('/villagers')}
                             className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-amber-500/20"
                         >
@@ -414,6 +433,8 @@ export default function Dashboard() {
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.35 }}
+                            data-ph-action="dashboard.onboard_volunteer"
+                            data-ph-screen="dashboard"
                             onClick={() => navigate('/volunteers/onboard')}
                             className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-emerald-500/20"
                         >
@@ -435,6 +456,8 @@ export default function Dashboard() {
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.4 }}
+                            data-ph-action="dashboard.open_admin"
+                            data-ph-screen="dashboard"
                             onClick={() => navigate('/admin')}
                             className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border-2 border-primary/20 overflow-hidden relative"
                         >

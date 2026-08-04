@@ -66,13 +66,13 @@ export default function VillagersList() {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }, 200);
+    }, 300);
 
     return () => {
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [canRead, query, t]);
+  }, [canRead, query]);
 
   if (!canRead) {
     return (

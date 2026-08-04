@@ -5,6 +5,7 @@ import { ArrowRight, AlertCircle, ShieldCheck, ArrowLeft, Smartphone } from 'luc
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
+import { track } from '../lib/analytics';
 
 const OTP_RESEND_COOLDOWN_SEC = 60;
 
@@ -23,6 +24,10 @@ export default function Login() {
     const [otpError, setOtpError] = useState<string | null>(null);
     const [otpResendCountdown, setOtpResendCountdown] = useState(0);
     const otpResendRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    useEffect(() => {
+        track('auth.login_opened');
+    }, []);
 
     // ── OTP Resend Countdown Timer ────────────────────────────────────────────
     useEffect(() => {
@@ -57,6 +62,7 @@ export default function Login() {
         setOtpLoading(true);
         setOtpError(null);
 
+        track('auth.phone_submitted');
         const { error, message } = await signInWithPhoneOTP(otpPhone.trim());
 
         if (error) {
