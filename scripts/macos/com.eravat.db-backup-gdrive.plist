@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.eravat.db-backup-gdrive</string>
+  <key>Comment</key>
+  <string>Daily Eravat prod/staging DB dump onto Google Drive (00:05 IST).</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Volumes/Eravat/Eravat 2.0/scripts/backup-db-to-gdrive.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Volumes/Eravat/Eravat 2.0</string>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>0</integer>
+    <key>Minute</key>
+    <integer>5</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/Users/ajinkyapatil/Library/Logs/eravat-db-backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/ajinkyapatil/Library/Logs/eravat-db-backup.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/ajinkyapatil</string>
+    <key>ERAVAT_GDRIVE_ACCOUNT</key>
+    <string>connectwithajinkya@gmail.com</string>
+  </dict>
+  <key>Nice</key>
+  <integer>10</integer>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

@@ -57,16 +57,15 @@ Local keystore lives under `backups/android-signing/` (gitignored). For CI, set 
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-For nightly DB backups, set GitHub Actions secrets:
+Nightly DB backups run **on this Mac**, not GitHub (dumps never go to the shared repo).
 
-- `SUPABASE_ACCESS_TOKEN` (Supabase account token; used for both projects)
-- `SUPABASE_DB_PASSWORD` (production database password, project `mnytrlcmdpkfhrzrtesf`)
-- `SUPABASE_STAGING_DB_PASSWORD` (staging database password, project `ttjtyvxfiqhjdngkgdkf`)
-
-Dumps are **not** committed to git. They are uploaded as workflow artifacts
-(`eravat-prod-backup-<run_id>` / `eravat-staging-backup-<run_id>`) and kept for
-**30 days**. Download from Actions → Nightly database backup → the run → Artifacts.
-Schedule: 18:30 UTC (00:00 IST) on `main`.
+- Script: `scripts/backup-db-to-gdrive.sh`
+- Schedule: macOS LaunchAgent `com.eravat.db-backup-gdrive` at **00:05 IST**
+  (`scripts/install-db-backup-launchd.sh`)
+- Destination (Google Drive for Desktop, `connectwithajinkya@gmail.com`):
+  `My Drive/Eravat DB Backups/production` and `.../staging`
+- Files older than 30 days in those folders are deleted.
+- Requires Docker Desktop, `supabase` CLI login, and the Eravat volume mounted.
 
 ## Phone auth note (Test OTP pilot)
 
