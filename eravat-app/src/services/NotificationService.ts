@@ -17,9 +17,14 @@ export class NotificationService {
    */
   static async getNotifications(limit: number = 20): Promise<Notification[]> {
     try {
+      const { data: sessionData } = await supabase.auth.getUser();
+      const userId = sessionData.user?.id;
+      if (!userId) return [];
+
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(limit);
 

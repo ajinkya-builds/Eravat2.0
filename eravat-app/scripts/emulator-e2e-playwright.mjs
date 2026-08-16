@@ -11,8 +11,8 @@ import { CdpPage } from './cdp-page.mjs';
 const PKG = 'com.forestdept.eravat';
 const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/e2e-emulator-playwright');
 const USERS = {
-  beat_guard: { phone: '8889184712', pin: '1234' },
-  admin: { phone: '9926445678', pin: '5678' },
+  beat_guard: { phone: '8889184712' },
+  admin: { phone: '9926445678' },
   unenrolled: { phone: '9000000001' },
 };
 
@@ -88,6 +88,10 @@ async function softReset() {
     sessionStorage.clear();
   });
   await page.goto('https://localhost/login');
+  await page.waitFor(
+    '!!document.querySelector(\'input[placeholder="9876543210"]\')',
+    20000
+  );
 }
 
 async function waitForText(text, timeout = 15000) {
@@ -125,18 +129,6 @@ async function clickButton(matcher) {
   if (!clicked) throw new Error(`Button not found: ${matcher}`);
 }
 
-async function tapPinDigit(digit) {
-  const clicked = await page.evaluate((d) => {
-    const btn = [...document.querySelectorAll('button')].find(
-      (b) => (b.textContent || '').trim() === d
-    );
-    if (!btn) return false;
-    btn.click();
-    return true;
-  }, digit);
-  if (!clicked) throw new Error(`PIN key not found: ${digit}`);
-}
-
 async function loginOTP(phone) {
   await page.goto('https://localhost/login');
   await fillPlaceholder('9876543210', phone);
@@ -144,23 +136,7 @@ async function loginOTP(phone) {
   await page.waitFor('!!document.querySelector(\'input[placeholder="Enter 6-digit code"]\')', 20000);
   await fillPlaceholder('Enter 6-digit code', '123456');
   await clickButton('Verify');
-  await waitForText('PIN', 20000);
-}
-
-async function setPIN(pin) {
-  for (const d of pin) await tapPinDigit(d);
-  await page.sleep(500);
-  for (const d of pin) await tapPinDigit(d);
   await page.waitFor('!location.pathname.includes("/login")', 25000);
-}
-
-async function unlockPIN(pin) {
-  const locked = await page.evaluate(() =>
-    /Enter.*PIN|Unlock/i.test(document.body?.innerText || '')
-  );
-  if (!locked) return;
-  for (const d of pin) await tapPinDigit(d);
-  await page.sleep(1500);
 }
 
 await mkdir(OUT, { recursive: true });
@@ -181,23 +157,20 @@ await check('Unenrolled phone rejected', async () => {
   await shot('02-unenrolled');
 });
 
-await check('Beat guard OTP login + PIN', async () => {
+await check('Beat guard OTP login', async () => {
   await softReset();
   await loginOTP(USERS.beat_guard.phone);
-  await setPIN(USERS.beat_guard.pin);
   await shot('03-dashboard');
 });
 
 await check('Dashboard content', async () => {
   await page.goto('https://localhost/');
-  await unlockPIN(USERS.beat_guard.pin);
   await page.waitFor('document.body?.innerText?.includes("What would you like to do today")', 15000);
   await shot('04-dashboard');
 });
 
 await check('Report wizard opens', async () => {
   await page.goto('https://localhost/report');
-  await unlockPIN(USERS.beat_guard.pin);
   const body = await page.content();
   if (!/location|observation|date|time|sighting|activity/i.test(body)) {
     throw new Error('Report wizard missing expected fields');
@@ -207,35 +180,48 @@ await check('Report wizard opens', async () => {
 
 await check('Map loads Leaflet', async () => {
   await page.goto('https://localhost/map');
-  await unlockPIN(USERS.beat_guard.pin);
   await page.waitFor('!!document.querySelector(".leaflet-container")', 25000);
   await shot('06-map');
 });
 
 await check('Profile page', async () => {
   await page.goto('https://localhost/profile');
-  await unlockPIN(USERS.beat_guard.pin);
   await page.sleep(2000);
   await shot('07-profile');
 });
 
 await check('Settings page', async () => {
   await page.goto('https://localhost/settings');
-  await unlockPIN(USERS.beat_guard.pin);
   await page.sleep(2000);
   await shot('08-settings');
 });
 
 await check('History page with seeded data', async () => {
   await page.goto('https://localhost/history');
-  await unlockPIN(USERS.beat_guard.pin);
   await page.sleep(3000);
   await shot('09-history');
 });
 
+await check('Beat guard sees geo sighting notification', async () => {
+  await page.goto('https://localhost/');
+  await page.sleep(2500);
+  const clicked = await page.evaluate(() => {
+    const btn = document.querySelector('button[aria-label="Notifications"]');
+    if (!btn) return false;
+    btn.click();
+    return true;
+  });
+  if (!clicked) throw new Error('Notifications bell missing');
+  await page.sleep(1500);
+  const txt = await page.evaluate(() => document.body?.innerText || '');
+  if (!/Direct Sighting Alert|Activity within your alert radius/i.test(txt)) {
+    throw new Error('Expected sighting/proximity notification in bell');
+  }
+  await shot('10b-bg-notifications');
+});
+
 await check('Beat guard blocked from admin', async () => {
   await page.goto('https://localhost/admin');
-  await unlockPIN(USERS.beat_guard.pin);
   await page.sleep(2500);
   const body = (await page.content()).toLowerCase();
   if (body.includes('command center') || body.includes('user management')) {
@@ -247,24 +233,48 @@ await check('Beat guard blocked from admin', async () => {
 await check('Admin login + admin routes', async () => {
   await softReset();
   await loginOTP(USERS.admin.phone);
-  await setPIN(USERS.admin.pin);
   await page.goto('https://localhost/admin/users');
-  await unlockPIN(USERS.admin.pin);
   await page.sleep(3000);
   const body = await page.content();
   if (!/user|phone|role|search/i.test(body)) throw new Error('Admin users page missing');
   await shot('11-admin-users');
   await page.goto('https://localhost/admin/observations');
-  await unlockPIN(USERS.admin.pin);
   await page.sleep(3000);
   await shot('12-admin-observations');
   await page.goto('https://localhost/admin/map');
-  await unlockPIN(USERS.admin.pin);
   await page.waitFor('!!document.querySelector(".leaflet-container")', 35000);
   await shot('13-admin-map');
 });
 
-await check('PIN lock after cold start', async () => {
+await check('DFO login + admin home', async () => {
+  await softReset();
+  await loginOTP('9893686945');
+  await page.goto('https://localhost/admin');
+  await page.sleep(2500);
+  const body = (await page.content()).toLowerCase();
+  if (!(body.includes('command center') || body.includes('conflict intelligence') || body.includes('user management'))) {
+    throw new Error('DFO admin home missing');
+  }
+  await shot('12b-dfo-admin');
+});
+
+await check('Range officer field home', async () => {
+  await softReset();
+  await loginOTP('8319149748');
+  await page.goto('https://localhost/');
+  await page.sleep(2000);
+  await shot('12c-ro-home');
+});
+
+await check('Volunteer field home', async () => {
+  await softReset();
+  await loginOTP('7400503240');
+  await page.goto('https://localhost/');
+  await page.sleep(2000);
+  await shot('12d-volunteer-home');
+});
+
+await check('Cold start restores session', async () => {
   page.close();
   launchApp();
   page = await connectPage();
@@ -272,9 +282,10 @@ await check('PIN lock after cold start', async () => {
   const locked = await page.evaluate(() =>
     /Enter.*PIN|Unlock/i.test(document.body?.innerText || '')
   );
-  if (!locked) throw new Error('PIN lock screen not shown after cold start');
-  await unlockPIN(USERS.beat_guard.pin);
-  await shot('14-pin-unlock');
+  if (locked) throw new Error('PIN lock still shown after cold start');
+  const onApp = await page.evaluate(() => !location.pathname.includes('/login'));
+  if (!onApp) throw new Error('App did not restore session after cold start');
+  await shot('14-session-restore');
 });
 
 await check('Offline mode: report page reachable', async () => {

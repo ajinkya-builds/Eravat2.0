@@ -140,11 +140,10 @@ export default function TerritoryHistory() {
                         indirect_sign_details,
                         conflict_loss_details
                     ),
-                    conflict_damages(category, description),
-                    report_media(storage_path)
+                    conflict_damages(category, description)
                 `)
-                .order('server_created_at', { ascending: false })
-                .limit(50);
+                .order('device_timestamp', { ascending: false })
+                .limit(80);
 
             // Fetch proximity notification report_ids for this user
             const notifPromise = supabase
@@ -157,38 +156,43 @@ export default function TerritoryHistory() {
 
             const [reportsRes, notifRes] = await Promise.all([reportsPromise, notifPromise]);
 
+            const local = await db.reports.orderBy('device_timestamp').reverse().limit(80).toArray();
+            const localMapped = local.map((r) => ({
+                id: r.id,
+                device_timestamp: r.device_timestamp,
+                status: r.status,
+                notes: r.notes,
+                location: r.latitude != null && r.longitude != null
+                    ? { coordinates: [r.longitude, r.latitude] }
+                    : null,
+                observations: [{
+                    type: r.observation_type || 'direct',
+                    male_count: r.male_count,
+                    female_count: r.female_count,
+                    calf_count: r.calf_count,
+                    unknown_count: r.unknown_count,
+                    compass_bearing: r.compass_bearing,
+                    indirect_sign_details: r.indirect_sign_details,
+                    conflict_loss_details: r.conflict_loss_details,
+                }],
+                conflict_damages: (r.loss_type || []).map((category) => ({
+                    category,
+                    description: r.damage_description || '',
+                })),
+            })) as unknown as HistoryItem[];
+
             if (reportsRes.error) {
                 console.error('Error fetching history:', reportsRes.error);
-                setFetchError(reportsRes.error.message || 'Failed to load activity history.');
-                const local = await db.reports.orderBy('device_timestamp').reverse().limit(50).toArray();
-                if (local.length) {
-                    setHistory(local.map((r) => ({
-                        id: r.id,
-                        device_timestamp: r.device_timestamp,
-                        status: r.status,
-                        notes: r.notes,
-                        location: r.latitude != null && r.longitude != null
-                            ? { coordinates: [r.longitude, r.latitude] }
-                            : null,
-                        observations: [{
-                            type: r.observation_type || 'direct',
-                            male_count: r.male_count,
-                            female_count: r.female_count,
-                            calf_count: r.calf_count,
-                            unknown_count: r.unknown_count,
-                            compass_bearing: r.compass_bearing,
-                            indirect_sign_details: r.indirect_sign_details,
-                            conflict_loss_details: r.conflict_loss_details,
-                        }],
-                        conflict_damages: (r.loss_type || []).map((category) => ({
-                            category,
-                            description: r.damage_description || '',
-                        })),
-                    })) as unknown as HistoryItem[]);
+                if (localMapped.length) {
+                    setHistory(localMapped);
                     setFetchError(null);
+                } else {
+                    setFetchError(reportsRes.error.message || t('history.loadFailed'));
                 }
             } else {
-                setHistory((reportsRes.data as unknown) as HistoryItem[] || []);
+                const remote = ((reportsRes.data as unknown) as HistoryItem[]) || [];
+                const seen = new Set(remote.map((r) => r.id));
+                setHistory([...remote, ...localMapped.filter((r) => !seen.has(r.id))]);
             }
 
             if (!notifRes.error && notifRes.data) {
@@ -215,9 +219,9 @@ export default function TerritoryHistory() {
             const [reportsRes, notifRes] = await Promise.all([
                 supabase
                     .from('reports')
-                    .select('id, device_timestamp, status, location, geo_beats(name, geo_ranges(name)), observations(*), conflict_damages(*)')
-                    .order('server_created_at', { ascending: false })
-                    .limit(50),
+                    .select('id, device_timestamp, status, notes, location, geo_beats(name, geo_ranges(name, geo_divisions(name))), observations(*), conflict_damages(*)')
+                    .order('device_timestamp', { ascending: false })
+                    .limit(80),
                 supabase
                     .from('notifications')
                     .select('report_id')
@@ -260,13 +264,13 @@ export default function TerritoryHistory() {
                 ) : fetchError ? (
                     <div className="text-center py-16 glass-card rounded-3xl border border-destructive/30 bg-destructive/5">
                         <AlertTriangle className="mx-auto h-12 w-12 text-destructive/70 mb-4" />
-                        <h3 className="text-lg font-bold text-foreground">Unable to load history</h3>
+                        <h3 className="text-lg font-bold text-foreground">{t('history.loadFailed')}</h3>
                         <p className="text-muted-foreground text-sm mt-1 px-4">{fetchError}</p>
                         <button
                             onClick={handleRetry}
                             className="mt-4 px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
                         >
-                            Try Again
+                            {t('history.retry')}
                         </button>
                     </div>
                 ) : history.length === 0 ? (
@@ -374,8 +378,8 @@ export default function TerritoryHistory() {
                                         {/* Source badge: Territory owned vs Proximity radius */}
                                         <div
                                             title={isProximity
-                                                ? 'This activity is within your configured alert radius'
-                                                : 'This activity is in your assigned territory'}
+                                                ? t('history.inRadius')
+                                                : t('history.inTerritory')}
                                             className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold border ${
                                                 isProximity
                                                     ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
@@ -383,8 +387,8 @@ export default function TerritoryHistory() {
                                             }`}
                                         >
                                             {isProximity
-                                                ? <><Radio size={11} /> Radius</>
-                                                : <><Shield size={11} /> Territory</>
+                                                ? <><Radio size={11} /> {t('history.radiusBadge')}</>
+                                                : <><Shield size={11} /> {t('history.territoryBadge')}</>
                                             }
                                         </div>
                                     </div>

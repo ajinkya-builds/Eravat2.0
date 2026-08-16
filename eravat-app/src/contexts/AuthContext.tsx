@@ -3,7 +3,6 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
 import { PushNotificationService } from '../services/PushNotificationService';
-import { encryptSession, decryptSession, type EncryptedPayload } from '../utils/crypto';
 import {
     isProfileCacheFresh,
     shouldLoadProfileOnAuthEvent,
@@ -44,17 +43,12 @@ interface AuthContextValue {
     profile: UserProfile | null;
     loading: boolean;
     sessionExpired: boolean;
-    isLocked: boolean;
-    hasSavedSession: boolean;
     clearSessionExpired: () => void;
     signInWithPhoneOTP: (phone: string) => Promise<{ error: Error | null; message?: string }>;
-    verifyOTP: (phone: string, token: string) => Promise<{ error: Error | null; mfaRequired?: boolean }>;
+    verifyOTP: (phone: string, token: string) => Promise<{ error: Error | null }>;
     resendOTP: (phone: string) => Promise<{ error: Error | null; message?: string }>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
-    unlockWithPIN: (pin: string) => Promise<{ error: Error | null }>;
-    registerPIN: (pin: string) => Promise<void>;
-    resetPIN: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -73,21 +67,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isCheckingSecureSession, setIsCheckingSecureSession] = useState(() => {
-        return localStorage.getItem('eravat_secure_session') !== null;
-    });
-    const secureSessionCheckCompleted = useRef(false);
     const [sessionExpired, setSessionExpired] = useState(false);
-    const [isLocked, setIsLocked] = useState(false);
-    const [hasSavedSession, setHasSavedSession] = useState(false);
     // Track whether user was previously authenticated so we can detect expiry
     const wasAuthenticated = useState({ current: false });
     /** Coalesce parallel profile loads (e.g. getSession + onAuthStateChange firing together). */
     const profileInflight = useRef(new Map<string, Promise<void>>());
     /** Log missing profile / fetch errors at most once per user until a profile loads. */
     const profileIssueLogged = useRef(new Set<string>());
-    /** In-memory PIN for re-encrypting after token refresh (never persisted). */
-    const activePinRef = useRef<string | null>(null);
     /** Avoid profile refetch storms on TOKEN_REFRESHED / concurrent tabs. */
     const profileCacheRef = useRef<{ userId: string | null; fetchedAt: number | null }>({
         userId: null,
@@ -217,58 +203,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         let cancelled = false;
-
-        const checkSecureSession = async () => {
-            if (secureSessionCheckCompleted.current) return;
-
-            // The security PIN gate has been removed: sessions now persist
-            // natively via the Supabase client (persistSession), so the app
-            // opens directly and works offline. Clear any legacy PIN-encrypted
-            // blob left by older builds and never lock.
-            localStorage.removeItem('eravat_secure_session');
-            if (!cancelled) {
-                setHasSavedSession(false);
-                setIsLocked(false);
-                setIsCheckingSecureSession(false);
-                secureSessionCheckCompleted.current = true;
-            }
-        };
-
-        void checkSecureSession();
+        // Drop PIN-wrapped blobs from older builds; session lives in Supabase persistSession.
+        localStorage.removeItem('eravat_secure_session');
+        localStorage.removeItem('eravat_bypass_pin_lock');
 
         const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
             if (import.meta.env.DEV) {
                 console.log('[AuthContext] onAuthStateChange event:', event, 'user:', newSession?.user?.id);
             }
             if (cancelled) return;
-
-            // If a saved session is present, ignore incoming state updates until unlocked
-            const saved = localStorage.getItem('eravat_secure_session');
-            if (saved && event !== 'SIGNED_OUT' && isLocked) {
-                if (import.meta.env.DEV) {
-                    console.log('[AuthContext] onAuthStateChange ignored because isLocked is true');
-                }
-                return;
-            }
-
-            // Keep PIN-wrapped blob in sync when refresh tokens rotate
-            if (
-                (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') &&
-                newSession &&
-                localStorage.getItem('eravat_secure_session') &&
-                activePinRef.current
-            ) {
-                const pin = activePinRef.current;
-                void encryptSession(newSession, pin)
-                    .then((encrypted) => {
-                        localStorage.setItem('eravat_secure_session', JSON.stringify(encrypted));
-                    })
-                    .catch((err) => {
-                        if (import.meta.env.DEV) {
-                            console.warn('[AuthContext] Failed to re-encrypt session after refresh:', err);
-                        }
-                    });
-            }
 
             setSession(newSession);
             if (newSession?.user) {
@@ -300,7 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             cancelled = true;
             listener.subscription.unsubscribe();
         };
-    }, [fetchProfile, isLocked]);
+    }, [fetchProfile]);
 
     const signInWithPhoneOTP = async (phone: string) => {
         try {
@@ -406,18 +349,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             track('auth.otp_verified');
             setSessionExpired(false);
 
-            // Sync session in context immediately (needed for PIN registration step)
             if (data.session) {
                 setSession(data.session);
             }
 
-            // Check if MFA is required (for admin users with TOTP)
-            const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-            if (aalData && aalData.currentLevel === 'aal1' && aalData.nextLevel === 'aal2') {
-                return { error: null, mfaRequired: true };
-            }
-
-            return { error: null, mfaRequired: false };
+            return { error: null };
         } catch (err) {
             logger.error('AuthContext', 'Unexpected error in verifyOTP', err);
             track('auth.otp_failed', { error_code: 'unexpected_error' });
@@ -431,92 +367,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return signInWithPhoneOTP(phone);
     };
 
-    const unlockWithPIN = async (pin: string) => {
-        try {
-            const saved = localStorage.getItem('eravat_secure_session');
-            if (!saved) {
-                return { error: new Error('No saved session found.') };
-            }
-
-            const encryptedPayload = JSON.parse(saved) as EncryptedPayload;
-            const decryptedSession = await decryptSession(encryptedPayload, pin) as Session;
-
-            if (!decryptedSession || !decryptedSession.access_token) {
-                return { error: new Error('Invalid decrypted session.') };
-            }
-
-            // Restore session in Supabase Auth
-            const { data: setData, error: sessionError } = await supabase.auth.setSession({
-                access_token: decryptedSession.access_token,
-                refresh_token: decryptedSession.refresh_token
-            });
-
-            if (sessionError) {
-                logger.error('AuthContext', 'setSession failed after PIN unlock', sessionError);
-                track('auth.pin_unlock_failed', { error_code: 'set_session' });
-                return { error: sessionError };
-            }
-
-            const liveSession = setData.session ?? decryptedSession;
-            activePinRef.current = pin;
-            // Re-wrap with possibly-rotated tokens from setSession
-            try {
-                const encrypted = await encryptSession(liveSession, pin);
-                localStorage.setItem('eravat_secure_session', JSON.stringify(encrypted));
-            } catch (encErr) {
-                if (import.meta.env.DEV) {
-                    console.warn('[AuthContext] Failed to re-encrypt after unlock:', encErr);
-                }
-            }
-
-            // Sync session state & profile in context
-            setSession(liveSession);
-            await fetchProfile(liveSession.user.id);
-            setIsLocked(false);
-            track('auth.pin_unlock_succeeded');
-
-            return { error: null };
-        } catch (err: any) {
-            logger.error('AuthContext', 'PIN unlock failed', err);
-            track('auth.pin_unlock_failed', { error_code: 'invalid_pin' });
-            return { error: new Error('Invalid PIN. Please try again.') };
-        }
-    };
-
-    const registerPIN = async (pin: string) => {
-        if (!session) {
-            logger.warn('AuthContext', 'registerPIN called with no session');
-            return;
-        }
-
-        try {
-            track('auth.pin_setup_started');
-            const encrypted = await encryptSession(session, pin);
-            localStorage.setItem('eravat_secure_session', JSON.stringify(encrypted));
-            activePinRef.current = pin;
-            setHasSavedSession(true);
-            setIsLocked(false);
-            track('auth.pin_setup_completed');
-        } catch (err) {
-            logger.error('AuthContext', 'Failed to encrypt session with PIN', err);
-        }
-    };
-
-    const resetPIN = async () => {
-        localStorage.removeItem('eravat_secure_session');
-        activePinRef.current = null;
-        setHasSavedSession(false);
-        setIsLocked(false);
-        await signOut();
-    };
-
     const signOut = async () => {
         wasAuthenticated[0].current = false; // explicit sign-out, not expiry
         profileIssueLogged.current.clear();
         localStorage.removeItem('eravat_secure_session');
-        activePinRef.current = null;
-        setHasSavedSession(false);
-        setIsLocked(false);
+        localStorage.removeItem('eravat_bypass_pin_lock');
         clearCachedProfile();
         if (session?.user?.id) {
             await PushNotificationService.unregister(session.user.id);
@@ -534,19 +389,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             session,
             user: session?.user ?? null,
             profile,
-            loading: loading || isCheckingSecureSession,
+            loading,
             sessionExpired,
-            isLocked,
-            hasSavedSession,
             clearSessionExpired,
             signInWithPhoneOTP,
             verifyOTP,
             resendOTP,
             signOut,
             refreshProfile,
-            unlockWithPIN,
-            registerPIN,
-            resetPIN,
         }}>
             {children}
         </AuthContext.Provider>

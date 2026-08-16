@@ -218,6 +218,52 @@ describe('SyncService', () => {
       category: 'crop',
       description: 'Custom crop damage detail text',
       estimated_value: 5000,
+      affected_people: 1,
+    });
+  });
+
+  it('maps human injury/death to enum categories and people counts', async () => {
+    (db.reports.where as any).mockReturnValueOnce({
+      anyOf: vi.fn(() => ({
+        toArray: vi.fn().mockResolvedValue([{
+          id: 'report-uuid-4',
+          user_id: 'test-user-id',
+          beat_id: 'beat-uuid-1',
+          device_timestamp: new Date().toISOString(),
+          latitude: 21.5,
+          longitude: 80.5,
+          notes: null,
+          observation_type: 'loss',
+          male_count: 0,
+          female_count: 0,
+          calf_count: 0,
+          unknown_count: 0,
+          compass_bearing: null,
+          indirect_sign_details: [],
+          conflict_loss_details: ['human_injury'],
+          loss_type: ['human_injury'],
+          affected_people: 2,
+          sync_status: 'pending',
+        }]),
+      })),
+    });
+
+    (db.report_media.where as any).mockReturnValueOnce({
+      equals: vi.fn(() => ({
+        toArray: vi.fn().mockResolvedValue([]),
+      })),
+    });
+
+    await syncData();
+
+    const damagesPayload = mockUpsert.mock.calls
+      .map(([payload]) => payload)
+      .find((p) => Array.isArray(p) && p.length > 0 && p[0]?.report_id === 'report-uuid-4');
+
+    expect(damagesPayload[0]).toMatchObject({
+      report_id: 'report-uuid-4',
+      category: 'human_injury',
+      affected_people: 2,
     });
   });
 });

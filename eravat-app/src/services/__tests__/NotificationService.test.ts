@@ -8,23 +8,18 @@ const mockOrder    = vi.hoisted(() => vi.fn());
 const mockLimit    = vi.hoisted(() => vi.fn());
 const mockUpdate   = vi.hoisted(() => vi.fn());
 const mockEq       = vi.hoisted(() => vi.fn());
+const mockEqUser   = vi.hoisted(() => vi.fn());
 const mockChannel  = vi.hoisted(() => vi.fn());
 const mockOn       = vi.hoisted(() => vi.fn());
 const mockSubscribe = vi.hoisted(() => vi.fn());
+const mockGetUser  = vi.hoisted(() => vi.fn());
 
-// Chain: supabase.from(...).select(...).order(...).limit(...)
 mockLimit.mockResolvedValue({ data: [], error: null });
 mockOrder.mockReturnValue({ limit: mockLimit });
-mockSelect.mockReturnValue({ order: mockOrder });
-
-// Chain: supabase.from(...).update(...).eq(...)
+mockEqUser.mockReturnValue({ order: mockOrder });
+mockSelect.mockReturnValue({ eq: mockEqUser });
 mockEq.mockResolvedValue({ error: null });
 mockUpdate.mockReturnValue({ eq: mockEq });
-
-// Chain: supabase.channel(...).on(...).subscribe()
-mockSubscribe.mockReturnValue({ unsubscribe: vi.fn() });
-mockOn.mockReturnValue({ subscribe: mockSubscribe });
-mockChannel.mockReturnValue({ on: mockOn });
 
 vi.mock('../../supabase', () => ({
   supabase: {
@@ -33,6 +28,7 @@ vi.mock('../../supabase', () => ({
       update: mockUpdate,
     })),
     channel: mockChannel,
+    auth: { getUser: mockGetUser },
   },
 }));
 
@@ -44,7 +40,9 @@ describe('NotificationService', () => {
     // Re-apply default chained returns after clearAllMocks
     mockLimit.mockResolvedValue({ data: [], error: null });
     mockOrder.mockReturnValue({ limit: mockLimit });
-    mockSelect.mockReturnValue({ order: mockOrder });
+    mockEqUser.mockReturnValue({ order: mockOrder });
+    mockSelect.mockReturnValue({ eq: mockEqUser });
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-test' } } });
     mockEq.mockResolvedValue({ error: null });
     mockUpdate.mockReturnValue({ eq: mockEq });
     mockSubscribe.mockReturnValue({ unsubscribe: vi.fn() });
@@ -60,6 +58,7 @@ describe('NotificationService', () => {
     expect(result).toEqual([]);
     expect(supabase.from).toHaveBeenCalledWith('notifications');
     expect(mockSelect).toHaveBeenCalledWith('*');
+    expect(mockEqUser).toHaveBeenCalledWith('user_id', 'user-test');
     expect(mockOrder).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(mockLimit).toHaveBeenCalledWith(20);
   });

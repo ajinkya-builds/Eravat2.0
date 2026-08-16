@@ -1,3 +1,4 @@
+import './lib/legacyPolyfills'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { defineCustomElements } from '@ionic/pwa-elements/loader';

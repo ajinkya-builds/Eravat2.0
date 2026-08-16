@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ChevronsUpDown } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export type SearchableOption = { id: string; name: string };
 
@@ -20,6 +21,7 @@ export function SearchableSelect({
     placeholder?: string;
     required?: boolean;
 }) {
+    const { t } = useLanguage();
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(false);
 
@@ -87,7 +89,7 @@ export function SearchableSelect({
                             </button>
                         ))}
                         {filtered.length === 0 && (
-                            <p className="px-3 py-2 text-xs text-muted-foreground">No matches</p>
+                            <p className="px-3 py-2 text-xs text-muted-foreground">{t('search_no_matches')}</p>
                         )}
                     </div>
                 </div>

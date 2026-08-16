@@ -28,29 +28,14 @@ async function loginAndSave(
     await page.getByPlaceholder('Enter 6-digit code').fill('123456');
     await page.locator('button[type="submit"]').click();
 
-    // PIN Setup: type '1111' using keypad buttons
-    const keyOne = page.getByRole('button', { name: '1', exact: true });
-    await keyOne.waitFor({ state: 'visible', timeout: 10000 });
-    for (let i = 0; i < 4; i++) {
-        await keyOne.click();
-    }
-
-    // PIN Confirm: type '1111' using keypad buttons
-    await page.waitForTimeout(1000);
-    for (let i = 0; i < 4; i++) {
-        await keyOne.click();
-    }
-
     await page.waitForURL(
         (url) => !url.pathname.endsWith('/login'),
         { timeout: 60_000 },
     );
 
-    // Bypass pin lock for tests
     await page.evaluate(() => {
         localStorage.setItem('eravat-language', 'en');
         localStorage.setItem('eravat-theme', 'light');
-        localStorage.setItem('eravat_bypass_pin_lock', 'true');
     });
 
     await page.context().storageState({ path: savePath });

@@ -173,8 +173,6 @@ const hiTranslation = {
         title: 'गोपनीयता और सुरक्षा',
         security: 'खाता सुरक्षा',
         changePassword: 'पासवर्ड बदलें',
-        biometric: 'बायोमेट्रिक अनलॉक',
-        biometricDesc: 'फेसआईडी या फ़िंगरप्रिंट का उपयोग करें',
         deviceData: 'उपकरण और डेटा',
         activeSessions: 'सक्रिय सत्र',
         shareAnalytics: 'एनालिटिक्स साझा करें',
@@ -328,8 +326,6 @@ const hiTranslation = {
             sessionSecurity: 'सत्र सुरक्षा',
             forceReauth: 'पुन: प्रमाणीकरण लागू करें',
             forceReauthDesc: 'गश्त दल को हर 24 घंटे में फिर से लॉगिन करने को कहें',
-            twoFactor: 'टू-फैक्टर ऑथ (व्यवस्थापक)',
-            twoFactorDesc: 'सभी डैशबोर्ड उपयोगकर्ताओं के लिए 2FA लागू करें',
             saveChanges: 'परिवर्तन सहेजें'
         }
     }
@@ -501,8 +497,6 @@ const enTranslation = {
         title: 'Privacy & Security',
         security: 'Account Security',
         changePassword: 'Change Password',
-        biometric: 'Biometric Unlock',
-        biometricDesc: 'Use FaceID or Fingerprint',
         deviceData: 'Device & Data',
         activeSessions: 'Active Sessions',
         shareAnalytics: 'Share Analytics',
@@ -638,8 +632,6 @@ const enTranslation = {
             sessionSecurity: 'Session Security',
             forceReauth: 'Force Re-authentication',
             forceReauthDesc: 'Require patrols to re-login every 24 hours',
-            twoFactor: 'Two-Factor Auth (Admins)',
-            twoFactorDesc: 'Enforce 2FA for all dashboard users',
             saveChanges: 'Save Changes'
         }
     }

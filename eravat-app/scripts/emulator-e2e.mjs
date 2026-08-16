@@ -115,7 +115,7 @@ async function uiContains(...needles) {
   return needles.every((n) => lower.includes(n.toLowerCase()));
 }
 
-async function loginWithOtp(phone, pin) {
+async function loginWithOtp(phone) {
   launchApp();
   await screenshot('login-start');
   // Phone entry - WebView content may not expose EditText; tap center input area
@@ -138,18 +138,6 @@ async function loginWithOtp(phone, pin) {
   // Verify - tap continue
   await tap(540, 1200);
   sleep(2500);
-  // PIN setup x2
-  for (const step of ['pin-setup', 'pin-confirm']) {
-    await screenshot(step);
-    // PIN pad - type via keyboard events: 1,2,3,4
-    for (const d of pin) {
-      const code = 7 + Number(d); // KEYCODE_0 is 7
-      key(code);
-      sleep(200);
-    }
-    sleep(1500);
-  }
-  sleep(2000);
   await screenshot('post-login');
 }
 
@@ -176,8 +164,8 @@ await test('App launches to login', async () => {
   }
 });
 
-await test('Beat guard OTP login + PIN', async () => {
-  await loginWithOtp(USERS.beat_guard.phone, USERS.beat_guard.pin);
+await test('Beat guard OTP login', async () => {
+  await loginWithOtp(USERS.beat_guard.phone);
   const ok = await uiContains('report', 'dashboard') || await uiContains('activity', 'home');
   if (!ok) {
     // May show complete location - check for map/dashboard markers
@@ -189,11 +177,6 @@ await test('Beat guard OTP login + PIN', async () => {
 await test('Dashboard visible', async () => {
   launchApp();
   sleep(1500);
-  // If locked, enter PIN
-  if (await uiContains('unlock', 'pin')) {
-    for (const d of USERS.beat_guard.pin) key(7 + Number(d));
-    sleep(1500);
-  }
   await screenshot('dashboard');
   const ok = await uiContains('report') || await uiContains('activity') || await uiContains('history');
   if (!ok) throw new Error('Dashboard content missing');
@@ -215,10 +198,6 @@ await test('Navigate to Report Activity', async () => {
 await test('Map page loads', async () => {
   launchApp();
   sleep(1000);
-  if (await uiContains('unlock', 'pin')) {
-    for (const d of USERS.beat_guard.pin) key(7 + Number(d));
-    sleep(1200);
-  }
   try {
     await tapText('Map', true);
   } catch {
@@ -231,10 +210,6 @@ await test('Map page loads', async () => {
 await test('Profile page', async () => {
   launchApp();
   sleep(1000);
-  if (await uiContains('unlock', 'pin')) {
-    for (const d of USERS.beat_guard.pin) key(7 + Number(d));
-    sleep(1200);
-  }
   try {
     await tapText('Profile', true);
   } catch {
@@ -257,10 +232,6 @@ await test('Settings theme/language', async () => {
 await test('Offline report + reconnect sync', async () => {
   launchApp();
   sleep(1000);
-  if (await uiContains('unlock', 'pin')) {
-    for (const d of USERS.beat_guard.pin) key(7 + Number(d));
-    sleep(1200);
-  }
   adb('shell', 'cmd', 'connectivity', 'airplane-mode', 'enable');
   sleep(1500);
   try {
@@ -275,17 +246,15 @@ await test('Offline report + reconnect sync', async () => {
   await screenshot('online-after-offline');
 });
 
-await test('PIN lock after cold start', async () => {
+await test('Session restored after cold start', async () => {
   adb('shell', 'am', 'force-stop', PKG);
   sleep(500);
   launchApp();
   sleep(2000);
   await screenshot('cold-start');
   const locked = await uiContains('pin') || await uiContains('unlock');
-  if (!locked) throw new Error('Expected PIN lock screen after cold start');
-  for (const d of USERS.beat_guard.pin) key(7 + Number(d));
-  sleep(2000);
-  await screenshot('after-unlock');
+  if (locked) throw new Error('PIN lock still shown after cold start');
+  await screenshot('after-restore');
 });
 
 await test('Beat guard blocked from admin', async () => {
@@ -299,17 +268,13 @@ await test('Beat guard blocked from admin', async () => {
 await test('Admin OTP login', async () => {
   adb('shell', 'pm', 'clear', PKG);
   sleep(1000);
-  await loginWithOtp(USERS.admin.phone, USERS.admin.pin);
+  await loginWithOtp(USERS.admin.phone);
   await screenshot('admin-dashboard');
 });
 
 await test('Admin users page', async () => {
   launchApp();
   sleep(1500);
-  if (await uiContains('pin')) {
-    for (const d of USERS.admin.pin) key(7 + Number(d));
-    sleep(1200);
-  }
   adb('shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', 'https://localhost/admin/users', PKG);
   sleep(3000);
   await screenshot('admin-users');

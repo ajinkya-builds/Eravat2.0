@@ -1,4 +1,4 @@
-import { test as setup, expect } from '@playwright/test';
+import { test as setup } from '@playwright/test';
 import { ADMIN, FIELD_STAFF, appPath } from './fixtures/test-constants';
 import { waitForAuthenticated } from './fixtures/auth.fixture';
 
@@ -31,25 +31,11 @@ async function loginAndSave(
     await page.getByPlaceholder('Enter 6-digit code').fill('123456');
     await page.locator('button[type="submit"]').click();
 
-    // PIN Setup: type '1111' using keypad buttons
-    const keyOne = page.getByRole('button', { name: '1', exact: true });
-    await expect(keyOne).toBeVisible({ timeout: 10000 });
-    for (let i = 0; i < 4; i++) {
-        await keyOne.click();
-    }
-
-    // PIN Confirm: type '1111' using keypad buttons
-    await expect(page.getByText('Confirm Security PIN')).toBeVisible({ timeout: 10000 });
-    for (let i = 0; i < 4; i++) {
-        await keyOne.click();
-    }
-
     await waitForAuthenticated(page);
 
     await page.evaluate(() => {
         localStorage.setItem('eravat-language', 'en');
         localStorage.setItem('eravat-theme', 'light');
-        localStorage.setItem('eravat_bypass_pin_lock', 'true');
         document.documentElement.classList.remove('dark');
     });
     await page.context().storageState({ path });

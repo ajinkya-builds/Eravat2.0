@@ -11,6 +11,7 @@ import { useGeolocation } from '../../hooks/useGeolocation';
 import { track } from '../../lib/analytics';
 import { formatLatLngDms } from '../../lib/geoFormat';
 import { lookupGeoFromPoint, type GeoMatch } from '../../lib/geoLookup';
+import { newUuid } from '../../lib/uuid';
 
 export function QuickSOSButton() {
     const { profile } = useAuth();
@@ -71,19 +72,19 @@ export function QuickSOSButton() {
                 errorHint: 'Check GPS permissions',
             },
             hi: {
-                buttonLabel: 'त्वरित संकट (SOS)',
+                buttonLabel: 'आपातकालीन साइटिंग',
                 locating: 'स्थान खोज रहे हैं...',
                 saving: 'रिपोर्ट कर रहे हैं...',
                 success: 'संकट दर्ज! सिंक हो रहा है...',
                 error: 'संकट विफल। पुनः प्रयास करें।',
                 permissionDenied: 'स्थान अनुमति अस्वीकृत।',
                 confirmTitle: 'संकट सूचना की पुष्टि करें',
-                confirmDesc: 'भेजने से पहले नीचे डिवीज़न, रेंज, बीट और GPS जाँचें। स्थान संपादित नहीं किया जा सकता।',
+                confirmDesc: 'भेजने से पहले नीचे वन मंडल, परिक्षेत्र, बीट और GPS जाँचें। स्थान संपादित नहीं किया जा सकता।',
                 latitude: 'अक्षांश',
                 longitude: 'देशांतर',
                 dms: 'GPS (DMS)',
-                division: 'डिवीज़न',
-                range: 'रेंज',
+                division: 'वन मंडल',
+                range: 'परिक्षेत्र',
                 beat: 'बीट',
                 confirm: 'SOS भेजें',
                 cancel: 'रद्द करें',
@@ -95,19 +96,19 @@ export function QuickSOSButton() {
                 errorHint: 'GPS अनुमति जाँचें',
             },
             mr: {
-                buttonLabel: 'त्वरित संकट (SOS)',
+                buttonLabel: 'आपातकालीन साइटिंग',
                 locating: 'स्थान शोधत आहे...',
                 saving: 'नोंदवत आहे...',
                 success: 'संकट नोंदवले! सिंक होत आहे...',
                 error: 'संकट नोंदणी अपयशी.',
                 permissionDenied: 'स्थान परवानगी नाकारली.',
                 confirmTitle: 'संकट सूचना निश्चित करा',
-                confirmDesc: 'पाठवण्यापूर्वी खालील डिव्हिजन, रेंज, बीट आणि GPS तपासा. स्थान संपादित करता येत नाही.',
+                confirmDesc: 'पाठवण्यापूर्वी खालील वनविभाग, परिक्षेत्र, बीट आणि GPS तपासा. स्थान संपादित करता येत नाही.',
                 latitude: 'अक्षांश',
                 longitude: 'रेखांश',
                 dms: 'GPS (DMS)',
-                division: 'डिव्हिजन',
-                range: 'रेंज',
+                division: 'वनविभाग',
+                range: 'परिक्षेत्र',
                 beat: 'बीट',
                 confirm: 'SOS पाठवा',
                 cancel: 'रद्द करा',
@@ -174,7 +175,7 @@ export function QuickSOSButton() {
 
         setStatus('saving');
         try {
-            const reportId = crypto.randomUUID();
+            const reportId = newUuid();
             const now = new Date().toISOString();
 
             await db.reports.add({
@@ -202,7 +203,7 @@ export function QuickSOSButton() {
                 device_timestamp: now,
                 sync_status: 'pending',
                 status: 'submitted',
-                obs_id: crypto.randomUUID(),
+                obs_id: newUuid(),
             });
 
             track('sos_sighting_submitted');

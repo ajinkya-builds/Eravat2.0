@@ -17,7 +17,7 @@ export function useGeolocation() {
                 if (permissions.location !== 'granted') {
                     const req = await Geolocation.requestPermissions();
                     if (req.location !== 'granted') {
-                        throw new Error('Location permission denied');
+                        throw new Error('LOCATION_PERMISSION_DENIED');
                     }
                 }
                 const coordinates = await Geolocation.getCurrentPosition({
@@ -30,7 +30,7 @@ export function useGeolocation() {
             } else {
                 // Web browser — use the native browser Geolocation API
                 if (!navigator.geolocation) {
-                    throw new Error('Geolocation is not supported by this browser');
+                    throw new Error('LOCATION_UNSUPPORTED');
                 }
                 const coordinates = await new Promise<GeolocationPosition>((resolve, reject) => {
                     navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -58,15 +58,15 @@ export function useGeolocation() {
         } catch (err: unknown) {
             if (err instanceof GeolocationPositionError) {
                 const messages: Record<number, string> = {
-                    [GeolocationPositionError.PERMISSION_DENIED]: 'Location permission denied',
-                    [GeolocationPositionError.POSITION_UNAVAILABLE]: 'Location unavailable',
-                    [GeolocationPositionError.TIMEOUT]: 'Location request timed out',
+                    [GeolocationPositionError.PERMISSION_DENIED]: 'LOCATION_PERMISSION_DENIED',
+                    [GeolocationPositionError.POSITION_UNAVAILABLE]: 'LOCATION_UNAVAILABLE',
+                    [GeolocationPositionError.TIMEOUT]: 'LOCATION_TIMEOUT',
                 };
-                setError(messages[err.code] ?? 'Failed to fetch location');
+                setError(messages[err.code] ?? 'LOCATION_FAILED');
             } else if (err instanceof Error) {
-                setError(err.message || 'Failed to fetch location');
+                setError(err.message || 'LOCATION_FAILED');
             } else {
-                setError('Failed to fetch location');
+                setError('LOCATION_FAILED');
             }
             return null;
         } finally {

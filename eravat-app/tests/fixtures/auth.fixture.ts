@@ -24,10 +24,6 @@ async function isLoginScreen(page: Page): Promise<boolean> {
     return page.getByText(LOGIN_SUBTITLE).isVisible().catch(() => false);
 }
 
-async function isPINLockScreen(page: Page): Promise<boolean> {
-    return page.getByText('Enter Security PIN').isVisible().catch(() => false);
-}
-
 /** Wait until the login screen is gone and the app shell has loaded. */
 export async function waitForAuthenticated(page: Page) {
     if (page.url().includes('/login')) {
@@ -37,10 +33,9 @@ export async function waitForAuthenticated(page: Page) {
         );
     }
     await expect(page.getByText(LOGIN_SUBTITLE)).toHaveCount(0, { timeout: 30_000 });
-    await expect(page.getByText('Enter Security PIN')).toHaveCount(0, { timeout: 30_000 });
     await waitForAppReady(page);
-    if (await isLoginScreen(page) || await isPINLockScreen(page)) {
-        throw new Error('Still on login or PIN lock screen after waitForAuthenticated');
+    if (await isLoginScreen(page)) {
+        throw new Error('Still on login screen after waitForAuthenticated');
     }
 }
 
@@ -59,7 +54,7 @@ export async function ensureOnPage(
     };
 
     await navigate();
-    if (await isLoginScreen(page) || await isPINLockScreen(page)) {
+    if (await isLoginScreen(page)) {
         await loginAs(page, credentials);
         await navigate();
     }
@@ -86,7 +81,7 @@ export async function ensureOnPage(
         }
     }
 
-    if (await isLoginScreen(page) || await isPINLockScreen(page)) {
+    if (await isLoginScreen(page)) {
         await loginAs(page, credentials);
         await navigate();
         await waitForAuthenticated(page);
@@ -123,22 +118,7 @@ export async function loginAs(
     await page.getByPlaceholder('Enter 6-digit code').fill('123456');
     await page.locator('button[type="submit"]').click();
 
-    const keyOne = page.getByRole('button', { name: '1', exact: true });
-    await expect(keyOne).toBeVisible({ timeout: 10000 });
-    for (let i = 0; i < 4; i++) {
-        await keyOne.click();
-    }
-
-    await expect(page.getByText('Confirm Security PIN')).toBeVisible({ timeout: 10000 });
-    for (let i = 0; i < 4; i++) {
-        await keyOne.click();
-    }
-
     await waitForAuthenticated(page);
-
-    await page.evaluate(() => {
-        localStorage.setItem('eravat_bypass_pin_lock', 'true');
-    });
 }
 
 type AuthFixtures = {

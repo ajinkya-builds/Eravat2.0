@@ -11,6 +11,8 @@ const LOSS_CATEGORIES: { value: LossType; label: string }[] = [
     { value: 'livestock', label: 'lt_livestock' },
     { value: 'fencing', label: 'lt_fencing' },
     { value: 'naka_chaouki', label: 'lt_naka' },
+    { value: 'human_injury', label: 'lt_human_injury' },
+    { value: 'human_death', label: 'lt_human_death' },
     { value: 'Other', label: 'lt_other' },
 ];
 
@@ -27,6 +29,9 @@ export function DamageStep() {
     };
 
     const otherSelected = formData.loss_type.includes('Other');
+    const peopleLoss = formData.loss_type.some(
+        (c) => c === 'human_injury' || c === 'human_death',
+    );
 
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
@@ -76,6 +81,25 @@ export function DamageStep() {
                     className="w-full px-4 py-3 rounded-2xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm transition-all"
                 />
             </div>
+
+            {peopleLoss && (
+                <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {t('ds_people_count')} <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                        type="number"
+                        min={1}
+                        inputMode="numeric"
+                        value={formData.affected_people || 1}
+                        onChange={(e) => {
+                            const n = parseInt(e.target.value, 10);
+                            updateFormData({ affected_people: Number.isFinite(n) && n >= 0 ? n : 1 });
+                        }}
+                        className="w-full px-4 py-3 rounded-2xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm transition-all font-medium"
+                    />
+                </div>
+            )}
 
             <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

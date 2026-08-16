@@ -40,7 +40,7 @@ export default function AdminNotifications() {
                 .gte('created_at', `${startDate}T00:00:00`)
                 .lte('created_at', `${endDate}T23:59:59`)
                 .order('created_at', { ascending: false })
-                .limit(500);
+                .limit(200);
             if (error) throw error;
             setRows((data as unknown as NotificationRow[]) ?? []);
         } finally {

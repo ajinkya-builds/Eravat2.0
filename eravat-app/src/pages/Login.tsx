@@ -13,7 +13,7 @@ type OTPStep = 'phone_entry' | 'otp_verification';
 
 export default function Login() {
     const navigate = useNavigate();
-    const { signInWithPhoneOTP, verifyOTP, resendOTP } = useAuth();
+    const { signInWithPhoneOTP, verifyOTP, resendOTP, session, loading } = useAuth();
     const { t } = useLanguage();
 
     // ── OTP State ─────────────────────────────────────────────────────────────
@@ -29,7 +29,12 @@ export default function Login() {
         track('auth.login_opened');
     }, []);
 
-    // ── OTP Resend Countdown Timer ────────────────────────────────────────────
+    useEffect(() => {
+        if (!loading && session) {
+            navigate('/', { replace: true });
+        }
+    }, [loading, session, navigate]);
+
     useEffect(() => {
         if (otpResendCountdown <= 0) {
             if (otpResendRef.current) clearInterval(otpResendRef.current);
@@ -46,6 +51,14 @@ export default function Login() {
         }, 1000);
         return () => { if (otpResendRef.current) clearInterval(otpResendRef.current); };
     }, [otpResendCountdown]);
+
+    if (loading || session) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-background">
+                <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+            </div>
+        );
+    }
 
     // ══════════════════════════════════════════════════════════════════════════
     // OTP LOGIN HANDLERS
@@ -68,8 +81,12 @@ export default function Login() {
         if (error) {
             if (message === 'rate_limit') {
                 setOtpError(t('otp.tooManyRequests'));
+            } else if (message === 'user_not_found') {
+                setOtpError(t('otp.notRegistered'));
+            } else if (message === 'send_failed') {
+                setOtpError(t('otp.sendFailed'));
             } else {
-                setOtpError(error.message);
+                setOtpError(t('otp.unexpected'));
             }
             setOtpLoading(false);
         } else {
@@ -94,7 +111,7 @@ export default function Login() {
         const { error } = await verifyOTP(otpPhone.trim(), otpCode);
 
         if (error) {
-            setOtpError(error.message);
+            setOtpError(t('otp.invalidCode'));
             setOtpLoading(false);
         } else {
             // Success — session persists natively; go straight into the app.
@@ -112,7 +129,7 @@ export default function Login() {
         const { error } = await resendOTP(otpPhone.trim());
 
         if (error) {
-            setOtpError(error.message);
+            setOtpError(t('otp.sendFailed'));
             setOtpLoading(false);
         } else {
             setOtpResendCountdown(OTP_RESEND_COOLDOWN_SEC);
@@ -158,7 +175,7 @@ export default function Login() {
                                 className="text-center"
                             >
                                 <h2 className="text-lg font-bold tracking-tight text-foreground">{t('wild_elephant_monitoring')}</h2>
-                                <p className="text-muted-foreground mt-1 text-xs font-medium">जंगली हाथी निगरानी प्रणाली (2025)</p>
+                                <p className="text-muted-foreground mt-1 text-xs font-medium">{t('app_tagline_year')}</p>
                             </motion.div>
                         </div>
 

@@ -219,7 +219,11 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const [showHeatmap, setShowHeatmap] = useState(false);
 
     // Date range filter (empty = all time)
-    const [startDate, setStartDate] = useState('');
+    const [startDate, setStartDate] = useState(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        return d.toISOString().slice(0, 10);
+    });
     const [endDate, setEndDate] = useState('');
 
     // Base layer, fullscreen, user location + radius
@@ -342,7 +346,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                         beatId: rep.beat_id ?? beat?.id ?? null,
                         rangeId: beat?.range_id ?? range?.id ?? null,
                         divisionId: range?.division_id ?? null,
-                        beatName: beat?.name ?? 'Field',
+                        beatName: beat?.name ?? t('map.fieldBeat'),
                         maleCount: obs?.male_count ?? 0,
                         femaleCount: obs?.female_count ?? 0,
                         calfCount: obs?.calf_count ?? 0,
@@ -657,11 +661,10 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
         return p.type === pinFilter;
     });
 
-    const countSource = pinFilter === 'all' ? timedPins : visiblePins;
     const typeCounts = {
-        direct: countSource.filter((p) => p.type === 'direct').length,
-        indirect: countSource.filter((p) => p.type === 'indirect').length,
-        loss: countSource.filter((p) => p.hasDamage || p.type === 'loss').length,
+        direct: visiblePins.filter((p) => p.type === 'direct').length,
+        indirect: visiblePins.filter((p) => p.type === 'indirect').length,
+        loss: visiblePins.filter((p) => p.hasDamage || p.type === 'loss').length,
     };
 
     const legacyPoints = reportPoints ?? [];
@@ -837,7 +840,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     {t('map.legendLoss')} ({typeCounts.loss})
                 </span>
                 <span className="text-muted-foreground/80">
-                    {t('map.total')} {timedPins.length}
+                    {t('map.total')} {visiblePins.length}
                     {selectedBeat ? ` ${t('map.inBeat')}` : selectedRange ? ` ${t('map.inRange')}` : selectedDivision ? ` ${t('map.inDivision')}` : ''}
                 </span>
                 {loadingPins && (
@@ -1008,7 +1011,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                                                 ))}
                                             </div>
                                         )}
-                                        {pin.type === 'loss' && pin.conflictLossDetails && pin.conflictLossDetails.length > 0 && (
+                                        {pin.hasDamage && pin.conflictLossDetails && pin.conflictLossDetails.length > 0 && (
                                             <div className="flex flex-wrap gap-1 mt-1">
                                                 {pin.conflictLossDetails.map(s => (
                                                     <span key={s} className="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[10px] font-medium">{s}</span>

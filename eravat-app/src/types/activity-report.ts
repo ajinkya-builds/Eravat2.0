@@ -10,6 +10,8 @@ export type LossType =
     | 'livestock'
     | 'fencing'
     | 'naka_chaouki'
+    | 'human_injury'
+    | 'human_death'
     | 'solar panels'
     | 'FD establishment'
     | 'Other';

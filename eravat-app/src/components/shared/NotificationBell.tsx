@@ -106,6 +106,8 @@ export function NotificationBell() {
     return (
         <div className="relative z-50" ref={dropdownRef}>
             <button
+                type="button"
+                aria-label="Notifications"
                 onClick={() => setIsOpen(!isOpen)}
                 className="relative p-2 rounded-full hover:bg-muted/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20"
             >

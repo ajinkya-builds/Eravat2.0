@@ -37,11 +37,19 @@ if (import.meta.env.DEV && disableAutoRefresh) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    // Persist the session natively (localStorage) so the app reopens without a
-    // security PIN and remains usable offline. The PIN gate was removed because
-    // field staff found it a hurdle and it blocked offline access.
+    // Persist the session so OTP login lasts until the user explicitly signs out.
     persistSession: true,
     autoRefreshToken: !disableAutoRefresh,
     detectSessionInUrl: true,
+  },
+  global: {
+    fetch: (input, init = {}) => {
+      const headers = new Headers(init.headers);
+      const prefer = headers.get('Prefer') ?? '';
+      if (!/count=/.test(prefer)) {
+        headers.set('Prefer', prefer ? `${prefer},count=none` : 'count=none');
+      }
+      return fetch(input, { ...init, headers });
+    },
   },
 });

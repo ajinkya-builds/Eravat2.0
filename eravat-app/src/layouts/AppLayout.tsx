@@ -16,7 +16,7 @@ import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
 export function AppLayout() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
     const { sessionExpired, clearSessionExpired } = useAuth();
     const [isOnline, setIsOnline] = useState(true);
     const { fetchLocation } = useGeolocation();
@@ -55,16 +55,7 @@ export function AppLayout() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const getStatusLabel = () => {
-        const labels: Record<string, { online: string; offline: string }> = {
-            en: { online: 'Online', offline: 'Offline (Local Save)' },
-            hi: { online: 'ऑनलाइन', offline: 'ऑफलाइन (स्थानीय)' },
-            mr: { online: 'ऑनलाइन', offline: 'ऑफलाईन (स्थानिक)' }
-        };
-        const lang = (language || 'en').split('-')[0];
-        const dict = labels[lang] || labels.en;
-        return isOnline ? dict.online : dict.offline;
-    };
+    const getStatusLabel = () => (isOnline ? t('status_online') : t('status_offline'));
 
     const NAV_ITEMS = [
         { id: 'dashboard', path: '/', icon: Home, label: 'nav.dashboard' },
@@ -99,17 +90,17 @@ export function AppLayout() {
                     >
                         <div className="flex items-center gap-2">
                             <AlertTriangle size={16} className="shrink-0" />
-                            <span className="font-medium">Your session has expired. Please sign in again.</span>
+                            <span className="font-medium">{t('session_expired')}</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                             <button
                                 onClick={() => { clearSessionExpired(); navigate('/login'); }}
                                 className="px-3 py-1 rounded-lg bg-white/20 hover:bg-white/30 font-semibold text-xs transition-colors"
                             >
-                                Sign In
+                                {t('sign_in')}
                             </button>
                             <button onClick={clearSessionExpired} className="p-1 rounded-lg hover:bg-white/20">
-                                <span className="sr-only">Dismiss</span>✕
+                                <span className="sr-only">{t('dismiss')}</span>✕
                             </button>
                         </div>
                     </motion.div>

@@ -20,6 +20,7 @@ import { syncData } from '../../services/syncService';
 import { stampPhotoWithMeta } from '../../lib/stampPhoto';
 import { track } from '../../lib/analytics';
 import { logger } from '../../lib/logger';
+import { newUuid } from '../../lib/uuid';
 
 function StepperContent() {
     const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm, activeSteps, updateFormData, elephantTotal } = useActivityForm();
@@ -104,7 +105,7 @@ function StepperContent() {
     const handleSubmit = async () => {
         if (isSubmitting) return;
         if (!profile?.id) {
-            setSubmitError('Your profile is not loaded. Please wait and try again.');
+            setSubmitError(t('report.profileNotLoaded'));
             return;
         }
         if (!isStepValid('review') || !formData.photo_url || formData.compass_bearing == null) {
@@ -114,7 +115,7 @@ function StepperContent() {
         setIsSubmitting(true);
         setSubmitError(null);
         try {
-            const reportId = crypto.randomUUID();
+            const reportId = newUuid();
             const notes = formData.description?.trim() || formData.notes || null;
             const hasMedia = Boolean(formData.photo_url);
             track('report.save_started', { has_media: hasMedia, online: isOnline, report_type: formData.observation_type ?? 'unknown' });
@@ -132,7 +133,7 @@ function StepperContent() {
                 damage_description: formData.damage_description,
                 damage_value: formData.damage_value,
                 report_damage_manually: formData.report_damage_manually,
-                obs_id: crypto.randomUUID(),
+                obs_id: newUuid(),
                 male_count: formData.male_count || 0,
                 female_count: formData.female_count || 0,
                 calf_count: formData.calf_count || 0,
@@ -141,6 +142,7 @@ function StepperContent() {
                 indirect_sign_details: formData.indirect_sign_details || [],
                 conflict_loss_details: formData.conflict_loss_details || [],
                 loss_type: formData.loss_type || [],
+                affected_people: formData.affected_people || 1,
                 division_id: formData.division_id || profile.division_id || null,
                 range_id: formData.range_id || profile.range_id || null,
                 beat_id: formData.beat_id || profile.beat_id || null,
@@ -157,7 +159,7 @@ function StepperContent() {
                     const base64Data = match[2];
                     try {
                         await db.report_media.add({
-                            id: crypto.randomUUID(),
+                            id: newUuid(),
                             report_id: reportId,
                             mime_type: mimeType,
                             file_data: base64Data,
@@ -198,7 +200,7 @@ function StepperContent() {
         } catch (err) {
             logger.error('ReportStepper', 'Failed to save report', err, { online: isOnline });
             track('report.save_failed', { error_code: 'save_exception', online: isOnline });
-            setSubmitError(err instanceof Error ? err.message : 'Failed to save report. Please try again.');
+            setSubmitError(err instanceof Error ? err.message : t('report.saveFailed'));
         } finally {
             setIsSubmitting(false);
         }

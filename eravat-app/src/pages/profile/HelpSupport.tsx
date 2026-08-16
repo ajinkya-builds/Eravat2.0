@@ -98,7 +98,7 @@ export default function HelpSupport() {
                                 </div>
                                 <div>
                                     <span className="font-medium">{t('help.userManual')}</span>
-                                    <div className="text-xs text-muted-foreground mt-0.5">View on GitHub</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">{t('help.viewGithub')}</div>
                                 </div>
                             </div>
                             <ExternalLink size={16} className="text-muted-foreground" />
@@ -119,7 +119,7 @@ export default function HelpSupport() {
                                 <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
                                     <AlertCircle size={18} />
                                 </div>
-                                <span className="font-medium">Privacy Policy</span>
+                                <span className="font-medium">{t('help.privacyPolicy')}</span>
                             </div>
                             <ExternalLink size={16} className="text-muted-foreground" />
                         </button>

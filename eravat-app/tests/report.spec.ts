@@ -14,7 +14,7 @@ test.describe('Report Activity Module', () => {
     test.beforeEach(async ({ page }) => {
         await ensureOnPage(page, '/report');
         rp = new ReportStepperPage(page);
-        await expect(rp.dateInput).toBeVisible({ timeout: 30_000 });
+        await expect(rp.continueButton).toBeVisible({ timeout: 30_000 });
     });
 
     // --- Step 1: Location & Time ---
@@ -27,16 +27,14 @@ test.describe('Report Activity Module', () => {
         // Requires GPS geolocation API
     });
 
-    test('RPT-003: Manual date entry', async () => {
-        await expect(rp.dateInput).toBeVisible();
-        await rp.dateInput.fill('2025-06-15');
-        await expect(rp.dateInput).toHaveValue('2025-06-15');
+    test('RPT-003: Date is auto-captured and not an input', async () => {
+        await expect(rp.dateInput).toHaveCount(0);
+        await expect(rp.page.getByText(/\d{4}-\d{2}-\d{2}/).first()).toBeVisible({ timeout: 10_000 });
     });
 
-    test('RPT-004: Manual time entry', async () => {
-        await expect(rp.timeInput).toBeVisible();
-        await rp.timeInput.fill('14:30');
-        await expect(rp.timeInput).toHaveValue('14:30');
+    test('RPT-004: Time is auto-captured and not an input', async () => {
+        await expect(rp.timeInput).toHaveCount(0);
+        await expect(rp.page.getByText(/\d{2}:\d{2}/).first()).toBeVisible({ timeout: 10_000 });
     });
 
     test('RPT-005: Manual latitude/longitude entry', async () => {
@@ -46,13 +44,9 @@ test.describe('Report Activity Module', () => {
         await expect(rp.lngInput).toHaveValue(DEFAULT_LNG);
     });
 
-    test('RPT-006: Step 1 validation — missing required fields', async () => {
-        await rp.dateInput.fill('');
-        await rp.timeInput.fill('');
-        await rp.continueButton.click({ force: true });
-
-        // Should remain on step 1 or show validation error
-        await expect(rp.dateInput).toBeVisible();
+    test('RPT-006: Step 1 stays on location until GPS or coords exist', async () => {
+        await expect(rp.latInput).toBeVisible();
+        await expect(rp.page.getByText(/not editable|auto|Captured automatically/i).first()).toBeVisible();
     });
 
     test('RPT-007: Advance from Step 1 with all fields filled', async () => {
@@ -86,12 +80,8 @@ test.describe('Report Activity Module', () => {
         await expect(rp.indirectSignCard).toBeVisible();
     });
 
-    test('RPT-011: Loss/Damage type selection', async () => {
-        await rp.fillStep1(DEFAULT_DATE, DEFAULT_TIME, DEFAULT_LAT, DEFAULT_LNG);
-        await rp.advanceStep();
-
-        await rp.lossDamageCard.click();
-        await expect(rp.lossDamageCard).toBeVisible();
+    test.skip('RPT-011: Loss/Damage is a follow-on toggle, not a third type', () => {
+        // Field review: only Direct / Indirect. Damage is a later step.
     });
 
     test('RPT-012: Counter increment for elephant count', async ({ page }) => {

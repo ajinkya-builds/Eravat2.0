@@ -43,6 +43,7 @@ export interface ActivityFormData {
     damage_description: string;
     damage_value: number | null;
     report_damage_manually: boolean;
+    affected_people: number;
 }
 
 interface ActivityFormContextValue {
@@ -83,6 +84,7 @@ const DEFAULT_FORM: ActivityFormData = {
     damage_description: '',
     damage_value: null,
     report_damage_manually: false,
+    affected_people: 1,
 };
 
 function countTotal(data: ActivityFormData): number {
@@ -141,6 +143,10 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
             case 'damage': {
                 if (formData.loss_type.length === 0) return false;
                 if (formData.loss_type.includes('Other') && !formData.damage_description.trim()) return false;
+                const peopleLoss = formData.loss_type.some(
+                    (c) => c === 'human_injury' || c === 'human_death',
+                );
+                if (peopleLoss && (!formData.affected_people || formData.affected_people < 1)) return false;
                 return true;
             }
             case 'compassBearing':

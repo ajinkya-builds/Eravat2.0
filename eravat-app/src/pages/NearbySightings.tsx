@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, LocateFixed, Loader2, MapPin, Eye, Footprints, AlertTriangle, Navigation, Share2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, LocateFixed, Loader2, MapPin, Eye, Footprints, AlertTriangle, Navigation, Share2, ChevronDown, Download } from 'lucide-react';
 import { Buffer } from 'buffer';
 import wkx from 'wkx';
 import * as turf from '@turf/turf';
@@ -11,7 +11,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { formatDistanceToNow } from 'date-fns';
 import { trackClick, trackFailed, trackFilter } from '../lib/analytics';
 import { RadiusSlider } from '../components/shared/RadiusSlider';
-import { shareOrCopy, buildSightingShareText } from '../lib/reportShare';
+import { shareOrCopy, buildSightingShareText, downloadTextFile, mapsLink } from '../lib/reportShare';
 import { formatLatLngDms } from '../lib/geoFormat';
 
 type NearbyItem = {
@@ -90,7 +90,7 @@ export default function NearbySightings() {
             const { data: rpcRows, error: rpcError } = await supabase.rpc('reports_nearby', {
                 p_lng: loc.lng,
                 p_lat: loc.lat,
-                p_radius_m: radius * 1000,
+                p_radius_m: Math.max(radius, 1) * 1000,
                 p_limit: 50,
             });
 
@@ -156,12 +156,11 @@ export default function NearbySightings() {
                     id, location, device_timestamp, notes,
                     geo_beats ( name, geo_ranges ( name, geo_divisions ( name ) ) ),
                     observations ( type, male_count, female_count, calf_count, unknown_count, compass_bearing, indirect_sign_details, conflict_loss_details ),
-                    conflict_damages ( category, description ),
-                    report_media ( storage_path )
+                    conflict_damages ( category, description )
                 `)
                 .not('location', 'is', null)
                 .order('device_timestamp', { ascending: false })
-                .limit(100);
+                .limit(80);
             if (error) throw error;
 
             const rows: NearbyItem[] = [];
@@ -191,7 +190,7 @@ export default function NearbySightings() {
                     indirectSigns: obs?.indirect_sign_details || [],
                     damage: damages.join(', ') || (obs?.conflict_loss_details || []).join(', ') || null,
                     notes: rep.notes ?? null,
-                    photoPath: rep.report_media?.[0]?.storage_path ?? null,
+                    photoPath: null,
                 });
             });
             rows.sort((a, b) => a.distanceKm - b.distanceKm);
@@ -224,6 +223,11 @@ export default function NearbySightings() {
         trackFilter('nearby.radius_km', r, { screen: 'nearby' });
         if (userLoc) void loadNearby(userLoc, r);
     };
+
+    useEffect(() => {
+        void handleLocate();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const typeLabel = (type: NearbyItem['type']) =>
         type === 'loss' ? t('map.legendLoss') : type === 'indirect' ? t('map.legendIndirect') : t('map.legendDirect');
@@ -299,11 +303,23 @@ export default function NearbySightings() {
                             <span className="text-muted-foreground">{t('nearby.radius')}</span>
                             <span className="font-semibold text-foreground">{radiusKm} {t('km')}</span>
                         </div>
-                        <RadiusSlider value={radiusKm} onChange={handleRadiusChange} min={1} max={100} />
+                        <RadiusSlider value={radiusKm} onChange={handleRadiusChange} min={0} max={100} />
                     </div>
                 </div>
 
-                {geoError && <p className="text-sm text-destructive mb-4">{geoError}</p>}
+                {geoError && (
+                    <p className="text-sm text-destructive mb-4">
+                        {geoError === 'LOCATION_PERMISSION_DENIED'
+                            ? t('geo_err_denied')
+                            : geoError === 'LOCATION_UNAVAILABLE'
+                              ? t('geo_err_unavailable')
+                              : geoError === 'LOCATION_TIMEOUT'
+                                ? t('geo_err_timeout')
+                                : geoError === 'LOCATION_UNSUPPORTED'
+                                  ? t('geo_err_unsupported')
+                                  : t('geo_err_failed')}
+                    </p>
+                )}
 
                 {loading ? (
                     <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary" size={32} /></div>
@@ -375,13 +391,46 @@ export default function NearbySightings() {
                                                     {item.notes && <p>{t('ot_description')}: {item.notes}</p>}
                                                     <p className="font-mono">{t('share.coordinates')}: {item.lat.toFixed(6)}, {item.lng.toFixed(6)}</p>
                                                     <p className="font-mono">{t('dtl_dms_location')}: {formatLatLngDms(item.lat, item.lng)}</p>
+                                                    <a
+                                                        href={mapsLink(item.lat, item.lng)}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="block text-primary font-semibold"
+                                                    >
+                                                        {t('share.map')}
+                                                    </a>
+                                                    <div className="mt-2 flex gap-2">
                                                     <button
                                                         type="button"
                                                         onClick={() => handleShare(item)}
-                                                        className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background text-xs font-semibold"
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background text-xs font-semibold"
                                                     >
                                                         <Share2 size={14} /> {t('share.share')}
                                                     </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const text = buildSightingShareText({
+                                                                typeLabel: typeLabel(item.type),
+                                                                dateLabel: new Date(item.deviceTimestamp).toLocaleString(),
+                                                                division: item.divisionName,
+                                                                range: item.rangeName,
+                                                                beat: item.beatName,
+                                                                elephantTotal: item.total,
+                                                                directionDeg: item.compassBearing,
+                                                                damage: item.damage,
+                                                                lat: item.lat,
+                                                                lng: item.lng,
+                                                                dms: formatLatLngDms(item.lat, item.lng),
+                                                                labels: shareLabels,
+                                                            });
+                                                            downloadTextFile(`sighting-${item.id}.txt`, `${text}\n${t('share.map')}: ${mapsLink(item.lat, item.lng)}`);
+                                                        }}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background text-xs font-semibold"
+                                                    >
+                                                        <Download size={14} /> {t('share.download')}
+                                                    </button>
+                                                    </div>
                                                 </div>
                                             </motion.div>
                                         )}

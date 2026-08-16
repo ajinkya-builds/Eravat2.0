@@ -16,7 +16,7 @@ export const LANGUAGES: { value: Language; label: string; native: string }[] = [
 interface LanguageContextType {
     language: Language;
     setLanguage: (lang: Language) => void;
-    t: (key: string) => string;
+    t: (key: string, vars?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -40,7 +40,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const t = useCallback(
-        (key: string): string => translations[language]?.[key] ?? translations.en[key] ?? key,
+        (key: string, vars?: Record<string, string | number>): string => {
+            let s = translations[language]?.[key] ?? translations.en[key] ?? key;
+            if (vars) {
+                for (const [k, v] of Object.entries(vars)) {
+                    s = s.split(`{${k}}`).join(String(v));
+                }
+            }
+            return s;
+        },
         [language],
     );
 

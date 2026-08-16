@@ -82,11 +82,11 @@ export default function AdminObservations() {
             const to = from + PAGE_SIZE - 1;
             const { data, error, count } = await supabase
                 .from('reports')
-                .select('*, geo_beats(name, geo_ranges(name, geo_divisions(name))), observations(*), conflict_damages(*)', { count: 'exact' })
+                .select('id, user_id, beat_id, device_timestamp, status, notes, server_created_at, geo_beats(name, geo_ranges(name, geo_divisions(name))), observations(*), conflict_damages(*)', { count: 'estimated' })
                 .order('server_created_at', { ascending: false })
                 .range(from, to);
             if (error) throw error;
-            setObservations((data as ReportWithObs[]) || []);
+            setObservations((data as unknown as ReportWithObs[]) || []);
             setTotalCount(count ?? 0);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch observations');
@@ -98,7 +98,7 @@ export default function AdminObservations() {
     useEffect(() => { fetchObservations(currentPage); }, [currentPage]);
 
     const handleDelete = async (id: string) => {
-        setConfirmState({ ids: [id], label: 'Delete this report permanently?' });
+        setConfirmState({ ids: [id], label: t('admin.obs.deletePermanently') });
     };
 
     const handleBulkDelete = async () => {
@@ -324,17 +324,17 @@ export default function AdminObservations() {
                             <div className="p-2.5 rounded-xl bg-destructive/10">
                                 <AlertTriangle className="text-destructive" size={20} />
                             </div>
-                            <h2 className="text-base font-bold">Confirm Deletion</h2>
+                            <h2 className="text-base font-bold">{t('admin.obs.confirmDelete')}</h2>
                         </div>
                         <p className="text-sm text-muted-foreground">{confirmState.label}</p>
                         <div className="flex gap-3 pt-1">
                             <button onClick={() => setConfirmState(null)}
                                 className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">
-                                Cancel
+                                {t('cancel')}
                             </button>
                             <button onClick={handleConfirmDelete}
                                 className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-semibold hover:opacity-90 transition-opacity">
-                                Delete
+                                {t('delete')}
                             </button>
                         </div>
                     </motion.div>
@@ -403,7 +403,7 @@ function EditReportModal({
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {localReport.observations?.[0] && ['direct', 'direct_sighting'].includes(localReport.observations[0].type) && localCounts && (
                         <div className="space-y-2 p-3 bg-primary/5 rounded-xl border border-primary/10">
-                            <p className="text-xs font-semibold text-primary">Elephant Counts</p>
+                            <p className="text-xs font-semibold text-primary">{t('admin.obs.elephantCounts')}</p>
                             <div className="grid grid-cols-2 gap-2">
                                 {(['male', 'female', 'calf', 'unknown'] as const).map(key => (
                                     <div key={key}>

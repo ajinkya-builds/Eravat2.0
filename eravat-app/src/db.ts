@@ -37,6 +37,8 @@ export interface LocalReport {
   damage_description?: string;
   damage_value?: number | null;
   report_damage_manually?: boolean;
+  /** People count for injury/death rows; default 1 on sync. */
+  affected_people?: number;
 
   // Photo (maps to `report_media` on sync)
   photo_url: string | null;
@@ -68,6 +70,10 @@ export class EravatDatabase extends Dexie {
     });
     // Version 3 adds obs_id column (no store change needed, just schema bump)
     this.version(3).stores({
+      reports: 'id, sync_status, device_timestamp, beat_id',
+      report_media: 'id, report_id, sync_status',
+    });
+    this.version(4).stores({
       reports: 'id, sync_status, device_timestamp, beat_id',
       report_media: 'id, report_id, sync_status',
     });

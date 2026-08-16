@@ -80,7 +80,7 @@ export const DEFERRED_CAPABILITIES: DeferredCapability[] = [
     {
         id: 'affected_villagers',
         labelKey: 'admin.deferred.affectedVillagers',
-        reason: 'villagers table + alert_opt_in exist; SMS/voice proximity dispatch matrix not wired yet.',
+        reason: 'Geo match queues villager_alert_events (sms_queued). Live SMS/voice send is still off on staging.',
     },
     {
         id: 'kml_overlays',

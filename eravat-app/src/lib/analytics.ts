@@ -4,7 +4,7 @@ export type AnalyticsProps = Record<string, string | number | boolean | null | u
 
 /**
  * Product analytics — curated events only (see docs/OBSERVABILITY_AND_ANALYTICS.md).
- * Never pass OTP, PIN, tokens, full phone numbers, or report media/text.
+ * Never pass OTP, tokens, full phone numbers, or report media/text.
  */
 export function track(event: string, properties?: AnalyticsProps): void {
   const cleaned: Record<string, string | number | boolean> = {

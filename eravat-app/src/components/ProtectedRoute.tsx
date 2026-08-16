@@ -1,24 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import PINLockScreen from './PINLockScreen';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const ADMIN_ROLES = ['admin', 'ccf', 'dfo'];
 const PROFILE_LOAD_TIMEOUT_MS = 15_000;
 
 function RouteLoadingScreen() {
+    const { t } = useLanguage();
     return (
         <div className="flex items-center justify-center h-screen bg-background">
             <div className="flex flex-col items-center gap-4">
                 <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                <p className="text-muted-foreground text-sm">Loading...</p>
+                <p className="text-muted-foreground text-sm">{t('loading')}</p>
             </div>
         </div>
     );
 }
 
 export function ProtectedRoute() {
-    const { session, profile, loading, isLocked } = useAuth();
+    const { session, profile, loading } = useAuth();
     const location = useLocation();
     const [timedOut, setTimedOut] = useState(false);
 
@@ -32,10 +33,6 @@ export function ProtectedRoute() {
 
     if (loading || (session && !profile && !timedOut)) {
         return <RouteLoadingScreen />;
-    }
-
-    if (isLocked) {
-        return <PINLockScreen />;
     }
 
     if (!session || timedOut || !profile) {
@@ -56,7 +53,7 @@ export function ProtectedRoute() {
 }
 
 export function AdminRoute() {
-    const { session, profile, loading, isLocked } = useAuth();
+    const { session, profile, loading } = useAuth();
     const [timedOut, setTimedOut] = useState(false);
 
     useEffect(() => {
@@ -69,10 +66,6 @@ export function AdminRoute() {
 
     if (loading || (session && !profile && !timedOut)) {
         return <RouteLoadingScreen />;
-    }
-
-    if (isLocked) {
-        return <PINLockScreen />;
     }
 
     if (!session || timedOut) {

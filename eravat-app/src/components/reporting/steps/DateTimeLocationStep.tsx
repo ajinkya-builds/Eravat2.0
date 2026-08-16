@@ -31,7 +31,15 @@ export function DateTimeLocationStep() {
     };
 
     useEffect(() => {
+        void handleAutofill();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // GPS lookup fills Division/Range/Beat. Only fall back to the user's assigned
+    // territory when there is still no GPS match.
+    useEffect(() => {
         if (!profile) return;
+        if (formData.latitude != null && formData.longitude != null) return;
         if (formData.division_id || formData.range_id || formData.beat_id) return;
         updateFormData({
             division_id: profile.division_id ?? null,
@@ -39,12 +47,7 @@ export function DateTimeLocationStep() {
             beat_id: profile.beat_id ?? null,
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [profile?.id]);
-
-    useEffect(() => {
-        void handleAutofill();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [profile?.id, formData.latitude, formData.longitude]);
 
     const locationBlocked = Boolean(gpsError) && formData.latitude == null;
 
@@ -143,7 +146,15 @@ export function DateTimeLocationStep() {
                 </div>
                 {gpsError && (
                     <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                        ⚠ {gpsError}
+                        ⚠ {gpsError === 'LOCATION_PERMISSION_DENIED'
+                            ? t('geo_err_denied')
+                            : gpsError === 'LOCATION_UNAVAILABLE'
+                              ? t('geo_err_unavailable')
+                              : gpsError === 'LOCATION_TIMEOUT'
+                                ? t('geo_err_timeout')
+                                : gpsError === 'LOCATION_UNSUPPORTED'
+                                  ? t('geo_err_unsupported')
+                                  : t('geo_err_failed')}
                     </p>
                 )}
                 {formData.latitude != null && formData.longitude != null && (

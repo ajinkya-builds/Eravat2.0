@@ -686,7 +686,7 @@ function RegisterUserModal({
                         <label className="text-xs font-semibold text-muted-foreground mb-1 block">{t('admin.users.systemRole')}</label>
                         <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value, division_id: '', range_id: '', beat_id: '' })}
                             className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm">
-                            {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                            {ROLES.map(r => <option key={r.value} value={r.value}>{t(`role.${r.value}`)}</option>)}
                         </select>
                     </div>
 
@@ -840,7 +840,7 @@ function EditUserModal({
                                 editUser.id === currentUserProfile?.id
                                     ? true
                                     : canManageRole(currentUserProfile?.role, r.value)
-                            ).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                            ).map(r => <option key={r.value} value={r.value}>{t(`role.${r.value}`)}</option>)}
                         </select>
                     </div>
 

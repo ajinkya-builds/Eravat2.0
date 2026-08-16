@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import legacy from "@vitejs/plugin-legacy";
 import tailwindcss from "@tailwindcss/vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import { VitePWA } from "vite-plugin-pwa";
@@ -19,8 +20,28 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_DISABLE_PUSH_NOTIFICATIONS': JSON.stringify(process.env.VITE_DISABLE_PUSH_NOTIFICATIONS || 'false')
   },
+  // Android 7 WebView ≈ Chrome 53–69. Syntax is downleveled; plugin-legacy
+  // emits a nomodule bundle for devices that never updated System WebView.
+  build: {
+    target: "es2018",
+    cssTarget: "chrome69",
+    modulePreload: { polyfill: true },
+  },
+  esbuild: {
+    target: "es2018",
+  },
+  optimizeDeps: {
+    esbuildOptions: { target: "es2018" },
+  },
   plugins: [
     react(),
+    legacy({
+      targets: ["chrome >= 53", "android >= 7"],
+      modernTargets: ["chrome >= 69", "android >= 7"],
+      modernPolyfills: true,
+      renderLegacyChunks: true,
+      additionalLegacyPolyfills: ["regenerator-runtime/runtime"],
+    }),
     tailwindcss(),
     nodePolyfills(),
     VitePWA({

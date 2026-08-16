@@ -2,13 +2,12 @@ import { db } from '../db';
 import { supabase } from '../supabase';
 import { track } from '../lib/analytics';
 import { logger } from '../lib/logger';
+import { newUuid } from '../lib/uuid';
 
 let isSyncing = false;
 const SYNC_LOCK_KEY = 'eravat_sync_lock';
 const SYNC_LOCK_TTL_MS = 120_000;
-const SYNC_TAB_ID = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `tab-${Date.now()}`;
+const SYNC_TAB_ID = newUuid();
 
 function tryAcquireCrossTabSyncLock(): boolean {
     if (typeof localStorage === 'undefined') return true;
@@ -156,14 +155,25 @@ function normalizeTextArray(value: unknown): string[] | null {
     return null;
 }
 
-function mapLossCategory(loss: string): string {
+export function mapLossCategory(loss: string): string {
     const normalized = loss.trim().toLowerCase();
     if (normalized === 'no loss') return 'none';
+    if (normalized === 'human_injury' || normalized === 'injury') return 'human_injury';
+    if (normalized === 'human_death' || normalized === 'death') return 'human_death';
     if (normalized === 'crop' || normalized === 'grain') return 'crop';
     if (normalized === 'livestock') return 'livestock';
     // DB enum is crop | property | livestock | human_injury | human_death.
-    // Map fencing / naka / other / legacy labels into property; keep detail in description.
+    // Grain stays as crop in the enum; keep the original token in description/details.
+    // Map fencing / naka / other / legacy labels into property.
     return 'property';
+}
+
+function peopleForLoss(loss: string, affectedPeople: number | undefined): number {
+    const cat = mapLossCategory(loss);
+    if (cat === 'human_injury' || cat === 'human_death') {
+        return Math.max(0, affectedPeople ?? 1);
+    }
+    return 1;
 }
 
 function stableHex32(input: string): string {
@@ -325,6 +335,7 @@ export async function syncData() {
                         estimated_value: idx === 0
                             ? (report.damage_value || null)
                             : null,
+                        affected_people: peopleForLoss(loss, report.affected_people),
                     }));
 
                     const { error: damageError } = await supabase

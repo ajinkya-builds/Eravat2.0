@@ -73,7 +73,7 @@ export default function Dashboard() {
                 } else if (result.count === 0) {
                     text = t('sync_already_done') || 'Everything is already synced.';
                 } else {
-                    text = `Synced ${result.count} of ${total} reports successfully!`;
+                    text = t('sync_success', { count: result.count ?? 0, total: total ?? 0 });
                 }
                 setSyncMessage({ type: 'success', text });
                 setTimeout(() => setSyncMessage(null), 3000);
@@ -81,14 +81,14 @@ export default function Dashboard() {
                 trackFailed('dashboard.manual_sync', 'sync_failed', { screen: 'dashboard' });
                 setSyncMessage({
                     type: 'error',
-                    text: result.error?.toString() || 'Sync failed. Please try again.'
+                    text: result.error?.toString() || t('sync_failed_retry')
                 });
             }
         } catch {
             trackFailed('dashboard.manual_sync', 'sync_exception', { screen: 'dashboard' });
             setSyncMessage({
                 type: 'error',
-                text: 'Sync failed. Please check your connection.'
+                text: t('sync_failed_connection')
             });
         } finally {
             setIsSyncing(false);
@@ -111,7 +111,7 @@ export default function Dashboard() {
                         <img src={ELEPHANT_LOGO_URL} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
                     </div>
                     <h2 className="text-xl font-bold tracking-tight text-foreground z-10 relative">{t('wild_elephant_monitoring')}</h2>
-                    <p className="text-muted-foreground mt-2 text-[15px] font-medium z-10 relative">जंगली हाथी निगरानी प्रणाली (2025)</p>
+                    <p className="text-muted-foreground mt-2 text-[15px] font-medium z-10 relative">{t('app_tagline_year')}</p>
                 </div>
 
                 <motion.div

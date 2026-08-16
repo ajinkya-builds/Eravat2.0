@@ -28,7 +28,7 @@ export class ReportStepperPage {
     constructor(page: Page) {
         this.page = page;
         this.closeButton = page.locator('button').filter({ has: page.locator('.lucide-x') }).first();
-        this.continueButton = page.getByRole('button', { name: /Continue/i }).first();
+        this.continueButton = page.getByRole('button', { name: /Continue|जारी/i }).first();
         this.backButton = page.getByRole('button', { name: /Back/i }).first();
         this.submitButton = page.getByRole('button', { name: /Submit|सबमिट/i }).first();
 
@@ -55,8 +55,9 @@ export class ReportStepperPage {
     }
 
     async fillStep1(date: string, time: string, lat: string, lng: string) {
-        await this.dateInput.fill(date);
-        await this.timeInput.fill(time);
+        // Date/time are auto-captured and not editable (field review).
+        void date;
+        void time;
         await this.latInput.fill(lat);
         await this.lngInput.fill(lng);
     }

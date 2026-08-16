@@ -30,6 +30,7 @@ interface SearchableComboboxProps {
 }
 
 function SearchableCombobox({ value, options, placeholder, onChange, disabled }: SearchableComboboxProps) {
+    const { t } = useLanguage();
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
@@ -115,7 +116,7 @@ function SearchableCombobox({ value, options, placeholder, onChange, disabled }:
                         {/* Options list */}
                         <div className="max-h-48 overflow-y-auto">
                             {filtered.length === 0 ? (
-                                <p className="text-xs text-muted-foreground text-center py-4">No officers found</p>
+                                <p className="text-xs text-muted-foreground text-center py-4">{t('no_officers')}</p>
                             ) : (
                                 filtered.map(opt => (
                                     <button
@@ -637,7 +638,7 @@ export default function AdminDivisions() {
                                         meta={div.state}
                                         officers={dfos.filter(o => !assignedDfoIds.has(o.id) || o.id === currentDfoId)}
                                         selectedUserId={currentDfoId}
-                                        roleLabel="DFO"
+                                        roleLabel={t('role.dfo')}
                                         savingState={savingState}
                                         expanded={isDivExpanded}
                                         isModified={isDfoModified}
@@ -674,7 +675,7 @@ export default function AdminDivisions() {
                                                 code={range.code}
                                                 officers={rangeOfficers.filter(o => !assignedRoIds.has(o.id) || o.id === currentRoId)}
                                                 selectedUserId={currentRoId}
-                                                roleLabel="Range Officer"
+                                                roleLabel={t('role.range_officer')}
                                                 savingState={savingState}
                                                 expanded={isRangeExpanded}
                                                 isModified={isRoModified}
@@ -710,7 +711,7 @@ export default function AdminDivisions() {
                                                         code={beat.code}
                                                         officers={beatGuards.filter(o => !assignedBgIds.has(o.id) || o.id === currentBgId)}
                                                         selectedUserId={currentBgId}
-                                                        roleLabel="Beat Guard"
+                                                        roleLabel={t('role.beat_guard')}
                                                         savingState={savingState}
                                                         isModified={isBgModified}
                                                         disabled={!beatEditAllowed}

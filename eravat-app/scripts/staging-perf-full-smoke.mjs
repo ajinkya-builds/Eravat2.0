@@ -4,8 +4,7 @@
  *         npx vite preview --port 4173 --strictPort
  * Run: node scripts/staging-perf-full-smoke.mjs
  *
- * Auth model (current): OTP + optional PIN setup, but no PIN lock on reload
- * (AuthContext clears eravat_secure_session). Session restore = Supabase persistSession.
+ * Auth model: OTP login; session persists until explicit logout (no PIN).
  */
 import { chromium } from '@playwright/test';
 import { mkdir, writeFile } from 'fs/promises';
@@ -77,27 +76,7 @@ async function loginOTP(page, phone) {
     return buttons.some((b) => /verify/i.test(b.textContent || '') && !b.disabled);
   }, null, { timeout: 10000 });
   await verify.click();
-}
-
-async function maybeSetPIN(page, pin) {
-  const pinPrompt = page.getByText(/Create.*PIN|Set.*PIN|Confirm.*PIN|Enter.*PIN/i);
-  try {
-    await pinPrompt.first().waitFor({ timeout: 8000 });
-  } catch {
-    return false;
-  }
-  for (const d of pin) {
-    await page.getByRole('button', { name: d, exact: true }).click();
-  }
-  await page.waitForTimeout(400);
-  // confirm round if still on PIN
-  if (await page.getByText(/Confirm|again|पुन्हा/i).count()) {
-    for (const d of pin) {
-      await page.getByRole('button', { name: d, exact: true }).click();
-    }
-  }
-  await page.waitForTimeout(1500);
-  return true;
+  await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 25000 });
 }
 
 await mkdir(OUT, { recursive: true });
@@ -136,7 +115,6 @@ await check('Beat guard OTP login', async () => {
   await clearStorage(page);
   const t0 = Date.now();
   await loginOTP(page, USERS.beat_guard.phone);
-  await maybeSetPIN(page, USERS.beat_guard.pin);
   await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 25000 });
   mark('beat_guard_login_ms', Date.now() - t0);
   await shot(page, '03-post-login');
@@ -232,9 +210,7 @@ await check('Cold start session restore (no full re-login)', async () => {
   if (url.includes('/login')) throw new Error('Session lost after cold navigation — bounced to login');
   // PIN lock is not expected in current AuthContext
   const locked = (await page.getByText(/Enter.*PIN|Unlock/i).count()) > 0;
-  if (locked) {
-    console.log('NOTE: PIN lock shown (unexpected under current auth model)');
-  }
+  if (locked) throw new Error('PIN lock shown after cold navigation');
   await page.getByText(/Report|Activity|Welcome|sighting|Recent|Elephant/i).first().waitFor({ timeout: 15000 });
   mark('cold_restore_ms', Date.now() - t0);
   await shot(page, '11-cold-restore');
@@ -272,8 +248,6 @@ await check('Admin OTP login', async () => {
   await adminPage.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
   await adminPage.reload({ waitUntil: 'networkidle' });
   await loginOTP(adminPage, USERS.admin.phone);
-  await maybeSetPIN(adminPage, USERS.admin.pin);
-  await adminPage.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 25000 });
   await shot(adminPage, '14-admin-login');
 });
 
@@ -365,7 +339,7 @@ const summary = {
   testedAt: new Date().toISOString(),
   baseUrl: BASE,
   notes: [
-    'PIN lock after reload is NOT expected under current AuthContext (session via persistSession).',
+    'OTP session persists until explicit logout; no PIN or biometric gate.',
     'Bundle targets staging ttjtyvxfiqhjdngkgdkf.',
   ],
 };
