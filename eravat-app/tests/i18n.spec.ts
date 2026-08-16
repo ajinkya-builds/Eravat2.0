@@ -19,7 +19,7 @@ test.describe('Internationalization (i18n) Module', () => {
     test('I18N-001: Default language is English', async ({ page }) => {
         await gotoAndReady(page, '/');
         await expect(
-            page.getByText(/Report Activity|Dashboard|Profile|Home/i).first(),
+            page.getByText(/Add Sighting|Dashboard|Profile|Home/i).first(),
         ).toBeVisible({ timeout: 30_000 });
     });
 
@@ -27,7 +27,7 @@ test.describe('Internationalization (i18n) Module', () => {
         await switchLanguage(page, 'Hindi');
         await gotoAndReady(page, '/');
         const bodyText = await page.locator('body').textContent();
-        expect(bodyText).toMatch(/गतिविधि|रिपोर्ट|प्रोफ़ाइल/);
+        expect(bodyText).toMatch(/साइटिंग|रिपोर्ट|प्रोफ़ाइल|डैशबोर्ड/);
     });
 
     test('I18N-003: Hindi — Profile labels', async ({ page }) => {
@@ -47,7 +47,7 @@ test.describe('Internationalization (i18n) Module', () => {
         await switchLanguage(page, 'Marathi');
         await gotoAndReady(page, '/');
         const bodyText = await page.locator('body').textContent();
-        expect(bodyText).toMatch(/क्रियाकलाप|अहवाल|प्रोफाइल|डॅशबोर्ड/);
+        expect(bodyText).toMatch(/साइटिंग|अहवाल|प्रोफाइल|डॅशबोर्ड/);
     });
 
     test('I18N-006: Marathi — Profile labels', async ({ page }) => {
@@ -72,7 +72,7 @@ test.describe('Internationalization (i18n) Module', () => {
         await gotoAndReady(page, '/');
 
         const bodyText = await page.locator('body').textContent();
-        expect(bodyText).toMatch(/गतिविधि|रिपोर्ट|डैशबोर्ड/);
+        expect(bodyText).toMatch(/साइटिंग|रिपोर्ट|डैशबोर्ड/);
     });
 
     test('I18N-009: All bottom nav labels translate', async ({ page }) => {

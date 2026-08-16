@@ -237,7 +237,7 @@ function StepperContent() {
                 >
                     <X className="w-5 h-5" />
                 </button>
-                <h1 className="text-sm font-bold text-foreground">{t('report_activity')}</h1>
+                <h1 className="text-sm font-bold text-foreground">{t('dashboard.reportAction')}</h1>
                 <div className="w-10" />
             </header>
 

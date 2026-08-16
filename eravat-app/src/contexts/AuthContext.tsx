@@ -12,6 +12,7 @@ import {
 import { track } from '../lib/analytics';
 import { identifyUser, resetUser } from '../lib/posthogClient';
 import { logger } from '../lib/logger';
+import { clearCachedProfile, loadCachedProfile, saveCachedProfile } from '../lib/profileCache';
 
 // Matches the `profiles` table + joined user_region_assignments
 export interface UserProfile {
@@ -104,16 +105,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const existing = profileInflight.current.get(userId);
         if (existing) return existing;
 
+        const applyCached = () => {
+            const cached = loadCachedProfile<UserProfile>(userId);
+            if (cached) {
+                setProfile(cached);
+                profileCacheRef.current = { userId, fetchedAt: Date.now() };
+                return true;
+            }
+            return false;
+        };
+
         const run = (async () => {
+            applyCached();
             try {
                 if (import.meta.env.DEV) {
                     console.log('[AuthContext] fetchProfile starting for userId:', userId);
                 }
-                const { data: profileData, error: profileError } = await supabase
+                const query = supabase
                     .from('profiles')
                     .select('*')
                     .eq('id', userId)
                     .maybeSingle();
+                const timed = Promise.race([
+                    query,
+                    new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(new Error('profile_fetch_timeout')), 8000)
+                    ),
+                ]);
+                const { data: profileData, error: profileError } = await timed;
 
                 if (import.meta.env.DEV) {
                     console.log('[AuthContext] fetchProfile db result:', {
@@ -126,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         profileIssueLogged.current.add(userId);
                         logger.warn('AuthContext', 'profiles fetch failed', { message: profileError.message });
                     }
-                    setProfile(null);
+                    if (!applyCached()) setProfile(null);
                     return;
                 }
 
@@ -135,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         profileIssueLogged.current.add(userId);
                         logger.warn('AuthContext', 'No profiles row for user', { userId });
                     }
-                    setProfile(null);
+                    if (!applyCached()) setProfile(null);
                     return;
                 }
 
@@ -171,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     beat_name: (assignment?.geo_beats as any)?.name ?? null,
                 } as UserProfile;
                 setProfile(nextProfile);
+                saveCachedProfile(userId, nextProfile as unknown as Record<string, unknown>);
                 identifyUser(userId, {
                     role: nextProfile.role,
                     division_id: nextProfile.division_id ?? undefined,
@@ -179,7 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 });
                 profileCacheRef.current = { userId, fetchedAt: Date.now() };
             } catch {
-                // Profile fetch failed
+                applyCached();
             }
         })();
 
@@ -497,6 +517,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         activePinRef.current = null;
         setHasSavedSession(false);
         setIsLocked(false);
+        clearCachedProfile();
         if (session?.user?.id) {
             await PushNotificationService.unregister(session.user.id);
         }

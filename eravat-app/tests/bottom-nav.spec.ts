@@ -28,8 +28,8 @@ test.describe('Bottom Navigation Module', () => {
             await expect(page).toHaveURL(/.*\/map/);
         });
 
-        test('NAV-004: Report button navigates to report', async ({ page }) => {
-            await nav.reportButton.click();
+        test('NAV-004: Add Sighting on dashboard navigates to report', async ({ page }) => {
+            await page.click('button:has(.lucide-activity)');
             await expect(page).toHaveURL(/.*\/report/);
         });
 

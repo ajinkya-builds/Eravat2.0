@@ -13,13 +13,13 @@ test.describe('Responsive & PWA Module', () => {
     test('RES-002: Tablet viewport (768px)', async ({ page }) => {
         await page.setViewportSize({ width: 768, height: 1024 });
         await ensureOnPage(page, '/');
-        await expect(page.getByText(/Report Activity|गतिविधि|क्रियाकलाप/i).first()).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText(/Add Sighting|साइटिंग|क्रियाकलाप/i).first()).toBeVisible({ timeout: 15_000 });
     });
 
     test('RES-003: Desktop viewport (1440px)', async ({ page }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await ensureOnPage(page, '/');
-        await expect(page.getByText(/Report Activity|गतिविधि|क्रियाकलाप/i).first()).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText(/Add Sighting|साइटिंग|क्रियाकलाप/i).first()).toBeVisible({ timeout: 15_000 });
     });
 
     test.skip('PWA-001: PWA install prompt', () => {

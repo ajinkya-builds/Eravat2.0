@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, LocateFixed, Loader2, MapPin, Eye, Footprints, AlertTriangle, Navigation } from 'lucide-react';
+import { ArrowLeft, LocateFixed, Loader2, MapPin, Eye, Footprints, AlertTriangle, Navigation, Share2, ChevronDown } from 'lucide-react';
 import { Buffer } from 'buffer';
 import wkx from 'wkx';
 import * as turf from '@turf/turf';
@@ -10,6 +10,9 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { formatDistanceToNow } from 'date-fns';
 import { trackClick, trackFailed, trackFilter } from '../lib/analytics';
+import { RadiusSlider } from '../components/shared/RadiusSlider';
+import { shareOrCopy, buildSightingShareText } from '../lib/reportShare';
+import { formatLatLngDms } from '../lib/geoFormat';
 
 type NearbyItem = {
     id: string;
@@ -17,12 +20,17 @@ type NearbyItem = {
     lng: number;
     type: 'direct' | 'indirect' | 'loss';
     beatName: string;
+    rangeName: string;
+    divisionName: string;
     total: number;
     deviceTimestamp: string;
     distanceKm: number;
+    compassBearing: number | null;
+    indirectSigns: string[];
+    damage: string | null;
+    notes: string | null;
+    photoPath: string | null;
 };
-
-const RADIUS_OPTIONS = [10, 25, 50, 100];
 
 const obsTypeMap: Record<string, 'direct' | 'indirect' | 'loss'> = {
     direct_sighting: 'direct', indirect_sign: 'indirect', conflict_loss: 'loss',
@@ -57,6 +65,24 @@ export default function NearbySightings() {
     const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
     const [loading, setLoading] = useState(false);
     const [loaded, setLoaded] = useState(false);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [shareMsg, setShareMsg] = useState<string | null>(null);
+
+    const shareLabels = {
+        title: t('share.reportTitle'),
+        type: t('share.sightingType'),
+        date: t('share.date'),
+        division: t('dtl_division'),
+        range: t('dtl_range'),
+        beat: t('dtl_beat'),
+        elephants: t('nearby.elephants'),
+        direction: t('share.direction'),
+        damage: t('share.damage'),
+        gps: t('share.coordinates'),
+        dms: t('dtl_dms_location'),
+        map: t('share.map'),
+        photo: t('share.photo'),
+    };
 
     const loadNearby = async (loc: { lat: number; lng: number }, radius: number) => {
         setLoading(true);
@@ -73,28 +99,51 @@ export default function NearbySightings() {
                     id: string;
                     device_timestamp: string;
                     beat_name?: string | null;
+                    range_name?: string | null;
+                    division_name?: string | null;
                     obs_type?: string | null;
                     male_count?: number;
                     female_count?: number;
                     calf_count?: number;
                     unknown_count?: number;
+                    compass_bearing?: number | null;
+                    indirect_sign_details?: string[] | null;
+                    conflict_loss_details?: string[] | null;
+                    damage_categories?: string[] | null;
+                    damage_description?: string | null;
+                    notes?: string | null;
+                    photo_path?: string | null;
                     distance_m?: number;
                     lat?: number;
                     lng?: number;
-                }) => ({
-                    id: rep.id,
-                    lat: rep.lat ?? loc.lat,
-                    lng: rep.lng ?? loc.lng,
-                    type: obsTypeMap[rep.obs_type ?? 'direct'] ?? 'direct',
-                    beatName: rep.beat_name ?? 'Field',
-                    total:
-                        (rep.male_count || 0) +
-                        (rep.female_count || 0) +
-                        (rep.calf_count || 0) +
-                        (rep.unknown_count || 0),
-                    deviceTimestamp: rep.device_timestamp,
-                    distanceKm: (rep.distance_m || 0) / 1000,
-                }));
+                }) => {
+                    const damageParts = [
+                        ...(rep.damage_categories || []),
+                        ...(rep.conflict_loss_details || []),
+                        rep.damage_description || '',
+                    ].filter(Boolean);
+                    return {
+                        id: rep.id,
+                        lat: rep.lat ?? loc.lat,
+                        lng: rep.lng ?? loc.lng,
+                        type: obsTypeMap[rep.obs_type ?? 'direct'] ?? 'direct',
+                        beatName: rep.beat_name ?? '',
+                        rangeName: rep.range_name ?? '',
+                        divisionName: rep.division_name ?? '',
+                        total:
+                            (rep.male_count || 0) +
+                            (rep.female_count || 0) +
+                            (rep.calf_count || 0) +
+                            (rep.unknown_count || 0),
+                        deviceTimestamp: rep.device_timestamp,
+                        distanceKm: (rep.distance_m || 0) / 1000,
+                        compassBearing: rep.compass_bearing ?? null,
+                        indirectSigns: rep.indirect_sign_details || [],
+                        damage: damageParts.join(', ') || null,
+                        notes: rep.notes ?? null,
+                        photoPath: rep.photo_path ?? null,
+                    };
+                });
                 rows.sort((a, b) => a.distanceKm - b.distanceKm);
                 setItems(rows);
                 setLoaded(true);
@@ -104,9 +153,11 @@ export default function NearbySightings() {
             const { data, error } = await supabase
                 .from('reports')
                 .select(`
-                    id, location, device_timestamp,
-                    geo_beats ( name ),
-                    observations ( type, male_count, female_count, calf_count, unknown_count )
+                    id, location, device_timestamp, notes,
+                    geo_beats ( name, geo_ranges ( name, geo_divisions ( name ) ) ),
+                    observations ( type, male_count, female_count, calf_count, unknown_count, compass_bearing, indirect_sign_details, conflict_loss_details ),
+                    conflict_damages ( category, description ),
+                    report_media ( storage_path )
                 `)
                 .not('location', 'is', null)
                 .order('device_timestamp', { ascending: false })
@@ -122,15 +173,25 @@ export default function NearbySightings() {
                 if (distanceKm > radius) return;
                 const obs = rep.observations?.[0];
                 const type = obsTypeMap[obs?.type ?? 'direct'] ?? 'direct';
+                const damages = (rep.conflict_damages || [])
+                    .map((d: { category?: string; description?: string }) => [d.category, d.description].filter(Boolean).join(' — '))
+                    .filter(Boolean);
                 rows.push({
                     id: rep.id,
                     lat: coords.lat,
                     lng: coords.lng,
                     type,
-                    beatName: rep.geo_beats?.name ?? 'Field',
+                    beatName: rep.geo_beats?.name ?? '',
+                    rangeName: rep.geo_beats?.geo_ranges?.name ?? '',
+                    divisionName: rep.geo_beats?.geo_ranges?.geo_divisions?.name ?? '',
                     total: (obs?.male_count || 0) + (obs?.female_count || 0) + (obs?.calf_count || 0) + (obs?.unknown_count || 0),
                     deviceTimestamp: rep.device_timestamp,
                     distanceKm,
+                    compassBearing: obs?.compass_bearing ?? null,
+                    indirectSigns: obs?.indirect_sign_details || [],
+                    damage: damages.join(', ') || (obs?.conflict_loss_details || []).join(', ') || null,
+                    notes: rep.notes ?? null,
+                    photoPath: rep.report_media?.[0]?.storage_path ?? null,
                 });
             });
             rows.sort((a, b) => a.distanceKm - b.distanceKm);
@@ -164,6 +225,46 @@ export default function NearbySightings() {
         if (userLoc) void loadNearby(userLoc, r);
     };
 
+    const typeLabel = (type: NearbyItem['type']) =>
+        type === 'loss' ? t('map.legendLoss') : type === 'indirect' ? t('map.legendIndirect') : t('map.legendDirect');
+
+    const handleShare = async (item: NearbyItem) => {
+        let photoUrl: string | undefined;
+        let file: File | undefined;
+        if (item.photoPath) {
+            try {
+                const { data } = await supabase.storage.from('report_media').createSignedUrl(item.photoPath, 3600);
+                photoUrl = data?.signedUrl;
+                if (photoUrl) {
+                    const resp = await fetch(photoUrl);
+                    if (resp.ok) {
+                        const blob = await resp.blob();
+                        file = new File([blob], `sighting-${item.id}.jpg`, { type: blob.type || 'image/jpeg' });
+                    }
+                }
+            } catch { /* share text only */ }
+        }
+        const text = buildSightingShareText({
+            typeLabel: typeLabel(item.type),
+            dateLabel: new Date(item.deviceTimestamp).toLocaleString(),
+            division: item.divisionName,
+            range: item.rangeName,
+            beat: item.beatName,
+            elephantTotal: item.total,
+            directionDeg: item.compassBearing,
+            damage: item.damage,
+            lat: item.lat,
+            lng: item.lng,
+            dms: formatLatLngDms(item.lat, item.lng),
+            photoUrl,
+            labels: shareLabels,
+        });
+        const res = await shareOrCopy({ title: t('share.reportTitle'), text, file });
+        if (res === 'copied') setShareMsg(t('share.copied'));
+        else if (res === 'failed') setShareMsg(t('share.failed'));
+        if (res === 'copied' || res === 'failed') setTimeout(() => setShareMsg(null), 2500);
+    };
+
     const TypeIcon = ({ type }: { type: NearbyItem['type'] }) =>
         type === 'loss' ? <AlertTriangle size={18} /> : type === 'indirect' ? <Footprints size={18} /> : <Eye size={18} />;
 
@@ -171,9 +272,6 @@ export default function NearbySightings() {
         type === 'loss' ? 'bg-destructive/15 text-destructive'
             : type === 'indirect' ? 'bg-amber-500/15 text-amber-600'
                 : 'bg-emerald-500/15 text-emerald-600';
-
-    const typeLabel = (type: NearbyItem['type']) =>
-        type === 'loss' ? t('map.legendLoss') : type === 'indirect' ? t('map.legendIndirect') : t('map.legendDirect');
 
     return (
         <div className="min-h-screen bg-background pb-20 pt-8 px-4">
@@ -187,8 +285,7 @@ export default function NearbySightings() {
                     <p className="text-muted-foreground mt-1 text-sm">{t('nearby.subtitle')}</p>
                 </div>
 
-                {/* Controls */}
-                <div className="flex flex-wrap items-center gap-3 mb-5">
+                <div className="space-y-4 mb-5">
                     <button
                         onClick={handleLocate}
                         disabled={locating}
@@ -197,12 +294,12 @@ export default function NearbySightings() {
                         {locating ? <Loader2 size={16} className="animate-spin" /> : <LocateFixed size={16} />}
                         {locating ? t('nearby.locating') : t('nearby.locate')}
                     </button>
-                    <div className="flex items-center gap-2 text-sm bg-muted/40 rounded-xl px-3 py-2 border border-border">
-                        <span className="text-muted-foreground">{t('nearby.radius')}</span>
-                        <select value={radiusKm} onChange={(e) => handleRadiusChange(Number(e.target.value))}
-                            className="bg-transparent outline-none font-semibold text-foreground">
-                            {RADIUS_OPTIONS.map((r) => <option key={r} value={r}>{r} {t('km')}</option>)}
-                        </select>
+                    <div className="glass-card rounded-2xl p-4 border border-border space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">{t('nearby.radius')}</span>
+                            <span className="font-semibold text-foreground">{radiusKm} {t('km')}</span>
+                        </div>
+                        <RadiusSlider value={radiusKm} onChange={handleRadiusChange} min={1} max={100} />
                     </div>
                 </div>
 
@@ -222,35 +319,82 @@ export default function NearbySightings() {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {items.map((item, i) => (
-                            <motion.div
-                                key={item.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: Math.min(i * 0.04, 0.4) }}
-                                className="p-4 rounded-2xl border border-border bg-card/50 backdrop-blur-md shadow-sm flex items-start gap-3"
-                            >
-                                <div className={`p-2 rounded-xl shrink-0 ${typeColor(item.type)}`}>
-                                    <TypeIcon type={item.type} />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <h3 className="font-bold text-sm text-foreground truncate">{typeLabel(item.type)}</h3>
-                                        <span className="text-xs font-semibold text-primary shrink-0">
-                                            {item.distanceKm < 1 ? `${Math.round(item.distanceKm * 1000)} m` : `${item.distanceKm.toFixed(1)} ${t('km')}`} {t('nearby.away')}
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                                        <MapPin size={11} className="inline mb-0.5 mr-1" />
-                                        {item.beatName}
-                                        {item.total > 0 ? ` · ${item.total} ${t('nearby.elephants')}` : ''}
-                                    </p>
-                                    <p className="text-[11px] text-muted-foreground/80 mt-0.5">
-                                        {formatDistanceToNow(new Date(item.deviceTimestamp), { addSuffix: true })}
-                                    </p>
-                                </div>
-                            </motion.div>
-                        ))}
+                        {items.map((item, i) => {
+                            const open = expandedId === item.id;
+                            return (
+                                <motion.div
+                                    key={item.id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: Math.min(i * 0.04, 0.4) }}
+                                    className="p-4 rounded-2xl border border-border bg-card/50 backdrop-blur-md shadow-sm"
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => setExpandedId(open ? null : item.id)}
+                                        className="w-full flex items-start gap-3 text-left"
+                                    >
+                                        <div className={`p-2 rounded-xl shrink-0 ${typeColor(item.type)}`}>
+                                            <TypeIcon type={item.type} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <h3 className="font-bold text-sm text-foreground truncate">{typeLabel(item.type)}</h3>
+                                                <span className="text-xs font-semibold text-primary shrink-0">
+                                                    {item.distanceKm < 1 ? `${Math.round(item.distanceKm * 1000)} m` : `${item.distanceKm.toFixed(1)} ${t('km')}`} {t('nearby.away')}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                                <MapPin size={11} className="inline mb-0.5 mr-1" />
+                                                {[item.divisionName, item.rangeName, item.beatName].filter(Boolean).join(' · ') || item.beatName}
+                                                {item.total > 0 ? ` · ${item.total} ${t('nearby.elephants')}` : ''}
+                                            </p>
+                                            <p className="text-[11px] text-muted-foreground/80 mt-0.5">
+                                                {formatDistanceToNow(new Date(item.deviceTimestamp), { addSuffix: true })}
+                                            </p>
+                                        </div>
+                                        <ChevronDown size={16} className={`text-muted-foreground shrink-0 mt-1 transition-transform ${open ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    <AnimatePresence>
+                                        {open && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="mt-3 pt-3 border-t border-border/60 space-y-1.5 text-xs text-foreground">
+                                                    <p>{t('share.sightingType')}: {typeLabel(item.type)}</p>
+                                                    {item.divisionName && <p>{t('dtl_division')}: {item.divisionName}</p>}
+                                                    {item.rangeName && <p>{t('dtl_range')}: {item.rangeName}</p>}
+                                                    {item.beatName && <p>{t('dtl_beat')}: {item.beatName}</p>}
+                                                    {item.total > 0 && <p>{t('nearby.elephants')}: {item.total}</p>}
+                                                    {item.compassBearing != null && <p>{t('share.direction')}: {Math.round(item.compassBearing)}°</p>}
+                                                    {item.indirectSigns.length > 0 && <p>{t('ot_indirect_sign_type')}: {item.indirectSigns.join(', ')}</p>}
+                                                    {item.damage && <p>{t('share.damage')}: {item.damage}</p>}
+                                                    {item.notes && <p>{t('ot_description')}: {item.notes}</p>}
+                                                    <p className="font-mono">{t('share.coordinates')}: {item.lat.toFixed(6)}, {item.lng.toFixed(6)}</p>
+                                                    <p className="font-mono">{t('dtl_dms_location')}: {formatLatLngDms(item.lat, item.lng)}</p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleShare(item)}
+                                                        className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background text-xs font-semibold"
+                                                    >
+                                                        <Share2 size={14} /> {t('share.share')}
+                                                    </button>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {shareMsg && (
+                    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[10000] px-4 py-2 rounded-xl bg-foreground text-background text-sm font-medium shadow-lg">
+                        {shareMsg}
                     </div>
                 )}
             </div>

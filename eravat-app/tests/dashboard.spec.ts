@@ -18,8 +18,8 @@ test.describe('Dashboard Module - Field Staff', () => {
         await expect(page).toHaveURL(/.*\/report/);
     });
 
-    test('DASH-003: View Profile quick action', async ({ page }) => {
-        await page.click('button:has(.lucide-user)');
+    test('DASH-003: View Profile from bottom nav', async ({ page }) => {
+        await page.locator('nav').last().locator('button').filter({ has: page.locator('.lucide-user') }).click();
         await expect(page).toHaveURL(/.*\/profile/);
     });
 
@@ -59,7 +59,7 @@ test.describe('Dashboard Module - Field Staff', () => {
         await expect(page.locator('h1').first()).toBeVisible();
         // Check for Hindi greeting or action card text
         const bodyText = await page.locator('body').textContent();
-        expect(bodyText).toMatch(/गतिविधि|रिपोर्ट|डैशबोर्ड/);
+        expect(bodyText).toMatch(/साइटिंग|रिपोर्ट|डैशबोर्ड/);
 
         // Restore English
         await switchLanguage(page, 'English');
@@ -72,7 +72,7 @@ test.describe('Dashboard Module - Field Staff', () => {
 
         await expect(page.locator('h1').first()).toBeVisible();
         const bodyText = await page.locator('body').textContent();
-        expect(bodyText).toMatch(/क्रियाकलाप|अहवाल|डॅशबोर्ड/);
+        expect(bodyText).toMatch(/साइटिंग|अहवाल|डॅशबोर्ड/);
 
         // Restore English
         await switchLanguage(page, 'English');

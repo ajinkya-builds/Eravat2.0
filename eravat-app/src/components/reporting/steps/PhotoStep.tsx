@@ -7,11 +7,11 @@ import { stampPhotoWithMeta } from '../../../lib/stampPhoto';
 
 export function PhotoStep() {
     const { formData, updateFormData } = useActivityForm();
-    const { takePhoto, isCapturing: loading, error } = useCamera();
+    const { pickFromGallery, isCapturing: loading, error } = useCamera();
     const { t } = useLanguage();
 
     const handleCapture = async () => {
-        const result = await takePhoto();
+        const result = await pickFromGallery();
         if (!result) return;
         const stamped = await stampPhotoWithMeta(result.dataUrl, {
             latitude: formData.latitude,
@@ -71,12 +71,12 @@ export function PhotoStep() {
                     <div className="text-center space-y-1 w-full">
                         <p className="text-lg font-bold text-foreground text-center">{t('ps_attach_photo')}</p>
                         <p className="text-sm text-muted-foreground max-w-[250px] mx-auto text-center">
-                            {t('ps_photo_desc')}
+                            {t('ps_from_gallery')}
                         </p>
                     </div>
                     {loading && (
                         <p className="text-sm text-primary font-semibold text-center w-full animate-pulse">
-                            {t('ps_opening_camera')}
+                            {t('ps_opening_gallery')}
                         </p>
                     )}
                     {error && <p className="text-sm font-medium text-destructive mt-2 bg-destructive/10 px-4 py-2 rounded-lg text-center w-full">⚠ {error}</p>}

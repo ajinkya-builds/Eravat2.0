@@ -1,25 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, MapPin, RefreshCw, Loader2 } from 'lucide-react';
 import { useActivityForm } from '../../../contexts/ActivityFormContext';
 import { useGeolocation } from '../../../hooks/useGeolocation';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { supabase } from '../../../supabase';
 import { formatLatLngDms } from '../../../lib/geoFormat';
-
-type GeoOption = { id: string; name: string };
+import { TerritorySelect } from '../../shared/TerritorySelect';
 
 export function DateTimeLocationStep() {
     const { formData, updateFormData } = useActivityForm();
     const { fetchLocation, loading: gpsLoading, error: gpsError } = useGeolocation();
     const { t } = useLanguage();
     const { profile } = useAuth();
-
-    const [divisions, setDivisions] = useState<GeoOption[]>([]);
-    const [ranges, setRanges] = useState<GeoOption[]>([]);
-    const [beats, setBeats] = useState<GeoOption[]>([]);
-    const [geoLoading, setGeoLoading] = useState(false);
 
     const applyNow = () => {
         const now = new Date();
@@ -37,76 +30,21 @@ export function DateTimeLocationStep() {
         }
     };
 
-    // Seed territory from profile once
     useEffect(() => {
         if (!profile) return;
+        if (formData.division_id || formData.range_id || formData.beat_id) return;
         updateFormData({
-            division_id: formData.division_id ?? profile.division_id ?? null,
-            range_id: formData.range_id ?? profile.range_id ?? null,
-            beat_id: formData.beat_id ?? profile.beat_id ?? null,
+            division_id: profile.division_id ?? null,
+            range_id: profile.range_id ?? null,
+            beat_id: profile.beat_id ?? null,
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile?.id]);
 
-    // Auto-capture date/time + GPS on mount
     useEffect(() => {
         void handleAutofill();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    // Load divisions
-    useEffect(() => {
-        let cancelled = false;
-        setGeoLoading(true);
-        void (async () => {
-            const { data } = await supabase.from('geo_divisions').select('id, name').order('name');
-            if (!cancelled) setDivisions((data as GeoOption[]) || []);
-            if (!cancelled) setGeoLoading(false);
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
-    // Load ranges for selected division
-    useEffect(() => {
-        if (!formData.division_id) {
-            setRanges([]);
-            return;
-        }
-        let cancelled = false;
-        supabase
-            .from('geo_ranges')
-            .select('id, name')
-            .eq('division_id', formData.division_id)
-            .order('name')
-            .then(({ data }) => {
-                if (!cancelled) setRanges((data as GeoOption[]) || []);
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [formData.division_id]);
-
-    // Load beats for selected range
-    useEffect(() => {
-        if (!formData.range_id) {
-            setBeats([]);
-            return;
-        }
-        let cancelled = false;
-        supabase
-            .from('geo_beats')
-            .select('id, name')
-            .eq('range_id', formData.range_id)
-            .order('name')
-            .then(({ data }) => {
-                if (!cancelled) setBeats((data as GeoOption[]) || []);
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [formData.range_id]);
 
     const locationBlocked = Boolean(gpsError) && formData.latitude == null;
 
@@ -158,7 +96,6 @@ export function DateTimeLocationStep() {
                 </div>
             </div>
 
-            {/* DMS (read-only) */}
             <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -171,7 +108,6 @@ export function DateTimeLocationStep() {
                 </div>
             </div>
 
-            {/* Decimal (editable) */}
             <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -217,67 +153,18 @@ export function DateTimeLocationStep() {
                 )}
             </div>
 
-            {/* Territory confirm / edit */}
-            <div className="space-y-3 rounded-2xl border border-border bg-muted/10 p-4">
-                <h4 className="text-sm font-semibold text-foreground">{t('dtl_confirm_territory')} <span className="text-destructive">*</span></h4>
-                <p className="text-xs text-muted-foreground">{t('dtl_confirm_territory_hint')}</p>
-
-                <div className="space-y-2">
-                    <label className="text-xs text-muted-foreground">{t('dtl_division')}</label>
-                    <select
-                        value={formData.division_id ?? ''}
-                        disabled={geoLoading}
-                        onChange={(e) =>
-                            updateFormData({
-                                division_id: e.target.value || null,
-                                range_id: null,
-                                beat_id: null,
-                            })
-                        }
-                        className="w-full px-3 py-2.5 rounded-xl bg-background border border-border text-sm"
-                    >
-                        <option value="">{t('dtl_select')}</option>
-                        {divisions.map((d) => (
-                            <option key={d.id} value={d.id}>{d.name}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="space-y-2">
-                    <label className="text-xs text-muted-foreground">{t('dtl_range')}</label>
-                    <select
-                        value={formData.range_id ?? ''}
-                        disabled={!formData.division_id}
-                        onChange={(e) =>
-                            updateFormData({
-                                range_id: e.target.value || null,
-                                beat_id: null,
-                            })
-                        }
-                        className="w-full px-3 py-2.5 rounded-xl bg-background border border-border text-sm"
-                    >
-                        <option value="">{t('dtl_select')}</option>
-                        {ranges.map((r) => (
-                            <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="space-y-2">
-                    <label className="text-xs text-muted-foreground">{t('dtl_beat')}</label>
-                    <select
-                        value={formData.beat_id ?? ''}
-                        disabled={!formData.range_id}
-                        onChange={(e) => updateFormData({ beat_id: e.target.value || null })}
-                        className="w-full px-3 py-2.5 rounded-xl bg-background border border-border text-sm"
-                    >
-                        <option value="">{t('dtl_select')}</option>
-                        {beats.map((b) => (
-                            <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                    </select>
-                </div>
-            </div>
+            <TerritorySelect
+                value={{
+                    division_id: formData.division_id,
+                    range_id: formData.range_id,
+                    beat_id: formData.beat_id,
+                }}
+                latitude={formData.latitude}
+                longitude={formData.longitude}
+                includeBeat
+                required
+                onChange={(next) => updateFormData(next)}
+            />
         </motion.div>
     );
 }

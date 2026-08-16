@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, UserPlus, Loader2, CheckCircle2, List } from 'lucide-react';
@@ -6,6 +6,7 @@ import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { LocationFields } from '../components/profile/LocationFields';
+import { TerritorySelect, type TerritoryValue } from '../components/shared/TerritorySelect';
 import { VillageAutocomplete, type VillageOption } from '../components/villagers/VillageAutocomplete';
 import { canOnboardVillagers } from '../lib/rbac';
 import { toE164India } from '../lib/phone';
@@ -23,9 +24,23 @@ export default function OnboardVillager() {
     latitude: null,
     longitude: null,
   });
+  const [territory, setTerritory] = useState<TerritoryValue>({
+    division_id: null,
+    range_id: null,
+    beat_id: null,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!profile) return;
+    setTerritory((prev) => ({
+      division_id: prev.division_id ?? profile.division_id ?? null,
+      range_id: prev.range_id ?? profile.range_id ?? null,
+      beat_id: prev.beat_id ?? profile.beat_id ?? null,
+    }));
+  }, [profile?.id]);
 
   if (!canOnboardVillagers(profile?.role)) {
     return (
@@ -61,7 +76,8 @@ export default function OnboardVillager() {
 
     setIsSubmitting(true);
     try {
-      const divisionId = selectedVillage?.division_id ?? profile?.division_id ?? null;
+      const divisionId = territory.division_id ?? selectedVillage?.division_id ?? profile?.division_id ?? null;
+      const rangeId = territory.range_id ?? profile?.range_id ?? null;
 
       let villageId: string | null = selectedVillage?.id ?? null;
       if (!villageId) {
@@ -81,6 +97,7 @@ export default function OnboardVillager() {
         longitude: location.longitude,
         village_id: villageId,
         division_id: divisionId,
+        range_id: rangeId,
         created_by: profile?.id ?? null,
         alert_opt_in: true,
       });
@@ -97,6 +114,7 @@ export default function OnboardVillager() {
       setVillageName('');
       setSelectedVillage(null);
       setLocation({ latitude: null, longitude: null });
+      setTerritory({ division_id: null, range_id: null, beat_id: null });
     } catch (err) {
       setError(err instanceof Error ? err.message : t('hathiMitra.onboardFailed'));
     } finally {
@@ -176,7 +194,7 @@ export default function OnboardVillager() {
 
           <VillageAutocomplete
             value={villageName}
-            divisionId={profile?.division_id}
+            divisionId={territory.division_id ?? profile?.division_id}
             onChange={(name, selected) => {
               setVillageName(name);
               setSelectedVillage(selected);
@@ -184,6 +202,15 @@ export default function OnboardVillager() {
           />
 
           <LocationFields value={location} onChange={setLocation} required />
+
+          <TerritorySelect
+            value={territory}
+            onChange={setTerritory}
+            latitude={location.latitude}
+            longitude={location.longitude}
+            includeBeat={false}
+            required
+          />
 
           <button
             type="submit"

@@ -7,7 +7,9 @@ import { MapPin, Calendar, Clock, AlertTriangle, Eye, Loader2, ArrowLeft, Radio,
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
-import { shareOrCopy, downloadTextFile, mapsLink } from '../lib/reportShare';
+import { shareOrCopy, downloadTextFile, mapsLink, buildSightingShareText } from '../lib/reportShare';
+import { formatLatLngDms } from '../lib/geoFormat';
+import { db } from '../db';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseLoc(loc: any): { lat: number; lng: number } | null {
@@ -31,11 +33,13 @@ interface HistoryItem {
     id: string;
     device_timestamp: string;
     status: string;
+    notes?: string | null;
     location?: string | null;
     geo_beats?: {
         name: string;
         geo_ranges?: {
             name: string;
+            geo_divisions?: { name: string };
         }
     };
     observations: {
@@ -44,6 +48,7 @@ interface HistoryItem {
         female_count: number;
         calf_count: number;
         unknown_count: number;
+        compass_bearing?: number | null;
         indirect_sign_details?: string[];
         conflict_loss_details?: string[];
     }[];
@@ -51,6 +56,7 @@ interface HistoryItem {
         category: string;
         description: string;
     }[];
+    report_media?: { storage_path?: string | null }[];
 }
 
 const typeColors: Record<string, string> = {
@@ -71,6 +77,7 @@ export default function TerritoryHistory() {
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [shareMsg, setShareMsg] = useState<string | null>(null);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const handleShare = async (item: HistoryItem, text: string, coords: { lat: number; lng: number } | null) => {
         const url = coords ? mapsLink(coords.lat, coords.lng) : undefined;
@@ -120,18 +127,21 @@ export default function TerritoryHistory() {
                     id,
                     device_timestamp,
                     status,
+                    notes,
                     location,
-                    geo_beats(name, geo_ranges(name)),
+                    geo_beats(name, geo_ranges(name, geo_divisions(name))),
                     observations(
                         type,
                         male_count,
                         female_count,
                         calf_count,
                         unknown_count,
+                        compass_bearing,
                         indirect_sign_details,
                         conflict_loss_details
                     ),
-                    conflict_damages(category, description)
+                    conflict_damages(category, description),
+                    report_media(storage_path)
                 `)
                 .order('server_created_at', { ascending: false })
                 .limit(50);
@@ -150,6 +160,33 @@ export default function TerritoryHistory() {
             if (reportsRes.error) {
                 console.error('Error fetching history:', reportsRes.error);
                 setFetchError(reportsRes.error.message || 'Failed to load activity history.');
+                const local = await db.reports.orderBy('device_timestamp').reverse().limit(50).toArray();
+                if (local.length) {
+                    setHistory(local.map((r) => ({
+                        id: r.id,
+                        device_timestamp: r.device_timestamp,
+                        status: r.status,
+                        notes: r.notes,
+                        location: r.latitude != null && r.longitude != null
+                            ? { coordinates: [r.longitude, r.latitude] }
+                            : null,
+                        observations: [{
+                            type: r.observation_type || 'direct',
+                            male_count: r.male_count,
+                            female_count: r.female_count,
+                            calf_count: r.calf_count,
+                            unknown_count: r.unknown_count,
+                            compass_bearing: r.compass_bearing,
+                            indirect_sign_details: r.indirect_sign_details,
+                            conflict_loss_details: r.conflict_loss_details,
+                        }],
+                        conflict_damages: (r.loss_type || []).map((category) => ({
+                            category,
+                            description: r.damage_description || '',
+                        })),
+                    })) as unknown as HistoryItem[]);
+                    setFetchError(null);
+                }
             } else {
                 setHistory((reportsRes.data as unknown) as HistoryItem[] || []);
             }
@@ -265,18 +302,43 @@ export default function TerritoryHistory() {
                                 details = `${t('history.damages')}${damages}`;
                             }
 
-                            const territory = [item.geo_beats?.name, item.geo_beats?.geo_ranges?.name]
+                            const territory = [item.geo_beats?.geo_ranges?.geo_divisions?.name, item.geo_beats?.geo_ranges?.name, item.geo_beats?.name]
                                 .filter(Boolean)
                                 .join(', ');
 
                             const coords = parseLoc(item.location);
-                            const shareText = [
-                                `${t('share.reportTitle')} — ${title}`,
-                                `${t('share.date')}: ${new Date(item.device_timestamp).toLocaleString()}`,
-                                territory ? `${t('share.territory')}: ${territory}` : null,
-                                details ? `${t('share.details')}: ${details}` : null,
-                                coords ? `${t('share.coordinates')}: ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}` : null,
-                            ].filter(Boolean).join('\n');
+                            const elephantTotal = (o?.male_count || 0) + (o?.female_count || 0) + (o?.calf_count || 0) + (o?.unknown_count || 0);
+                            const damageText = item.conflict_damages?.length
+                                ? item.conflict_damages.map(d => [d.category, d.description].filter(Boolean).join(' — ')).join(', ')
+                                : (Array.isArray(o?.conflict_loss_details) ? o.conflict_loss_details.join(', ') : null);
+                            const shareText = buildSightingShareText({
+                                typeLabel: title,
+                                dateLabel: new Date(item.device_timestamp).toLocaleString(),
+                                division: item.geo_beats?.geo_ranges?.geo_divisions?.name,
+                                range: item.geo_beats?.geo_ranges?.name,
+                                beat: item.geo_beats?.name,
+                                elephantTotal,
+                                directionDeg: o?.compass_bearing ?? null,
+                                damage: damageText,
+                                lat: coords?.lat,
+                                lng: coords?.lng,
+                                dms: coords ? formatLatLngDms(coords.lat, coords.lng) : null,
+                                labels: {
+                                    title: t('share.reportTitle'),
+                                    type: t('share.sightingType'),
+                                    date: t('share.date'),
+                                    division: t('dtl_division'),
+                                    range: t('dtl_range'),
+                                    beat: t('dtl_beat'),
+                                    elephants: t('nearby.elephants'),
+                                    direction: t('share.direction'),
+                                    damage: t('share.damage'),
+                                    gps: t('share.coordinates'),
+                                    dms: t('dtl_dms_location'),
+                                    map: t('share.map'),
+                                    photo: t('share.photo'),
+                                },
+                            });
 
                             const colorClass = oType ? typeColors[oType] : 'bg-muted text-muted-foreground border-border';
                             const Icon = ['loss', 'conflict_loss'].includes(oType || '') ? AlertTriangle : Eye;
@@ -291,6 +353,7 @@ export default function TerritoryHistory() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.05 }}
                                     className={`p-4 rounded-2xl border bg-card/50 backdrop-blur-md shadow-sm space-y-3 relative overflow-hidden`}
+                                    onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
                                 >
                                     <div className={`absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-20 pointer-events-none ${colorClass.split(' ')[0]}`} />
 
@@ -326,9 +389,24 @@ export default function TerritoryHistory() {
                                         </div>
                                     </div>
 
+                                    {expandedId === item.id && (
+                                        <div className="glass-card rounded-xl p-3 border border-border/50 bg-background/50 space-y-1 text-xs">
+                                            <p className="text-sm font-medium text-foreground">{details || t('history.detailsNone')}</p>
+                                            {o?.compass_bearing != null && <p>{t('share.direction')}: {Math.round(Number(o.compass_bearing))}°</p>}
+                                            {item.notes && <p>{t('ot_description')}: {item.notes}</p>}
+                                            {coords && (
+                                                <>
+                                                    <p className="font-mono">{t('share.coordinates')}: {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}</p>
+                                                    <p className="font-mono">{t('dtl_dms_location')}: {formatLatLngDms(coords.lat, coords.lng)}</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                    {expandedId !== item.id && (
                                     <div className="glass-card rounded-xl p-3 border border-border/50 bg-background/50">
                                         <p className="text-sm font-medium text-foreground">{details || t('history.detailsNone')}</p>
                                     </div>
+                                    )}
 
                                     {territory && (
                                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium pt-1">
@@ -341,14 +419,14 @@ export default function TerritoryHistory() {
                                     <div className="flex items-center gap-2 pt-1">
                                         <button
                                             type="button"
-                                            onClick={() => handleShare(item, shareText, coords)}
+                                            onClick={(e) => { e.stopPropagation(); handleShare(item, shareText, coords); }}
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background/50 text-xs font-semibold text-foreground hover:bg-muted/50 transition-colors"
                                         >
                                             <Share2 size={14} /> {t('share.share')}
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => handleDownload(item, shareText, coords)}
+                                            onClick={(e) => { e.stopPropagation(); handleDownload(item, shareText, coords); }}
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background/50 text-xs font-semibold text-foreground hover:bg-muted/50 transition-colors"
                                         >
                                             <Download size={14} /> {t('share.download')}

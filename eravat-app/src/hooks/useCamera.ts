@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 const ALLOWED_FORMATS = ['jpeg', 'jpg', 'png', 'webp'];
-const MAX_BASE64_SIZE = 5 * 1024 * 1024; // ~5MB in base64 characters
 
 function normalizeImageFormat(format: string): 'jpeg' | 'png' | 'webp' {
     const lower = format.toLowerCase();
@@ -24,28 +23,23 @@ export function useCamera() {
     const [error, setError] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
 
-    const takePhoto = useCallback(async () => {
+    const capture = useCallback(async (source: CameraSource) => {
         setIsCapturing(true);
         setError(null);
         try {
             const image = await Camera.getPhoto({
                 quality: 80,
+                width: 1920,
+                height: 1920,
                 allowEditing: false,
                 resultType: CameraResultType.Base64,
-                source: CameraSource.Prompt,
+                source,
             });
 
             if (image.base64String) {
-                // Validate format against whitelist
                 const format = (image.format || 'jpeg').toLowerCase();
                 if (!ALLOWED_FORMATS.includes(format)) {
                     setError(`Unsupported image format: ${format}. Use JPEG, PNG, or WebP.`);
-                    return null;
-                }
-
-                // Validate file size
-                if (image.base64String.length > MAX_BASE64_SIZE) {
-                    setError('Image is too large. Please use a smaller image (max 5MB).');
                     return null;
                 }
 
@@ -68,6 +62,9 @@ export function useCamera() {
         }
     }, []);
 
+    const takePhoto = useCallback(() => capture(CameraSource.Camera), [capture]);
+    const pickFromGallery = useCallback(() => capture(CameraSource.Photos), [capture]);
+
     const clearPhoto = useCallback(() => {
         setPhotoUrl(null);
         setBase64String(null);
@@ -79,6 +76,7 @@ export function useCamera() {
         error,
         isCapturing,
         takePhoto,
+        pickFromGallery,
         clearPhoto
     };
 }

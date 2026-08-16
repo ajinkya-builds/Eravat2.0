@@ -9,6 +9,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { track } from '../../lib/analytics';
+import { formatLatLngDms } from '../../lib/geoFormat';
+import { lookupGeoFromPoint, type GeoMatch } from '../../lib/geoLookup';
 
 export function QuickSOSButton() {
     const { profile } = useAuth();
@@ -17,6 +19,7 @@ export function QuickSOSButton() {
     const [status, setStatus] = useState<'idle' | 'locating' | 'confirm' | 'saving' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+    const [geoMatch, setGeoMatch] = useState<GeoMatch | null>(null);
 
     const getLocalizedText = () => {
         const text: Record<string, {
@@ -30,8 +33,18 @@ export function QuickSOSButton() {
             confirmDesc: string;
             latitude: string;
             longitude: string;
+            dms: string;
+            division: string;
+            range: string;
+            beat: string;
             confirm: string;
             cancel: string;
+            idleHint: string;
+            locatingHint: string;
+            confirmHint: string;
+            savingHint: string;
+            successHint: string;
+            errorHint: string;
         }> = {
             en: {
                 buttonLabel: 'Quick SOS Sighting',
@@ -41,11 +54,21 @@ export function QuickSOSButton() {
                 error: 'SOS Failed. Try again.',
                 permissionDenied: 'Location permission denied.',
                 confirmTitle: 'Confirm SOS Sighting',
-                confirmDesc: 'Check the location below before sending. You can correct the coordinates if needed.',
+                confirmDesc: 'Check Division, Range, Beat and GPS below before sending. Location cannot be edited.',
                 latitude: 'Latitude',
                 longitude: 'Longitude',
+                dms: 'GPS (DMS)',
+                division: 'Division',
+                range: 'Range',
+                beat: 'Beat',
                 confirm: 'Send SOS',
                 cancel: 'Cancel',
+                idleHint: 'One-tap emergency GPS broadcast',
+                locatingHint: 'Querying satellites...',
+                confirmHint: 'Confirm the location to send',
+                savingHint: 'Writing to local store...',
+                successHint: 'Alert queued for transmission',
+                errorHint: 'Check GPS permissions',
             },
             hi: {
                 buttonLabel: 'त्वरित संकट (SOS)',
@@ -55,11 +78,21 @@ export function QuickSOSButton() {
                 error: 'संकट विफल। पुनः प्रयास करें।',
                 permissionDenied: 'स्थान अनुमति अस्वीकृत।',
                 confirmTitle: 'संकट सूचना की पुष्टि करें',
-                confirmDesc: 'भेजने से पहले नीचे स्थान जाँचें। आवश्यक होने पर निर्देशांक ठीक करें।',
+                confirmDesc: 'भेजने से पहले नीचे डिवीज़न, रेंज, बीट और GPS जाँचें। स्थान संपादित नहीं किया जा सकता।',
                 latitude: 'अक्षांश',
                 longitude: 'देशांतर',
+                dms: 'GPS (DMS)',
+                division: 'डिवीज़न',
+                range: 'रेंज',
+                beat: 'बीट',
                 confirm: 'SOS भेजें',
                 cancel: 'रद्द करें',
+                idleHint: 'एक टैप आपातकालीन GPS प्रसारण',
+                locatingHint: 'उपग्रह से स्थान ले रहे हैं...',
+                confirmHint: 'भेजने के लिए स्थान की पुष्टि करें',
+                savingHint: 'स्थानीय रूप से सहेज रहे हैं...',
+                successHint: 'अलर्ट भेजने के लिए कतार में है',
+                errorHint: 'GPS अनुमति जाँचें',
             },
             mr: {
                 buttonLabel: 'त्वरित संकट (SOS)',
@@ -69,11 +102,21 @@ export function QuickSOSButton() {
                 error: 'संकट नोंदणी अपयशी.',
                 permissionDenied: 'स्थान परवानगी नाकारली.',
                 confirmTitle: 'संकट सूचना निश्चित करा',
-                confirmDesc: 'पाठवण्यापूर्वी खालील स्थान तपासा. आवश्यक असल्यास निर्देशांक दुरुस्त करा.',
+                confirmDesc: 'पाठवण्यापूर्वी खालील डिव्हिजन, रेंज, बीट आणि GPS तपासा. स्थान संपादित करता येत नाही.',
                 latitude: 'अक्षांश',
                 longitude: 'रेखांश',
+                dms: 'GPS (DMS)',
+                division: 'डिव्हिजन',
+                range: 'रेंज',
+                beat: 'बीट',
                 confirm: 'SOS पाठवा',
                 cancel: 'रद्द करा',
+                idleHint: 'एक टॅप आपत्कालीन GPS प्रसारण',
+                locatingHint: 'उपग्रहाकडून स्थान घेत आहे...',
+                confirmHint: 'पाठवण्यासाठी स्थान निश्चित करा',
+                savingHint: 'स्थानिक स्तरावर जतन होत आहे...',
+                successHint: 'अलर्ट पाठवण्यासाठी रांगेत आहे',
+                errorHint: 'GPS परवानगी तपासा',
             }
         };
         const lang = (language || 'en').split('-')[0];
@@ -109,6 +152,8 @@ export function QuickSOSButton() {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
             });
+            const match = await lookupGeoFromPoint(position.coords.latitude, position.coords.longitude);
+            setGeoMatch(match);
             setStatus('confirm');
         } catch (err) {
             console.error('SOS location failed:', err);
@@ -151,9 +196,9 @@ export function QuickSOSButton() {
                 compass_bearing: null,
                 photo_url: null,
                 notes: 'EMERGENCY QUICK SOS - One-click GPS sighting alert.',
-                division_id: profile.division_id || null,
-                range_id: profile.range_id || null,
-                beat_id: profile.beat_id || null,
+                division_id: geoMatch?.division_id || profile.division_id || null,
+                range_id: geoMatch?.range_id || profile.range_id || null,
+                beat_id: geoMatch?.beat_id || profile.beat_id || null,
                 device_timestamp: now,
                 sync_status: 'pending',
                 status: 'submitted',
@@ -172,6 +217,7 @@ export function QuickSOSButton() {
             setTimeout(() => {
                 setStatus('idle');
                 setCoords(null);
+                setGeoMatch(null);
             }, 3000);
         } catch (err) {
             console.error('SOS Sighting failed:', err);
@@ -184,6 +230,7 @@ export function QuickSOSButton() {
     const cancelConfirm = () => {
         setStatus('idle');
         setCoords(null);
+        setGeoMatch(null);
     };
 
     const statusColors = {
@@ -225,12 +272,12 @@ export function QuickSOSButton() {
                             {status === 'error' && strings.error}
                         </span>
                         <span className="text-xs opacity-80 font-normal mt-0.5">
-                            {status === 'idle' && 'One-tap emergency GPS broadcast'}
-                            {status === 'locating' && 'Querying satellites...'}
-                            {status === 'confirm' && 'Confirm the location to send'}
-                            {status === 'saving' && 'Writing to local store...'}
-                            {status === 'success' && 'Alert queued for transmission'}
-                            {status === 'error' && (errorMessage || 'Check GPS permissions')}
+                            {status === 'idle' && strings.idleHint}
+                            {status === 'locating' && strings.locatingHint}
+                            {status === 'confirm' && strings.confirmHint}
+                            {status === 'saving' && strings.savingHint}
+                            {status === 'success' && strings.successHint}
+                            {status === 'error' && (errorMessage || strings.errorHint)}
                         </span>
                     </div>
                 </div>
@@ -266,32 +313,21 @@ export function QuickSOSButton() {
                             </div>
                             <p className="text-xs text-muted-foreground">{strings.confirmDesc}</p>
 
-                            <div className="flex items-center gap-2 text-xs text-primary font-medium">
-                                <MapPin size={14} />
-                                {coords.latitude.toFixed(6)}, {coords.longitude.toFixed(6)}
+                            <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">{strings.dms}</label>
+                                <div className="w-full p-2.5 rounded-xl bg-muted/40 border border-border text-xs font-mono">
+                                    {formatLatLngDms(coords.latitude, coords.longitude)}
+                                </div>
+                                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                    <MapPin size={12} />
+                                    {coords.latitude.toFixed(6)}, {coords.longitude.toFixed(6)}
+                                </p>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-xs text-muted-foreground mb-1 block">{strings.latitude}</label>
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        value={coords.latitude}
-                                        onChange={(e) => setCoords({ ...coords, latitude: parseFloat(e.target.value) })}
-                                        className="w-full p-2.5 rounded-xl bg-background border border-border text-sm"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs text-muted-foreground mb-1 block">{strings.longitude}</label>
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        value={coords.longitude}
-                                        onChange={(e) => setCoords({ ...coords, longitude: parseFloat(e.target.value) })}
-                                        className="w-full p-2.5 rounded-xl bg-background border border-border text-sm"
-                                    />
-                                </div>
+                            <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-1 text-xs">
+                                <p><span className="text-muted-foreground">{strings.division}:</span> {geoMatch?.division_name || profile?.division_name || '—'}</p>
+                                <p><span className="text-muted-foreground">{strings.range}:</span> {geoMatch?.range_name || profile?.range_name || '—'}</p>
+                                <p><span className="text-muted-foreground">{strings.beat}:</span> {geoMatch?.beat_name || profile?.beat_name || '—'}</p>
                             </div>
 
                             <div className="flex gap-3 pt-1">

@@ -10,7 +10,7 @@ test.describe('Offline & Sync Module', () => {
 
     test('SYNC-001: App loads after login', async ({ page }) => {
         // Verify dashboard loaded — basic online connectivity
-        await expect(page.locator('text=Report Activity')).toBeVisible();
+        await expect(page.locator('text=Add Sighting')).toBeVisible();
     });
 
     test('SYNC-002: Simulate offline — API calls blocked', async ({ page }) => {
@@ -71,7 +71,7 @@ test.describe('Offline & Sync Module', () => {
         await page.waitForLoadState('domcontentloaded');
 
         // Dashboard should load with fresh data
-        await expect(page.locator('text=Report Activity')).toBeVisible();
+        await expect(page.locator('text=Add Sighting')).toBeVisible();
     });
 
     test.skip('SYNC-007: Camera + offline combo', () => {

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Map, Plus, Settings, User, AlertTriangle } from 'lucide-react';
+import { Home, Map, Settings, User, AlertTriangle } from 'lucide-react';
+import { useGeolocation } from '../hooks/useGeolocation';
 import { Network } from '@capacitor/network';
 
 import { cn } from '../lib/utils';
@@ -18,6 +19,7 @@ export function AppLayout() {
     const { t, language } = useLanguage();
     const { sessionExpired, clearSessionExpired } = useAuth();
     const [isOnline, setIsOnline] = useState(true);
+    const { fetchLocation } = useGeolocation();
 
     useEffect(() => {
         let isMounted = true;
@@ -47,6 +49,12 @@ export function AppLayout() {
         };
     }, []);
 
+    useEffect(() => {
+        void fetchLocation();
+        // Ask for device location as soon as the shell opens (review §3.1).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const getStatusLabel = () => {
         const labels: Record<string, { online: string; offline: string }> = {
             en: { online: 'Online', offline: 'Offline (Local Save)' },
@@ -61,7 +69,6 @@ export function AppLayout() {
     const NAV_ITEMS = [
         { id: 'dashboard', path: '/', icon: Home, label: 'nav.dashboard' },
         { id: 'map', path: '/map', icon: Map, label: 'nav.map' },
-        { id: 'report', path: '/report', icon: Plus, label: 'nav.report', isFloating: true },
         { id: 'profile', path: '/profile', icon: User, label: 'nav.profile' },
         { id: 'settings', path: '/settings', icon: Settings, label: 'nav.settings' },
     ];
@@ -161,20 +168,6 @@ export function AppLayout() {
                             {NAV_ITEMS.map((item) => {
                                 const isActive = location.pathname === item.path;
                                 const Icon = item.icon;
-
-                                if (item.isFloating) {
-                                    return (
-                                        <button
-                                            key={item.id}
-                                            data-ph-action={`nav.${item.id}`}
-                                            data-ph-screen="app_shell"
-                                            onClick={() => navigate(item.path)}
-                                            className="relative -top-6 bg-gradient-to-br from-primary to-emerald-600 text-primary-foreground p-4 rounded-full shadow-lg hover:shadow-primary/50 hover:scale-105 active:scale-95 transition-all duration-300"
-                                        >
-                                            <Icon size={28} className={cn(isActive && "animate-pulse")} />
-                                        </button>
-                                    );
-                                }
 
                                 return (
                                     <button

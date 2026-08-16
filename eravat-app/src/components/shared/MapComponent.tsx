@@ -11,6 +11,7 @@ import wkx from 'wkx';
 import * as turf from '@turf/turf';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { trackClick, trackFailed, trackFilter } from '../../lib/analytics';
+import { RadiusSlider } from './RadiusSlider';
 
 // ─── Custom Marker Icons ──────────────────────────────────────────────────────
 
@@ -122,6 +123,7 @@ interface ObsPin {
     compassBearing?: number;
     indirectSigns?: string[];
     conflictLossDetails?: string[];
+    hasDamage: boolean;
     deviceTimestamp: string;
 }
 
@@ -165,7 +167,7 @@ const obsTypeMap: Record<string, 'direct' | 'indirect' | 'loss'> = {
     loss: 'loss',
 };
 
-const RADIUS_OPTIONS = [0, 10, 25, 50, 100];
+const RADIUS_MAX = 100;
 
 function getInitialBaseLayer(): 'streets' | 'satellite' {
     try {
@@ -207,6 +209,8 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [beatGeo, setBeatGeo] = useState<any>(null);
     const [loadingGeo, setLoadingGeo] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [labelGeo, setLabelGeo] = useState<any>(null);
 
     // Observation pins
     const [obsPins, setObsPins] = useState<ObsPin[]>([]);
@@ -288,8 +292,12 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                             male_count,
                             female_count,
                             calf_count,
-                            unknown_count
-                        )
+                            unknown_count,
+                            compass_bearing,
+                            indirect_sign_details,
+                            conflict_loss_details
+                        ),
+                        conflict_damages ( category, description )
                     `)
                     .not('location', 'is', null)
                     .order('device_timestamp', { ascending: false })
@@ -320,12 +328,17 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     const type = obsTypeMap[rawType] ?? 'direct';
                     const beat = rep.geo_beats;
                     const range = beat?.geo_ranges;
+                    const damages = Array.isArray(rep.conflict_damages) ? rep.conflict_damages : [];
+                    const hasDamage =
+                        type === 'loss' ||
+                        (Array.isArray(obs?.conflict_loss_details) && obs.conflict_loss_details.length > 0) ||
+                        damages.length > 0;
 
                     pins.push({
                         id: rep.id,
                         lat: coords.lat,
                         lng: coords.lng,
-                        type,
+                        type: hasDamage ? 'loss' : type,
                         beatId: rep.beat_id ?? beat?.id ?? null,
                         rangeId: beat?.range_id ?? range?.id ?? null,
                         divisionId: range?.division_id ?? null,
@@ -334,6 +347,10 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                         femaleCount: obs?.female_count ?? 0,
                         calfCount: obs?.calf_count ?? 0,
                         unknownCount: obs?.unknown_count ?? 0,
+                        compassBearing: obs?.compass_bearing ?? undefined,
+                        indirectSigns: obs?.indirect_sign_details ?? [],
+                        conflictLossDetails: obs?.conflict_loss_details ?? damages.map((d: { category?: string }) => d.category).filter(Boolean),
+                        hasDamage,
                         deviceTimestamp: rep.device_timestamp,
                     });
                 });
@@ -420,6 +437,43 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
         else if (selectedDivision) fetchGeoData('division', selectedDivision);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedBeat]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const toFeatures = (rows: { name: string; boundary?: string | null }[]) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const features: any[] = [];
+            rows.forEach((row) => {
+                if (!row.boundary) return;
+                try {
+                    const geom = wkx.Geometry.parse(Buffer.from(row.boundary, 'hex'));
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    features.push(turf.feature(geom.toGeoJSON() as any, { name: row.name }));
+                } catch { /* skip */ }
+            });
+            return features.length ? turf.featureCollection(features) : null;
+        };
+
+        void (async () => {
+            if (!selectedDivision) {
+                if (!cancelled) setLabelGeo(allDivisionsGeo);
+                return;
+            }
+            if (selectedBeat) {
+                const { data } = await supabase.from('geo_beats').select('name, boundary').eq('id', selectedBeat);
+                if (!cancelled) setLabelGeo(toFeatures(data || []));
+                return;
+            }
+            if (selectedRange) {
+                const { data } = await supabase.from('geo_beats').select('name, boundary').eq('range_id', selectedRange);
+                if (!cancelled) setLabelGeo(toFeatures(data || []));
+                return;
+            }
+            const { data } = await supabase.from('geo_ranges').select('name, boundary').eq('division_id', selectedDivision);
+            if (!cancelled) setLabelGeo(toFeatures(data || []));
+        })();
+        return () => { cancelled = true; };
+    }, [selectedDivision, selectedRange, selectedBeat, allDivisionsGeo]);
 
     // ── Geometry parser ───────────────────────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -598,14 +652,16 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const timedPins = obsPins.filter((p) => inDateRange(p.deviceTimestamp) && withinRadius(p));
 
     const visiblePins = timedPins.filter((p) => {
-        if (pinFilter !== 'all' && p.type !== pinFilter) return false;
-        return true;
+        if (pinFilter === 'all') return true;
+        if (pinFilter === 'loss') return p.hasDamage || p.type === 'loss';
+        return p.type === pinFilter;
     });
 
+    const countSource = pinFilter === 'all' ? timedPins : visiblePins;
     const typeCounts = {
-        direct: timedPins.filter((p) => p.type === 'direct').length,
-        indirect: timedPins.filter((p) => p.type === 'indirect').length,
-        loss: timedPins.filter((p) => p.type === 'loss').length,
+        direct: countSource.filter((p) => p.type === 'direct').length,
+        indirect: countSource.filter((p) => p.type === 'indirect').length,
+        loss: countSource.filter((p) => p.hasDamage || p.type === 'loss').length,
     };
 
     const legacyPoints = reportPoints ?? [];
@@ -734,7 +790,8 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     )}
                 </div>
 
-                <div className="flex items-center gap-2 bg-muted/40 rounded-xl p-1.5 px-3 border border-border">
+                <div className="flex flex-col gap-2 bg-muted/40 rounded-xl p-2 px-3 border border-border min-w-[240px]">
+                    <div className="flex items-center gap-2">
                     <button type="button" onClick={locateUser} disabled={locating}
                         className="flex items-center gap-1.5 text-primary hover:underline disabled:opacity-50">
                         <LocateFixed size={14} />
@@ -742,16 +799,14 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     </button>
                     <span className="w-[1px] h-3 bg-border" />
                     <span className="text-muted-foreground">{t('map.radius')}</span>
-                    <select value={radiusKm} onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setRadiusKm(v);
-                            trackFilter('map.radius_km', v, { screen: 'map' });
-                        }}
-                        className="bg-transparent outline-none text-foreground">
-                        {RADIUS_OPTIONS.map((r) => (
-                            <option key={r} value={r}>{r === 0 ? t('map.radiusOff') : `${r} ${t('km')}`}</option>
-                        ))}
-                    </select>
+                    <span className="text-foreground font-semibold">
+                        {radiusKm === 0 ? t('map.radiusOff') : `${radiusKm} ${t('km')}`}
+                    </span>
+                    </div>
+                    <RadiusSlider value={radiusKm} onChange={(v) => {
+                        setRadiusKm(v);
+                        trackFilter('map.radius_km', v, { screen: 'map' });
+                    }} min={0} max={RADIUS_MAX} />
                 </div>
 
                 <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground bg-muted/40 rounded-xl p-1.5 px-3 border border-border">
@@ -850,7 +905,24 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     {/* All-divisions outline when no single division is selected */}
                     {!selectedDivision && allDivisionsGeo && (
                         <GeoJSON key="all-divisions" data={allDivisionsGeo}
-                            style={{ color: 'hsl(215.4, 16.3%, 46.9%)', weight: 1.5, opacity: 0.6, fillOpacity: 0.04 }} />
+                            style={{ color: 'hsl(215.4, 16.3%, 46.9%)', weight: 1.5, opacity: 0.6, fillOpacity: 0.04 }}
+                            onEachFeature={(feature, layer) => {
+                                const name = feature.properties?.name;
+                                if (name) {
+                                    layer.bindTooltip(String(name), { permanent: true, direction: 'center', className: 'geo-label', opacity: 0.85 });
+                                }
+                            }} />
+                    )}
+
+                    {labelGeo && selectedDivision && (
+                        <GeoJSON key={`labels-${selectedDivision}-${selectedRange}-${selectedBeat}`} data={labelGeo}
+                            style={{ color: 'transparent', weight: 0, fillOpacity: 0 }}
+                            onEachFeature={(feature, layer) => {
+                                const name = feature.properties?.name;
+                                if (name) {
+                                    layer.bindTooltip(String(name), { permanent: true, direction: 'center', className: 'geo-label', opacity: 0.9 });
+                                }
+                            }} />
                     )}
 
                     {/* Geo overlays for the active selection */}
