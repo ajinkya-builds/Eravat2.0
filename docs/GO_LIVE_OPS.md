@@ -57,15 +57,13 @@ Local keystore lives under `backups/android-signing/` (gitignored). For CI, set 
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-Nightly DB backups run **on this Mac**, not GitHub (dumps never go to the shared repo).
+Nightly DB backups run in GitHub Actions and land only on the **dedicated Eravat Google Drive** (not git, not Actions artifacts, not this Mac).
 
-- Script: `scripts/backup-db-to-gdrive.sh`
-- Schedule: macOS LaunchAgent `com.eravat.db-backup-gdrive` at **00:05 IST**
-  (`scripts/install-db-backup-launchd.sh`)
-- Destination (Google Drive for Desktop, `connectwithajinkya@gmail.com`):
-  `My Drive/Eravat DB Backups/production` and `.../staging`
-- Files older than 30 days in those folders are deleted.
-- Requires Docker Desktop, `supabase` CLI login, and the Eravat volume mounted.
+- Workflow: `.github/workflows/nightly-db-backup.yml` — 18:30 UTC / 00:00 IST
+- Script: `scripts/backup-db-to-gdrive.sh` (`rclone` → `production/` and `staging/`)
+- One-time auth (sign in as the Eravat Google account): `scripts/setup-gdrive-backup-auth.sh`
+- GitHub secrets: `RCLONE_CONFIG`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_STAGING_DB_PASSWORD`
+- Dumps older than 30 days are deleted on Drive.
 
 ## Phone auth note (Test OTP pilot)
 

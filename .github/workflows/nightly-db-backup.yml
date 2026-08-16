@@ -1,0 +1,44 @@
+name: Nightly database backup to Google Drive
+
+# Dumps stay on the runner only, then rclone to the Eravat Google account Drive.
+# Do not upload artifacts and do not commit dump files.
+
+on:
+  schedule:
+    # 18:30 UTC = 00:00 IST
+    - cron: '30 18 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-db-backup-gdrive
+  cancel-in-progress: true
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install rclone
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Dump databases and upload to Google Drive
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_STAGING_DB_PASSWORD: ${{ secrets.SUPABASE_STAGING_DB_PASSWORD }}
+          RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
+        run: |
+          set -euo pipefail
+          chmod +x scripts/backup-db-to-gdrive.sh
+          scripts/backup-db-to-gdrive.sh
