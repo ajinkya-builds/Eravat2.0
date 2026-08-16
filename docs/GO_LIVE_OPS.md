@@ -57,7 +57,16 @@ Local keystore lives under `backups/android-signing/` (gitignored). For CI, set 
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-For nightly DB backups, set `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`.
+For nightly DB backups, set GitHub Actions secrets:
+
+- `SUPABASE_ACCESS_TOKEN` (Supabase account token; used for both projects)
+- `SUPABASE_DB_PASSWORD` (production database password, project `mnytrlcmdpkfhrzrtesf`)
+- `SUPABASE_STAGING_DB_PASSWORD` (staging database password, project `ttjtyvxfiqhjdngkgdkf`)
+
+Dumps are **not** committed to git. They are uploaded as workflow artifacts
+(`eravat-prod-backup-<run_id>` / `eravat-staging-backup-<run_id>`) and kept for
+**30 days**. Download from Actions → Nightly database backup → the run → Artifacts.
+Schedule: 18:30 UTC (00:00 IST) on `main`.
 
 ## Phone auth note (Test OTP pilot)
 
