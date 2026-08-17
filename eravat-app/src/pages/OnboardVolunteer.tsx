@@ -28,7 +28,7 @@ export default function OnboardVolunteer() {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<{ name: string; tempPassword?: string } | null>(null);
+    const [success, setSuccess] = useState<{ name: string } | null>(null);
 
     useEffect(() => {
         if (!profile) return;
@@ -89,7 +89,6 @@ export default function OnboardVolunteer() {
             track('volunteer_onboarded', { role: 'volunteer' });
             setSuccess({
                 name: fullName.trim(),
-                tempPassword: data?.user?.temporary_password,
             });
             setFullName('');
             setPhone('');

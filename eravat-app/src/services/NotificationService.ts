@@ -80,6 +80,49 @@ export class NotificationService {
   }
 
   /**
+   * Marks every unread notification for the current user as read
+   * (not only the ones currently loaded in the bell dropdown).
+   */
+  static async markAllUnreadForCurrentUser(): Promise<boolean> {
+    try {
+      const { data: sessionData } = await supabase.auth.getUser();
+      const userId = sessionData.user?.id;
+      if (!userId) return false;
+
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+
+      if (error) throw error;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Unread badge count independent of the dropdown page size. */
+  static async getUnreadCount(): Promise<number> {
+    try {
+      const { data: sessionData } = await supabase.auth.getUser();
+      const userId = sessionData.user?.id;
+      if (!userId) return 0;
+
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+
+      if (error) throw error;
+      return count ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
    * Subscribes to real-time notification inserts for the current user.
    */
   static subscribeToNotifications(userId: string, callback: (payload: any) => void) {

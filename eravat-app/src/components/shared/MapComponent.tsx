@@ -218,12 +218,9 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const [pinFilter, setPinFilter] = useState<'all' | 'direct' | 'indirect' | 'loss'>('all');
     const [showHeatmap, setShowHeatmap] = useState(false);
 
-    // Date range filter (empty = all time)
-    const [startDate, setStartDate] = useState(() => {
-        const d = new Date();
-        d.setDate(d.getDate() - 30);
-        return d.toISOString().slice(0, 10);
-    });
+    // Date range filter (empty = all time). Default all-time so historical
+    // staging seed / UAT data is visible; testers can narrow with From/To.
+    const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
     // Base layer, fullscreen, user location + radius
@@ -305,7 +302,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     `)
                     .not('location', 'is', null)
                     .order('device_timestamp', { ascending: false })
-                    .limit(beatIds ? 300 : 200);
+                    .limit(beatIds ? 800 : 500);
 
                 if (beatIds) {
                     query = query.in('beat_id', beatIds);

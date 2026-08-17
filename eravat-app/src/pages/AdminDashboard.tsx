@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
     Users, Activity, AlertTriangle, ShieldCheck, Eye,
     PawPrint, TrendingUp, Tag, Leaf
@@ -73,12 +73,6 @@ export default function AdminDashboard() {
         id: string; type: string; beatName: string; userName: string; userPhone?: string; timeStr: string;
         total: number; conflictCat?: string;
     }[]>([]);
-    const [dispatchMessage, setDispatchMessage] = useState<string | null>(null);
-
-    const handleDispatchRRT = (beatName: string, userName: string) => {
-        setDispatchMessage(`Rapid Response Team (RRT) successfully dispatched to ${beatName} Beat to support ${userName}!`);
-        setTimeout(() => setDispatchMessage(null), 5000);
-    };
 
     // ── Fetch ──────────────────────────────────────────────────────────────────
     useEffect(() => { fetchDashboardData(); }, []);
@@ -89,21 +83,18 @@ export default function AdminDashboard() {
             const since30 = subDays(new Date(), 30).toISOString();
             const [
                 { count: userCount },
-                { data: reportsData },
+                { data: reportsData, error: reportsError },
             ] = await Promise.all([
                 supabase.from('profiles').select('id', { count: 'estimated', head: true }),
                 supabase
                     .from('reports')
+                    // profiles cannot be embedded: FK is reports.user_id → auth.users, not profiles
                     .select(`
                     id,
+                    user_id,
                     device_timestamp,
                     beat_id,
                     geo_beats (name),
-                    profiles (
-                        first_name,
-                        last_name,
-                        phone
-                    ),
                     observations (
                         type,
                         male_count, female_count, calf_count, unknown_count,
@@ -118,7 +109,27 @@ export default function AdminDashboard() {
             ]);
             setTotalPersonnel(userCount ?? 0);
 
+            if (reportsError) {
+                console.error('[AdminDashboard] reports fetch failed', reportsError);
+                return;
+            }
             if (!reportsData) return;
+
+            const userIds = [...new Set(
+                reportsData
+                    .map((r: { user_id?: string | null }) => r.user_id)
+                    .filter((id): id is string => Boolean(id))
+            )];
+            const profileById = new Map<string, { first_name?: string | null; last_name?: string | null; phone?: string | null }>();
+            if (userIds.length > 0) {
+                const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('id, first_name, last_name, phone')
+                    .in('id', userIds);
+                (profiles || []).forEach((p: { id: string; first_name?: string | null; last_name?: string | null; phone?: string | null }) => {
+                    profileById.set(p.id, p);
+                });
+            }
 
             // ── KPIs ─────────────────────────────────────────────────────────
             let todayCount = 0;
@@ -157,8 +168,10 @@ export default function AdminDashboard() {
             reportsData.forEach((rep: any) => {
                 const repDate = parseISO(rep.device_timestamp);
                 const obs = rep.observations?.[0];
-                const rawType = obs?.type ?? (rep.conflict_damages?.length ? 'conflict_loss' : 'direct_sighting');
-                const type = obsTypeNorm(rawType);
+                const hasDamages = Array.isArray(rep.conflict_damages) && rep.conflict_damages.length > 0;
+                const rawType = obs?.type ?? (hasDamages ? 'conflict_loss' : 'direct_sighting');
+                // Damage rows count as conflict even when the observation stayed direct/indirect
+                const type = hasDamages ? 'loss' : obsTypeNorm(rawType);
 
                 const total = obs
                     ? (obs.male_count + obs.female_count + obs.calf_count + obs.unknown_count)
@@ -215,7 +228,7 @@ export default function AdminDashboard() {
 
                 // Feed (last 8)
                 if (feedItems.length < 8) {
-                    const prof = rep.profiles;
+                    const prof = rep.user_id ? profileById.get(rep.user_id) : undefined;
                     const reporterName = prof ? `${prof.first_name || ''} ${prof.last_name || ''}`.trim() || 'Officer' : 'Officer';
                     const reporterPhone = prof?.phone || '';
 
@@ -346,23 +359,6 @@ export default function AdminDashboard() {
                     <NotificationBell />
                 </div>
             </motion.div>
-
-            {/* RRT Dispatch Feedback Banner */}
-            <AnimatePresence>
-                {dispatchMessage && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <div className="p-4 rounded-xl border border-primary/30 bg-primary/10 text-primary font-bold text-sm flex items-center justify-between shadow-md">
-                            <span>{dispatchMessage}</span>
-                            <button onClick={() => setDispatchMessage(null)} className="text-primary hover:opacity-80">✕</button>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             {/* ── KPI Cards ──────────────────────────────────────────────── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -597,15 +593,16 @@ export default function AdminDashboard() {
                                             href={`tel:${alert.userPhone}`}
                                             className="px-2.5 py-1 rounded-lg border border-border bg-background hover:bg-muted text-[10px] font-bold transition-colors inline-flex items-center gap-1 text-foreground"
                                         >
-                                            📞 Call Guard
+                                            Call Guard
                                         </a>
                                     )}
                                     <button
                                         type="button"
-                                        onClick={() => handleDispatchRRT(alert.beatName, alert.userName)}
-                                        className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold transition-all hover:opacity-90 active:scale-95"
+                                        disabled
+                                        title="RRT dispatch will be available in a future release"
+                                        className="px-2.5 py-1 rounded-lg bg-muted text-muted-foreground text-[10px] font-bold cursor-not-allowed opacity-70"
                                     >
-                                        ⚡ Dispatch RRT
+                                        Dispatch RRT (soon)
                                     </button>
                                 </div>
                             </div>

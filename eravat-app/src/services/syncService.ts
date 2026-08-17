@@ -100,19 +100,26 @@ async function insertReportMediaWithFallback(args: {
 }): Promise<MediaInsertResult> {
     const { mediaId, reportId, fileName } = args;
 
-    // Your live schema lacks both content_type and mime_type.
-    // Insert only safe/common columns and try path variants.
+    // Live schema uses storage_path (+ optional media_type). Older envs may use
+    // file_path / path variants — try storage_path first to avoid failed inserts
+    // marking an otherwise-synced report as failed.
     const pathColumns: Array<'file_path' | 'storage_path' | 'path' | 'media_path' | 'object_path'> = [
-        'file_path', 'storage_path', 'path', 'media_path', 'object_path',
+        'storage_path', 'file_path', 'path', 'media_path', 'object_path',
     ];
     const orderedColumns = mediaPathColumnHint
         ? [mediaPathColumnHint, ...pathColumns.filter((c) => c !== mediaPathColumnHint)]
         : pathColumns;
 
-    const attempts: Record<string, unknown>[] = orderedColumns.flatMap((column) => ([
-        { id: mediaId, report_id: reportId, [column]: fileName },
-        { report_id: reportId, [column]: fileName },
-    ]));
+    const attempts: Record<string, unknown>[] = orderedColumns.flatMap((column) => {
+        const base = { id: mediaId, report_id: reportId, [column]: fileName };
+        const withType = { ...base, media_type: 'image' };
+        return [
+            withType,
+            base,
+            { report_id: reportId, [column]: fileName, media_type: 'image' },
+            { report_id: reportId, [column]: fileName },
+        ];
+    });
 
     let firstError: unknown = null;
     for (const payload of attempts) {
@@ -290,6 +297,12 @@ export async function syncData() {
                     // Use pre-generated stable UUID from Dexie (set at report-save time) for idempotency
                     const obsId = report.obs_id ?? stableUuidFrom(`${report.id}:obs`);
 
+                    // Damage-only / damage+sighting: persist as conflict_loss so admin KPIs count it
+                    const hasDamage = Array.isArray(report.loss_type) && report.loss_type.length > 0;
+                    const mappedType = hasDamage
+                        ? 'conflict_loss'
+                        : (typeMapping[report.observation_type] || report.observation_type);
+
                     // Calculate total elephants from individual counts
                     const totalElephants = (report.male_count ?? 0) +
                                           (report.female_count ?? 0) +
@@ -301,7 +314,7 @@ export async function syncData() {
                         .upsert({
                             id: obsId,
                             report_id: report.id,
-                            type: typeMapping[report.observation_type] || report.observation_type,
+                            type: mappedType,
                             male_count: report.male_count ?? 0,
                             female_count: report.female_count ?? 0,
                             calf_count: report.calf_count ?? 0,

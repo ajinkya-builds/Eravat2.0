@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Activity, ShieldAlert, LogOut, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Activity, ShieldAlert, LogOut } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { getAnalyticsConsent, setAnalyticsConsent } from '../../lib/analyticsConsent';
 import { applyAnalyticsConsent } from '../../lib/posthogClient';
@@ -50,7 +50,7 @@ export default function PrivacySecurity() {
                 >
                     <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t('privacy.deviceData')}</h2>
                     <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
-                        <button className="w-full p-4 flex items-center justify-between hover:bg-muted/20 transition-colors text-left">
+                        <div className="w-full p-4 flex items-center justify-between text-left opacity-70 cursor-default">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
                                     <Activity size={18} />
@@ -58,9 +58,9 @@ export default function PrivacySecurity() {
                                 <span className="font-medium">{t('privacy.activeSessions')}</span>
                             </div>
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                1 Device <ChevronRight size={16} />
+                                1 Device
                             </div>
-                        </button>
+                        </div>
 
                         <label className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/20 transition-colors">
                             <div className="flex items-center gap-3">
@@ -91,15 +91,15 @@ export default function PrivacySecurity() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
                 >
-                    <button className="w-full glass-card rounded-2xl p-4 flex items-center gap-3 text-destructive hover:bg-destructive/5 transition-colors border border-destructive/20">
-                        <div className="p-2 rounded-lg bg-destructive/10 text-destructive">
+                    <div className="w-full glass-card rounded-2xl p-4 flex items-center gap-3 text-muted-foreground border border-border opacity-70 cursor-default">
+                        <div className="p-2 rounded-lg bg-muted text-muted-foreground">
                             <LogOut size={18} />
                         </div>
                         <div className="flex-1 text-left">
                             <div className="font-semibold text-sm">{t('privacy.signOutAll')}</div>
-                            <div className="text-xs opacity-80 font-medium">{t('privacy.revokeWarning')}</div>
+                            <div className="text-xs opacity-80 font-medium">Coming soon — use Profile → Sign out on this device</div>
                         </div>
-                    </button>
+                    </div>
                 </motion.div>
             </div>
         </div>

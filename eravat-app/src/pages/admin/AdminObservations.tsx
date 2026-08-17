@@ -109,8 +109,13 @@ export default function AdminObservations() {
     const handleConfirmDelete = async () => {
         if (!confirmState) return;
         try {
-            const { error } = await supabase.from('reports').delete().in('id', confirmState.ids);
+            const { data, error } = await supabase
+                .from('reports')
+                .delete()
+                .in('id', confirmState.ids)
+                .select('id');
             if (error) throw error;
+            if (!data?.length) throw new Error('Delete blocked — you may not have permission for these reports.');
             setSelected(prev => prev.filter(id => !confirmState.ids.includes(id)));
             setConfirmState(null);
             fetchObservations(currentPage);
@@ -119,8 +124,14 @@ export default function AdminObservations() {
 
     const handleMarkReviewed = async (id: string) => {
         try {
-            const { error } = await supabase.from('reports').update({ status: 'reviewed' }).eq('id', id);
+            // Live enum is pending | synced | flagged (no "reviewed")
+            const { data, error } = await supabase
+                .from('reports')
+                .update({ status: 'flagged' })
+                .eq('id', id)
+                .select('id');
             if (error) throw error;
+            if (!data?.length) throw new Error('Update blocked — you may not have permission for this report.');
             fetchObservations(currentPage);
         } catch (err) { setError(err instanceof Error ? err.message : 'Update failed'); }
     };
@@ -158,11 +169,12 @@ export default function AdminObservations() {
         countsData: { male: number; female: number; calf: number; unknown: number } | null
     ) => {
         try {
-            const { error } = await supabase.from('reports').update({
+            const { data, error } = await supabase.from('reports').update({
                 notes: reportData.notes,
                 status: reportData.status,
-            }).eq('id', reportData.id);
+            }).eq('id', reportData.id).select('id');
             if (error) throw error;
+            if (!data?.length) throw new Error('Save blocked — you may not have permission for this report.');
 
             const obs = reportData.observations?.[0];
             if (obs && countsData && ['direct', 'direct_sighting'].includes(obs.type)) {
@@ -269,8 +281,8 @@ export default function AdminObservations() {
                                                         : (obs.conflict_damages.map(cd => cd.description).join(', ') || '—')}
                                             </td>
                                             <td className="p-4">
-                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${obs.status === 'reviewed' ? 'bg-emerald-500/15 text-emerald-600' : obs.status === 'synced' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                                                    {obs.status || 'pending'}
+                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${obs.status === 'flagged' ? 'bg-emerald-500/15 text-emerald-600' : obs.status === 'synced' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                                                    {obs.status === 'flagged' ? t('admin.obs.reviewed') : (obs.status || 'pending')}
                                                 </span>
                                             </td>
                                             <td className="p-4">
@@ -436,7 +448,7 @@ function EditReportModal({
                             className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                             <option value="pending">{t('admin.obs.pending')}</option>
                             <option value="synced">{t('admin.obs.synced')}</option>
-                            <option value="reviewed">{t('admin.obs.reviewed')}</option>
+                            <option value="flagged">{t('admin.obs.reviewed')}</option>
                         </select>
                     </div>
                     <div className="flex gap-3 pt-2">

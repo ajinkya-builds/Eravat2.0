@@ -49,31 +49,29 @@ export default function HelpSupport() {
                 >
                     <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t('help.contactAdmin')}</h2>
                     <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
-                        <a href="tel:+18005550199" className="p-4 flex items-center justify-between hover:bg-muted/20 transition-colors">
+                        <div className="p-4 flex items-center justify-between text-left opacity-70">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
                                     <Phone size={18} />
                                 </div>
                                 <div>
                                     <div className="font-medium">{t('help.callIT')}</div>
-                                    <div className="text-xs text-muted-foreground mt-0.5">+1 (800) 555-0199 • {t('help.callTime')}</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">Contact your division office · phone TBD for UAT</div>
                                 </div>
                             </div>
-                            <ExternalLink size={16} className="text-muted-foreground" />
-                        </a>
+                        </div>
 
-                        <a href="mailto:support@forestdept.gov" className="p-4 flex items-center justify-between hover:bg-muted/20 transition-colors">
+                        <div className="p-4 flex items-center justify-between text-left opacity-70">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
                                     <Mail size={18} />
                                 </div>
                                 <div>
                                     <div className="font-medium">{t('help.emailSupport')}</div>
-                                    <div className="text-xs text-muted-foreground mt-0.5">{t('help.emailTime')}</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">Email TBD for UAT</div>
                                 </div>
                             </div>
-                            <ExternalLink size={16} className="text-muted-foreground" />
-                        </a>
+                        </div>
                     </div>
                 </motion.div>
 

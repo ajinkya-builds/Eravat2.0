@@ -21,9 +21,12 @@ export function NotificationBell() {
 
         // Load initial notifications
         const loadNotifications = async () => {
-            const data = await NotificationService.getNotifications(20);
+            const [data, unread] = await Promise.all([
+                NotificationService.getNotifications(20),
+                NotificationService.getUnreadCount(),
+            ]);
             setNotifications(data);
-            setUnreadCount(data.filter(n => !n.is_read).length);
+            setUnreadCount(unread);
         };
 
         loadNotifications();
@@ -77,15 +80,13 @@ export function NotificationBell() {
 
     const handleMarkAllAsRead = async () => {
         if (!user) return;
-        
-        const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
-        if (unreadIds.length === 0) return;
-        
-        const success = await NotificationService.markAllAsRead(unreadIds);
+        if (unreadCount === 0) return;
+
+        const success = await NotificationService.markAllUnreadForCurrentUser();
         if (success) {
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
             setUnreadCount(0);
-            track('notifications_marked_read', { notification_count: unreadIds.length });
+            track('notifications_marked_read', { notification_count: unreadCount });
         }
     };
 

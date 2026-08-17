@@ -127,6 +127,51 @@ describe('SyncService', () => {
     });
   });
 
+  it('maps direct observation with damage to conflict_loss type', async () => {
+    (db.reports.where as any).mockReturnValueOnce({
+      anyOf: vi.fn(() => ({
+        toArray: vi.fn().mockResolvedValue([{
+          id: 'report-uuid-damage',
+          user_id: 'test-user-id',
+          beat_id: 'beat-uuid-1',
+          device_timestamp: new Date().toISOString(),
+          latitude: 21.5,
+          longitude: 80.5,
+          notes: null,
+          observation_type: 'direct',
+          male_count: 1,
+          female_count: 0,
+          calf_count: 0,
+          unknown_count: 0,
+          compass_bearing: 90,
+          indirect_sign_details: [],
+          conflict_loss_details: ['crop'],
+          loss_type: ['crop'],
+          sync_status: 'pending',
+        }]),
+      })),
+    });
+
+    (db.report_media.where as any).mockReturnValueOnce({
+      equals: vi.fn(() => ({
+        toArray: vi.fn().mockResolvedValue([]),
+      })),
+    });
+
+    await syncData();
+
+    const observationsPayload = mockUpsert.mock.calls
+      .map(([payload]) => payload)
+      .find((p) => p && !Array.isArray(p) && p.report_id === 'report-uuid-damage' && p.type === 'conflict_loss');
+
+    expect(observationsPayload).toBeDefined();
+    expect(observationsPayload).toMatchObject({
+      report_id: 'report-uuid-damage',
+      type: 'conflict_loss',
+      conflict_loss_details: ['crop'],
+    });
+  });
+
   it('sends conflict_loss_details to observations for loss reports', async () => {
     (db.reports.where as any).mockReturnValueOnce({
       anyOf: vi.fn(() => ({

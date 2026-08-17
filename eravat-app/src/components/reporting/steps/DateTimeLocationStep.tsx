@@ -16,8 +16,11 @@ export function DateTimeLocationStep() {
 
     const applyNow = () => {
         const now = new Date();
-        const date = now.toISOString().split('T')[0];
-        const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const date = `${y}-${m}-${d}`;
+        const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
         updateFormData({ activity_date: date, activity_time: time });
         return { date, time };
     };

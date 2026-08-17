@@ -166,6 +166,7 @@ export function QuickSOSButton() {
 
     // Step 2: after the user confirms (and optionally edits GPS), persist + sync.
     const confirmAndSend = async () => {
+        if (status !== 'confirm') return;
         if (!profile?.id || !coords) return;
         if (!Number.isFinite(coords.latitude) || !Number.isFinite(coords.longitude)) {
             setStatus('error');
@@ -176,13 +177,19 @@ export function QuickSOSButton() {
         setStatus('saving');
         try {
             const reportId = newUuid();
-            const now = new Date().toISOString();
+            const now = new Date();
+            const deviceTimestamp = now.toISOString();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
 
             await db.reports.add({
                 id: reportId,
                 user_id: profile.id,
-                activity_date: now.split('T')[0],
-                activity_time: now.split('T')[1].substring(0, 5),
+                activity_date: `${y}-${m}-${d}`,
+                activity_time: `${hh}:${mm}`,
                 latitude: coords.latitude,
                 longitude: coords.longitude,
                 observation_type: 'direct',
@@ -200,7 +207,7 @@ export function QuickSOSButton() {
                 division_id: geoMatch?.division_id || profile.division_id || null,
                 range_id: geoMatch?.range_id || profile.range_id || null,
                 beat_id: geoMatch?.beat_id || profile.beat_id || null,
-                device_timestamp: now,
+                device_timestamp: deviceTimestamp,
                 sync_status: 'pending',
                 status: 'submitted',
                 obs_id: newUuid(),
@@ -342,7 +349,8 @@ export function QuickSOSButton() {
                                 <button
                                     type="button"
                                     onClick={confirmAndSend}
-                                    className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:opacity-90 flex items-center justify-center gap-1.5"
+                                    disabled={status !== 'confirm'}
+                                    className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:opacity-90 flex items-center justify-center gap-1.5 disabled:opacity-60"
                                 >
                                     <Check size={16} /> {strings.confirm}
                                 </button>

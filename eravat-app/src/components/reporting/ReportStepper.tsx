@@ -154,22 +154,24 @@ function StepperContent() {
 
             if (formData.photo_url) {
                 const match = formData.photo_url.match(/^data:([^;,]+)(?:;charset=[^;,]+)?;base64,([\s\S]+)$/);
-                if (match) {
-                    const mimeType = match[1].toLowerCase() === 'image/jpg' ? 'image/jpeg' : match[1].toLowerCase();
-                    const base64Data = match[2];
-                    try {
-                        await db.report_media.add({
-                            id: newUuid(),
-                            report_id: reportId,
-                            mime_type: mimeType,
-                            file_data: base64Data,
-                            sync_status: 'pending'
-                        });
-                    } catch (dexieErr) {
-                        logger.error('ReportStepper', 'Failed to add media to Dexie', dexieErr);
-                    }
-                } else {
-                    logger.error('ReportStepper', 'Invalid photo_url data URL format');
+                if (!match) {
+                    throw new Error('Invalid photo data. Please retake the photo and try again.');
+                }
+                const mimeType = match[1].toLowerCase() === 'image/jpg' ? 'image/jpeg' : match[1].toLowerCase();
+                const base64Data = match[2];
+                try {
+                    await db.report_media.add({
+                        id: newUuid(),
+                        report_id: reportId,
+                        mime_type: mimeType,
+                        file_data: base64Data,
+                        sync_status: 'pending'
+                    });
+                } catch (dexieErr) {
+                    logger.error('ReportStepper', 'Failed to add media to Dexie', dexieErr);
+                    // Roll back the report row so we never claim success without the required photo
+                    await db.reports.delete(reportId);
+                    throw new Error('Could not save photo on this device. Free some storage and try again.');
                 }
             }
 

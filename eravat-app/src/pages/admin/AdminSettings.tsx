@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Smartphone, Bell, Database, Radio } from 'lucide-react';
 import { supabase } from '../../supabase';
@@ -36,8 +36,10 @@ export default function AdminSettings() {
 
     // ── Proximity state ──────────────────────────────────────────────────────
     const [globalRadius, setGlobalRadius] = useState(10);
-    const [proximityEnabled, setProximityEnabled] = useState(true);
     const [radiusSaveState, setRadiusSaveState] = useState<SaveState>('idle');
+    // Only persist after an intentional user edit — never on mount/hydrate.
+    const allowPersistRef = useRef(false);
+    const hydratedRef = useRef(false);
 
     // Load current default from any profile (system-wide, we treat the most common value as the default)
     useEffect(() => {
@@ -46,8 +48,9 @@ export default function AdminSettings() {
                 .from('profiles')
                 .select('notification_radius_km')
                 .limit(1)
-                .single();
+                .maybeSingle();
             if (data?.notification_radius_km) setGlobalRadius(data.notification_radius_km);
+            hydratedRef.current = true;
         })();
     }, []);
 
@@ -63,14 +66,15 @@ export default function AdminSettings() {
         setTimeout(() => setRadiusSaveState('idle'), 2500);
     }, []);
 
-    // Debounced save
+    // Debounced save — skipped until the admin actually moves the slider/input
     useEffect(() => {
+        if (!hydratedRef.current || !allowPersistRef.current) return;
         const timer = setTimeout(() => persistRadius(globalRadius), DEBOUNCE_MS);
         return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [globalRadius]);
+    }, [globalRadius, persistRadius]);
 
     const handleRadiusChange = (v: number) => {
+        if (hydratedRef.current) allowPersistRef.current = true;
         setGlobalRadius(clamp(v));
         setRadiusSaveState('idle');
     };
@@ -100,12 +104,14 @@ export default function AdminSettings() {
                         <Shield size={18} className="text-primary" />
                         {t('admin.settings.sessionSecurity')}
                     </h3>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between opacity-60">
                         <div>
                             <p className="font-medium text-sm">{t('admin.settings.forceReauth')}</p>
-                            <p className="text-xs text-muted-foreground">{t('admin.settings.forceReauthDesc')}</p>
+                            <p className="text-xs text-muted-foreground">
+                                {t('admin.settings.forceReauthDesc')} — coming soon
+                            </p>
                         </div>
-                        <Toggle enabled={true} onToggle={() => {}} />
+                        <Toggle enabled={false} onToggle={() => {}} disabled />
                     </div>
                 </div>
             </motion.div>
@@ -144,18 +150,18 @@ export default function AdminSettings() {
                         <Bell size={18} className="text-primary" />
                         {t('admin.settings.notifications')}
                     </h3>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between opacity-60">
                         <div>
                             <p className="font-medium text-sm">{t('as_enable_proximity')}</p>
                             <p className="text-xs text-muted-foreground">
-                                {t('as_proximity_desc')}
+                                {t('as_proximity_desc')} — coming soon (alerts always on via server triggers)
                             </p>
                         </div>
-                        <Toggle enabled={proximityEnabled} onToggle={() => setProximityEnabled(!proximityEnabled)} />
+                        <Toggle enabled={true} onToggle={() => {}} disabled />
                     </div>
                 </div>
 
-                <div className={`glass-card rounded-2xl p-6 space-y-6 transition-opacity ${proximityEnabled ? '' : 'opacity-40 pointer-events-none'}`}>
+                <div className="glass-card rounded-2xl p-6 space-y-6">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
                             <Radio size={20} />
