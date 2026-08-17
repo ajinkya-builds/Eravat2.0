@@ -31,3 +31,6 @@ dist-ssr
 android/keystore.properties
 *.jks
 *.keystore
+
+# Maestro run artifacts
+maestro/reports/

@@ -29,6 +29,14 @@ export default function Login() {
         track('auth.login_opened');
     }, []);
 
+    // Staging Maestro E2E: WebView inputText is flaky on React controlled fields.
+    useEffect(() => {
+        const autofillPhone = import.meta.env.VITE_E2E_AUTOFILL_PHONE;
+        if (autofillPhone && !otpPhone) {
+            setOtpPhone(String(autofillPhone).replace(/\D/g, '').slice(0, 10));
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
     useEffect(() => {
         if (!loading && session) {
             navigate('/', { replace: true });
@@ -213,6 +221,8 @@ export default function Login() {
                                             required
                                             inputMode="numeric"
                                             maxLength={10}
+                                            id="login-phone"
+                                            data-testid="login-phone"
                                             value={otpPhone}
                                             onChange={(e) => {
                                                 const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
@@ -264,6 +274,8 @@ export default function Login() {
                                         type="text"
                                         inputMode="numeric"
                                         maxLength={6}
+                                        id="login-otp"
+                                        data-testid="login-otp"
                                         placeholder={t('otp.enterCode')}
                                         value={otpCode}
                                         onChange={(e) => {

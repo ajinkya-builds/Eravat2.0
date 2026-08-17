@@ -14,6 +14,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:android-compat": "bash scripts/android-compat-smoke.sh",
+    "test:android:e2e": "bash scripts/run-maestro-android.sh",
     "build:android:staging": "VITE_BASE_PATH=/ vite build --mode staging && npx cap sync android",
     "test:e2e": "npx playwright test",
     "test:notifications": "node scripts/test-notifications-integration.mjs",
