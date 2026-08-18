@@ -208,6 +208,26 @@ max_frequency = "1s"
 "918319149748" = "123456" # Mukesh Kumar Ahirwar (range_officer)
 "918889184712" = "123456" # Ashok Kumar Kol (beat_guard)
 "917400503240" = "123456" # Santhosh Burman (volunteer)
+# UAT testers Aug 2026 — OTP = 48 + last 4 digits of phone
+"919752458789" = "488789" # Kundan Kumar Sharma (beat_guard)
+"917415740750" = "480750" # Narvada Pratap Patel (beat_guard)
+"918770984995" = "484995" # Narendra Kumar Patel (beat_guard)
+"919752552212" = "482212" # Ram Kumar Prajapati (beat_guard)
+"917772067087" = "487087" # Shailendra Kumar Sharma (beat_guard)
+"916261890445" = "480445" # Laxman Sahu (beat_guard)
+"919009319067" = "489067" # Arjun Das Baiga (beat_guard)
+"917566246445" = "486445" # Rajdhani Singh (beat_guard)
+"919340983708" = "483708" # Ghanshyam Singh Maravi (beat_guard)
+"916265182717" = "482717" # Pushpendra Mishra (beat_guard)
+"918120973941" = "483941" # Arvind Kol (beat_guard)
+"919009603210" = "483210" # Divakar Singh (range_officer)
+"917089967800" = "487800" # Shailendra Singh Rathod (beat_guard)
+"919516084467" = "484467" # Aakash Kaurav (beat_guard)
+"919165327539" = "487539" # Daduram Yadav (beat_guard)
+"918250463914" = "483914" # Sumit Saha (dfo)
+"919238583474" = "483474" # Shivkumar Yadav (volunteer)
+"919545893779" = "483779" # Amey Paranjape (admin)
+"918319714182" = "484182" # Amey Paranjape (range_officer)
 
 # Configure logged in session timeouts.
 # [auth.sessions]

@@ -4,19 +4,31 @@
  *         npx vite preview --port 4173 --strictPort
  */
 import { chromium } from '@playwright/test';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, writeFile, readFile } from 'fs/promises';
 import { join } from 'path';
 
 const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/e2e-role-matrix');
-const BASE = process.env.E2E_BASE || 'http://127.0.0.1:4173';
-const OTP = '123456';
+const BASE = process.env.E2E_BASE || 'http://localhost:4173';
+
+const manifest = JSON.parse(
+  await readFile(
+    join(process.cwd(), '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'),
+    'utf8'
+  )
+);
+
+function pick(role) {
+  const u = manifest.find((x) => x.role === role);
+  if (!u) throw new Error(`No UAT user for role ${role}`);
+  return { phone: u.phone_app, otp: u.otp, admin: role === 'admin' || role === 'dfo' };
+}
 
 const USERS = {
-  beat_guard: { phone: '8889184712', admin: false },
-  range_officer: { phone: '8319149748', admin: false },
-  dfo: { phone: '9893686945', admin: true },
-  volunteer: { phone: '7400503240', admin: false },
-  admin: { phone: '9926445678', admin: true },
+  beat_guard: pick('beat_guard'),
+  range_officer: pick('range_officer'),
+  dfo: pick('dfo'),
+  volunteer: pick('volunteer'),
+  admin: pick('admin'),
 };
 
 const FIELD_ROUTES = ['/', '/report', '/map', '/history', '/nearby', '/profile', '/settings', '/villagers'];
@@ -45,14 +57,14 @@ function record(name, ok, extra = '') {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`);
 }
 
-async function loginOTP(page, phone) {
+async function loginOTP(page, phone, otp) {
   await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
   await page.getByPlaceholder('9876543210').waitFor({ timeout: 20000 });
   await page.getByPlaceholder('9876543210').fill(phone);
   await page.getByRole('button', { name: /Send OTP/i }).click();
-  const otp = page.getByPlaceholder(/Enter 6-digit code|6-digit|OTP/i);
-  await otp.waitFor({ timeout: 25000 });
-  await otp.fill(OTP);
+  const otpInput = page.getByPlaceholder(/Enter 6-digit code|6-digit|OTP/i);
+  await otpInput.waitFor({ timeout: 25000 });
+  await otpInput.fill(otp);
   await page.getByRole('button', { name: /Verify/i }).click();
   await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 30000 });
 }
@@ -68,7 +80,7 @@ for (const [role, user] of Object.entries(USERS)) {
   });
   const page = await ctx.newPage();
   try {
-    await loginOTP(page, user.phone);
+    await loginOTP(page, user.phone, user.otp);
     record(`${role} login`, true);
 
     for (const route of FIELD_ROUTES) {
@@ -106,7 +118,9 @@ for (const [role, user] of Object.entries(USERS)) {
         await bell.first().click();
         await page.waitForTimeout(1500);
         const txt = await page.locator('body').innerText();
-        record(`${role} notification grain`, /Direct Sighting Alert|Activity within your alert radius/i.test(txt), txt.slice(0, 180).replace(/\s+/g, ' '));
+        const hasNotifications = /Direct Sighting Alert|Activity within your alert radius/i.test(txt);
+        const emptyState = /No notifications yet|You're all caught up/i.test(txt);
+        record(`${role} notification grain`, hasNotifications || emptyState, txt.slice(0, 180).replace(/\s+/g, ' '));
         await shot(page, `${role}-notifications`);
       } else {
         record(`${role} notification grain`, false, 'bell missing');

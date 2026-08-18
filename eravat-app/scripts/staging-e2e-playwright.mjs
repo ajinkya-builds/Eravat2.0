@@ -4,14 +4,28 @@
  * Run: node scripts/staging-e2e-playwright.mjs
  */
 import { chromium } from '@playwright/test';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, writeFile, readFile } from 'fs/promises';
 import { join } from 'path';
 
 const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/e2e-playwright');
-const BASE = 'http://localhost:4173';
+const BASE = process.env.E2E_BASE || 'http://localhost:4173';
+
+const manifest = JSON.parse(
+  await readFile(
+    join(process.cwd(), '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'),
+    'utf8'
+  )
+);
+
+function pick(role) {
+  const u = manifest.find((x) => x.role === role);
+  if (!u) throw new Error(`No UAT user for role ${role}`);
+  return { phone: u.phone_app, otp: u.otp };
+}
+
 const USERS = {
-  beat_guard: { phone: '8889184712', role: 'beat_guard' },
-  admin: { phone: '9926445678', role: 'admin' },
+  beat_guard: pick('beat_guard'),
+  admin: pick('admin'),
   unenrolled: { phone: '9000000001' },
 };
 
@@ -42,13 +56,13 @@ async function clearSession(page) {
   await page.reload();
 }
 
-async function loginOTP(page, phone) {
+async function loginOTP(page, phone, otp) {
   await page.goto(`${BASE}/login`);
   await page.getByPlaceholder('9876543210').waitFor({ timeout: 10000 });
   await page.getByPlaceholder('9876543210').fill(phone);
   await page.getByRole('button', { name: /Send OTP/i }).click();
   await page.getByPlaceholder('Enter 6-digit code').waitFor({ timeout: 15000 });
-  await page.getByPlaceholder('Enter 6-digit code').fill('123456');
+  await page.getByPlaceholder('Enter 6-digit code').fill(otp);
   await page.getByRole('button', { name: /Verify/i }).click();
   await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 25000 });
 }
@@ -70,13 +84,13 @@ await check('Unenrolled phone rejected', async () => {
   await clearSession(page);
   await page.getByPlaceholder('9876543210').fill(USERS.unenrolled.phone);
   await page.getByRole('button', { name: /Send OTP/i }).click();
-  await page.getByText(/Invalid credentials/i).waitFor({ timeout: 10000 });
+  await page.getByText(/not enrolled|Invalid credentials/i).waitFor({ timeout: 10000 });
   await shot(page, '02-unenrolled');
 });
 
 await check('Beat guard OTP login', async () => {
   await clearSession(page);
-  await loginOTP(page, USERS.beat_guard.phone);
+  await loginOTP(page, USERS.beat_guard.phone, USERS.beat_guard.otp);
   await shot(page, '03-dashboard');
 });
 
@@ -139,13 +153,8 @@ const adminContext = await browser.newContext();
 const adminPage = await adminContext.newPage();
 
 await check('Admin login', async () => {
-  await adminPage.goto(`${BASE}/login`);
-  await adminPage.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  });
-  await adminPage.reload();
-  await loginOTP(adminPage, USERS.admin.phone);
+  await clearSession(adminPage);
+  await loginOTP(adminPage, USERS.admin.phone, USERS.admin.otp);
   await shot(adminPage, '11-admin-login');
 });
 
@@ -153,7 +162,7 @@ await check('Admin dashboard', async () => {
   await adminPage.goto(`${BASE}/admin`);
    await adminPage.waitForTimeout(3000);
   const body = (await adminPage.content()).toLowerCase();
-  if (!body.includes('admin') && !body.includes('dashboard') && !body.includes('observation')) {
+  if (!body.includes('command center') && !body.includes('user management') && !body.includes('conflict intelligence') && !body.includes('admin')) {
     throw new Error('Admin dashboard not loaded');
   }
   await shot(adminPage, '12-admin-dashboard');
