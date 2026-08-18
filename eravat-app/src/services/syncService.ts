@@ -1,4 +1,4 @@
-import { db } from '../db';
+import { db, type LocalReport } from '../db';
 import { supabase } from '../supabase';
 import { track } from '../lib/analytics';
 import { logger } from '../lib/logger';
@@ -201,6 +201,25 @@ function stableUuidFrom(input: string): string {
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
+/** Report row for upsert. GPS-only reports omit beat_id so the DB trigger can assign it. */
+export function buildReportUpsertRow(report: Pick<LocalReport, 'id' | 'user_id' | 'beat_id' | 'device_timestamp' | 'latitude' | 'longitude' | 'notes'>): Record<string, unknown> {
+    const location = report.latitude != null && report.longitude != null
+        ? `POINT(${report.longitude} ${report.latitude})`
+        : null;
+    const row: Record<string, unknown> = {
+        id: report.id,
+        user_id: report.user_id,
+        device_timestamp: report.device_timestamp,
+        location: location ? `SRID=4326;${location}` : null,
+        notes: report.notes,
+        status: 'pending',
+    };
+    if (report.beat_id) {
+        row.beat_id = report.beat_id;
+    }
+    return row;
+}
+
 export async function syncData() {
     // Mutex guard prevents concurrent syncs in this tab
     if (isSyncing) {
@@ -260,23 +279,12 @@ export async function syncData() {
                     continue;
                 }
 
-                // Build PostGIS POINT from lat/lng
-                const location = report.latitude != null && report.longitude != null
-                    ? `POINT(${report.longitude} ${report.latitude})`
-                    : null;
-
-                // 1. Upsert to `reports` table
+                // 1. Upsert to `reports` table.
+                // Omit beat_id when unset so BEFORE INSERT assign_report_geography()
+                // can fill it from GPS, and so a retry does not wipe a filled beat.
                 const { error: reportError } = await supabase
                     .from('reports')
-                    .upsert({
-                        id: report.id,
-                        user_id: report.user_id,
-                        beat_id: report.beat_id,
-                        device_timestamp: report.device_timestamp,
-                        location: location ? `SRID=4326;${location}` : null,
-                        notes: report.notes,
-                        status: 'pending',
-                    });
+                    .upsert(buildReportUpsertRow(report));
 
                 if (reportError) {
                     logger.error('SyncService', 'Report upsert error', reportError, { stage: 'report_upsert' });

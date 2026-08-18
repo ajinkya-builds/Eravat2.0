@@ -91,6 +91,18 @@ function countTotal(data: ActivityFormData): number {
     return (data.male_count || 0) + (data.female_count || 0) + (data.calf_count || 0) + (data.unknown_count || 0);
 }
 
+/** GPS + timestamp are enough to continue. Beat/range/division are optional on-device; filled from GPS on sync. */
+export function isDateTimeLocationComplete(data: Pick<ActivityFormData, 'activity_date' | 'activity_time' | 'latitude' | 'longitude'>): boolean {
+    if (!data.activity_date || !data.activity_time || data.latitude == null || data.longitude == null) {
+        return false;
+    }
+    if (data.latitude < -90 || data.latitude > 90) return false;
+    if (data.longitude < -180 || data.longitude > 180) return false;
+    const activityDateTime = new Date(`${data.activity_date}T${data.activity_time}`);
+    if (activityDateTime > new Date()) return false;
+    return true;
+}
+
 const ActivityFormContext = createContext<ActivityFormContextValue | null>(null);
 
 export function ActivityFormProvider({ children }: { children: ReactNode }) {
@@ -116,17 +128,8 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
 
     const isStepValid = useCallback((step: FormStep): boolean => {
         switch (step) {
-            case 'dateTimeLocation': {
-                if (!formData.activity_date || !formData.activity_time || formData.latitude == null || formData.longitude == null) {
-                    return false;
-                }
-                if (formData.latitude < -90 || formData.latitude > 90) return false;
-                if (formData.longitude < -180 || formData.longitude > 180) return false;
-                if (!formData.division_id || !formData.range_id || !formData.beat_id) return false;
-                const activityDateTime = new Date(`${formData.activity_date}T${formData.activity_time}`);
-                if (activityDateTime > new Date()) return false;
-                return true;
-            }
+            case 'dateTimeLocation':
+                return isDateTimeLocationComplete(formData);
             case 'observationType': {
                 if (!formData.observation_type) return false;
                 if (formData.observation_type === 'indirect') {

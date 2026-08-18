@@ -46,6 +46,7 @@ export function QuickSOSButton() {
             savingHint: string;
             successHint: string;
             errorHint: string;
+            territoryOnSync: string;
         }> = {
             en: {
                 buttonLabel: 'Quick SOS Sighting',
@@ -55,7 +56,7 @@ export function QuickSOSButton() {
                 error: 'SOS Failed. Try again.',
                 permissionDenied: 'Location permission denied.',
                 confirmTitle: 'Confirm SOS Sighting',
-                confirmDesc: 'Check Division, Range, Beat and GPS below before sending. Location cannot be edited.',
+                confirmDesc: 'Check GPS below before sending. Division / range / beat are filled from this location when the report syncs if they cannot be looked up now.',
                 latitude: 'Latitude',
                 longitude: 'Longitude',
                 dms: 'GPS (DMS)',
@@ -70,6 +71,7 @@ export function QuickSOSButton() {
                 savingHint: 'Writing to local store...',
                 successHint: 'Alert queued for transmission',
                 errorHint: 'Check GPS permissions',
+                territoryOnSync: 'From GPS when this report syncs',
             },
             hi: {
                 buttonLabel: 'आपातकालीन साइटिंग',
@@ -79,7 +81,7 @@ export function QuickSOSButton() {
                 error: 'संकट विफल। पुनः प्रयास करें।',
                 permissionDenied: 'स्थान अनुमति अस्वीकृत।',
                 confirmTitle: 'संकट सूचना की पुष्टि करें',
-                confirmDesc: 'भेजने से पहले नीचे वन मंडल, परिक्षेत्र, बीट और GPS जाँचें। स्थान संपादित नहीं किया जा सकता।',
+                confirmDesc: 'भेजने से पहले GPS जाँचें। वन मंडल / परिक्षेत्र / बीट सिंक होते समय स्थान से भरे जाएँगे यदि अभी नहीं मिलें।',
                 latitude: 'अक्षांश',
                 longitude: 'देशांतर',
                 dms: 'GPS (DMS)',
@@ -94,6 +96,7 @@ export function QuickSOSButton() {
                 savingHint: 'स्थानीय रूप से सहेज रहे हैं...',
                 successHint: 'अलर्ट भेजने के लिए कतार में है',
                 errorHint: 'GPS अनुमति जाँचें',
+                territoryOnSync: 'सिंक होते समय GPS से',
             },
             mr: {
                 buttonLabel: 'आपातकालीन साइटिंग',
@@ -103,7 +106,7 @@ export function QuickSOSButton() {
                 error: 'संकट नोंदणी अपयशी.',
                 permissionDenied: 'स्थान परवानगी नाकारली.',
                 confirmTitle: 'संकट सूचना निश्चित करा',
-                confirmDesc: 'पाठवण्यापूर्वी खालील वनविभाग, परिक्षेत्र, बीट आणि GPS तपासा. स्थान संपादित करता येत नाही.',
+                confirmDesc: 'पाठवण्यापूर्वी GPS तपासा. वनविभाग / परिक्षेत्र / बीट सिंक होताना स्थानावरून भरले जातील जर आत्ता मिळाले नाहीत.',
                 latitude: 'अक्षांश',
                 longitude: 'रेखांश',
                 dms: 'GPS (DMS)',
@@ -118,6 +121,7 @@ export function QuickSOSButton() {
                 savingHint: 'स्थानिक स्तरावर जतन होत आहे...',
                 successHint: 'अलर्ट पाठवण्यासाठी रांगेत आहे',
                 errorHint: 'GPS परवानगी तपासा',
+                territoryOnSync: 'सिंक होताना GPS वरून',
             }
         };
         const lang = (language || 'en').split('-')[0];
@@ -204,9 +208,9 @@ export function QuickSOSButton() {
                 compass_bearing: null,
                 photo_url: null,
                 notes: 'EMERGENCY QUICK SOS - One-click GPS sighting alert.',
-                division_id: geoMatch?.division_id || profile.division_id || null,
-                range_id: geoMatch?.range_id || profile.range_id || null,
-                beat_id: geoMatch?.beat_id || profile.beat_id || null,
+                division_id: geoMatch?.division_id || null,
+                range_id: geoMatch?.range_id || null,
+                beat_id: geoMatch?.beat_id || null,
                 device_timestamp: deviceTimestamp,
                 sync_status: 'pending',
                 status: 'submitted',
@@ -333,9 +337,9 @@ export function QuickSOSButton() {
                             </div>
 
                             <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-1 text-xs">
-                                <p><span className="text-muted-foreground">{strings.division}:</span> {geoMatch?.division_name || profile?.division_name || '—'}</p>
-                                <p><span className="text-muted-foreground">{strings.range}:</span> {geoMatch?.range_name || profile?.range_name || '—'}</p>
-                                <p><span className="text-muted-foreground">{strings.beat}:</span> {geoMatch?.beat_name || profile?.beat_name || '—'}</p>
+                                <p><span className="text-muted-foreground">{strings.division}:</span> {geoMatch?.division_name || strings.territoryOnSync}</p>
+                                <p><span className="text-muted-foreground">{strings.range}:</span> {geoMatch?.range_name || strings.territoryOnSync}</p>
+                                <p><span className="text-muted-foreground">{strings.beat}:</span> {geoMatch?.beat_name || strings.territoryOnSync}</p>
                             </div>
 
                             <div className="flex gap-3 pt-1">

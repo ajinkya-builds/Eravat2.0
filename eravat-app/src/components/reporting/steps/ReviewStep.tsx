@@ -69,9 +69,18 @@ export function ReviewStep() {
                             : '—'
                     }
                 />
-                <Row label={t('dtl_division')} value={names.division} />
-                <Row label={t('dtl_range')} value={names.range} />
-                <Row label={t('dtl_beat')} value={names.beat} />
+                <Row
+                    label={t('dtl_division')}
+                    value={formData.division_id ? names.division : t('dtl_territory_on_sync_short')}
+                />
+                <Row
+                    label={t('dtl_range')}
+                    value={formData.range_id ? names.range : t('dtl_territory_on_sync_short')}
+                />
+                <Row
+                    label={t('dtl_beat')}
+                    value={formData.beat_id ? names.beat : t('dtl_territory_on_sync_short')}
+                />
                 <Row label={t('ot_type_of_observation')} value={typeLabel} />
                 {formData.observation_type === 'indirect' && (
                     <Row label={t('ot_indirect_sign_type')} value={formData.indirect_sign_details.join(', ') || '—'} />

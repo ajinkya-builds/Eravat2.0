@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { syncData } from '../syncService';
+import { syncData, buildReportUpsertRow } from '../syncService';
 import { db } from '../../db';
 import { supabase } from '../../supabase';
 
@@ -310,5 +310,30 @@ describe('SyncService', () => {
       category: 'human_injury',
       affected_people: 2,
     });
+  });
+});
+
+describe('buildReportUpsertRow', () => {
+  const base = {
+    id: 'report-uuid-gps',
+    user_id: 'test-user-id',
+    device_timestamp: '2026-08-18T11:18:58.762Z',
+    latitude: 24.1540533333333,
+    longitude: 81.3209016666667,
+    notes: 'offline gps only',
+  };
+
+  it('omits beat_id when unset so assign_report_geography can fill from GPS', () => {
+    const row = buildReportUpsertRow({ ...base, beat_id: null });
+    expect(row).toMatchObject({
+      id: 'report-uuid-gps',
+      location: 'SRID=4326;POINT(81.3209016666667 24.1540533333333)',
+    });
+    expect(row).not.toHaveProperty('beat_id');
+  });
+
+  it('keeps an explicit beat_id when the user confirmed territory', () => {
+    const row = buildReportUpsertRow({ ...base, beat_id: 'beat-uuid-1' });
+    expect(row.beat_id).toBe('beat-uuid-1');
   });
 });
