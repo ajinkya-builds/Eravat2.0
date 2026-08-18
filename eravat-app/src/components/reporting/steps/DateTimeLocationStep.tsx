@@ -176,7 +176,7 @@ export function DateTimeLocationStep() {
                 latitude={formData.latitude}
                 longitude={formData.longitude}
                 includeBeat
-                required
+                required={false}
                 onChange={(next) => updateFormData(next)}
             />
         </motion.div>

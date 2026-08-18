@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Network } from '@capacitor/network';
 import { supabase } from '../../supabase';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { lookupGeoFromPoint } from '../../lib/geoLookup';
@@ -54,6 +55,7 @@ export function TerritorySelect({
     const [beats, setBeats] = useState<SearchableOption[]>([]);
     const [lookingUp, setLookingUp] = useState(false);
     const [fromLocation, setFromLocation] = useState(false);
+    const [lookupNonce, setLookupNonce] = useState(0);
     const lastLookupKey = useRef<string>('');
 
     useEffect(() => {
@@ -116,17 +118,31 @@ export function TerritorySelect({
     }, [includeBeat, value.range_id]);
 
     useEffect(() => {
+        const listener = Network.addListener('networkStatusChange', (status) => {
+            if (status.connected && lastLookupKey.current === '') {
+                setLookupNonce((n) => n + 1);
+            }
+        });
+        return () => {
+            void listener.then((l) => l.remove());
+        };
+    }, []);
+
+    useEffect(() => {
         if (latitude == null || longitude == null) return;
+        if (value.division_id || value.range_id || value.beat_id) return;
         const key = `${latitude.toFixed(5)},${longitude.toFixed(5)}`;
         if (lastLookupKey.current === key) return;
-        lastLookupKey.current = key;
         let cancelled = false;
         setLookingUp(true);
         void lookupGeoFromPoint(latitude, longitude).then((match) => {
-            if (cancelled || !match?.division_id) {
+            if (cancelled) return;
+            if (!match?.division_id) {
+                // Leave key unset so reconnect / nonce retry can try again.
                 setLookingUp(false);
                 return;
             }
+            lastLookupKey.current = key;
             setFromLocation(true);
             onChange({
                 division_id: match.division_id,
@@ -139,7 +155,7 @@ export function TerritorySelect({
         });
         return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [latitude, longitude, includeBeat]);
+    }, [latitude, longitude, includeBeat, lookupNonce, value.division_id, value.range_id, value.beat_id]);
 
     return (
         <div className="space-y-3 rounded-2xl border border-border bg-muted/10 p-4">
@@ -149,7 +165,9 @@ export function TerritorySelect({
                         {includeBeat ? t('dtl_confirm_territory') : t('dtl_confirm_division_range')}
                         {required && <span className="text-destructive"> *</span>}
                     </h4>
-                    <p className="text-xs text-muted-foreground mt-0.5">{t('dtl_location_based_hint')}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        {fromLocation ? t('dtl_location_based_hint') : t('dtl_territory_on_sync')}
+                    </p>
                 </div>
                 {lookingUp && <Loader2 size={16} className="animate-spin text-primary shrink-0 mt-0.5" />}
             </div>
