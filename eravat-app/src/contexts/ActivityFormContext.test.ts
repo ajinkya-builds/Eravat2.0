@@ -1,5 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { isDateTimeLocationComplete } from './ActivityFormContext';
+import { getActiveSteps, isDateTimeLocationComplete } from './ActivityFormContext';
+
+describe('getActiveSteps', () => {
+  it('starts with photo, then observation, location, review', () => {
+    expect(getActiveSteps({ observation_type: null, report_damage_manually: false })).toEqual([
+      'photo',
+      'observationType',
+      'dateTimeLocation',
+      'review',
+    ]);
+  });
+
+  it('inserts damage after observation when requested', () => {
+    expect(getActiveSteps({ observation_type: 'direct', report_damage_manually: true })).toEqual([
+      'photo',
+      'observationType',
+      'damage',
+      'dateTimeLocation',
+      'review',
+    ]);
+  });
+
+  it('does not include a compass step', () => {
+    expect(getActiveSteps({ observation_type: 'direct', report_damage_manually: false })).toEqual([
+      'photo',
+      'observationType',
+      'dateTimeLocation',
+      'review',
+    ]);
+  });
+});
 
 describe('isDateTimeLocationComplete', () => {
   const valid = {

@@ -1,12 +1,11 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, MapPin, FileText, Compass, Camera, CheckCircle2, X, AlertTriangle, ClipboardCheck } from 'lucide-react';
+import { ChevronLeft, MapPin, FileText, Camera, CheckCircle2, X, AlertTriangle, ClipboardCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ActivityFormProvider, useActivityForm, type FormStep } from '../../contexts/ActivityFormContext';
 import { DateTimeLocationStep } from './steps/DateTimeLocationStep';
 import { ObservationTypeStep } from './steps/ObservationTypeStep';
 import { DamageStep } from './steps/DamageStep';
-import { CompassBearingStep } from './steps/CompassBearingStep';
 import { PhotoStep } from './steps/PhotoStep';
 import { ReviewStep } from './steps/ReviewStep';
 import { UnsavedChangesModal } from './UnsavedChangesModal';
@@ -60,7 +59,6 @@ function StepperContent() {
         dateTimeLocation: { label: t('rs_date_location'), icon: <MapPin className="w-4 h-4" /> },
         observationType: { label: t('rs_observation'), icon: <FileText className="w-4 h-4" /> },
         damage: { label: t('rs_damage_label'), icon: <AlertTriangle className="w-4 h-4" /> },
-        compassBearing: { label: t('rs_compass'), icon: <Compass className="w-4 h-4" /> },
         photo: { label: t('rs_photo'), icon: <Camera className="w-4 h-4" /> },
         review: { label: t('rs_review'), icon: <ClipboardCheck className="w-4 h-4" /> },
     };
@@ -108,7 +106,7 @@ function StepperContent() {
             setSubmitError(t('report.profileNotLoaded'));
             return;
         }
-        if (!isStepValid('review') || !formData.photo_url || formData.compass_bearing == null) {
+        if (!isStepValid('review') || !formData.photo_url || !isStepValid('dateTimeLocation')) {
             setSubmitError(t('rv_incomplete'));
             return;
         }
@@ -312,11 +310,10 @@ function StepperContent() {
                             transition={{ duration: 0.2 }}
                             className="bg-card/50 backdrop-blur-xl border border-border/50 rounded-3xl p-5 md:p-8 shadow-sm"
                         >
-                            {currentStep === 'dateTimeLocation' && <DateTimeLocationStep />}
+                            {currentStep === 'photo' && <PhotoStep />}
                             {currentStep === 'observationType' && <ObservationTypeStep />}
                             {currentStep === 'damage' && <DamageStep />}
-                            {currentStep === 'compassBearing' && <CompassBearingStep />}
-                            {currentStep === 'photo' && <PhotoStep />}
+                            {currentStep === 'dateTimeLocation' && <DateTimeLocationStep />}
                             {currentStep === 'review' && <ReviewStep />}
                         </motion.div>
                     </AnimatePresence>
@@ -330,7 +327,8 @@ function StepperContent() {
                             <button
                                 type="button"
                                 onClick={goToPreviousStep}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                disabled={currentStepIndex === 0}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
                             >
                                 <ChevronLeft className="w-5 h-5" /> {t('back')}
                             </button>

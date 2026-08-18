@@ -174,8 +174,7 @@ export default function Login() {
                                 transition={{ delay: 0.3 }}
                                 className="text-center"
                             >
-                                <h2 className="text-lg font-bold tracking-tight text-foreground">{t('wild_elephant_monitoring')}</h2>
-                                <p className="text-muted-foreground mt-1 text-xs font-medium">{t('app_tagline_year')}</p>
+                                <h1 className="text-lg font-bold tracking-tight text-foreground">{t('app_name')}</h1>
                             </motion.div>
                         </div>
 

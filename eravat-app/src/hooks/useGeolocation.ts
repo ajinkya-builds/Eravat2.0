@@ -1,15 +1,35 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation, type Position } from '@capacitor/geolocation';
+
+export const GEOLOCATION_TIMEOUT_MS = 10_000;
+
+export function classifyGeolocationError(err: unknown): string {
+    if (typeof GeolocationPositionError !== 'undefined' && err instanceof GeolocationPositionError) {
+        const messages: Record<number, string> = {
+            [GeolocationPositionError.PERMISSION_DENIED]: 'LOCATION_PERMISSION_DENIED',
+            [GeolocationPositionError.POSITION_UNAVAILABLE]: 'LOCATION_UNAVAILABLE',
+            [GeolocationPositionError.TIMEOUT]: 'LOCATION_TIMEOUT',
+        };
+        return messages[err.code] ?? 'LOCATION_FAILED';
+    }
+    if (err instanceof Error) {
+        return err.message || 'LOCATION_FAILED';
+    }
+    return 'LOCATION_FAILED';
+}
 
 export function useGeolocation() {
     const [position, setPosition] = useState<Position | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const lastErrorRef = useRef<string | null>(null);
+    const lastErrorCode = useCallback(() => lastErrorRef.current, []);
 
     const requestLocation = useCallback(async () => {
         setIsLoading(true);
         setError(null);
+        lastErrorRef.current = null;
         try {
             if (Capacitor.isNativePlatform()) {
                 // Native Android/iOS — use Capacitor geolocation with permission flow
@@ -22,7 +42,7 @@ export function useGeolocation() {
                 }
                 const coordinates = await Geolocation.getCurrentPosition({
                     enableHighAccuracy: true,
-                    timeout: 10000,
+                    timeout: GEOLOCATION_TIMEOUT_MS,
                     maximumAge: 3000
                 });
                 setPosition(coordinates);
@@ -35,7 +55,7 @@ export function useGeolocation() {
                 const coordinates = await new Promise<GeolocationPosition>((resolve, reject) => {
                     navigator.geolocation.getCurrentPosition(resolve, reject, {
                         enableHighAccuracy: true,
-                        timeout: 10000,
+                        timeout: GEOLOCATION_TIMEOUT_MS,
                         maximumAge: 3000
                     });
                 });
@@ -56,18 +76,9 @@ export function useGeolocation() {
                 return pos;
             }
         } catch (err: unknown) {
-            if (err instanceof GeolocationPositionError) {
-                const messages: Record<number, string> = {
-                    [GeolocationPositionError.PERMISSION_DENIED]: 'LOCATION_PERMISSION_DENIED',
-                    [GeolocationPositionError.POSITION_UNAVAILABLE]: 'LOCATION_UNAVAILABLE',
-                    [GeolocationPositionError.TIMEOUT]: 'LOCATION_TIMEOUT',
-                };
-                setError(messages[err.code] ?? 'LOCATION_FAILED');
-            } else if (err instanceof Error) {
-                setError(err.message || 'LOCATION_FAILED');
-            } else {
-                setError('LOCATION_FAILED');
-            }
+            const code = classifyGeolocationError(err);
+            lastErrorRef.current = code;
+            setError(code);
             return null;
         } finally {
             setIsLoading(false);
@@ -79,6 +90,7 @@ export function useGeolocation() {
         longitude: position?.coords.longitude,
         accuracy: position?.coords.accuracy,
         error,
+        lastErrorCode,
         loading: isLoading,
         isLoading,
         // fetchLocation is an alias for requestLocation

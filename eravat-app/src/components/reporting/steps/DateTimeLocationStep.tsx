@@ -2,41 +2,19 @@ import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, MapPin, RefreshCw, Loader2 } from 'lucide-react';
 import { useActivityForm } from '../../../contexts/ActivityFormContext';
-import { useGeolocation } from '../../../hooks/useGeolocation';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formatLatLngDms } from '../../../lib/geoFormat';
 import { TerritorySelect } from '../../shared/TerritorySelect';
 
 export function DateTimeLocationStep() {
-    const { formData, updateFormData } = useActivityForm();
-    const { fetchLocation, loading: gpsLoading, error: gpsError } = useGeolocation();
+    const { formData, updateFormData, gpsLoading, gpsError, refreshLocation } = useActivityForm();
     const { t } = useLanguage();
     const { profile } = useAuth();
 
-    const applyNow = () => {
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        const date = `${y}-${m}-${d}`;
-        const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-        updateFormData({ activity_date: date, activity_time: time });
-        return { date, time };
-    };
-
     const handleAutofill = async () => {
-        applyNow();
-        const pos = await fetchLocation();
-        if (pos) {
-            updateFormData({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-        }
+        await refreshLocation('retry');
     };
-
-    useEffect(() => {
-        void handleAutofill();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     // GPS lookup fills Division/Range/Beat. Only fall back to the user's assigned
     // territory when there is still no GPS match.

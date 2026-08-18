@@ -97,10 +97,6 @@ export function ReviewStep() {
                         )}
                     </>
                 )}
-                <Row
-                    label={t('rs_compass')}
-                    value={formData.compass_bearing != null ? `${Math.round(formData.compass_bearing)}°` : '—'}
-                />
             </div>
 
             {formData.photo_url && (

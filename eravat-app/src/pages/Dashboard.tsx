@@ -10,7 +10,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
-import { QuickSOSButton } from '../components/shared/QuickSOSButton';
 import { Network } from '@capacitor/network';
 import { trackClick, trackFailed } from '../lib/analytics';
 
@@ -110,20 +109,8 @@ export default function Dashboard() {
                     <div className="w-24 h-24 sm:w-28 sm:h-28 mb-4 relative flex items-center justify-center overflow-visible">
                         <img src={ELEPHANT_LOGO_URL} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
                     </div>
-                    <h2 className="text-xl font-bold tracking-tight text-foreground z-10 relative">{t('wild_elephant_monitoring')}</h2>
-                    <p className="text-muted-foreground mt-2 text-[15px] font-medium z-10 relative">{t('app_tagline_year')}</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground z-10 relative">{t('app_name')}</h1>
                 </div>
-
-                <motion.div
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    className="mb-8"
-                >
-                    <div className="space-y-2">
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('dashboard.welcomeMsg')}</h1>
-                        <p className="text-muted-foreground">{t('dashboard.welcomeSub')}</p>
-                    </div>
-                </motion.div>
 
                 {syncMessage && (
                     <motion.div
@@ -169,10 +156,6 @@ export default function Dashboard() {
                         </div>
                     </motion.div>
                 ) : null}
-
-                <div className="mb-6 z-10">
-                    <QuickSOSButton />
-                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 z-10">
                     <motion.button

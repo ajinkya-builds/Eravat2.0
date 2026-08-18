@@ -247,6 +247,10 @@ Keep a **single event catalog** in this doc (below). Engineers must not invent o
 | `app.screen_viewed` | Route change | `screen` |
 | `report.wizard_opened` | `/report` opened | `online` |
 | `report.step_viewed` | Stepper step shown | `step` |
+| `report.datetime_captured` | Device date/time applied | `duration_ms`, `source` (`prefetch` / `retry`) |
+| `report.gps_prefetch_started` | GPS request began | `source`, `timeout_ms` |
+| `report.gps_acquired` | GPS fix received | `duration_ms`, `accuracy_m`, `source` |
+| `report.gps_failed` | GPS request failed | `duration_ms`, `error_code`, `source` |
 | `report.save_started` | Save tapped | `has_media`, `online` |
 | `report.save_succeeded` | Local +/or remote save OK | `report_type`, `queued` |
 | `report.save_failed` | Save error | `error_code`, `online` |

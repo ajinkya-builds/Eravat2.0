@@ -93,4 +93,4 @@ beyond Test OTP numbers.
 3. Real SMS / DLT provider enabled **or** explicitly limited to Dashboard Test OTP phones with written pilot scope.
 4. Release APK includes `google-services.json` if push is required for RRT response; otherwise brief pilots that alerts are in-app only.
 5. Legacy JWT `service_role` keys revoked (see top of this doc).
-6. Manual smoke: offline report + photo sync, SOS, map pins for a known beat, chain notification to RO/DFO after a new sighting.
+6. Manual smoke: offline report + photo sync, map pins for a known beat, chain notification to RO/DFO after a new sighting.

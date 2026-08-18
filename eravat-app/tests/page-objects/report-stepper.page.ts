@@ -7,22 +7,18 @@ export class ReportStepperPage {
     readonly continueButton: Locator;
     readonly backButton: Locator;
     readonly submitButton: Locator;
+    readonly takePhotoButton: Locator;
+    readonly injectTestPhotoButton: Locator;
 
-    // Step 1
     readonly dateInput: Locator;
     readonly timeInput: Locator;
     readonly latInput: Locator;
     readonly lngInput: Locator;
 
-    // Step 2
     readonly directSightingCard: Locator;
     readonly indirectSignCard: Locator;
     readonly lossDamageCard: Locator;
 
-    // Step 3
-    readonly manualBearingInput: Locator;
-
-    // Success
     readonly successMessage: Locator;
 
     constructor(page: Page) {
@@ -31,22 +27,18 @@ export class ReportStepperPage {
         this.continueButton = page.getByRole('button', { name: /Continue|जारी/i }).first();
         this.backButton = page.getByRole('button', { name: /Back/i }).first();
         this.submitButton = page.getByRole('button', { name: /Submit|सबमिट/i }).first();
+        this.takePhotoButton = page.getByRole('button', { name: /Take Photo|फ़ोटो|फोटो/i }).first();
+        this.injectTestPhotoButton = page.getByTestId('e2e-inject-photo');
 
-        // Step 1
         this.dateInput = page.locator('input[type="date"]');
         this.timeInput = page.locator('input[type="time"]');
         this.latInput = page.locator('input[type="number"]').first();
         this.lngInput = page.locator('input[type="number"]').nth(1);
 
-        // Step 2
         this.directSightingCard = page.locator('button').filter({ hasText: /Direct Sighting/i }).first();
         this.indirectSignCard = page.locator('button').filter({ hasText: /Indirect Sign/i }).first();
         this.lossDamageCard = page.locator('button').filter({ hasText: /Loss/i }).first();
 
-        // Step 3
-        this.manualBearingInput = page.locator('input[type="number"][min="0"][max="360"]');
-
-        // Success
         this.successMessage = page.locator('text=/Report Saved|रिपोर्ट सहेजी|अहवाल जतन/i').first();
     }
 
@@ -54,10 +46,17 @@ export class ReportStepperPage {
         await this.page.goto(appPath('/report'));
     }
 
-    async fillStep1(date: string, time: string, lat: string, lng: string) {
-        // Date/time are auto-captured and not editable (field review).
-        void date;
-        void time;
+    async injectTestPhoto() {
+        await expect(this.injectTestPhotoButton).toBeVisible({ timeout: 10_000 });
+        await this.injectTestPhotoButton.click();
+    }
+
+    async advancePastPhoto() {
+        await this.injectTestPhoto();
+        await this.advanceStep();
+    }
+
+    async fillLocation(lat: string, lng: string) {
         await this.latInput.fill(lat);
         await this.lngInput.fill(lng);
     }
@@ -67,7 +66,7 @@ export class ReportStepperPage {
         await this.continueButton.click({ force: true });
     }
 
-    /** Direct sighting with at least one elephant so Continue enables on step 2. */
+    /** Direct sighting with at least one elephant so Continue enables on observation step. */
     async selectDirectSightingWithCount(count = 1) {
         await this.directSightingCard.click();
         await this.page.waitForTimeout(300);
@@ -78,7 +77,6 @@ export class ReportStepperPage {
             .locator('..')
             .locator('..');
 
-        // The app validates that the breakdown rows sum up, not just the "Total" row.
         const adultMaleRow = countSection.locator('text=/Adult Male/i').first().locator('..');
         const incrementBtn = adultMaleRow.locator('button:has(.lucide-plus)').last();
         for (let i = 0; i < count; i++) {
@@ -86,13 +84,13 @@ export class ReportStepperPage {
         }
     }
 
-    /** Step 1 filled → observation → compass skip → photo step ready to submit. */
-    async completeToSubmitStep() {
+    /** Photo → observation → location filled → review. */
+    async completeToReview(lat: string, lng: string) {
+        await this.advancePastPhoto();
         await this.selectDirectSightingWithCount(1);
         await this.advanceStep();
-        await this.page.waitForTimeout(300);
-        await this.advanceStep(); // compass -> photo
-        await this.page.waitForTimeout(300);
+        await this.fillLocation(lat, lng);
+        await this.advanceStep();
     }
 
     async goBack() {

@@ -115,6 +115,7 @@ const translations: Record<Language, Record<string, string>> = {
         radius_note_suffix_user: "of your assigned territory's centroid. Drag the slider or type a value (1–100 km).",
 
         // ── Dashboard ─────────────────────────────────────────────────────
+        app_name: "Eravat 2.0",
         wild_elephant_monitoring: "Wild Elephant Monitoring System",
         welcome_back: "Welcome Back",
         what_to_do: "What would you like to do today?",
@@ -332,7 +333,7 @@ const translations: Record<Language, Record<string, string>> = {
         tap_to_expand: "Tap a question to expand",
         faq_q1: "How do I submit a field report?",
         faq_a1:
-            'Tap Add Sighting on the Dashboard. Follow the step-by-step form to record your observation — including location (captured automatically via GPS), elephant counts, and a photo. The report will sync to the server once you have a network connection.',
+            'Tap Add Sighting on the Dashboard. Take a photo first, then record the observation. Date, time, and GPS fill in automatically in the background. The report will sync to the server once you have a network connection.',
         faq_q2: "What if I have no internet connection?",
         faq_a2:
             "Eravat works offline. Reports you submit are saved locally on your device and automatically uploaded when you reconnect. You can see pending reports on your Dashboard.",
@@ -796,6 +797,9 @@ const translations: Record<Language, Record<string, string>> = {
         ps_opening_camera: "Opening Camera...",
         ps_required_photo: "Photo is required. GPS (DMS) and date/time are stamped on the image.",
         ps_stamp_note: "Date/time and DMS GPS are stamped on this photo.",
+        ps_location_prefetching: "Capturing date, time, and GPS in the background…",
+        ps_location_ready: "Date, time, and GPS are ready.",
+        ps_location_failed: "GPS is not ready yet. You can enter it on the location step.",
         ps_optional_photo:
             "Optional — attach a photo of the sighting or evidence",
         ps_photo_captured: "Photo captured and stored locally",
@@ -825,7 +829,7 @@ const translations: Record<Language, Record<string, string>> = {
         // FAQs
         faq_submit_report_q: "How do I submit a field report?",
         faq_submit_report_a:
-            'Tap Add Sighting on the Dashboard. Follow the step-by-step form to record your observation — including location (captured automatically via GPS), elephant counts, and a photo. The report will sync to the server once you have a network connection.',
+            'Tap Add Sighting on the Dashboard. Take a photo first, then record the observation. Date, time, and GPS fill in automatically in the background. The report will sync to the server once you have a network connection.',
         faq_no_internet_q: "What if I have no internet connection?",
         faq_no_internet_a:
             "Eravat works offline. Reports you submit are saved locally on your device and automatically uploaded when you reconnect. You can see pending reports on your Dashboard.",
@@ -1072,7 +1076,7 @@ const translations: Record<Language, Record<string, string>> = {
         // ── FAQ ───────────────────────────────────────────────────────────
         "faq.title": "Frequently Asked Questions",
         "faq.q1": "How do I report a wild elephant sighting?",
-        "faq.a1": "Go to the Dashboard and tap 'Add Sighting'. Fill in the location, number of elephants, and add a photo.",
+        "faq.a1": "Go to the Dashboard and tap 'Add Sighting'. Take a photo first, then fill in the observation. Date, time, and GPS fill in automatically.",
         "faq.q2": "Do I need internet to submit a report?",
         "faq.a2": "No! The app works offline. Reports are saved locally and will automatically sync once you regain internet connection.",
         "faq.q3": "What should I do in case of a direct encounter?",
@@ -1249,6 +1253,7 @@ const translations: Record<Language, Record<string, string>> = {
         radius_note: "जब भी आपके निर्धारित क्षेत्र के केंद्र से",
         radius_note_suffix_user: "के भीतर कोई नई फ़ील्ड रिपोर्ट दर्ज की जाती है, तो आपको एक सूचना प्राप्त होगी। स्लाइडर खींचें या मान टाइप करें (1–100 किमी)।",
 
+        app_name: "Eravat 2.0",
         wild_elephant_monitoring: "जंगली हाथी निगरानी प्रणाली",
         welcome_back: "वापस स्वागत है",
         what_to_do: "आज आप क्या करना चाहेंगे?",
@@ -1870,6 +1875,9 @@ const translations: Record<Language, Record<string, string>> = {
         ps_opening_camera: "कैमरा खुल रहा है...",
         ps_required_photo: "फ़ोटो आवश्यक है। छवि पर GPS (DMS) और दिनांक/समय मुद्रित होते हैं।",
         ps_stamp_note: "इस फ़ोटो पर दिनांक/समय और DMS GPS मुद्रित हैं।",
+        ps_location_prefetching: "दिनांक, समय और GPS पृष्ठभूमि में भरे जा रहे हैं…",
+        ps_location_ready: "दिनांक, समय और GPS तैयार हैं।",
+        ps_location_failed: "GPS अभी तैयार नहीं है। आप स्थान चरण पर दर्ज कर सकते हैं।",
         ps_optional_photo: "वैकल्पिक — दृश्य या साक्ष्य की फ़ोटो संलग्न करें",
         ps_photo_captured: "फ़ोटो कैप्चर और स्थानीय रूप से संग्रहीत",
         ps_photo_desc:
@@ -2181,7 +2189,7 @@ const translations: Record<Language, Record<string, string>> = {
         // ── FAQ ───────────────────────────────────────────────────────────
         "faq.title": "अक्सर पूछे जाने वाले प्रश्न",
         "faq.q1": "मैं जंगली हाथी की साइटिंग कैसे दर्ज करूँ?",
-        "faq.a1": "डैशबोर्ड पर जाएं और 'साइटिंग जोड़ें' पर टैप करें। स्थान, हाथियों की संख्या भरें और एक फ़ोटो जोड़ें।",
+        "faq.a1": "डैशबोर्ड पर जाएं और 'साइटिंग जोड़ें' पर टैप करें। पहले फ़ोटो लें, फिर विवरण भरें। दिनांक, समय और GPS अपने आप भर जाते हैं।",
         "faq.q2": "क्या मुझे रिपोर्ट जमा करने के लिए इंटरनेट की आवश्यकता है?",
         "faq.a2": "नहीं! ऐप ऑफलाइन भी काम करता है। रिपोर्ट स्थानीय रूप से सहेजी जाती हैं और जैसे ही आपका इंटरनेट कनेक्शन वापस आता है, स्वचालित रूप से सिंक हो जाएंगी।",
         "faq.q3": "हाथी से सीधी मुलाकात होने पर क्या करें?",
@@ -2358,6 +2366,7 @@ const translations: Record<Language, Record<string, string>> = {
         radius_note: "तुमच्या नियुक्त प्रदेशाच्या केंद्रापासून",
         radius_note_suffix_user: "च्या आत नवीन फील्ड अहवाल दाखल झाला की सूचना मिळेल. स्लाइडर ओढा किंवा मूल्य टाका (1–100 किमी).",
 
+        app_name: "Eravat 2.0",
         wild_elephant_monitoring: "जंगली हत्ती निरीक्षण प्रणाली",
         welcome_back: "पुन्हा स्वागत",
         what_to_do: "आज तुम्हाला काय करायचे आहे?",
@@ -2978,6 +2987,9 @@ const translations: Record<Language, Record<string, string>> = {
         ps_opening_camera: "कॅमेरा उघडत आहे...",
         ps_required_photo: "फोटो आवश्यक आहे. चित्रावर GPS (DMS) आणि दिनांक/वेळ छापले जातात.",
         ps_stamp_note: "या फोटोवर दिनांक/वेळ आणि DMS GPS छापले आहेत.",
+        ps_location_prefetching: "दिनांक, वेळ आणि GPS पार्श्वभूमीत भरले जात आहेत…",
+        ps_location_ready: "दिनांक, वेळ आणि GPS तयार आहेत.",
+        ps_location_failed: "GPS अद्याप तयार नाही. तुम्ही स्थान पायरीवर भरू शकता.",
         ps_optional_photo: "पर्यायी — दर्शन किंवा पुराव्याचा फोटो जोडा",
         ps_photo_captured: "फोटो घेतला आणि स्थानिकरित्या संग्रहित",
         ps_photo_desc:
@@ -3296,7 +3308,7 @@ const translations: Record<Language, Record<string, string>> = {
         // ── FAQ ───────────────────────────────────────────────────────────
         "faq.title": "वारंवार विचारले जाणारे प्रश्न",
         "faq.q1": "मी जंगली हत्तीची साइटिंग कशी नोंदवू?",
-        "faq.a1": "डॅशबोर्डवर जा आणि 'साइटिंग जोडा' वर टॅप करा. स्थान, हत्तींची संख्या भरा आणि फोटो जोडा.",
+        "faq.a1": "डॅशबोर्डवर जा आणि 'साइटिंग जोडा' वर टॅप करा. आधी फोटो काढा, नंतर तपशील भरा. दिनांक, वेळ आणि GPS आपोआप भरले जातात.",
         "faq.q2": "रिपोर्ट सबमिट करण्यासाठी मला इंटरनेटची आवश्यकता आहे का?",
         "faq.a2": "नाही! ॲप ऑफलाइन देखील काम करतो. रिपोर्ट स्थानिक पातळीवर जतन केले जातात आणि तुमचे इंटरनेट कनेक्शन परत आल्यावर स्वयंचलितपणे सिंक होतील.",
         "faq.q3": "हत्तीची थेट भेट झाल्यास काय करावे?",

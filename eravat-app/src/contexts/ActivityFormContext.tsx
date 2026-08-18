@@ -1,16 +1,20 @@
-import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import type { ObservationType } from '../types/activity-report';
+import { useGeolocation, GEOLOCATION_TIMEOUT_MS } from '../hooks/useGeolocation';
+import { captureDeviceDateTime } from '../lib/captureDeviceDateTime';
+import { track } from '../lib/analytics';
+import { logger } from '../lib/logger';
 
 export type FormStep =
-    | 'dateTimeLocation'
+    | 'photo'
     | 'observationType'
     | 'damage'
-    | 'compassBearing'
-    | 'photo'
+    | 'dateTimeLocation'
     | 'review';
 
+export type LocationPrefetchSource = 'prefetch' | 'retry';
+
 export interface ActivityFormData {
-    // Step 1: Date, Time, Location + territory confirm
     activity_date: string;
     activity_time: string;
     latitude: number | null;
@@ -19,7 +23,6 @@ export interface ActivityFormData {
     range_id: string | null;
     beat_id: string | null;
 
-    // Step 2: Observation Type
     observation_type: ObservationType | null;
     total_elephants: number;
     male_count: number;
@@ -32,14 +35,12 @@ export interface ActivityFormData {
     /** Free-text description for Direct / Indirect observation */
     description: string;
 
-    // Step 3: Compass Bearing
+    /** Kept for Dexie/Supabase; no longer captured in the wizard. */
     compass_bearing: number | null;
 
-    // Step 4: Photo
     photo_url: string | null;
     notes: string | null;
 
-    // Custom Damage fields
     damage_description: string;
     damage_value: number | null;
     report_damage_manually: boolean;
@@ -58,6 +59,9 @@ interface ActivityFormContextValue {
     resetForm: () => void;
     activeSteps: FormStep[];
     elephantTotal: number;
+    gpsLoading: boolean;
+    gpsError: string | null;
+    refreshLocation: (source?: LocationPrefetchSource) => Promise<void>;
 }
 
 const DEFAULT_FORM: ActivityFormData = {
@@ -103,11 +107,23 @@ export function isDateTimeLocationComplete(data: Pick<ActivityFormData, 'activit
     return true;
 }
 
+export function getActiveSteps(data: Pick<ActivityFormData, 'observation_type' | 'report_damage_manually'>): FormStep[] {
+    const steps: FormStep[] = ['photo', 'observationType'];
+    if (data.observation_type === 'loss' || data.report_damage_manually) {
+        steps.push('damage');
+    }
+    steps.push('dateTimeLocation', 'review');
+    return steps;
+}
+
 const ActivityFormContext = createContext<ActivityFormContextValue | null>(null);
 
 export function ActivityFormProvider({ children }: { children: ReactNode }) {
     const [formData, setFormData] = useState<ActivityFormData>(DEFAULT_FORM);
     const [stepIndex, setStepIndex] = useState(0);
+    const { fetchLocation, loading: gpsLoading, error: gpsError, lastErrorCode } = useGeolocation();
+    const prefetchStartedRef = useRef(false);
+    const locationRequestIdRef = useRef(0);
 
     const updateFormData = useCallback((updates: Partial<ActivityFormData>) => {
         setFormData(prev => ({ ...prev, ...updates }));
@@ -115,19 +131,55 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
 
     const elephantTotal = useMemo(() => countTotal(formData), [formData]);
 
-    const activeSteps = useMemo(() => {
-        const steps: FormStep[] = ['dateTimeLocation', 'observationType'];
-        if (formData.observation_type === 'loss' || formData.report_damage_manually) {
-            steps.push('damage');
+    const activeSteps = useMemo(
+        () => getActiveSteps(formData),
+        [formData.observation_type, formData.report_damage_manually],
+    );
+
+    const refreshLocation = useCallback(async (source: LocationPrefetchSource = 'retry') => {
+        const requestId = ++locationRequestIdRef.current;
+        const datetimeStarted = performance.now();
+        const { date, time } = captureDeviceDateTime();
+        const datetimeMs = Math.round(performance.now() - datetimeStarted);
+        if (requestId !== locationRequestIdRef.current) return;
+        updateFormData({ activity_date: date, activity_time: time });
+        track('report.datetime_captured', { duration_ms: datetimeMs, source });
+        logger.info('ReportLocation', 'datetime captured', { duration_ms: datetimeMs, source });
+
+        const gpsStarted = performance.now();
+        track('report.gps_prefetch_started', { source, timeout_ms: GEOLOCATION_TIMEOUT_MS });
+        logger.info('ReportLocation', 'gps prefetch started', { source, timeout_ms: GEOLOCATION_TIMEOUT_MS });
+        const pos = await fetchLocation();
+        if (requestId !== locationRequestIdRef.current) return;
+        const gpsMs = Math.round(performance.now() - gpsStarted);
+        if (pos) {
+            const accuracyM = pos.coords.accuracy != null ? Math.round(pos.coords.accuracy) : undefined;
+            updateFormData({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+            track('report.gps_acquired', {
+                duration_ms: gpsMs,
+                accuracy_m: accuracyM,
+                source,
+            });
+            logger.info('ReportLocation', 'gps acquired', { duration_ms: gpsMs, accuracy_m: accuracyM, source });
+        } else {
+            const errorCode = lastErrorCode() ?? 'LOCATION_FAILED';
+            track('report.gps_failed', { duration_ms: gpsMs, error_code: errorCode, source });
+            logger.warn('ReportLocation', 'gps failed', { duration_ms: gpsMs, error_code: errorCode, source });
         }
-        steps.push('compassBearing', 'photo', 'review');
-        return steps;
-    }, [formData.observation_type, formData.report_damage_manually]);
+    }, [fetchLocation, lastErrorCode, updateFormData]);
+
+    useEffect(() => {
+        if (prefetchStartedRef.current) return;
+        prefetchStartedRef.current = true;
+        void refreshLocation('prefetch');
+    }, [refreshLocation]);
 
     const normalizedStepIndex = Math.min(stepIndex, activeSteps.length - 1);
 
     const isStepValid = useCallback((step: FormStep): boolean => {
         switch (step) {
+            case 'photo':
+                return Boolean(formData.photo_url);
             case 'dateTimeLocation':
                 return isDateTimeLocationComplete(formData);
             case 'observationType': {
@@ -152,10 +204,6 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
                 if (peopleLoss && (!formData.affected_people || formData.affected_people < 1)) return false;
                 return true;
             }
-            case 'compassBearing':
-                return formData.compass_bearing != null && Number.isFinite(formData.compass_bearing);
-            case 'photo':
-                return Boolean(formData.photo_url);
             case 'review':
                 return true;
             default:
@@ -177,8 +225,10 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
     );
 
     const resetForm = useCallback(() => {
+        locationRequestIdRef.current += 1;
         setFormData(DEFAULT_FORM);
         setStepIndex(0);
+        prefetchStartedRef.current = false;
     }, []);
 
     return (
@@ -194,6 +244,9 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
             resetForm,
             activeSteps,
             elephantTotal,
+            gpsLoading,
+            gpsError,
+            refreshLocation,
         }}>
             {children}
         </ActivityFormContext.Provider>

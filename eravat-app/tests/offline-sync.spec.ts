@@ -13,24 +13,16 @@ test.describe('Offline & Sync Module', () => {
         await expect(page.locator('text=Add Sighting')).toBeVisible();
     });
 
-    test('SYNC-002: Simulate offline — API calls blocked', async ({ page }) => {
-        await ensureOnPage(page, '/report');
-        const dateInput = page.locator('input[type="date"]');
-        await expect(dateInput).toBeVisible({ timeout: 10_000 });
-
+    test('SYNC-002: Simulate offline — report wizard still opens', async ({ page }) => {
         await page.route('**/rest/v1/**', route => route.abort());
-        await dateInput.fill('2025-06-15');
-        await expect(dateInput).toHaveValue('2025-06-15');
+        await ensureOnPage(page, '/report');
+        await expect(page.getByText(/Photo Evidence|फ़ोटो साक्ष्य|फोटो पुरावा/i).first()).toBeVisible({ timeout: 10_000 });
     });
 
     test('SYNC-003: Offline report form still accessible', async ({ page }) => {
-        await ensureOnPage(page, '/report');
         await page.route('**/rest/v1/**', route => route.abort());
-
-        const dateInput = page.locator('input[type="date"]');
-        await expect(dateInput).toBeVisible({ timeout: 10_000 });
-        await dateInput.fill('2025-06-15');
-        await expect(dateInput).toHaveValue('2025-06-15');
+        await ensureOnPage(page, '/report');
+        await expect(page.getByRole('button', { name: /Take Photo|फ़ोटो|फोटो/i }).first()).toBeVisible({ timeout: 10_000 });
     });
 
     test('SYNC-004: Dashboard graceful degradation when offline', async ({ page }) => {
