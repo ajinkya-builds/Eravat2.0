@@ -13,7 +13,9 @@ export function PhotoStep() {
     const { formData, updateFormData, gpsLoading, gpsError } = useActivityForm();
     const { pickFromGallery, isCapturing: loading, error } = useCamera();
     const { t } = useLanguage();
-    const isE2E = typeof navigator !== 'undefined' && Boolean(navigator.webdriver);
+    const isE2E =
+        typeof navigator !== 'undefined' &&
+        (Boolean(navigator.webdriver) || import.meta.env.VITE_APP_ENV === 'staging');
 
     const handleCapture = async () => {
         const result = await pickFromGallery();

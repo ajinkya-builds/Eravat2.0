@@ -220,6 +220,7 @@ export default function Login() {
                                             }}
                                             className="flex-1 py-3.5 px-4 text-sm outline-none bg-transparent"
                                             placeholder="9876543210"
+                                            data-testid="login-phone"
                                             autoFocus
                                         />
                                     </div>
@@ -264,6 +265,7 @@ export default function Login() {
                                         inputMode="numeric"
                                         maxLength={6}
                                         placeholder={t('otp.enterCode')}
+                                        data-testid="login-otp"
                                         value={otpCode}
                                         onChange={(e) => {
                                             const val = e.target.value.replace(/\D/g, '').slice(0, 6);
