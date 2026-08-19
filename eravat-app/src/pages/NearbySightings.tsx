@@ -9,7 +9,7 @@ import { supabase } from '../supabase';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { formatDistanceToNow } from 'date-fns';
-import { trackClick, trackFailed, trackFilter } from '../lib/analytics';
+import { track, trackClick, trackFailed, trackFilter } from '../lib/analytics';
 import { RadiusSlider } from '../components/shared/RadiusSlider';
 import { shareOrCopy, buildSightingShareText, downloadTextFile, mapsLink, formatShareDate } from '../lib/reportShare';
 import { formatLatLngDms } from '../lib/geoFormat';
@@ -58,7 +58,7 @@ function parseLocation(loc: any): { lat: number; lng: number } | null {
 export default function NearbySightings() {
     const navigate = useNavigate();
     const { t } = useLanguage();
-    const { fetchLocation, loading: locating, error: geoError } = useGeolocation();
+    const { fetchLocation, loading: locating, error: geoError, lastErrorCode, getLastKnownLocation } = useGeolocation();
 
     const [radiusKm, setRadiusKm] = useState(100);
     const [items, setItems] = useState<NearbyItem[]>([]);
@@ -85,8 +85,13 @@ export default function NearbySightings() {
         photo: t('share.photo'),
     };
 
-    const loadNearby = async (loc: { lat: number; lng: number }, radius: number) => {
+    const loadNearby = async (
+        loc: { lat: number; lng: number },
+        radius: number,
+        source: 'live_gps' | 'cached_gps' = 'live_gps',
+    ) => {
         setLoading(true);
+        track('nearby.load_started', { screen: 'nearby', radius_km: radius, source });
         try {
             const { data: rpcRows, error: rpcError } = await supabase.rpc('reports_nearby', {
                 p_lng: loc.lng,
@@ -148,6 +153,13 @@ export default function NearbySightings() {
                 rows.sort((a, b) => a.distanceKm - b.distanceKm);
                 setItems(rows);
                 setLoaded(true);
+                track('nearby.load_succeeded', {
+                    screen: 'nearby',
+                    source,
+                    query_mode: 'rpc',
+                    result_count: rows.length,
+                    radius_km: radius,
+                });
                 return;
             }
 
@@ -197,11 +209,19 @@ export default function NearbySightings() {
             rows.sort((a, b) => a.distanceKm - b.distanceKm);
             setItems(rows);
             setLoaded(true);
+            track('nearby.load_succeeded', {
+                screen: 'nearby',
+                source,
+                query_mode: 'client_fallback',
+                result_count: rows.length,
+                radius_km: radius,
+            });
         } catch (err) {
             console.error('[NearbySightings] load failed', err);
             setItems([]);
             setLoaded(true);
             trackFailed('nearby.load', 'fetch_failed', { screen: 'nearby' });
+            track('nearby.load_failed', { screen: 'nearby', source, error_code: 'fetch_failed', radius_km: radius });
         } finally {
             setLoading(false);
         }
@@ -209,14 +229,44 @@ export default function NearbySightings() {
 
     const handleLocate = async () => {
         trackClick('nearby.locate', { screen: 'nearby' });
-        const pos = await fetchLocation();
+        let pos = await fetchLocation();
+        let retryUsed = false;
+        if (!pos?.coords) {
+            retryUsed = true;
+            track('nearby.locate_retry_started', {
+                screen: 'nearby',
+                first_error_code: lastErrorCode() ?? 'LOCATION_FAILED',
+            });
+            pos = await fetchLocation();
+        }
         if (pos?.coords) {
             const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             setUserLoc(loc);
-            void loadNearby(loc, radiusKm);
-        } else {
-            trackFailed('nearby.locate', 'geolocation_failed', { screen: 'nearby' });
+            track('nearby.locate_succeeded', {
+                screen: 'nearby',
+                retry_used: retryUsed,
+                accuracy_m: pos.coords.accuracy != null ? Math.round(pos.coords.accuracy) : undefined,
+            });
+            void loadNearby(loc, radiusKm, 'live_gps');
+            return;
         }
+
+        const fallbackPos = getLastKnownLocation();
+        if (fallbackPos?.coords) {
+            const loc = { lat: fallbackPos.coords.latitude, lng: fallbackPos.coords.longitude };
+            setUserLoc(loc);
+            track('nearby.locate_fallback_used', {
+                screen: 'nearby',
+                error_code: lastErrorCode() ?? 'LOCATION_FAILED',
+                fallback_age_s: Math.round((Date.now() - fallbackPos.timestamp) / 1000),
+            });
+            void loadNearby(loc, radiusKm, 'cached_gps');
+            return;
+        }
+
+        const errorCode = lastErrorCode() ?? 'LOCATION_FAILED';
+        trackFailed('nearby.locate', errorCode, { screen: 'nearby' });
+        track('nearby.locate_failed', { screen: 'nearby', error_code: errorCode });
     };
 
     const handleRadiusChange = (r: number) => {
@@ -234,6 +284,12 @@ export default function NearbySightings() {
         type === 'loss' ? t('map.legendLoss') : type === 'indirect' ? t('map.legendIndirect') : t('map.legendDirect');
 
     const handleShare = async (item: NearbyItem) => {
+        track('nearby.share_started', {
+            screen: 'nearby',
+            has_photo_path: Boolean(item.photoPath),
+            has_notes: Boolean(item.notes),
+            has_damage: Boolean(item.damage),
+        });
         let photoUrl: string | undefined;
         let file: File | undefined;
         if (item.photoPath) {
@@ -266,6 +322,12 @@ export default function NearbySightings() {
             labels: shareLabels,
         });
         const res = await shareOrCopy({ title: t('share.reportTitle'), text, file });
+        track('nearby.share_result', {
+            screen: 'nearby',
+            result: res,
+            included_file: Boolean(file),
+            included_photo_url: Boolean(photoUrl),
+        });
         if (res === 'copied') setShareMsg(t('share.copied'));
         else if (res === 'failed') setShareMsg(t('share.failed'));
         if (res === 'copied' || res === 'failed') setTimeout(() => setShareMsg(null), 2500);
