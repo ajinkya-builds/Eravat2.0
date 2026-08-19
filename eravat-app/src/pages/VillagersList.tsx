@@ -47,6 +47,7 @@ export default function VillagersList() {
           .from('villagers')
           .select('id, name, mobile, latitude, longitude, village_id, villages(name)')
           .eq('is_active', true)
+          .eq('created_by', profile?.id ?? '')
           .order('name')
           .limit(50);
 
@@ -72,7 +73,7 @@ export default function VillagersList() {
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [canRead, query]);
+  }, [canRead, query, profile?.id]);
 
   if (!canRead) {
     return (
