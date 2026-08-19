@@ -4,16 +4,27 @@
  * Run: node scripts/emulator-e2e-playwright.mjs
  */
 import { execSync } from 'child_process';
+import { readFileSync } from 'fs';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { CdpPage } from './cdp-page.mjs';
 
 const PKG = 'com.forestdept.eravat';
 const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/e2e-emulator-playwright');
+
+const manifest = JSON.parse(
+  readFileSync(join(process.cwd(), '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
+);
+function pick(role) {
+  const u = manifest.find((x) => x.role === role);
+  if (!u) throw new Error(`No UAT user for ${role}`);
+  return { phone: u.phone_app, otp: u.otp };
+}
+
 const USERS = {
-  beat_guard: { phone: '8889184712' },
-  admin: { phone: '9926445678' },
-  unenrolled: { phone: '9000000001' },
+  beat_guard: pick('beat_guard'),
+  admin: pick('admin'),
+  unenrolled: { phone: '9000000001', otp: '' },
 };
 
 const results = [];
@@ -129,12 +140,12 @@ async function clickButton(matcher) {
   if (!clicked) throw new Error(`Button not found: ${matcher}`);
 }
 
-async function loginOTP(phone) {
+async function loginOTP(phone, otp) {
   await page.goto('https://localhost/login');
   await fillPlaceholder('9876543210', phone);
   await clickButton('Send OTP');
   await page.waitFor('!!document.querySelector(\'input[placeholder="Enter 6-digit code"]\')', 20000);
-  await fillPlaceholder('Enter 6-digit code', '123456');
+  await fillPlaceholder('Enter 6-digit code', otp);
   await clickButton('Verify');
   await page.waitFor('!location.pathname.includes("/login")', 25000);
 }
@@ -159,7 +170,7 @@ await check('Unenrolled phone rejected', async () => {
 
 await check('Beat guard OTP login', async () => {
   await softReset();
-  await loginOTP(USERS.beat_guard.phone);
+  await loginOTP(USERS.beat_guard.phone, USERS.beat_guard.otp);
   await shot('03-dashboard');
 });
 
@@ -176,6 +187,34 @@ await check('Report wizard opens', async () => {
     throw new Error('Report wizard missing expected fields');
   }
   await shot('05-report');
+});
+
+await check('Report submit with staging test photo', async () => {
+  await page.goto('https://localhost/report');
+  await page.sleep(2000);
+  const injected = await page.evaluate(() => {
+    const btn = document.querySelector('[data-testid="e2e-inject-photo"]');
+    if (btn) {
+      btn.click();
+      return true;
+    }
+    return false;
+  });
+  if (!injected) throw new Error('Staging test photo button missing in APK');
+  await clickButton('Continue');
+  await page.sleep(800);
+  await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('button')].find((b) => /Direct Sighting/i.test(b.textContent || ''));
+    btn?.click();
+  });
+  await page.sleep(400);
+  await page.evaluate(() => {
+    const plus = document.querySelector('button .lucide-plus')?.closest('button');
+    plus?.click();
+  });
+  await clickButton('Continue');
+  await page.sleep(1000);
+  await shot('05b-report-flow');
 });
 
 await check('Map loads Leaflet', async () => {
@@ -232,7 +271,7 @@ await check('Beat guard blocked from admin', async () => {
 
 await check('Admin login + admin routes', async () => {
   await softReset();
-  await loginOTP(USERS.admin.phone);
+  await loginOTP(USERS.admin.phone, USERS.admin.otp);
   await page.goto('https://localhost/admin/users');
   await page.sleep(3000);
   const body = await page.content();

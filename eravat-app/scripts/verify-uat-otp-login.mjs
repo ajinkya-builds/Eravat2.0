@@ -7,6 +7,27 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function loadEnv(relativePath) {
+  try {
+    return Object.fromEntries(
+      readFileSync(resolve(__dirname, relativePath), 'utf8')
+        .split('\n')
+        .filter((l) => l && !l.startsWith('#'))
+        .map((l) => {
+          const i = l.indexOf('=');
+          return [l.slice(0, i), l.slice(i + 1)];
+        }),
+    );
+  } catch {
+    return {};
+  }
+}
+
+const stagingEnv = loadEnv('../.env.staging.local');
+
+const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || stagingEnv.VITE_SUPABASE_URL;
+const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || stagingEnv.VITE_SUPABASE_PUBLISHABLE_KEY;
 const manifest = JSON.parse(
   readFileSync(
     resolve(__dirname, '../../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'),
@@ -14,10 +35,8 @@ const manifest = JSON.parse(
   )
 );
 
-const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
 if (!url || !key) {
-  console.error('Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY');
+  console.error('Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (or use .env.staging.local)');
   process.exit(1);
 }
 
