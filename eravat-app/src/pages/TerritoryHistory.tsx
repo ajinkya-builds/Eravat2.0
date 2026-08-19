@@ -7,7 +7,7 @@ import { MapPin, Calendar, Clock, AlertTriangle, Eye, Loader2, ArrowLeft, Radio,
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
-import { shareOrCopy, downloadTextFile, mapsLink, buildSightingShareText } from '../lib/reportShare';
+import { shareOrCopy, downloadTextFile, mapsLink, buildSightingShareText, formatShareDate } from '../lib/reportShare';
 import { formatLatLngDms } from '../lib/geoFormat';
 import { db } from '../db';
 
@@ -317,13 +317,14 @@ export default function TerritoryHistory() {
                                 : (Array.isArray(o?.conflict_loss_details) ? o.conflict_loss_details.join(', ') : null);
                             const shareText = buildSightingShareText({
                                 typeLabel: title,
-                                dateLabel: new Date(item.device_timestamp).toLocaleString(),
+                                dateLabel: formatShareDate(item.device_timestamp),
                                 division: item.geo_beats?.geo_ranges?.geo_divisions?.name,
                                 range: item.geo_beats?.geo_ranges?.name,
                                 beat: item.geo_beats?.name,
                                 elephantTotal,
                                 directionDeg: o?.compass_bearing ?? null,
                                 damage: damageText,
+                                notes: item.notes ?? null,
                                 lat: coords?.lat,
                                 lng: coords?.lng,
                                 dms: coords ? formatLatLngDms(coords.lat, coords.lng) : null,
@@ -337,6 +338,7 @@ export default function TerritoryHistory() {
                                     elephants: t('nearby.elephants'),
                                     direction: t('share.direction'),
                                     damage: t('share.damage'),
+                                    description: t('ot_description'),
                                     gps: t('share.coordinates'),
                                     dms: t('dtl_dms_location'),
                                     map: t('share.map'),

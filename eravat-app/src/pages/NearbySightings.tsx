@@ -11,7 +11,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { formatDistanceToNow } from 'date-fns';
 import { trackClick, trackFailed, trackFilter } from '../lib/analytics';
 import { RadiusSlider } from '../components/shared/RadiusSlider';
-import { shareOrCopy, buildSightingShareText, downloadTextFile, mapsLink } from '../lib/reportShare';
+import { shareOrCopy, buildSightingShareText, downloadTextFile, mapsLink, formatShareDate } from '../lib/reportShare';
 import { formatLatLngDms } from '../lib/geoFormat';
 
 type NearbyItem = {
@@ -78,6 +78,7 @@ export default function NearbySightings() {
         elephants: t('nearby.elephants'),
         direction: t('share.direction'),
         damage: t('share.damage'),
+        description: t('ot_description'),
         gps: t('share.coordinates'),
         dms: t('dtl_dms_location'),
         map: t('share.map'),
@@ -250,13 +251,14 @@ export default function NearbySightings() {
         }
         const text = buildSightingShareText({
             typeLabel: typeLabel(item.type),
-            dateLabel: new Date(item.deviceTimestamp).toLocaleString(),
+            dateLabel: formatShareDate(item.deviceTimestamp),
             division: item.divisionName,
             range: item.rangeName,
             beat: item.beatName,
             elephantTotal: item.total,
             directionDeg: item.compassBearing,
             damage: item.damage,
+            notes: item.notes,
             lat: item.lat,
             lng: item.lng,
             dms: formatLatLngDms(item.lat, item.lng),
@@ -412,13 +414,14 @@ export default function NearbySightings() {
                                                         onClick={() => {
                                                             const text = buildSightingShareText({
                                                                 typeLabel: typeLabel(item.type),
-                                                                dateLabel: new Date(item.deviceTimestamp).toLocaleString(),
+                                                                dateLabel: formatShareDate(item.deviceTimestamp),
                                                                 division: item.divisionName,
                                                                 range: item.rangeName,
                                                                 beat: item.beatName,
                                                                 elephantTotal: item.total,
                                                                 directionDeg: item.compassBearing,
                                                                 damage: item.damage,
+                                                                notes: item.notes,
                                                                 lat: item.lat,
                                                                 lng: item.lng,
                                                                 dms: formatLatLngDms(item.lat, item.lng),
