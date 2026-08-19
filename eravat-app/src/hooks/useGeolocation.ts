@@ -43,7 +43,7 @@ export function useGeolocation() {
                 const coordinates = await Geolocation.getCurrentPosition({
                     enableHighAccuracy: true,
                     timeout: GEOLOCATION_TIMEOUT_MS,
-                    maximumAge: 3000
+                    maximumAge: 0,
                 });
                 setPosition(coordinates);
                 return coordinates;
@@ -56,7 +56,7 @@ export function useGeolocation() {
                     navigator.geolocation.getCurrentPosition(resolve, reject, {
                         enableHighAccuracy: true,
                         timeout: GEOLOCATION_TIMEOUT_MS,
-                        maximumAge: 3000
+                        maximumAge: 0,
                     });
                 });
                 // Normalise to the same shape as a Capacitor Position

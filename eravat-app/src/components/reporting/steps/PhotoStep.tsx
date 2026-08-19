@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { X, RefreshCw, ImageIcon, Loader2, MapPin } from 'lucide-react';
+import { X, RefreshCw, ImageIcon, Camera, Loader2, MapPin } from 'lucide-react';
 import { useActivityForm } from '../../../contexts/ActivityFormContext';
 import { useCamera } from '../../../hooks/useCamera';
 import { useLanguage } from '../../../contexts/LanguageContext';
@@ -11,14 +11,14 @@ const E2E_PHOTO =
 
 export function PhotoStep() {
     const { formData, updateFormData, gpsLoading, gpsError } = useActivityForm();
-    const { pickFromGallery, isCapturing: loading, error } = useCamera();
+    const { takePhoto, pickFromGallery, isCapturing: loading, error } = useCamera();
     const { t } = useLanguage();
     const isE2E =
         typeof navigator !== 'undefined' &&
         (Boolean(navigator.webdriver) || import.meta.env.VITE_APP_ENV === 'staging');
 
-    const handleCapture = async () => {
-        const result = await pickFromGallery();
+    const handleCapture = async (source: 'camera' | 'gallery') => {
+        const result = await (source === 'camera' ? takePhoto() : pickFromGallery());
         if (!result) return;
         const stamped = await stampPhotoWithMeta(result.dataUrl, {
             latitude: formData.latitude,
@@ -69,7 +69,7 @@ export function PhotoStep() {
                     <div className="absolute top-2 right-2 flex gap-2">
                         <button
                             type="button"
-                            onClick={handleCapture}
+                            onClick={() => handleCapture('camera')}
                             disabled={loading}
                             className="p-2 rounded-xl bg-black/50 text-white hover:bg-black/70 transition-colors"
                         >
@@ -88,28 +88,46 @@ export function PhotoStep() {
                     <p className="text-xs text-muted-foreground mt-1 text-center">{t('ps_stamp_note')}</p>
                 </div>
             ) : (
-                <button
-                    type="button"
-                    onClick={handleCapture}
-                    disabled={loading}
-                    className="w-full glass-card rounded-3xl p-10 flex flex-col items-center gap-6 border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-300 active:scale-[0.98] cursor-pointer text-left"
-                >
-                    <div className="p-5 rounded-full bg-background shadow-sm border border-border/50">
-                        <ImageIcon className="w-12 h-12 text-primary" />
-                    </div>
-                    <div className="text-center space-y-1 w-full">
-                        <p className="text-lg font-bold text-foreground text-center">{t('ps_attach_photo')}</p>
-                        <p className="text-sm text-muted-foreground max-w-[250px] mx-auto text-center">
-                            {t('ps_from_gallery')}
-                        </p>
-                    </div>
+                <div className="space-y-3">
+                    {/* Primary: Take Photo with camera */}
+                    <button
+                        type="button"
+                        onClick={() => handleCapture('camera')}
+                        disabled={loading}
+                        className="w-full glass-card rounded-3xl p-8 flex flex-col items-center gap-4 border-2 border-primary/40 bg-primary/8 hover:bg-primary/15 transition-all duration-300 active:scale-[0.98] cursor-pointer"
+                    >
+                        <div className="p-4 rounded-full bg-primary/10 shadow-sm border border-primary/20">
+                            <Camera className="w-10 h-10 text-primary" />
+                        </div>
+                        <div className="text-center space-y-1 w-full">
+                            <p className="text-lg font-bold text-foreground text-center">{t('ps_take_photo')}</p>
+                            <p className="text-sm text-muted-foreground text-center">{t('ps_take_photo_hint')}</p>
+                        </div>
+                    </button>
+
+                    {/* Secondary: Attach from gallery */}
+                    <button
+                        type="button"
+                        onClick={() => handleCapture('gallery')}
+                        disabled={loading}
+                        className="w-full rounded-2xl p-4 flex items-center gap-4 border border-border bg-muted/30 hover:bg-muted/50 transition-all duration-200 active:scale-[0.98] cursor-pointer"
+                    >
+                        <div className="p-2.5 rounded-xl bg-background shadow-sm border border-border/50 shrink-0">
+                            <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div className="text-left">
+                            <p className="text-sm font-semibold text-foreground">{t('ps_attach_photo')}</p>
+                            <p className="text-xs text-muted-foreground">{t('ps_from_gallery')}</p>
+                        </div>
+                    </button>
+
                     {loading && (
                         <p className="text-sm text-primary font-semibold text-center w-full animate-pulse">
                             {t('ps_opening_gallery')}
                         </p>
                     )}
                     {error && <p className="text-sm font-medium text-destructive mt-2 bg-destructive/10 px-4 py-2 rounded-lg text-center w-full">⚠ {error}</p>}
-                </button>
+                </div>
             )}
 
             {isE2E && !formData.photo_url && (

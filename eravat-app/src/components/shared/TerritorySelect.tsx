@@ -130,7 +130,6 @@ export function TerritorySelect({
 
     useEffect(() => {
         if (latitude == null || longitude == null) return;
-        if (value.division_id || value.range_id || value.beat_id) return;
         const key = `${latitude.toFixed(5)},${longitude.toFixed(5)}`;
         if (lastLookupKey.current === key) return;
         let cancelled = false;
@@ -155,7 +154,7 @@ export function TerritorySelect({
         });
         return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [latitude, longitude, includeBeat, lookupNonce, value.division_id, value.range_id, value.beat_id]);
+    }, [latitude, longitude, includeBeat, lookupNonce]);
 
     return (
         <div className="space-y-3 rounded-2xl border border-border bg-muted/10 p-4">
@@ -183,6 +182,7 @@ export function TerritorySelect({
                 placeholder={t('dtl_search')}
                 onChange={(id) => {
                     setFromLocation(false);
+                    lastLookupKey.current = '';
                     onChange({ division_id: id, range_id: null, beat_id: null });
                 }}
             />
@@ -195,6 +195,7 @@ export function TerritorySelect({
                 placeholder={t('dtl_search')}
                 onChange={(id) => {
                     setFromLocation(false);
+                    lastLookupKey.current = '';
                     onChange({ ...value, range_id: id, beat_id: null });
                 }}
             />
@@ -208,6 +209,7 @@ export function TerritorySelect({
                     placeholder={t('dtl_search')}
                     onChange={(id) => {
                         setFromLocation(false);
+                        lastLookupKey.current = '';
                         onChange({ ...value, beat_id: id });
                     }}
                 />

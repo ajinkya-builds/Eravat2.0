@@ -68,6 +68,18 @@ export function mapsLink(lat: number, lng: number): string {
     return `https://www.google.com/maps?q=${lat},${lng}`;
 }
 
+/** Format a date as DD-MM-YYYY, HH:MM (24-hour) regardless of device locale. */
+export function formatShareDate(isoOrTimestamp: string): string {
+    const d = new Date(isoOrTimestamp);
+    if (isNaN(d.getTime())) return isoOrTimestamp;
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}-${mm}-${yyyy}, ${hh}:${min}`;
+}
+
 export type SightingShareFields = {
     typeLabel: string;
     dateLabel?: string | null;
@@ -77,6 +89,7 @@ export type SightingShareFields = {
     elephantTotal?: number | null;
     directionDeg?: number | null;
     damage?: string | null;
+    notes?: string | null;
     lat?: number | null;
     lng?: number | null;
     dms?: string | null;
@@ -91,6 +104,7 @@ export type SightingShareFields = {
         elephants: string;
         direction: string;
         damage: string;
+        description: string;
         gps: string;
         dms: string;
         map: string;
@@ -112,6 +126,7 @@ export function buildSightingShareText(fields: SightingShareFields): string {
         lines.push(`${fields.labels.direction}: ${Math.round(fields.directionDeg)}°`);
     }
     if (fields.damage) lines.push(`${fields.labels.damage}: ${fields.damage}`);
+    if (fields.notes) lines.push(`${fields.labels.description}: ${fields.notes}`);
     if (fields.lat != null && fields.lng != null) {
         lines.push(`${fields.labels.gps}: ${fields.lat.toFixed(6)}, ${fields.lng.toFixed(6)}`);
         if (fields.dms) lines.push(`${fields.labels.dms}: ${fields.dms}`);
