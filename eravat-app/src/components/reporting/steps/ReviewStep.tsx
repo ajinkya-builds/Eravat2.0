@@ -5,12 +5,49 @@ import { useLanguage } from '../../../contexts/LanguageContext';
 import { formatLatLngDms } from '../../../lib/geoFormat';
 import { supabase } from '../../../supabase';
 
+const GEO_CACHE_KEY = 'eravat_geo_lists_v1';
+
+function nameFromCache(cacheKey: 'divisions' | 'rangesByDivision' | 'beatsByRange', id: string | null, parentId?: string | null): string | null {
+    if (!id) return null;
+    try {
+        const raw = localStorage.getItem(GEO_CACHE_KEY);
+        if (!raw) return null;
+        const cache = JSON.parse(raw) as {
+            divisions?: { id: string; name: string }[];
+            rangesByDivision?: Record<string, { id: string; name: string }[]>;
+            beatsByRange?: Record<string, { id: string; name: string }[]>;
+        };
+        if (cacheKey === 'divisions') {
+            return cache.divisions?.find((d) => d.id === id)?.name ?? null;
+        }
+        if (cacheKey === 'rangesByDivision' && parentId) {
+            return cache.rangesByDivision?.[parentId]?.find((r) => r.id === id)?.name ?? null;
+        }
+        if (cacheKey === 'beatsByRange' && parentId) {
+            return cache.beatsByRange?.[parentId]?.find((b) => b.id === id)?.name ?? null;
+        }
+    } catch { /* ignore */ }
+    return null;
+}
+
 export function ReviewStep() {
     const { formData, elephantTotal } = useActivityForm();
     const { t } = useLanguage();
     const [names, setNames] = useState({ division: '—', range: '—', beat: '—' });
 
     useEffect(() => {
+        // Populate immediately from local cache (works offline)
+        const cachedDivision = nameFromCache('divisions', formData.division_id);
+        const cachedRange = nameFromCache('rangesByDivision', formData.range_id, formData.division_id);
+        const cachedBeat = nameFromCache('beatsByRange', formData.beat_id, formData.range_id);
+        if (cachedDivision || cachedRange || cachedBeat) {
+            setNames({
+                division: cachedDivision ?? '—',
+                range: cachedRange ?? '—',
+                beat: cachedBeat ?? '—',
+            });
+        }
+
         let cancelled = false;
         const load = async () => {
             const [d, r, b] = await Promise.all([
@@ -26,9 +63,9 @@ export function ReviewStep() {
             ]);
             if (cancelled) return;
             setNames({
-                division: d.data?.name ?? '—',
-                range: r.data?.name ?? '—',
-                beat: b.data?.name ?? '—',
+                division: d.data?.name ?? cachedDivision ?? '—',
+                range: r.data?.name ?? cachedRange ?? '—',
+                beat: b.data?.name ?? cachedBeat ?? '—',
             });
         };
         void load();
