@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { Network } from '@capacitor/network';
 import { supabase } from '../../supabase';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { track } from '../../lib/analytics';
 import { lookupGeoFromPoint } from '../../lib/geoLookup';
 import { SearchableSelect, type SearchableOption } from './SearchableSelect';
 
@@ -134,11 +135,13 @@ export function TerritorySelect({
         if (lastLookupKey.current === key) return;
         let cancelled = false;
         setLookingUp(true);
+        track('territory.lookup_started', { include_beat: includeBeat, source: 'gps' });
         void lookupGeoFromPoint(latitude, longitude).then((match) => {
             if (cancelled) return;
             if (!match?.division_id) {
                 // Leave key unset so reconnect / nonce retry can try again.
                 setLookingUp(false);
+                track('territory.lookup_no_match', { include_beat: includeBeat, source: 'gps' });
                 return;
             }
             lastLookupKey.current = key;
@@ -149,8 +152,16 @@ export function TerritorySelect({
                 beat_id: includeBeat ? match.beat_id : null,
             });
             setLookingUp(false);
+            track('territory.lookup_resolved', {
+                include_beat: includeBeat,
+                source: 'gps',
+                has_division: Boolean(match.division_id),
+                has_range: Boolean(match.range_id),
+                has_beat: Boolean(match.beat_id),
+            });
         }).catch(() => {
             if (!cancelled) setLookingUp(false);
+            track('territory.lookup_failed', { include_beat: includeBeat, source: 'gps', error_code: 'lookup_exception' });
         });
         return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
