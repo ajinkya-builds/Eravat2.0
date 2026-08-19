@@ -1,0 +1,51 @@
+---
+description: Keep go-live test suite updated with every feature change
+globs:
+  - eravat-app/src/**/*
+  - eravat-app/tests/**/*
+  - eravat-app/scripts/*e2e*
+  - eravat-app/scripts/go-live-certification.mjs
+  - supabase/migrations/**/*
+  - docs/testing/**/*
+alwaysApply: false
+---
+
+# Test suite maintenance (go-live certification)
+
+When you add, change, or fix **any user-facing behavior**, update the certification suite in the same PR/session:
+
+## Required updates
+
+1. **Automation** — Add or extend coverage in the closest script:
+   - UI journeys → `eravat-app/tests/*.spec.ts` (Playwright) and/or `scripts/staging-*-e2e.mjs`
+   - Deep flows (report submit, offline, villager) → `scripts/staging-deep-journeys-e2e.mjs`
+   - Android APK → `scripts/emulator-certification.mjs` + `emulator-e2e-playwright.mjs`
+   - Notifications / SMS queue / RLS → `scripts/staging-notification-alerts-e2e.mjs`
+   - Data pipeline → `scripts/prod-readiness-pipeline.mjs`
+   - Role access → `scripts/staging-role-matrix-e2e.mjs`
+   - Performance → `scripts/staging-perf-full-smoke.mjs`, `staging-load-50.mjs`
+
+2. **Manual checklist** — Update `docs/testing/GO_LIVE_CERTIFICATION.md` § Manual with new steps if not fully automatable.
+
+3. **Run before marking done** (staging):
+   ```bash
+   cd eravat-app && node scripts/go-live-certification.mjs --quick
+   ```
+   Full pre-release: `node scripts/go-live-certification.mjs`
+
+4. **Results** land in `Go live Prep - Staging/generated/certification/report.json` — do not commit generated artifacts unless the user asks.
+
+## Triggers (always add tests)
+
+- New screen, button, filter, or admin page
+- RBAC / role visibility change
+- Report wizard step or validation
+- Notification type, recipient, or villager alert logic
+- Villager / volunteer onboarding
+- Offline sync or media upload
+- Dummy SMS/voice queue behavior (verify `villager_alert_events.channel = sms_queued`)
+
+## Do not
+
+- Leave `MANUAL_SMOKE_CHECKLIST.md` password-based (OTP + UAT manifest is canonical).
+- Treat migration-only work as complete without `staging-notification-alerts-e2e.mjs` if triggers/RLS changed.
