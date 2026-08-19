@@ -1,0 +1,25 @@
+appId: com.forestdept.eravat
+---
+# UAT beat guard OTP login (Capacitor WebView)
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Welcome Back"
+    timeout: 45000
+- tapOn:
+    text: "9876543210"
+- inputText: ${PHONE}
+- hideKeyboard
+- tapOn: "Send OTP"
+- extendedWaitUntil:
+    visible: "Code sent to your phone"
+    timeout: 30000
+- tapOn:
+    text: "Enter 6-digit code"
+    optional: true
+- inputText: ${OTP}
+- hideKeyboard
+- tapOn: "Verify & Sign In"
+- extendedWaitUntil:
+    visible: ".*Add Sighting.*|.*My Sightings.*|Home"
+    timeout: 45000

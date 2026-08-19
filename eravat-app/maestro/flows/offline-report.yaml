@@ -1,0 +1,27 @@
+appId: com.forestdept.eravat
+---
+- runFlow:
+    file: login-beat-guard.yaml
+    env:
+      PHONE: ${PHONE}
+      OTP: ${OTP}
+- toggleAirplaneMode
+- tapOn: ".*Add Sighting.*"
+- extendedWaitUntil:
+    visible: "Use test photo"
+    timeout: 20000
+- tapOn: "Use test photo"
+- tapOn: "Continue"
+- tapOn:
+    text: "Direct Sighting|Direct Observation"
+    optional: true
+- tapOn: "Continue"
+- tapOn: "Continue"
+- tapOn: "Submit"
+- extendedWaitUntil:
+    visible: "Stored locally|offline|Saved|Syncing"
+    timeout: 30000
+- toggleAirplaneMode
+- tapOn:
+    text: "History|My Sightings"
+    optional: true

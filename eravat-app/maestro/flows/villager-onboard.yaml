@@ -1,0 +1,37 @@
+appId: com.forestdept.eravat
+---
+- runFlow:
+    file: login-beat-guard.yaml
+    env:
+      PHONE: ${PHONE}
+      OTP: ${OTP}
+- tapOn:
+    text: "Onboard Hathi Mitra|Onboard Villager"
+    optional: true
+- extendedWaitUntil:
+    visible: "Register a villager"
+    timeout: 20000
+- tapOn:
+    text: "Full name"
+    optional: true
+- inputText: "Maestro Test Villager"
+- tapOn:
+    text: "9876543210"
+    optional: true
+- inputText: ${VILLAGER_PHONE}
+- tapOn:
+    text: "Village"
+    optional: true
+- inputText: "MaestroVillage"
+- tapOn:
+    text: "Get location|Use current location"
+    optional: true
+- scrollUntilVisible:
+    element: "Register|Onboard"
+    direction: DOWN
+- tapOn:
+    text: "Register|Onboard"
+    optional: true
+- extendedWaitUntil:
+    visible: "success|registered|Hathi Mitra|Villager"
+    timeout: 30000
