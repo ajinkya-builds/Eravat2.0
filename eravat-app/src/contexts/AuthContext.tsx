@@ -12,6 +12,7 @@ import { track } from '../lib/analytics';
 import { identifyUser, resetUser } from '../lib/posthogClient';
 import { logger } from '../lib/logger';
 import { clearCachedProfile, loadCachedProfile, saveCachedProfile } from '../lib/profileCache';
+import { normalisePhoneDigits, toE164India } from '../lib/phone';
 
 // Matches the `profiles` table + joined user_region_assignments
 export interface UserProfile {
@@ -52,16 +53,6 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-/** Strip spaces, dashes, dots; remove +91 or 91 country prefix → 10-digit string */
-function normalisePhone(raw: string): string {
-    const digits = raw.replace(/\D/g, '');
-    // Remove leading 91 (India country code) if number is 12 digits
-    if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
-    // Remove leading 0 if 11 digits (some users type 0XXXXXXXXXX)
-    if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
-    return digits;
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
@@ -247,8 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signInWithPhoneOTP = async (phone: string) => {
         try {
-            // Step 1: Normalize to last-10-digit string
-            const tenDigit = normalisePhone(phone);
+            const tenDigit = normalisePhoneDigits(phone);
 
             // Step 2: Verify user exists using the check_phone_registered RPC.
             const { data: isRegistered, error: rpcError } = await supabase
@@ -263,8 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 };
             }
 
-            // Step 3: Build canonical E.164 phone directly from user input.
-            const e164Phone = `+91${tenDigit}`;
+            const e164Phone = toE164India(phone) ?? `+91${tenDigit}`;
             // Step 4: Send OTP.
             const { error } = await supabase.auth.signInWithOtp({
                 phone: e164Phone,
@@ -317,17 +306,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const verifyOTP = async (phone: string, token: string) => {
         try {
-            // Normalize to last 10 digits then build E.164
-            const tenDigit = normalisePhone(phone);
-            const storedDigits = tenDigit.replace(/\D/g, '');
-            let e164Phone: string;
-            if (storedDigits.length === 12 && storedDigits.startsWith('91')) {
-                e164Phone = `+${storedDigits}`;
-            } else if (storedDigits.length === 10) {
-                e164Phone = `+91${storedDigits}`;
-            } else {
-                e164Phone = `+91${tenDigit}`;
-            }
+            const tenDigit = normalisePhoneDigits(phone);
+            const e164Phone = toE164India(phone) ?? `+91${tenDigit}`;
             // Verify OTP via Supabase Auth
             const { error, data } = await supabase.auth.verifyOtp({
                 phone: e164Phone,

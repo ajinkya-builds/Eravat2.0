@@ -94,6 +94,3 @@ export const DEFERRED_CAPABILITIES: DeferredCapability[] = [
     },
 ];
 
-export function isDeferredCapability(id: DeferredCapabilityId): boolean {
-    return DEFERRED_CAPABILITIES.some((c) => c.id === id);
-}
