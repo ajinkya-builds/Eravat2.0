@@ -1,17 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <script type="module" crossorigin src="/Eravat2.0/assets/polyfills-D6qnzISX.js"></script>
+
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/Eravat2.0/elephant-favicon.svg" />
     <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.cartocdn.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co ws://localhost:* http://localhost:*; base-uri 'self'; form-action 'self';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.posthog.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.cartocdn.com https://server.arcgisonline.com https://*.arcgisonline.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self' blob: data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.posthog.com ws://localhost:* http://localhost:*; base-uri 'self'; form-action 'self';" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>eravat-app</title>
-    <script type="module" crossorigin src="/Eravat2.0/assets/index-DzXHRurs.js"></script>
-    <link rel="stylesheet" crossorigin href="/Eravat2.0/assets/index-BQnDZNxE.css">
+    <script type="module" crossorigin src="/Eravat2.0/assets/index-CLHfldZR.js"></script>
+    <link rel="stylesheet" crossorigin href="/Eravat2.0/assets/index-BMmDFb8b.css">
+    <script type="module">import.meta.url;import("_").catch(()=>1);(async function*(){})().next();window.__vite_is_modern_browser=true</script>
+    <script type="module">!function(){if(window.__vite_is_modern_browser)return;console.warn("vite: loading legacy chunks, syntax error above and the same error below should be ignored");var e=document.getElementById("vite-legacy-polyfill"),n=document.createElement("script");n.src=e.src,n.onload=function(){System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))},document.body.appendChild(n)}();</script>
   <link rel="manifest" href="/Eravat2.0/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/Eravat2.0/registerSW.js"></script></head>
   <body>
     <div id="root"></div>
+    <script nomodule>!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",(function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()}),!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();</script>
+    <script nomodule crossorigin id="vite-legacy-polyfill" src="/Eravat2.0/assets/polyfills-legacy-CRs8P1-f.js"></script>
+    <script nomodule crossorigin id="vite-legacy-entry" data-src="/Eravat2.0/assets/index-legacy-MCx49MHz.js">System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))</script>
   </body>
 </html>

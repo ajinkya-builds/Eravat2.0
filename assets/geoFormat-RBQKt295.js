@@ -1,0 +1,1 @@
+function a(t,n){if(!Number.isFinite(t))return"—";const o=Math.abs(t),s=Math.floor(o),r=(o-s)*60,e=Math.floor(r),u=(r-e)*60,i=n==="lat"?t>=0?"N":"S":t>=0?"E":"W";return`${s}°${String(e).padStart(2,"0")}'${u.toFixed(1)}" ${i}`}function f(t,n){return`${a(t,"lat")}, ${a(n,"lng")}`}export{f};
