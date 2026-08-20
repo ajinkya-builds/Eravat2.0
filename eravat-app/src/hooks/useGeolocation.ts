@@ -59,7 +59,7 @@ export function useGeolocation() {
                 coords: {
                     latitude: cached.latitude,
                     longitude: cached.longitude,
-                    accuracy: cached.accuracy,
+                    accuracy: cached.accuracy ?? 0,
                     altitude: null,
                     altitudeAccuracy: null,
                     heading: null,

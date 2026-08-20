@@ -16,6 +16,7 @@ const labels = {
   dms: 'DMS',
   map: 'Map',
   photo: 'Photo',
+  description: 'Description',
 };
 
 describe('ERV-031 / ERV-040 share payload', () => {

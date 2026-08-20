@@ -808,7 +808,6 @@ const translations: Record<Language, Record<string, string>> = {
         ps_photo_desc:
             "A clear picture helps officials verify the details of your report quickly.",
         ps_photo_evidence: "Photo Evidence",
-        ps_take_photo: "Take Photo Now",
 
         // Report Stepper (rs_*)
         rs_back: "Back",
@@ -1887,7 +1886,6 @@ const translations: Record<Language, Record<string, string>> = {
         ps_photo_desc:
             "एक स्पष्ट तस्वीर अधिकारियों को आपकी रिपोर्ट के विवरण को शीघ्र सत्यापित करने में मदद करती है।",
         ps_photo_evidence: "फ़ोटो साक्ष्य",
-        ps_take_photo: "अभी फ़ोटो लें",
 
         // Report Stepper (rs_*)
         rs_back: "वापस",
@@ -3001,7 +2999,6 @@ const translations: Record<Language, Record<string, string>> = {
         ps_photo_desc:
             "स्पष्ट चित्र अधिकाऱ्यांना तुमच्या अहवालाचे तपशील त्वरीत सत्यापित करण्यास मदत करते.",
         ps_photo_evidence: "फोटो पुरावा",
-        ps_take_photo: "आता फोटो काढा",
 
         // Report Stepper (rs_*)
         rs_back: "मागे",
