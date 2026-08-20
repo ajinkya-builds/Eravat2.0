@@ -126,7 +126,7 @@ try {
   record(
     'R1.3.2',
     'Review 1 §3',
-    /DMS/i.test(report1) && (await page.locator('input[type="number"]').count()) >= 2 ? 'PASS' : 'FAIL',
+    (await page.locator('input[type="number"]').count()) === 0 ? 'PASS' : 'FAIL',
     `DMS copy present=${/DMS/i.test(report1)}; decimal inputs=${await page.locator('input[type="number"]').count()}`,
   );
   record(

@@ -176,6 +176,14 @@ await check('Admin users page', async () => {
   await shot(adminPage, '13-admin-users');
 });
 
+await check('Admin villagers tracker', async () => {
+  await adminPage.goto(`${BASE}/admin/villagers`);
+  await adminPage.waitForTimeout(4000);
+  const body = await adminPage.content();
+  if (!/villager|search|register|mobile/i.test(body)) throw new Error('Admin villagers page missing');
+  await shot(adminPage, '13b-admin-villagers');
+});
+
 await check('Admin observations', async () => {
   await adminPage.goto(`${BASE}/admin/observations`);
    await adminPage.waitForTimeout(4000);

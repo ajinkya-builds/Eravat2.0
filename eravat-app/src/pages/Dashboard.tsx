@@ -12,6 +12,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
 import { Network } from '@capacitor/network';
 import { trackClick, trackFailed } from '../lib/analytics';
+import { supabase } from '../supabase';
 
 export default function Dashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -20,6 +21,7 @@ export default function Dashboard() {
     const { profile } = useAuth();
     const { t } = useLanguage();
     const [isOnline, setIsOnline] = useState(true);
+    const [myVillagerCount, setMyVillagerCount] = useState<number | null>(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -98,6 +100,21 @@ export default function Dashboard() {
     const canOnboardHathiMitra = canOnboardVolunteers(profile?.role);
     const canOnboardVillager = canOnboardVillagers(profile?.role);
     const canBrowseVillagers = canReadVillagers(profile?.role);
+
+    useEffect(() => {
+        if (!canOnboardVillager || !profile?.id) return;
+        let cancelled = false;
+        void supabase
+            .from('villagers')
+            .select('id', { count: 'exact', head: true })
+            .eq('created_by', profile.id)
+            .then(({ count }) => {
+                if (!cancelled) setMyVillagerCount(count ?? 0);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [canOnboardVillager, profile?.id]);
 
     return (
         <div className="relative min-h-screen w-full bg-background overflow-hidden flex flex-col pt-6 px-6 pb-24">
@@ -243,6 +260,34 @@ export default function Dashboard() {
                                 </motion.button>
                             )}
                         </div>
+                    )}
+
+                    {canOnboardVillager && (
+                        <motion.button
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.26 }}
+                            data-ph-action="dashboard.open_my_villagers"
+                            data-ph-screen="dashboard"
+                            data-testid="dashboard-my-villagers"
+                            onClick={() => navigate('/villagers')}
+                            className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-amber-500/20"
+                        >
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 bg-amber-500/10 text-amber-700 rounded-2xl">
+                                    <Users size={28} />
+                                </div>
+                                <div className="text-left">
+                                    <h2 className="text-xl font-bold text-foreground">{t('hathiMitra.myListTitle')}</h2>
+                                    <p className="text-sm text-muted-foreground">
+                                        {myVillagerCount != null
+                                            ? t('hathiMitra.myListCount', { count: myVillagerCount })
+                                            : t('hathiMitra.myListDesc')}
+                                    </p>
+                                </div>
+                            </div>
+                            <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        </motion.button>
                     )}
 
                     {!canOnboardVillager && canBrowseVillagers && (

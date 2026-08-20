@@ -139,7 +139,11 @@ const browser = await chromium.launch();
 
     const deg = page.getByPlaceholder(/degree|डिग्री/i).or(page.locator('input[type="number"]').last());
     if (await deg.count()) await deg.first().fill('90').catch(() => {});
-    record('bg report compass', /compass|bearing|direction|north/i.test((await page.locator('body').innerText()).toLowerCase()));
+    record(
+      'bg report compass removed',
+      !/compass|bearing/i.test((await page.locator('body').innerText()).toLowerCase()),
+      'compass UX was dropped from the product',
+    );
     await clickContinue(page).catch(() => {});
     await page.waitForTimeout(800);
     record('bg report photo required', /photo|gallery|camera|साक्ष्य/i.test((await page.locator('body').innerText()).toLowerCase()));
@@ -160,7 +164,11 @@ const browser = await chromium.launch();
 
     await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
     const sos = page.getByRole('button', { name: /SOS|emergency/i }).or(page.locator('button').filter({ hasText: /SOS/i }));
-    record('bg SOS control present', (await sos.count()) > 0 || /sos/i.test(await page.locator('body').innerText()));
+    record(
+      'bg SOS control absent',
+      (await sos.count()) === 0 && !/\bSOS\b/i.test(await page.locator('body').innerText()),
+      'SOS was removed from the product',
+    );
     const bell = page.getByRole('button', { name: /Notifications/i });
     if (await bell.count()) {
       await bell.first().click();
@@ -187,6 +195,7 @@ const browser = await chromium.launch();
     const adminRoutes = [
       '/admin',
       '/admin/users',
+      '/admin/villagers',
       '/admin/observations',
       '/admin/conflict',
       '/admin/live',

@@ -25,6 +25,7 @@ const CompleteProfileLocation = lazy(() => import('./pages/profile/CompleteProfi
 const OnboardVolunteer = lazy(() => import('./pages/OnboardVolunteer'));
 const OnboardVillager = lazy(() => import('./pages/OnboardVillager'));
 const VillagersList = lazy(() => import('./pages/VillagersList'));
+const VillagerDetail = lazy(() => import('./pages/VillagerDetail'));
 const NearbySightings = lazy(() => import('./pages/NearbySightings'));
 const FAQ = lazy(() => import('./pages/profile/FAQ'));
 const PrivacyPolicy = lazy(() => import('./pages/profile/PrivacyPolicy'));
@@ -41,6 +42,7 @@ const AdminLiveDashboard = lazy(() => import('./pages/admin/AdminLiveDashboard')
 const AdminLatestEntries = lazy(() => import('./pages/admin/AdminLatestEntries'));
 const AdminUserStats = lazy(() => import('./pages/admin/AdminUserStats'));
 const AdminNotifications = lazy(() => import('./pages/admin/AdminNotifications'));
+const AdminVillagers = lazy(() => import('./pages/admin/AdminVillagers'));
 
 function RouteFallback() {
   return (
@@ -137,6 +139,7 @@ function App() {
                     <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                     <Route path="/volunteers/onboard" element={<OnboardVolunteer />} />
                     <Route path="/villagers/onboard" element={<OnboardVillager />} />
+                    <Route path="/villagers/:id" element={<VillagerDetail />} />
                     <Route path="/villagers" element={<VillagersList />} />
                   </Route>
                 </Route>
@@ -149,6 +152,7 @@ function App() {
                     <Route path="latest" element={<AdminLatestEntries />} />
                     <Route path="user-stats" element={<AdminUserStats />} />
                     <Route path="users" element={<AdminUsers />} />
+                    <Route path="villagers" element={<AdminVillagers />} />
                     <Route path="divisions" element={<AdminDivisions />} />
                     <Route path="observations" element={<AdminObservations />} />
                     <Route path="map" element={<AdminMap />} />

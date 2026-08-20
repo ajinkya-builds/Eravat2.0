@@ -57,6 +57,7 @@ export const ROUTES = {
     map: appPath('/map'),
     admin: appPath('/admin'),
     adminUsers: appPath('/admin/users'),
+    adminVillagers: appPath('/admin/villagers'),
     adminDivisions: appPath('/admin/divisions'),
     adminObservations: appPath('/admin/observations'),
     adminSettings: appPath('/admin/settings'),

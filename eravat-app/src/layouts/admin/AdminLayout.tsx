@@ -2,7 +2,7 @@ import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, Users, Activity, Settings, LogOut, Menu, X, Layers,
-    AlertTriangle, Radio, ListOrdered, BarChart3, Bell, Lock, Map
+    AlertTriangle, Radio, ListOrdered, BarChart3, Bell, Lock, Map, Contact
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
@@ -29,6 +29,7 @@ const dashboardNav = (): NavItem[] => [
 
 const operationsNav = (): NavItem[] => [
     { id: 'users', path: '/admin/users', icon: Users, label: 'admin.nav.users' },
+    { id: 'villagers', path: '/admin/villagers', icon: Contact, label: 'admin.nav.villagers' },
     { id: 'divisions', path: '/admin/divisions', icon: Layers, label: 'admin.nav.divisions' },
     { id: 'observations', path: '/admin/observations', icon: Activity, label: 'admin.nav.observations' },
     { id: 'map', path: '/admin/map', icon: Map, label: 'nav.map' },

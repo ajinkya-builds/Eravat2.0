@@ -277,6 +277,9 @@ await check('Admin login + admin routes', async () => {
   const body = await page.content();
   if (!/user|phone|role|search/i.test(body)) throw new Error('Admin users page missing');
   await shot('11-admin-users');
+  await page.goto('https://localhost/admin/villagers');
+  await page.sleep(3000);
+  await shot('11b-admin-villagers');
   await page.goto('https://localhost/admin/observations');
   await page.sleep(3000);
   await shot('12-admin-observations');

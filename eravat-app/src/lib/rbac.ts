@@ -44,3 +44,19 @@ export function canReadVillagers(role?: string): boolean {
     !!role && ['rrt', 'biologist', 'veterinarian'].includes(role)
   );
 }
+
+/** Command Center leadership — edit any villager, hard-delete. */
+export function canLeadVillagers(role?: string): boolean {
+  return !!role && ['admin', 'ccf', 'dfo'].includes(role);
+}
+
+/** Field onboarders edit their own rows; leadership may edit any. */
+export function canEditVillagerRecord(
+  role?: string,
+  viewerId?: string | null,
+  createdBy?: string | null,
+): boolean {
+  if (!canOnboardVillagers(role)) return false;
+  if (canLeadVillagers(role)) return true;
+  return Boolean(viewerId && createdBy && viewerId === createdBy);
+}

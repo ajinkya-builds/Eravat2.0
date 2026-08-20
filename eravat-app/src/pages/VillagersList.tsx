@@ -1,34 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Search, UserPlus } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Loader2, Search, UserPlus } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { canOnboardVillagers, canReadVillagers } from '../lib/rbac';
-
-type VillagerRow = {
-  id: string;
-  name: string;
-  mobile: string;
-  latitude: number | null;
-  longitude: number | null;
-  village_id: string;
-  villages?: { name: string } | { name: string }[] | null;
-};
-
-function villageNameOf(row: VillagerRow): string | null {
-  const v = row.villages;
-  if (!v) return null;
-  if (Array.isArray(v)) return v[0]?.name ?? null;
-  return v.name ?? null;
-}
+import { villageNameOf, type VillagerRecord } from '../lib/villagerRegistry';
 
 export default function VillagersList() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
-  const [rows, setRows] = useState<VillagerRow[]>([]);
+  const [showInactive, setShowInactive] = useState(false);
+  const [rows, setRows] = useState<VillagerRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,11 +30,12 @@ export default function VillagersList() {
       try {
         let q = supabase
           .from('villagers')
-          .select('id, name, mobile, latitude, longitude, village_id, villages(name)')
-          .eq('is_active', true)
+          .select('id, name, mobile, latitude, longitude, village_id, created_by, is_active, alert_opt_in, villages(name)')
           .eq('created_by', profile?.id ?? '')
           .order('name')
-          .limit(50);
+          .limit(100);
+
+        if (!showInactive) q = q.eq('is_active', true);
 
         const trimmed = query.trim();
         if (trimmed) {
@@ -58,7 +44,7 @@ export default function VillagersList() {
 
         const { data, error: fetchErr } = await q;
         if (fetchErr) throw fetchErr;
-        if (!cancelled) setRows((data as unknown as VillagerRow[]) ?? []);
+        if (!cancelled) setRows((data as unknown as VillagerRecord[]) ?? []);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : t('hathiMitra.listFailed'));
@@ -73,7 +59,7 @@ export default function VillagersList() {
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [canRead, query, profile?.id]);
+  }, [canRead, query, profile?.id, showInactive, t]);
 
   if (!canRead) {
     return (
@@ -86,6 +72,10 @@ export default function VillagersList() {
     );
   }
 
+  const emptyMessage = query.trim()
+    ? t('hathiMitra.listEmpty')
+    : t('hathiMitra.listEmptyMine');
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="sticky top-16 z-30 glass-effect border-b border-border/50 px-4 py-4 flex items-center gap-3">
@@ -96,7 +86,7 @@ export default function VillagersList() {
         >
           <ArrowLeft size={20} />
         </button>
-        <h1 className="text-lg font-bold flex-1">{t('hathiMitra.listTitle')}</h1>
+        <h1 className="text-lg font-bold flex-1">{t('hathiMitra.myListTitle')}</h1>
         {canOnboard && (
           <button
             type="button"
@@ -110,6 +100,7 @@ export default function VillagersList() {
       </div>
 
       <div className="p-4 max-w-lg mx-auto space-y-4">
+        <p className="text-sm text-muted-foreground">{t('hathiMitra.myListDesc')}</p>
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -119,6 +110,16 @@ export default function VillagersList() {
             className="w-full pl-9 pr-3 py-3 rounded-xl bg-muted/50 border border-border text-sm"
           />
         </div>
+
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={showInactive}
+            onChange={(e) => setShowInactive(e.target.checked)}
+            className="rounded border-border"
+          />
+          {t('hathiMitra.showInactive')}
+        </label>
 
         {error && (
           <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-xl p-3">
@@ -131,16 +132,53 @@ export default function VillagersList() {
             <Loader2 size={16} className="animate-spin" /> {t('loading')}
           </div>
         ) : rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-10">{t('hathiMitra.listEmpty')}</p>
+          <div className="text-center py-10 space-y-3">
+            <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+            {canOnboard && !query.trim() && (
+              <button
+                type="button"
+                onClick={() => navigate('/villagers/onboard')}
+                className="text-sm font-semibold text-primary"
+              >
+                {t('hathiMitra.onboardTitle')}
+              </button>
+            )}
+          </div>
         ) : (
           <ul className="divide-y divide-border/40 rounded-2xl border border-border/50 overflow-hidden bg-card">
             {rows.map((r) => (
-              <li key={r.id} className="px-4 py-3">
-                <p className="font-semibold text-sm text-foreground">{r.name}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {r.mobile}
-                  {villageNameOf(r) ? ` · ${villageNameOf(r)}` : ''}
-                </p>
+              <li key={r.id}>
+                <button
+                  type="button"
+                  data-testid="villager-row"
+                  onClick={() => navigate(`/villagers/${r.id}`)}
+                  className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-muted/40 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-sm text-foreground truncate">{r.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {r.mobile}
+                      {villageNameOf(r) ? ` · ${villageNameOf(r)}` : ''}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {!r.is_active && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-muted text-muted-foreground">
+                          {t('hathiMitra.inactiveBadge')}
+                        </span>
+                      )}
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        r.alert_opt_in && r.is_active
+                          ? 'bg-emerald-500/15 text-emerald-700'
+                          : 'bg-amber-500/15 text-amber-700'
+                      }`}>
+                        {r.alert_opt_in && r.is_active
+                          ? t('hathiMitra.optedInBadge')
+                          : t('hathiMitra.optedOutBadge')}
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-muted-foreground shrink-0" />
+                </button>
               </li>
             ))}
           </ul>

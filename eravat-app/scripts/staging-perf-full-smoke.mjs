@@ -271,6 +271,14 @@ await check('Admin users page', async () => {
   await shot(adminPage, '16-admin-users');
 });
 
+await check('Admin villagers tracker', async () => {
+  await adminPage.goto(`${BASE}/admin/villagers`, { waitUntil: 'domcontentloaded' });
+  await adminPage.waitForTimeout(4000);
+  const body = await adminPage.content();
+  if (!/villager|search|register|mobile/i.test(body)) throw new Error('Admin villagers missing');
+  await shot(adminPage, '16b-admin-villagers');
+});
+
 await check('Admin map (Leaflet)', async () => {
   await adminPage.goto(`${BASE}/admin/map`, { waitUntil: 'domcontentloaded' });
   await adminPage.locator('.leaflet-container').waitFor({ timeout: 30000 });

@@ -1,44 +1,39 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, UserPlus, Loader2, CheckCircle2, List } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, List } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { LocationFields } from '../components/profile/LocationFields';
-import { TerritorySelect, type TerritoryValue } from '../components/shared/TerritorySelect';
-import { VillageAutocomplete, type VillageOption } from '../components/villagers/VillageAutocomplete';
+import { VillagerForm } from '../components/villagers/VillagerForm';
 import { canOnboardVillagers } from '../lib/rbac';
-import { toE164India } from '../lib/phone';
+import {
+  emptyVillagerForm,
+  ensureVillageId,
+  isUniqueMobileError,
+  validateVillagerForm,
+  type VillagerFormValues,
+} from '../lib/villagerRegistry';
 
 export default function OnboardVillager() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { t } = useLanguage();
 
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [villageName, setVillageName] = useState('');
-  const [selectedVillage, setSelectedVillage] = useState<VillageOption | null>(null);
-  const [location, setLocation] = useState<{ latitude: number | null; longitude: number | null }>({
-    latitude: null,
-    longitude: null,
-  });
-  const [territory, setTerritory] = useState<TerritoryValue>({
-    division_id: null,
-    range_id: null,
-    beat_id: null,
-  });
+  const [values, setValues] = useState<VillagerFormValues>(() => emptyVillagerForm(profile));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) return;
-    setTerritory((prev) => ({
-      division_id: prev.division_id ?? profile.division_id ?? null,
-      range_id: prev.range_id ?? profile.range_id ?? null,
-      beat_id: prev.beat_id ?? profile.beat_id ?? null,
+    setValues((prev) => ({
+      ...prev,
+      territory: {
+        division_id: prev.territory.division_id ?? profile.division_id ?? null,
+        range_id: prev.territory.range_id ?? profile.range_id ?? null,
+        beat_id: prev.territory.beat_id ?? profile.beat_id ?? null,
+      },
     }));
   }, [profile?.id]);
 
@@ -58,63 +53,40 @@ export default function OnboardVillager() {
     setError(null);
     setSuccess(null);
 
-    if (!fullName.trim() || !phone.trim() || !villageName.trim()) {
-      setError(t('hathiMitra.onboardRequired'));
-      return;
-    }
-
-    const mobile = toE164India(phone);
-    if (!mobile) {
-      setError(t('hathiMitra.invalidPhone'));
-      return;
-    }
-
-    if (location.latitude == null || location.longitude == null) {
-      setError(t('hathiMitra.onboardGpsRequired'));
+    const parsed = validateVillagerForm(values);
+    if (!parsed.ok) {
+      setError(t(parsed.errorKey));
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const divisionId = territory.division_id ?? selectedVillage?.division_id ?? profile?.division_id ?? null;
-      const rangeId = territory.range_id ?? profile?.range_id ?? null;
-
-      let villageId: string | null = selectedVillage?.id ?? null;
-      if (!villageId) {
-        const { data, error: villageErr } = await supabase.rpc('ensure_village', {
-          p_name: villageName.trim(),
-          p_division_id: divisionId,
-        });
-        if (villageErr) throw villageErr;
-        villageId = data as string | null;
-      }
-      if (!villageId) throw new Error(t('hathiMitra.onboardFailed'));
+      const divisionId =
+        values.territory.division_id ?? values.selectedVillage?.division_id ?? profile?.division_id ?? null;
+      const rangeId = values.territory.range_id ?? profile?.range_id ?? null;
+      const villageId = await ensureVillageId(values.villageName, values.selectedVillage, divisionId);
 
       const { error: insertErr } = await supabase.from('villagers').insert({
-        name: fullName.trim(),
-        mobile,
-        latitude: location.latitude,
-        longitude: location.longitude,
+        name: values.name.trim(),
+        mobile: parsed.mobile,
+        latitude: values.location.latitude,
+        longitude: values.location.longitude,
         village_id: villageId,
         division_id: divisionId,
         range_id: rangeId,
         created_by: profile?.id ?? null,
         alert_opt_in: true,
+        is_active: true,
       });
       if (insertErr) {
-        if (insertErr.code === '23505') {
+        if (isUniqueMobileError(insertErr)) {
           throw new Error(t('hathiMitra.duplicateMobile'));
         }
         throw insertErr;
       }
 
-      setSuccess(fullName.trim());
-      setFullName('');
-      setPhone('');
-      setVillageName('');
-      setSelectedVillage(null);
-      setLocation({ latitude: null, longitude: null });
-      setTerritory({ division_id: null, range_id: null, beat_id: null });
+      setSuccess(values.name.trim());
+      setValues(emptyVillagerForm(profile));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('hathiMitra.onboardFailed'));
     } finally {
@@ -137,7 +109,7 @@ export default function OnboardVillager() {
           type="button"
           onClick={() => navigate('/villagers')}
           className="p-2 rounded-xl hover:bg-muted/50 transition-colors text-muted-foreground"
-          aria-label={t('hathiMitra.listTitle')}
+          aria-label={t('hathiMitra.myListTitle')}
         >
           <List size={20} />
         </button>
@@ -168,59 +140,14 @@ export default function OnboardVillager() {
           </p>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">{t('hathiMitra.onboardName')}</label>
-            <input
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder={t('hathiMitra.onboardNamePlaceholder')}
-              className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">{t('profile.phoneNumber')}</label>
-            <input
-              required
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="9876543210"
-              className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm"
-            />
-          </div>
-
-          <VillageAutocomplete
-            value={villageName}
-            divisionId={territory.division_id ?? profile?.division_id}
-            onChange={(name, selected) => {
-              setVillageName(name);
-              setSelectedVillage(selected);
-            }}
-          />
-
-          <LocationFields value={location} onChange={setLocation} required />
-
-          <TerritorySelect
-            value={territory}
-            onChange={setTerritory}
-            latitude={location.latitude}
-            longitude={location.longitude}
-            includeBeat={false}
-            required
-          />
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full h-12 bg-primary text-primary-foreground rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
-            {isSubmitting ? t('hathiMitra.onboardSubmitting') : t('hathiMitra.onboardSubmit')}
-          </button>
-        </form>
+        <VillagerForm
+          values={values}
+          onChange={setValues}
+          onSubmit={handleSubmit}
+          submitting={isSubmitting}
+          submitLabel={t('hathiMitra.onboardSubmit')}
+          submittingLabel={t('hathiMitra.onboardSubmitting')}
+        />
       </div>
     </div>
   );

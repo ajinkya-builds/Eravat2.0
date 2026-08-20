@@ -114,8 +114,10 @@ Use this when automation passes but you need human sign-off (especially APK on d
 
 - [ ] Onboard: name, phone, village autocomplete, GPS, territory
 - [ ] Duplicate mobile rejected
-- [ ] List: search by name/mobile, active only
-- [ ] **Known gap:** no edit/delete UI (RLS allows manage roles only)
+- [ ] Home **My Villagers** tile for onboard roles (beat guard / range officer / DFO / CCF / admin)
+- [ ] List: own villagers only, search by name/mobile, optional inactive
+- [ ] Edit: name, phone, village, GPS, territory, notes, active, alert opt-in
+- [ ] Command Center **Villager tracker** (`/admin/villagers`): search, filters, create, edit, deactivate, delete, CSV export
 
 ### G. Gram Mitra (volunteers)
 
@@ -156,6 +158,7 @@ Run automation: `node scripts/staging-notification-alerts-e2e.mjs`
 **Operations**
 
 - [ ] Users: search, create, edit role/territory/GPS, delete
+- [ ] Villagers: master tracker search/filter, create, edit, deactivate/delete, CSV
 - [ ] Divisions: tree, officer assignment
 - [ ] Observations: paginate, edit, delete, bulk delete, CSV export
 - [ ] Map: admin pins

@@ -75,7 +75,7 @@ export const DEFERRED_CAPABILITIES: DeferredCapability[] = [
     {
         id: 'villager_accounts',
         labelKey: 'admin.deferred.villagers',
-        reason: 'Hathi Mitra registry is alert-only; no villager auth/profile login by design.',
+        reason: 'Registry CRUD is live at /admin/villagers. Villager app login / auth profiles remain out of scope.',
     },
     {
         id: 'affected_villagers',

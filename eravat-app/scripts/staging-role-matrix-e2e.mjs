@@ -35,6 +35,7 @@ const FIELD_ROUTES = ['/', '/report', '/map', '/history', '/nearby', '/profile',
 const ADMIN_ROUTES = [
   '/admin',
   '/admin/users',
+  '/admin/villagers',
   '/admin/observations',
   '/admin/conflict',
   '/admin/live',
