@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
 import { track } from '../lib/analytics';
+import { digitsForMobileInput, toE164India } from '../lib/phone';
 
 const OTP_RESEND_COOLDOWN_SEC = 60;
 
@@ -67,7 +68,7 @@ export default function Login() {
     const handleSendOTP = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!otpPhone.trim() || otpPhone.trim().length < 10) {
+        if (!toE164India(otpPhone)) {
             setOtpError(t('otp.invalidPhone'));
             return;
         }
@@ -83,6 +84,8 @@ export default function Login() {
                 setOtpError(t('otp.tooManyRequests'));
             } else if (message === 'user_not_found') {
                 setOtpError(t('otp.notRegistered'));
+            } else if (message === 'invalid_phone') {
+                setOtpError(t('otp.invalidPhone'));
             } else if (message === 'send_failed') {
                 setOtpError(t('otp.sendFailed'));
             } else {
@@ -211,11 +214,10 @@ export default function Login() {
                                             type="tel"
                                             required
                                             inputMode="numeric"
-                                            maxLength={10}
+                                            maxLength={16}
                                             value={otpPhone}
                                             onChange={(e) => {
-                                                const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                                setOtpPhone(digits);
+                                                setOtpPhone(digitsForMobileInput(e.target.value));
                                                 setOtpError(null);
                                             }}
                                             className="flex-1 py-3.5 px-4 text-sm outline-none bg-transparent"

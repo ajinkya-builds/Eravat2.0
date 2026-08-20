@@ -128,6 +128,10 @@ export function isUniqueMobileError(err: { code?: string } | null | undefined): 
   return err?.code === '23505';
 }
 
+export function isUuid(value: string | undefined | null): value is string {
+  return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 export function csvEscape(value: string): string {
   if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
   return value;

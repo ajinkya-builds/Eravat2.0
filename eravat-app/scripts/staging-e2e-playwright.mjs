@@ -46,6 +46,11 @@ async function check(name, fn) {
   }
 }
 
+async function expectValue(locator, expected) {
+  const value = await locator.inputValue();
+  if (value !== expected) throw new Error(`expected ${expected}, got ${value}`);
+}
+
 async function clearSession(page) {
   await page.goto(`${BASE}/login`);
   await page.context().clearCookies();
@@ -86,6 +91,21 @@ await check('Unenrolled phone rejected', async () => {
   await page.getByRole('button', { name: /Send OTP/i }).click();
   await page.getByText(/not enrolled|Invalid credentials/i).waitFor({ timeout: 10000 });
   await shot(page, '02-unenrolled');
+});
+
+await check('Pasted +91 recovers 10-digit local', async () => {
+  await clearSession(page);
+  const input = page.getByPlaceholder('9876543210');
+  await input.fill('+919000000001');
+  await expectValue(input, '9000000001');
+});
+
+await check('Non-mobile 10-digit rejected client-side', async () => {
+  await clearSession(page);
+  await page.getByPlaceholder('9876543210').fill('1234567890');
+  await page.getByRole('button', { name: /Send OTP/i }).click();
+  await page.getByText(/valid phone/i).waitFor({ timeout: 8000 });
+  await shot(page, '02b-invalid-phone');
 });
 
 await check('Beat guard OTP login', async () => {

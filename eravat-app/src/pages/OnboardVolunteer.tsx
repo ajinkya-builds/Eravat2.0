@@ -9,6 +9,7 @@ import { LocationFields } from '../components/profile/LocationFields';
 import { TerritorySelect, type TerritoryValue } from '../components/shared/TerritorySelect';
 import { canOnboardVolunteers } from '../lib/rbac';
 import { track } from '../lib/analytics';
+import { digitsForMobileInput, toE164India } from '../lib/phone';
 
 export default function OnboardVolunteer() {
     const navigate = useNavigate();
@@ -58,6 +59,11 @@ export default function OnboardVolunteer() {
             setError(t('volunteer.onboardRequired'));
             return;
         }
+        const mobile = toE164India(phone);
+        if (!mobile) {
+            setError(t('otp.invalidPhone'));
+            return;
+        }
         if (location.latitude == null || location.longitude == null) {
             setError(t('volunteer.onboardGpsRequired'));
             return;
@@ -72,7 +78,7 @@ export default function OnboardVolunteer() {
                 body: {
                     role: 'volunteer',
                     full_name: fullName.trim(),
-                    phone: phone.trim(),
+                    phone: mobile,
                     latitude: location.latitude,
                     longitude: location.longitude,
                     onboard_volunteer: true,
@@ -155,8 +161,10 @@ export default function OnboardVolunteer() {
                         <input
                             required
                             type="tel"
+                            inputMode="numeric"
+                            maxLength={16}
                             value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
+                            onChange={(e) => setPhone(digitsForMobileInput(e.target.value))}
                             placeholder="9876543210"
                             className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm"
                         />

@@ -11,6 +11,7 @@ import {
   emptyVillagerForm,
   ensureVillageId,
   isUniqueMobileError,
+  isUuid,
   validateVillagerForm,
   villageNameOf,
   VILLAGER_DETAIL_SELECT,
@@ -35,7 +36,12 @@ export default function VillagerDetail() {
   const canEdit = canEditVillagerRecord(profile?.role, profile?.id, row?.created_by);
 
   useEffect(() => {
-    if (!id || !canRead) return;
+    if (!canRead) return;
+    if (!isUuid(id)) {
+      setRow(null);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
 
     (async () => {

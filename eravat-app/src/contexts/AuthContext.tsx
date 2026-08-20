@@ -12,7 +12,7 @@ import { track } from '../lib/analytics';
 import { identifyUser, resetUser } from '../lib/posthogClient';
 import { logger } from '../lib/logger';
 import { clearCachedProfile, loadCachedProfile, saveCachedProfile } from '../lib/profileCache';
-import { normalisePhoneDigits, toE164India } from '../lib/phone';
+import { toE164India } from '../lib/phone';
 
 // Matches the `profiles` table + joined user_region_assignments
 export interface UserProfile {
@@ -238,7 +238,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signInWithPhoneOTP = async (phone: string) => {
         try {
-            const tenDigit = normalisePhoneDigits(phone);
+            const e164Phone = toE164India(phone);
+            if (!e164Phone) {
+                return {
+                    error: new Error('Please enter a valid phone number'),
+                    message: 'invalid_phone',
+                };
+            }
+            const tenDigit = e164Phone.slice(-10);
 
             // Step 2: Verify user exists using the check_phone_registered RPC.
             const { data: isRegistered, error: rpcError } = await supabase
@@ -253,7 +260,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 };
             }
 
-            const e164Phone = toE164India(phone) ?? `+91${tenDigit}`;
             // Step 4: Send OTP.
             const { error } = await supabase.auth.signInWithOtp({
                 phone: e164Phone,
@@ -306,8 +312,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const verifyOTP = async (phone: string, token: string) => {
         try {
-            const tenDigit = normalisePhoneDigits(phone);
-            const e164Phone = toE164India(phone) ?? `+91${tenDigit}`;
+            const e164Phone = toE164India(phone);
+            if (!e164Phone) {
+                return { error: new Error('Please enter a valid phone number') };
+            }
             // Verify OTP via Supabase Auth
             const { error, data } = await supabase.auth.verifyOtp({
                 phone: e164Phone,

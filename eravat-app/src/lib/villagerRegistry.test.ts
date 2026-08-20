@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   csvEscape,
+  isUuid,
   nestedName,
   onboarderLabel,
   validateVillagerForm,
@@ -29,6 +30,24 @@ describe('villagerRegistry', () => {
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errorKey).toBe('hathiMitra.invalidPhone');
+  });
+
+  it('accepts pasted +91 mobiles and rejects non-mobile series', () => {
+    const ok = validateVillagerForm({
+      name: 'Sita Devi',
+      phone: '+91 98765 43210',
+      villageName: 'Pali',
+      location: { latitude: 23.7, longitude: 80.9 },
+    });
+    expect(ok).toEqual({ ok: true, mobile: '+919876543210' });
+
+    const bad = validateVillagerForm({
+      name: 'Sita Devi',
+      phone: '1234567890',
+      villageName: 'Pali',
+      location: { latitude: 23.7, longitude: 80.9 },
+    });
+    expect(bad.ok).toBe(false);
   });
 
   it('requires GPS', () => {
@@ -79,5 +98,11 @@ describe('villagerRegistry', () => {
     expect(csv).toContain('Sita');
     expect(csv).toContain('opted_out');
     expect(csv).toContain('"line\nbreak"');
+  });
+
+  it('accepts UUID ids and rejects garbage paths', () => {
+    expect(isUuid('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')).toBe(true);
+    expect(isUuid('not-a-uuid')).toBe(false);
+    expect(isUuid('')).toBe(false);
   });
 });

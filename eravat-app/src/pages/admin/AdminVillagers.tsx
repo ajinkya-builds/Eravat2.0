@@ -18,6 +18,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { VillagerForm } from '../../components/villagers/VillagerForm';
 import { AdminKpiCard, AdminPageHeader } from '../../components/admin/AdminShared';
 import { fromE164India } from '../../lib/phone';
+import { sanitiseIlikeTerm } from '../../lib/ilike';
 import {
   emptyVillagerForm,
   ensureVillageId,
@@ -56,7 +57,7 @@ function applyFilters<Q extends FilterQuery<Q>>(
   },
 ): Q {
   let q = query;
-  const trimmed = opts.search.trim();
+  const trimmed = sanitiseIlikeTerm(opts.search);
   if (trimmed) q = q.or(`name.ilike.%${trimmed}%,mobile.ilike.%${trimmed}%`);
   if (opts.divisionId) q = q.eq('division_id', opts.divisionId);
   if (opts.rangeId) q = q.eq('range_id', opts.rangeId);

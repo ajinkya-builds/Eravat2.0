@@ -5,6 +5,7 @@ import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { canOnboardVillagers, canReadVillagers } from '../lib/rbac';
+import { sanitiseIlikeTerm } from '../lib/ilike';
 import { villageNameOf, type VillagerRecord } from '../lib/villagerRegistry';
 
 export default function VillagersList() {
@@ -37,7 +38,7 @@ export default function VillagersList() {
 
         if (!showInactive) q = q.eq('is_active', true);
 
-        const trimmed = query.trim();
+        const trimmed = sanitiseIlikeTerm(query);
         if (trimmed) {
           q = q.or(`name.ilike.%${trimmed}%,mobile.ilike.%${trimmed}%`);
         }
@@ -72,7 +73,7 @@ export default function VillagersList() {
     );
   }
 
-  const emptyMessage = query.trim()
+  const emptyMessage = sanitiseIlikeTerm(query)
     ? t('hathiMitra.listEmpty')
     : t('hathiMitra.listEmptyMine');
 

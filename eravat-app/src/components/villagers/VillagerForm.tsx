@@ -4,6 +4,7 @@ import { TerritorySelect } from '../shared/TerritorySelect';
 import { VillageAutocomplete } from './VillageAutocomplete';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { digitsForMobileInput } from '../../lib/phone';
 import type { VillagerFormValues } from '../../lib/villagerRegistry';
 
 interface VillagerFormProps {
@@ -53,8 +54,10 @@ export function VillagerForm({
         <input
           required
           type="tel"
+          inputMode="numeric"
+          maxLength={16}
           value={values.phone}
-          onChange={(e) => patch({ phone: e.target.value })}
+          onChange={(e) => patch({ phone: digitsForMobileInput(e.target.value) })}
           placeholder="9876543210"
           className="w-full p-3 rounded-xl bg-muted/50 border border-border text-sm"
         />

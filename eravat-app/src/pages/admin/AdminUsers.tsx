@@ -5,6 +5,8 @@ import { supabase } from '../../supabase';
 import { useAuth, type UserProfile } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { canManageRole, GEOGRAPHIC_ROLES } from '../../lib/rbac';
+import { sanitiseIlikeTerm } from '../../lib/ilike';
+import { toE164India } from '../../lib/phone';
 import { LocationFields } from '../../components/profile/LocationFields';
 
 interface Profile {
@@ -70,7 +72,7 @@ export default function AdminUsers() {
         setLoading(true);
         setError(null);
         try {
-            const trimmed = searchTerm.trim();
+            const trimmed = sanitiseIlikeTerm(searchTerm);
             let profileQuery = supabase
                 .from('profiles')
                 .select('id, role, first_name, last_name, phone, is_active, created_at')
@@ -202,7 +204,9 @@ export default function AdminUsers() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Not authenticated');
 
-            const body: Record<string, unknown> = { ...userData };
+            const mobile = toE164India(userData.phone);
+            if (!mobile) throw new Error(t('otp.invalidPhone'));
+            const body: Record<string, unknown> = { ...userData, phone: mobile };
 
             const { data, error: fnErr } = await supabase.functions.invoke('create-user', {
                 body,
@@ -230,8 +234,15 @@ export default function AdminUsers() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Not authenticated');
 
+            const payload: Record<string, unknown> = { ...userData };
+            if (userData.phone) {
+                const mobile = toE164India(userData.phone);
+                if (!mobile) throw new Error(t('otp.invalidPhone'));
+                payload.phone = mobile;
+            }
+
             const { data, error: fnErr } = await supabase.functions.invoke('update-user', {
-                body: userData,
+                body: payload,
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
 
