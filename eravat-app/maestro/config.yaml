@@ -1,0 +1,7 @@
+# Maestro workspace config — Eravat Android (Capacitor hybrid)
+# https://maestro.mobile.dev/
+appId: com.forestdept.eravat
+
+env:
+  FIELD_STAFF_PHONE: "8889184712"
+  SANDBOX_OTP: "123456"

@@ -1,0 +1,10 @@
+# AUTH-001 parity — login screen renders on Android WebView
+appId: com.forestdept.eravat
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Wild Elephant Monitoring System (2025)"
+    timeout: 45000
+- assertVisible: "Welcome Back"
+- assertVisible: "Send OTP"

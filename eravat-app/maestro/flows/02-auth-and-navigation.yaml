@@ -1,0 +1,26 @@
+# AUTH-003 + DASH-001/002/003 — login, dashboard, report entry, bottom nav
+appId: com.forestdept.eravat
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/login-field-staff.yaml
+- assertVisible: "Welcome Back,"
+- assertVisible: "What would you like to do today?"
+- assertVisible: "Add Sighting Log sightings or conflicts"
+- tapOn: "Add Sighting Log sightings or conflicts"
+- extendedWaitUntil:
+    visible: "Add Sighting"
+    timeout: 20000
+- tapOn: "Close and go back"
+- tapOn: "Discard & Exit"
+- extendedWaitUntil:
+    visible: "What would you like to do today?"
+    timeout: 20000
+- tapOn: "Map"
+- extendedWaitUntil:
+    visible: "Territory Map"
+    timeout: 30000
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible: "Edit Profile"
+    timeout: 20000

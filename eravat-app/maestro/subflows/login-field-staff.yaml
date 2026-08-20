@@ -1,0 +1,21 @@
+# Reusable OTP login for staging beat_guard pilot (8889184712, OTP 123456).
+# Phone is prefilled via VITE_E2E_AUTOFILL_PHONE in the Maestro debug build.
+appId: com.forestdept.eravat
+---
+- extendedWaitUntil:
+    visible: "Welcome Back"
+    timeout: 45000
+- extendedWaitUntil:
+    visible: "8889184712"
+    timeout: 15000
+- tapOn: "Send OTP"
+- extendedWaitUntil:
+    visible: "Enter 6-digit code"
+    timeout: 60000
+- tapOn: "Enter 6-digit code"
+- inputText: "123456"
+- hideKeyboard
+- tapOn: "Verify & Sign In"
+- extendedWaitUntil:
+    visible: "What would you like to do today?"
+    timeout: 45000
