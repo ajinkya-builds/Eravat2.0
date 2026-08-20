@@ -3,7 +3,15 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
 import { PushNotificationService } from '../services/PushNotificationService';
-import { encryptSession, decryptSession, type EncryptedPayload } from '../utils/crypto';
+import {
+    isProfileCacheFresh,
+    shouldLoadProfileOnAuthEvent,
+    shouldRegisterPushOnAuthEvent,
+} from '../lib/authPerf';
+import { track } from '../lib/analytics';
+import { identifyUser, resetUser } from '../lib/posthogClient';
+import { logger } from '../lib/logger';
+import { clearCachedProfile, loadCachedProfile, saveCachedProfile } from '../lib/profileCache';
 
 // Matches the `profiles` table + joined user_region_assignments
 export interface UserProfile {
@@ -35,17 +43,12 @@ interface AuthContextValue {
     profile: UserProfile | null;
     loading: boolean;
     sessionExpired: boolean;
-    isLocked: boolean;
-    hasSavedSession: boolean;
     clearSessionExpired: () => void;
     signInWithPhoneOTP: (phone: string) => Promise<{ error: Error | null; message?: string }>;
-    verifyOTP: (phone: string, token: string) => Promise<{ error: Error | null; mfaRequired?: boolean }>;
+    verifyOTP: (phone: string, token: string) => Promise<{ error: Error | null }>;
     resendOTP: (phone: string) => Promise<{ error: Error | null; message?: string }>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
-    unlockWithPIN: (pin: string) => Promise<{ error: Error | null }>;
-    registerPIN: (pin: string) => Promise<void>;
-    resetPIN: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -64,36 +67,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isCheckingSecureSession, setIsCheckingSecureSession] = useState(() => {
-        return localStorage.getItem('eravat_secure_session') !== null;
-    });
-    const secureSessionCheckCompleted = useRef(false);
     const [sessionExpired, setSessionExpired] = useState(false);
-    const [isLocked, setIsLocked] = useState(false);
-    const [hasSavedSession, setHasSavedSession] = useState(false);
     // Track whether user was previously authenticated so we can detect expiry
     const wasAuthenticated = useState({ current: false });
     /** Coalesce parallel profile loads (e.g. getSession + onAuthStateChange firing together). */
     const profileInflight = useRef(new Map<string, Promise<void>>());
     /** Log missing profile / fetch errors at most once per user until a profile loads. */
     const profileIssueLogged = useRef(new Set<string>());
-    /** In-memory PIN for re-encrypting after token refresh (never persisted). */
-    const activePinRef = useRef<string | null>(null);
+    /** Avoid profile refetch storms on TOKEN_REFRESHED / concurrent tabs. */
+    const profileCacheRef = useRef<{ userId: string | null; fetchedAt: number | null }>({
+        userId: null,
+        fetchedAt: null,
+    });
 
-    const fetchProfile = useCallback(async (userId: string) => {
+    const fetchProfile = useCallback(async (userId: string, opts?: { force?: boolean }) => {
+        if (
+            !opts?.force &&
+            isProfileCacheFresh(profileCacheRef.current.userId, userId, profileCacheRef.current.fetchedAt)
+        ) {
+            return;
+        }
+
         const existing = profileInflight.current.get(userId);
         if (existing) return existing;
 
+        const applyCached = () => {
+            const cached = loadCachedProfile<UserProfile>(userId);
+            if (cached) {
+                setProfile(cached);
+                profileCacheRef.current = { userId, fetchedAt: Date.now() };
+                return true;
+            }
+            return false;
+        };
+
         const run = (async () => {
+            applyCached();
             try {
                 if (import.meta.env.DEV) {
                     console.log('[AuthContext] fetchProfile starting for userId:', userId);
                 }
-                const { data: profileData, error: profileError } = await supabase
+                const query = supabase
                     .from('profiles')
                     .select('*')
                     .eq('id', userId)
                     .maybeSingle();
+                const timed = Promise.race([
+                    query,
+                    new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(new Error('profile_fetch_timeout')), 8000)
+                    ),
+                ]);
+                const { data: profileData, error: profileError } = await timed;
 
                 if (import.meta.env.DEV) {
                     console.log('[AuthContext] fetchProfile db result:', {
@@ -104,26 +129,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (profileError) {
                     if (!profileIssueLogged.current.has(userId)) {
                         profileIssueLogged.current.add(userId);
-                        console.warn('[AuthContext] profiles fetch failed:', profileError.message);
+                        logger.warn('AuthContext', 'profiles fetch failed', { message: profileError.message });
                     }
-                    setProfile(null);
+                    if (!applyCached()) setProfile(null);
                     return;
                 }
 
                 if (!profileData) {
                     if (!profileIssueLogged.current.has(userId)) {
                         profileIssueLogged.current.add(userId);
-                        console.warn(
-                            '[AuthContext] No profiles row for this user. If you just deployed DB fixes, run the profiles backfill migration; id:',
-                            userId
-                        );
+                        logger.warn('AuthContext', 'No profiles row for user', { userId });
                     }
-                    setProfile(null);
+                    if (!applyCached()) setProfile(null);
                     return;
                 }
 
                 if (profileData.is_active === false) {
-                    console.warn('[AuthContext] Inactive user attempted access:', userId);
+                    logger.warn('AuthContext', 'Inactive user attempted access', { userId });
                     await supabase.auth.signOut();
                     setProfile(null);
                     return;
@@ -144,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     .eq('user_id', userId)
                     .maybeSingle();
 
-                setProfile({
+                const nextProfile = {
                     ...profileData,
                     division_id: assignment?.division_id ?? null,
                     range_id: assignment?.range_id ?? null,
@@ -152,9 +174,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     division_name: (assignment?.geo_divisions as any)?.name ?? null,
                     range_name: (assignment?.geo_ranges as any)?.name ?? null,
                     beat_name: (assignment?.geo_beats as any)?.name ?? null,
-                } as UserProfile);
+                } as UserProfile;
+                setProfile(nextProfile);
+                saveCachedProfile(userId, nextProfile as unknown as Record<string, unknown>);
+                identifyUser(userId, {
+                    role: nextProfile.role,
+                    division_id: nextProfile.division_id ?? undefined,
+                    range_id: nextProfile.range_id ?? undefined,
+                    beat_id: nextProfile.beat_id ?? undefined,
+                });
+                profileCacheRef.current = { userId, fetchedAt: Date.now() };
             } catch {
-                // Profile fetch failed
+                applyCached();
             }
         })();
 
@@ -167,69 +198,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const refreshProfile = async () => {
-        if (session?.user?.id) await fetchProfile(session.user.id);
+        if (session?.user?.id) await fetchProfile(session.user.id, { force: true });
     };
 
     useEffect(() => {
         let cancelled = false;
-
-        const checkSecureSession = async () => {
-            if (secureSessionCheckCompleted.current) return;
-
-            const saved = localStorage.getItem('eravat_secure_session');
-            if (saved) {
-                // E2E-only bypass — never active in production builds
-                if (
-                    import.meta.env.DEV &&
-                    localStorage.getItem('eravat_bypass_pin_lock') === 'true'
-                ) {
-                    try {
-                        const encryptedPayload = JSON.parse(saved) as EncryptedPayload;
-                        const decryptedSession = await decryptSession(encryptedPayload, '1111');
-                        const { error: setSessionErr } = await supabase.auth.setSession({
-                            access_token: decryptedSession.access_token,
-                            refresh_token: decryptedSession.refresh_token
-                        });
-                        if (setSessionErr) {
-                            throw setSessionErr;
-                        }
-                        if (!cancelled) {
-                            setSession(decryptedSession);
-                            void fetchProfile(decryptedSession.user.id);
-                            setHasSavedSession(true);
-                            setIsLocked(false);
-                            setIsCheckingSecureSession(false);
-                            secureSessionCheckCompleted.current = true;
-                        }
-                        return;
-                    } catch (err) {
-                        console.error('[AuthContext] E2E auto-unlock failed:', err);
-                        if (!cancelled) {
-                            setHasSavedSession(true);
-                            setIsLocked(true);
-                            setIsCheckingSecureSession(false);
-                            secureSessionCheckCompleted.current = true;
-                        }
-                    }
-                } else {
-                    if (!cancelled) {
-                        setHasSavedSession(true);
-                        setIsLocked(true);
-                        setIsCheckingSecureSession(false);
-                        secureSessionCheckCompleted.current = true;
-                    }
-                }
-            } else {
-                if (!cancelled) {
-                    setHasSavedSession(false);
-                    setIsLocked(false);
-                    setIsCheckingSecureSession(false);
-                    secureSessionCheckCompleted.current = true;
-                }
-            }
-        };
-
-        void checkSecureSession();
+        // Drop PIN-wrapped blobs from older builds; session lives in Supabase persistSession.
+        localStorage.removeItem('eravat_secure_session');
+        localStorage.removeItem('eravat_bypass_pin_lock');
 
         const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
             if (import.meta.env.DEV) {
@@ -237,43 +213,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             if (cancelled) return;
 
-            // If a saved session is present, ignore incoming state updates until unlocked
-            const saved = localStorage.getItem('eravat_secure_session');
-            if (saved && event !== 'SIGNED_OUT' && isLocked) {
-                if (import.meta.env.DEV) {
-                    console.log('[AuthContext] onAuthStateChange ignored because isLocked is true');
-                }
-                return;
-            }
-
-            // Keep PIN-wrapped blob in sync when refresh tokens rotate
-            if (
-                (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') &&
-                newSession &&
-                localStorage.getItem('eravat_secure_session') &&
-                activePinRef.current
-            ) {
-                const pin = activePinRef.current;
-                void encryptSession(newSession, pin)
-                    .then((encrypted) => {
-                        localStorage.setItem('eravat_secure_session', JSON.stringify(encrypted));
-                    })
-                    .catch((err) => {
-                        if (import.meta.env.DEV) {
-                            console.warn('[AuthContext] Failed to re-encrypt session after refresh:', err);
-                        }
-                    });
-            }
-
             setSession(newSession);
             if (newSession?.user) {
                 wasAuthenticated[0].current = true;
-                void fetchProfile(newSession.user.id);
-                PushNotificationService.register(newSession.user.id).catch(err =>
-                    console.error('[AuthContext] Failed to register push notifications:', err)
-                );
+                const userId = newSession.user.id;
+                if (
+                    shouldLoadProfileOnAuthEvent(event) ||
+                    !isProfileCacheFresh(profileCacheRef.current.userId, userId, profileCacheRef.current.fetchedAt)
+                ) {
+                    void fetchProfile(userId, { force: event === 'USER_UPDATED' });
+                }
+                if (shouldRegisterPushOnAuthEvent(event)) {
+                    PushNotificationService.register(userId).catch(err =>
+                        console.error('[AuthContext] Failed to register push notifications:', err)
+                    );
+                }
             } else {
                 profileIssueLogged.current.clear();
+                profileCacheRef.current = { userId: null, fetchedAt: null };
                 if (wasAuthenticated[0].current && event !== 'SIGNED_OUT') {
                     setSessionExpired(true);
                 }
@@ -286,7 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             cancelled = true;
             listener.subscription.unsubscribe();
         };
-    }, [fetchProfile, isLocked]);
+    }, [fetchProfile]);
 
     const signInWithPhoneOTP = async (phone: string) => {
         try {
@@ -298,7 +255,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .rpc('check_phone_registered', { p_phone: tenDigit });
 
             if (rpcError || !isRegistered) {
-                console.warn('[AuthContext] Phone not found via RPC:', tenDigit);
+                logger.warn('AuthContext', 'Phone not enrolled', { reason: rpcError?.message ?? 'not_registered' });
+                track('auth.unenrolled_rejected');
                 return {
                     error: new Error('Invalid credentials. Please try again.'),
                     message: 'user_not_found'
@@ -331,22 +289,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             '[AuthContext] SMS provider disabled — proceeding to Test OTP verify UI'
                         );
                     }
+                    track('auth.otp_sent', { provider: 'test_otp' });
                     return { error: null, message: 'otp_sent' };
                 }
-                console.error('[AuthContext] OTP send error:', error);
+                logger.error('AuthContext', 'OTP send failed', error, { error_code: 'send_failed' });
                 const isRateLimit = (error as any).status === 429 || 
                                     msg.includes('rate limit') || 
                                     msg.includes('security purposes') ||
                                     msg.includes('once every');
                 if (isRateLimit) {
+                    track('auth.otp_failed', { error_code: 'rate_limit' });
                     return { error: new Error('Too many requests. Please try again later.'), message: 'rate_limit' };
                 }
+                track('auth.otp_failed', { error_code: 'send_failed' });
                 return { error: new Error('Unable to send verification code. Please try again.'), message: 'send_failed' };
             }
+            track('auth.otp_sent', { provider: 'sms' });
             return { error: null, message: 'otp_sent' };
 
         } catch (err) {
-            console.error('[AuthContext] Unexpected error in signInWithPhoneOTP:', err);
+            logger.error('AuthContext', 'Unexpected error in signInWithPhoneOTP', err);
+            track('auth.otp_failed', { error_code: 'unexpected_error' });
             return { error: new Error('An unexpected error occurred. Please try again.'), message: 'unexpected_error' };
         }
 
@@ -373,7 +336,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             if (error) {
-                console.error('[AuthContext] OTP verification error:', error);
+                logger.error('AuthContext', 'OTP verification failed', error);
+                track('auth.otp_failed', { error_code: 'verify_failed' });
                 return {
                     error: new Error('Invalid or expired verification code. Please try again.')
                 };
@@ -382,22 +346,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (import.meta.env.DEV) {
                 console.log('[AuthContext] OTP verified successfully');
             }
+            track('auth.otp_verified');
             setSessionExpired(false);
 
-            // Sync session in context immediately (needed for PIN registration step)
             if (data.session) {
                 setSession(data.session);
             }
 
-            // Check if MFA is required (for admin users with TOTP)
-            const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-            if (aalData && aalData.currentLevel === 'aal1' && aalData.nextLevel === 'aal2') {
-                return { error: null, mfaRequired: true };
-            }
-
-            return { error: null, mfaRequired: false };
+            return { error: null };
         } catch (err) {
-            console.error('[AuthContext] Unexpected error in verifyOTP:', err);
+            logger.error('AuthContext', 'Unexpected error in verifyOTP', err);
+            track('auth.otp_failed', { error_code: 'unexpected_error' });
             return {
                 error: new Error('An unexpected error occurred. Please try again.')
             };
@@ -408,93 +367,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return signInWithPhoneOTP(phone);
     };
 
-    const unlockWithPIN = async (pin: string) => {
-        try {
-            const saved = localStorage.getItem('eravat_secure_session');
-            if (!saved) {
-                return { error: new Error('No saved session found.') };
-            }
-
-            const encryptedPayload = JSON.parse(saved) as EncryptedPayload;
-            const decryptedSession = await decryptSession(encryptedPayload, pin) as Session;
-
-            if (!decryptedSession || !decryptedSession.access_token) {
-                return { error: new Error('Invalid decrypted session.') };
-            }
-
-            // Restore session in Supabase Auth
-            const { data: setData, error: sessionError } = await supabase.auth.setSession({
-                access_token: decryptedSession.access_token,
-                refresh_token: decryptedSession.refresh_token
-            });
-
-            if (sessionError) {
-                console.error('[AuthContext] setSession failed:', sessionError);
-                return { error: sessionError };
-            }
-
-            const liveSession = setData.session ?? decryptedSession;
-            activePinRef.current = pin;
-            // Re-wrap with possibly-rotated tokens from setSession
-            try {
-                const encrypted = await encryptSession(liveSession, pin);
-                localStorage.setItem('eravat_secure_session', JSON.stringify(encrypted));
-            } catch (encErr) {
-                if (import.meta.env.DEV) {
-                    console.warn('[AuthContext] Failed to re-encrypt after unlock:', encErr);
-                }
-            }
-
-            // Sync session state & profile in context
-            setSession(liveSession);
-            await fetchProfile(liveSession.user.id);
-            setIsLocked(false);
-
-            return { error: null };
-        } catch (err: any) {
-            console.error('[AuthContext] PIN unlock failed:', err);
-            return { error: new Error('Invalid PIN. Please try again.') };
-        }
-    };
-
-    const registerPIN = async (pin: string) => {
-        if (!session) {
-            console.warn('[AuthContext] registerPIN called but no active session exists.');
-            return;
-        }
-
-        try {
-            const encrypted = await encryptSession(session, pin);
-            localStorage.setItem('eravat_secure_session', JSON.stringify(encrypted));
-            activePinRef.current = pin;
-            setHasSavedSession(true);
-            setIsLocked(false);
-        } catch (err) {
-            console.error('[AuthContext] Failed to encrypt session with PIN:', err);
-        }
-    };
-
-    const resetPIN = async () => {
-        localStorage.removeItem('eravat_secure_session');
-        activePinRef.current = null;
-        setHasSavedSession(false);
-        setIsLocked(false);
-        await signOut();
-    };
-
     const signOut = async () => {
         wasAuthenticated[0].current = false; // explicit sign-out, not expiry
         profileIssueLogged.current.clear();
         localStorage.removeItem('eravat_secure_session');
-        activePinRef.current = null;
-        setHasSavedSession(false);
-        setIsLocked(false);
+        localStorage.removeItem('eravat_bypass_pin_lock');
+        clearCachedProfile();
         if (session?.user?.id) {
             await PushNotificationService.unregister(session.user.id);
         }
         await supabase.auth.signOut();
         setProfile(null);
         setSessionExpired(false);
+        resetUser();
     };
 
     const clearSessionExpired = () => setSessionExpired(false);
@@ -504,19 +389,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             session,
             user: session?.user ?? null,
             profile,
-            loading: loading || isCheckingSecureSession,
+            loading,
             sessionExpired,
-            isLocked,
-            hasSavedSession,
             clearSessionExpired,
             signInWithPhoneOTP,
             verifyOTP,
             resendOTP,
             signOut,
             refreshProfile,
-            unlockWithPIN,
-            registerPIN,
-            resetPIN,
         }}>
             {children}
         </AuthContext.Provider>

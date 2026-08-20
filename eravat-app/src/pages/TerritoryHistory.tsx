@@ -1,19 +1,45 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Buffer } from 'buffer';
+import wkx from 'wkx';
 import { supabase } from '../supabase';
-import { MapPin, Calendar, Clock, AlertTriangle, Eye, Loader2, ArrowLeft, Radio, Shield } from 'lucide-react';
+import { MapPin, Calendar, Clock, AlertTriangle, Eye, Loader2, ArrowLeft, Radio, Shield, Share2, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { shareOrCopy, downloadTextFile, mapsLink, buildSightingShareText, formatShareDate } from '../lib/reportShare';
+import { formatLatLngDms } from '../lib/geoFormat';
+import { db } from '../db';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseLoc(loc: any): { lat: number; lng: number } | null {
+    if (!loc) return null;
+    try {
+        if (typeof loc === 'string') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const geom = wkx.Geometry.parse(Buffer.from(loc, 'hex')) as any;
+            const gj = geom.toGeoJSON();
+            if (gj?.type === 'Point') return { lat: gj.coordinates[1], lng: gj.coordinates[0] };
+            return null;
+        }
+        if (Array.isArray(loc.coordinates)) return { lat: loc.coordinates[1], lng: loc.coordinates[0] };
+        return null;
+    } catch {
+        return null;
+    }
+}
 
 interface HistoryItem {
     id: string;
     device_timestamp: string;
     status: string;
+    notes?: string | null;
+    location?: string | null;
     geo_beats?: {
         name: string;
         geo_ranges?: {
             name: string;
+            geo_divisions?: { name: string };
         }
     };
     observations: {
@@ -22,6 +48,7 @@ interface HistoryItem {
         female_count: number;
         calf_count: number;
         unknown_count: number;
+        compass_bearing?: number | null;
         indirect_sign_details?: string[];
         conflict_loss_details?: string[];
     }[];
@@ -29,6 +56,7 @@ interface HistoryItem {
         category: string;
         description: string;
     }[];
+    report_media?: { storage_path?: string | null }[];
 }
 
 const typeColors: Record<string, string> = {
@@ -48,6 +76,44 @@ export default function TerritoryHistory() {
     const [proximityReportIds, setProximityReportIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState<string | null>(null);
+    const [shareMsg, setShareMsg] = useState<string | null>(null);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+
+    const handleShare = async (item: HistoryItem, text: string, coords: { lat: number; lng: number } | null) => {
+        const url = coords ? mapsLink(coords.lat, coords.lng) : undefined;
+        let file: File | undefined;
+        // Fetch media lazily with select('*') so the History list never breaks if
+        // the media path column differs across environments (file_path/storage_path/path).
+        try {
+            const { data: media } = await supabase
+                .from('report_media')
+                .select('*')
+                .eq('report_id', item.id)
+                .limit(1);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const row: any = media?.[0];
+            const path = row?.storage_path || row?.file_path || row?.path;
+            if (path) {
+                const { data } = await supabase.storage.from('report_media').createSignedUrl(path, 3600);
+                if (data?.signedUrl) {
+                    const resp = await fetch(data.signedUrl);
+                    if (resp.ok) {
+                        const blob = await resp.blob();
+                        file = new File([blob], `sighting-${item.id}.jpg`, { type: blob.type || 'image/jpeg' });
+                    }
+                }
+            }
+        } catch { /* share text only if photo cannot be fetched */ }
+        const res = await shareOrCopy({ title: t('share.reportTitle'), text, url, file });
+        if (res === 'copied') setShareMsg(t('share.copied'));
+        else if (res === 'failed') setShareMsg(t('share.failed'));
+        if (res === 'copied' || res === 'failed') setTimeout(() => setShareMsg(null), 2500);
+    };
+
+    const handleDownload = (item: HistoryItem, text: string, coords: { lat: number; lng: number } | null) => {
+        const full = coords ? `${text}\n${t('share.map')}: ${mapsLink(coords.lat, coords.lng)}` : text;
+        downloadTextFile(`sighting-${item.id}.txt`, full);
+    };
 
     useEffect(() => {
         if (!user?.id) return;
@@ -57,9 +123,27 @@ export default function TerritoryHistory() {
             // Fetch reports (RLS scopes to territory owned by the user)
             const reportsPromise = supabase
                 .from('reports')
-                .select('id, device_timestamp, status, geo_beats(name, geo_ranges(name)), observations(*), conflict_damages(*)')
-                .order('server_created_at', { ascending: false })
-                .limit(50);
+                .select(`
+                    id,
+                    device_timestamp,
+                    status,
+                    notes,
+                    location,
+                    geo_beats(name, geo_ranges(name, geo_divisions(name))),
+                    observations(
+                        type,
+                        male_count,
+                        female_count,
+                        calf_count,
+                        unknown_count,
+                        compass_bearing,
+                        indirect_sign_details,
+                        conflict_loss_details
+                    ),
+                    conflict_damages(category, description)
+                `)
+                .order('device_timestamp', { ascending: false })
+                .limit(80);
 
             // Fetch proximity notification report_ids for this user
             const notifPromise = supabase
@@ -67,15 +151,48 @@ export default function TerritoryHistory() {
                 .select('report_id')
                 .eq('user_id', user.id)
                 .eq('notification_type', 'proximity')
-                .not('report_id', 'is', null);
+                .not('report_id', 'is', null)
+                .limit(200);
 
             const [reportsRes, notifRes] = await Promise.all([reportsPromise, notifPromise]);
 
+            const local = await db.reports.orderBy('device_timestamp').reverse().limit(80).toArray();
+            const localMapped = local.map((r) => ({
+                id: r.id,
+                device_timestamp: r.device_timestamp,
+                status: r.status,
+                notes: r.notes,
+                location: r.latitude != null && r.longitude != null
+                    ? { coordinates: [r.longitude, r.latitude] }
+                    : null,
+                observations: [{
+                    type: r.observation_type || 'direct',
+                    male_count: r.male_count,
+                    female_count: r.female_count,
+                    calf_count: r.calf_count,
+                    unknown_count: r.unknown_count,
+                    compass_bearing: r.compass_bearing,
+                    indirect_sign_details: r.indirect_sign_details,
+                    conflict_loss_details: r.conflict_loss_details,
+                }],
+                conflict_damages: (r.loss_type || []).map((category) => ({
+                    category,
+                    description: r.damage_description || '',
+                })),
+            })) as unknown as HistoryItem[];
+
             if (reportsRes.error) {
                 console.error('Error fetching history:', reportsRes.error);
-                setFetchError(reportsRes.error.message || 'Failed to load activity history.');
+                if (localMapped.length) {
+                    setHistory(localMapped);
+                    setFetchError(null);
+                } else {
+                    setFetchError(reportsRes.error.message || t('history.loadFailed'));
+                }
             } else {
-                setHistory((reportsRes.data as unknown) as HistoryItem[] || []);
+                const remote = ((reportsRes.data as unknown) as HistoryItem[]) || [];
+                const seen = new Set(remote.map((r) => r.id));
+                setHistory([...remote, ...localMapped.filter((r) => !seen.has(r.id))]);
             }
 
             if (!notifRes.error && notifRes.data) {
@@ -102,9 +219,9 @@ export default function TerritoryHistory() {
             const [reportsRes, notifRes] = await Promise.all([
                 supabase
                     .from('reports')
-                    .select('id, device_timestamp, status, geo_beats(name, geo_ranges(name)), observations(*), conflict_damages(*)')
-                    .order('server_created_at', { ascending: false })
-                    .limit(50),
+                    .select('id, device_timestamp, status, notes, location, geo_beats(name, geo_ranges(name, geo_divisions(name))), observations(*), conflict_damages(*)')
+                    .order('device_timestamp', { ascending: false })
+                    .limit(80),
                 supabase
                     .from('notifications')
                     .select('report_id')
@@ -147,13 +264,13 @@ export default function TerritoryHistory() {
                 ) : fetchError ? (
                     <div className="text-center py-16 glass-card rounded-3xl border border-destructive/30 bg-destructive/5">
                         <AlertTriangle className="mx-auto h-12 w-12 text-destructive/70 mb-4" />
-                        <h3 className="text-lg font-bold text-foreground">Unable to load history</h3>
+                        <h3 className="text-lg font-bold text-foreground">{t('history.loadFailed')}</h3>
                         <p className="text-muted-foreground text-sm mt-1 px-4">{fetchError}</p>
                         <button
                             onClick={handleRetry}
                             className="mt-4 px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
                         >
-                            Try Again
+                            {t('history.retry')}
                         </button>
                     </div>
                 ) : history.length === 0 ? (
@@ -189,9 +306,45 @@ export default function TerritoryHistory() {
                                 details = `${t('history.damages')}${damages}`;
                             }
 
-                            const territory = [item.geo_beats?.name, item.geo_beats?.geo_ranges?.name]
+                            const territory = [item.geo_beats?.geo_ranges?.geo_divisions?.name, item.geo_beats?.geo_ranges?.name, item.geo_beats?.name]
                                 .filter(Boolean)
                                 .join(', ');
+
+                            const coords = parseLoc(item.location);
+                            const elephantTotal = (o?.male_count || 0) + (o?.female_count || 0) + (o?.calf_count || 0) + (o?.unknown_count || 0);
+                            const damageText = item.conflict_damages?.length
+                                ? item.conflict_damages.map(d => [d.category, d.description].filter(Boolean).join(' — ')).join(', ')
+                                : (Array.isArray(o?.conflict_loss_details) ? o.conflict_loss_details.join(', ') : null);
+                            const shareText = buildSightingShareText({
+                                typeLabel: title,
+                                dateLabel: formatShareDate(item.device_timestamp),
+                                division: item.geo_beats?.geo_ranges?.geo_divisions?.name,
+                                range: item.geo_beats?.geo_ranges?.name,
+                                beat: item.geo_beats?.name,
+                                elephantTotal,
+                                directionDeg: o?.compass_bearing ?? null,
+                                damage: damageText,
+                                notes: item.notes ?? null,
+                                lat: coords?.lat,
+                                lng: coords?.lng,
+                                dms: coords ? formatLatLngDms(coords.lat, coords.lng) : null,
+                                labels: {
+                                    title: t('share.reportTitle'),
+                                    type: t('share.sightingType'),
+                                    date: t('share.date'),
+                                    division: t('dtl_division'),
+                                    range: t('dtl_range'),
+                                    beat: t('dtl_beat'),
+                                    elephants: t('nearby.elephants'),
+                                    direction: t('share.direction'),
+                                    damage: t('share.damage'),
+                                    description: t('ot_description'),
+                                    gps: t('share.coordinates'),
+                                    dms: t('dtl_dms_location'),
+                                    map: t('share.map'),
+                                    photo: t('share.photo'),
+                                },
+                            });
 
                             const colorClass = oType ? typeColors[oType] : 'bg-muted text-muted-foreground border-border';
                             const Icon = ['loss', 'conflict_loss'].includes(oType || '') ? AlertTriangle : Eye;
@@ -206,6 +359,7 @@ export default function TerritoryHistory() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.05 }}
                                     className={`p-4 rounded-2xl border bg-card/50 backdrop-blur-md shadow-sm space-y-3 relative overflow-hidden`}
+                                    onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
                                 >
                                     <div className={`absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-20 pointer-events-none ${colorClass.split(' ')[0]}`} />
 
@@ -226,8 +380,8 @@ export default function TerritoryHistory() {
                                         {/* Source badge: Territory owned vs Proximity radius */}
                                         <div
                                             title={isProximity
-                                                ? 'This activity is within your configured alert radius'
-                                                : 'This activity is in your assigned territory'}
+                                                ? t('history.inRadius')
+                                                : t('history.inTerritory')}
                                             className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold border ${
                                                 isProximity
                                                     ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
@@ -235,15 +389,30 @@ export default function TerritoryHistory() {
                                             }`}
                                         >
                                             {isProximity
-                                                ? <><Radio size={11} /> Radius</>
-                                                : <><Shield size={11} /> Territory</>
+                                                ? <><Radio size={11} /> {t('history.radiusBadge')}</>
+                                                : <><Shield size={11} /> {t('history.territoryBadge')}</>
                                             }
                                         </div>
                                     </div>
 
+                                    {expandedId === item.id && (
+                                        <div className="glass-card rounded-xl p-3 border border-border/50 bg-background/50 space-y-1 text-xs">
+                                            <p className="text-sm font-medium text-foreground">{details || t('history.detailsNone')}</p>
+                                            {o?.compass_bearing != null && <p>{t('share.direction')}: {Math.round(Number(o.compass_bearing))}°</p>}
+                                            {item.notes && <p>{t('ot_description')}: {item.notes}</p>}
+                                            {coords && (
+                                                <>
+                                                    <p className="font-mono">{t('share.coordinates')}: {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}</p>
+                                                    <p className="font-mono">{t('dtl_dms_location')}: {formatLatLngDms(coords.lat, coords.lng)}</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                    {expandedId !== item.id && (
                                     <div className="glass-card rounded-xl p-3 border border-border/50 bg-background/50">
                                         <p className="text-sm font-medium text-foreground">{details || t('history.detailsNone')}</p>
                                     </div>
+                                    )}
 
                                     {territory && (
                                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium pt-1">
@@ -251,9 +420,33 @@ export default function TerritoryHistory() {
                                             {territory}
                                         </div>
                                     )}
+
+                                    {/* Share / download the uploaded report (review §9.3) */}
+                                    <div className="flex items-center gap-2 pt-1">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleShare(item, shareText, coords); }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background/50 text-xs font-semibold text-foreground hover:bg-muted/50 transition-colors"
+                                        >
+                                            <Share2 size={14} /> {t('share.share')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleDownload(item, shareText, coords); }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background/50 text-xs font-semibold text-foreground hover:bg-muted/50 transition-colors"
+                                        >
+                                            <Download size={14} /> {t('share.download')}
+                                        </button>
+                                    </div>
                                 </motion.div>
                             );
                         })}
+                    </div>
+                )}
+
+                {shareMsg && (
+                    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[10000] px-4 py-2 rounded-xl bg-foreground text-background text-sm font-medium shadow-lg">
+                        {shareMsg}
                     </div>
                 )}
             </div>

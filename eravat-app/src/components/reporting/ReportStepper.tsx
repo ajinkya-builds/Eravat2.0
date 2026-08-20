@@ -1,13 +1,13 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, MapPin, FileText, Compass, Camera, CheckCircle2, X, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, MapPin, FileText, Camera, CheckCircle2, X, AlertTriangle, ClipboardCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ActivityFormProvider, useActivityForm, type FormStep } from '../../contexts/ActivityFormContext';
 import { DateTimeLocationStep } from './steps/DateTimeLocationStep';
 import { ObservationTypeStep } from './steps/ObservationTypeStep';
 import { DamageStep } from './steps/DamageStep';
-import { CompassBearingStep } from './steps/CompassBearingStep';
 import { PhotoStep } from './steps/PhotoStep';
+import { ReviewStep } from './steps/ReviewStep';
 import { UnsavedChangesModal } from './UnsavedChangesModal';
 import { useCamera } from '../../hooks/useCamera';
 import { db } from '../../db';
@@ -16,9 +16,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Network } from '@capacitor/network';
 import { syncData } from '../../services/syncService';
+import { stampPhotoWithMeta } from '../../lib/stampPhoto';
+import { track } from '../../lib/analytics';
+import { logger } from '../../lib/logger';
+import { newUuid } from '../../lib/uuid';
 
 function StepperContent() {
-    const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm, activeSteps, updateFormData } = useActivityForm();
+    const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm, activeSteps, updateFormData, elephantTotal } = useActivityForm();
     const { profile } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
@@ -33,7 +37,10 @@ function StepperContent() {
     useEffect(() => {
         let mounted = true;
         Network.getStatus().then(status => {
-            if (mounted) setIsOnline(status.connected);
+            if (mounted) {
+                setIsOnline(status.connected);
+                track('report.wizard_opened', { online: Boolean(status.connected) });
+            }
         });
         const listener = Network.addListener('networkStatusChange', status => {
             if (mounted) setIsOnline(status.connected);
@@ -44,21 +51,26 @@ function StepperContent() {
         };
     }, []);
 
+    useEffect(() => {
+        track('report.step_viewed', { step: currentStep });
+    }, [currentStep]);
+
     const ALL_STEPS: Record<FormStep, { label: string; icon: ReactNode }> = {
         dateTimeLocation: { label: t('rs_date_location'), icon: <MapPin className="w-4 h-4" /> },
         observationType: { label: t('rs_observation'), icon: <FileText className="w-4 h-4" /> },
         damage: { label: t('rs_damage_label'), icon: <AlertTriangle className="w-4 h-4" /> },
-        compassBearing: { label: t('rs_compass'), icon: <Compass className="w-4 h-4" /> },
         photo: { label: t('rs_photo'), icon: <Camera className="w-4 h-4" /> },
+        review: { label: t('rs_review'), icon: <ClipboardCheck className="w-4 h-4" /> },
     };
 
     const isFormDirty = () => {
-        return formData.observation_type !== null || 
-               formData.activity_date !== '' || 
-               formData.activity_time !== '' || 
-               formData.damage_description !== '' || 
+        return formData.observation_type !== null ||
+               formData.activity_date !== '' ||
+               formData.activity_time !== '' ||
+               formData.damage_description !== '' ||
                formData.damage_value !== null ||
-               formData.photo_url !== null;
+               formData.photo_url !== null ||
+               Boolean(formData.description);
     };
 
     const handleExitClick = () => {
@@ -78,83 +90,117 @@ function StepperContent() {
 
     const handleBottomBarCapture = async () => {
         const result = await takePhoto();
-        if (result) {
-            updateFormData({ photo_url: result.dataUrl });
-        }
+        if (!result) return;
+        const stamped = await stampPhotoWithMeta(result.dataUrl, {
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            activityDate: formData.activity_date,
+            activityTime: formData.activity_time,
+        });
+        updateFormData({ photo_url: stamped });
     };
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
         if (!profile?.id) {
-            setSubmitError('Your profile is not loaded. Please wait and try again.');
+            setSubmitError(t('report.profileNotLoaded'));
+            return;
+        }
+        if (!isStepValid('review') || !formData.photo_url || !isStepValid('dateTimeLocation')) {
+            setSubmitError(t('rv_incomplete'));
             return;
         }
         setIsSubmitting(true);
         setSubmitError(null);
         try {
-            const reportId = crypto.randomUUID();
+            const reportId = newUuid();
+            const notes = formData.description?.trim() || formData.notes || null;
+            const hasMedia = Boolean(formData.photo_url);
+            track('report.save_started', { has_media: hasMedia, online: isOnline, report_type: formData.observation_type ?? 'unknown' });
 
-            // 1. Save flat report to Dexie
             await db.reports.add({
                 id: reportId,
                 user_id: profile.id,
-                ...formData,
-                obs_id: crypto.randomUUID(),
+                activity_date: formData.activity_date,
+                activity_time: formData.activity_time,
+                latitude: formData.latitude,
+                longitude: formData.longitude,
+                observation_type: formData.observation_type,
+                compass_bearing: formData.compass_bearing,
+                photo_url: formData.photo_url,
+                damage_description: formData.damage_description,
+                damage_value: formData.damage_value,
+                report_damage_manually: formData.report_damage_manually,
+                obs_id: newUuid(),
                 male_count: formData.male_count || 0,
                 female_count: formData.female_count || 0,
                 calf_count: formData.calf_count || 0,
                 unknown_count: formData.unknown_count || 0,
-                indirect_sign_details: formData.indirect_sign_details || null,
-                conflict_loss_details: formData.conflict_loss_details || null,
-                loss_type: formData.loss_type || null,
-                division_id: profile?.division_id || null,
-                range_id: profile?.range_id || null,
-                beat_id: profile?.beat_id || null,
+                total_elephants: elephantTotal,
+                indirect_sign_details: formData.indirect_sign_details || [],
+                conflict_loss_details: formData.conflict_loss_details || [],
+                loss_type: formData.loss_type || [],
+                affected_people: formData.affected_people || 1,
+                division_id: formData.division_id || null,
+                range_id: formData.range_id || null,
+                beat_id: formData.beat_id || null,
+                notes,
                 device_timestamp: new Date().toISOString(),
                 sync_status: 'pending',
                 status: 'submitted',
             });
 
-            // 2. Save media if exists
             if (formData.photo_url) {
-                console.log('[ReportStepper] Attempting to save media for report:', reportId);
                 const match = formData.photo_url.match(/^data:([^;,]+)(?:;charset=[^;,]+)?;base64,([\s\S]+)$/);
-                if (match) {
-                    const mimeType = match[1].toLowerCase() === 'image/jpg' ? 'image/jpeg' : match[1].toLowerCase();
-                    const base64Data = match[2];
-                    
-                    try {
-                        await db.report_media.add({
-                            id: crypto.randomUUID(),
-                            report_id: reportId,
-                            mime_type: mimeType,
-                            file_data: base64Data,
-                            sync_status: 'pending'
-                        });
-                        console.log('[ReportStepper] Media saved to local Dexie store');
-                    } catch (dexieErr) {
-                        console.error('[ReportStepper] Failed to add media to Dexie:', dexieErr);
-                    }
-                } else {
-                    console.error('[ReportStepper] Failed to parse photo_url: invalid data URL format');
+                if (!match) {
+                    throw new Error('Invalid photo data. Please retake the photo and try again.');
+                }
+                const mimeType = match[1].toLowerCase() === 'image/jpg' ? 'image/jpeg' : match[1].toLowerCase();
+                const base64Data = match[2];
+                try {
+                    await db.report_media.add({
+                        id: newUuid(),
+                        report_id: reportId,
+                        mime_type: mimeType,
+                        file_data: base64Data,
+                        sync_status: 'pending'
+                    });
+                } catch (dexieErr) {
+                    logger.error('ReportStepper', 'Failed to add media to Dexie', dexieErr);
+                    // Roll back the report row so we never claim success without the required photo
+                    await db.reports.delete(reportId);
+                    throw new Error('Could not save photo on this device. Free some storage and try again.');
                 }
             }
 
             const net = await Network.getStatus();
             const online = Boolean(net.connected);
+            const reportType = formData.observation_type ?? 'unknown';
             setSubmittedOnline(online);
             setSubmitted(true);
             resetForm();
+            track('report.save_succeeded', {
+                report_type: reportType,
+                queued: !online,
+                online,
+                has_media: hasMedia,
+            });
+            // Wizard dashboard event name (keep in sync with PostHog Analytics basics)
+            track('activity_report_submitted', {
+                observation_type: reportType,
+                photo_attached: hasMedia,
+                submitted_online: online,
+            });
 
-            // Auto-sync immediately if online (manual home sync may then show 0 pending — expected)
             if (online) {
-                setTimeout(() => syncData().catch(console.error), 500);
+                setTimeout(() => syncData().catch((err) => logger.error('ReportStepper', 'Post-save sync failed', err)), 500);
             }
 
             setTimeout(() => navigate('/'), 2000);
         } catch (err) {
-            console.error('Failed to save report:', err);
-            setSubmitError(err instanceof Error ? err.message : 'Failed to save report. Please try again.');
+            logger.error('ReportStepper', 'Failed to save report', err, { online: isOnline });
+            track('report.save_failed', { error_code: 'save_exception', online: isOnline });
+            setSubmitError(err instanceof Error ? err.message : t('report.saveFailed'));
         } finally {
             setIsSubmitting(false);
         }
@@ -185,7 +231,6 @@ function StepperContent() {
                 onCancel={() => setShowExitWarning(false)}
             />
 
-            {/* Premium Header with Exit Button */}
             <header className="sticky top-0 z-50 px-4 py-4 flex items-center justify-between bg-background/80 backdrop-blur-xl border-b border-border/50">
                 <button
                     onClick={handleExitClick}
@@ -194,15 +239,12 @@ function StepperContent() {
                 >
                     <X className="w-5 h-5" />
                 </button>
-                <h1 className="text-sm font-bold text-foreground">{t('report_activity')}</h1>
+                <h1 className="text-sm font-bold text-foreground">{t('dashboard.reportAction')}</h1>
                 <div className="w-10" />
             </header>
 
-            {/* Main Content Area */}
             <div className="flex-1 space-y-6 pb-32 pt-6 max-w-2xl mx-auto w-full">
-                {/* Progress Header */}
                 <div className="space-y-6 px-4">
-                    {/* Animated Progress Bar */}
                     <div className="flex gap-2 max-w-md mx-auto">
                         {activeSteps.map((stepType, i) => (
                             <div key={stepType} className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -221,7 +263,6 @@ function StepperContent() {
                         ))}
                     </div>
 
-                    {/* Step Tabs Horizontal Scroll */}
                     <div className="flex justify-start md:justify-center">
                         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-4 mask-linear-fade">
                             {activeSteps.map((stepType, i) => {
@@ -246,7 +287,6 @@ function StepperContent() {
                     </div>
                 </div>
 
-                {/* Error Message */}
                 {submitError && (
                     <div className="px-4">
                         <motion.div
@@ -260,7 +300,6 @@ function StepperContent() {
                     </div>
                 )}
 
-                {/* Current Step Content */}
                 <div className="px-4">
                     <AnimatePresence mode="wait">
                         <motion.div
@@ -271,28 +310,27 @@ function StepperContent() {
                             transition={{ duration: 0.2 }}
                             className="bg-card/50 backdrop-blur-xl border border-border/50 rounded-3xl p-5 md:p-8 shadow-sm"
                         >
-                            {currentStep === 'dateTimeLocation' && <DateTimeLocationStep />}
+                            {currentStep === 'photo' && <PhotoStep />}
                             {currentStep === 'observationType' && <ObservationTypeStep />}
                             {currentStep === 'damage' && <DamageStep />}
-                            {currentStep === 'compassBearing' && <CompassBearingStep />}
-                            {currentStep === 'photo' && <PhotoStep />}
+                            {currentStep === 'dateTimeLocation' && <DateTimeLocationStep />}
+                            {currentStep === 'review' && <ReviewStep />}
                         </motion.div>
                     </AnimatePresence>
                 </div>
             </div>
 
-            {/* Sticky Bottom Navigation Bar (Thumb Zone Anchored) */}
             <div className="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6 pb-safe border-t border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
                 <div className="max-w-2xl mx-auto flex justify-between gap-4">
                     {currentStep === 'photo' && !formData.photo_url ? (
                         <>
                             <button
                                 type="button"
-                                onClick={handleSubmit}
-                                disabled={isSubmitting}
+                                onClick={goToPreviousStep}
+                                disabled={currentStepIndex === 0}
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
                             >
-                                {(isOnline ? t('rs_submit') : t('rs_submit_offline'))} (Skip)
+                                <ChevronLeft className="w-5 h-5" /> {t('back')}
                             </button>
                             <button
                                 type="button"
@@ -319,7 +357,7 @@ function StepperContent() {
                                 <button
                                     type="button"
                                     onClick={handleSubmit}
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || !isStepValid(currentStep)}
                                     className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-emerald-500 text-white text-sm font-bold shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
                                 >
                                     <CheckCircle2 className="w-5 h-5" />

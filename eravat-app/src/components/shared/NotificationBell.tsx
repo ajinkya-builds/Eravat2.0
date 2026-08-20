@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { track } from '../../lib/analytics';
 
 export function NotificationBell() {
     const { profile, user } = useAuth();
@@ -16,13 +17,16 @@ export function NotificationBell() {
     const { t } = useLanguage();
 
     useEffect(() => {
-        if (!profile || !user) return;
+        if (!user?.id || !profile) return;
 
         // Load initial notifications
         const loadNotifications = async () => {
-            const data = await NotificationService.getNotifications(20);
+            const [data, unread] = await Promise.all([
+                NotificationService.getNotifications(20),
+                NotificationService.getUnreadCount(),
+            ]);
             setNotifications(data);
-            setUnreadCount(data.filter(n => !n.is_read).length);
+            setUnreadCount(unread);
         };
 
         loadNotifications();
@@ -43,7 +47,7 @@ export function NotificationBell() {
             // Clean up subscription
             channel.unsubscribe();
         };
-    }, [profile, user]);
+    }, [user?.id, profile?.id]);
 
     useEffect(() => {
         // Close dropdown on click outside
@@ -70,19 +74,19 @@ export function NotificationBell() {
                 prev.map(n => n.id === id ? { ...n, is_read: true } : n)
             );
             setUnreadCount(prev => Math.max(0, prev - 1));
+            track('notification_marked_read');
         }
     };
 
     const handleMarkAllAsRead = async () => {
         if (!user) return;
-        
-        const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
-        if (unreadIds.length === 0) return;
-        
-        const success = await NotificationService.markAllAsRead(unreadIds);
+        if (unreadCount === 0) return;
+
+        const success = await NotificationService.markAllUnreadForCurrentUser();
         if (success) {
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
             setUnreadCount(0);
+            track('notifications_marked_read', { notification_count: unreadCount });
         }
     };
 
@@ -103,6 +107,8 @@ export function NotificationBell() {
     return (
         <div className="relative z-50" ref={dropdownRef}>
             <button
+                type="button"
+                aria-label="Notifications"
                 onClick={() => setIsOpen(!isOpen)}
                 className="relative p-2 rounded-full hover:bg-muted/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20"
             >

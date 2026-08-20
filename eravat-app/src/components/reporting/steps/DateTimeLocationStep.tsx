@@ -2,40 +2,35 @@ import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, MapPin, RefreshCw, Loader2 } from 'lucide-react';
 import { useActivityForm } from '../../../contexts/ActivityFormContext';
-import { useGeolocation } from '../../../hooks/useGeolocation';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { formatLatLngDms } from '../../../lib/geoFormat';
+import { TerritorySelect } from '../../shared/TerritorySelect';
 
 export function DateTimeLocationStep() {
-    const { formData, updateFormData } = useActivityForm();
-    const { fetchLocation, loading: gpsLoading, error: gpsError } = useGeolocation();
+    const { formData, updateFormData, gpsLoading, gpsError, refreshLocation } = useActivityForm();
     const { t } = useLanguage();
+    const { profile } = useAuth();
 
     const handleAutofill = async () => {
-        // Set current date and time
-        const now = new Date();
-        const date = now.toISOString().split('T')[0];
-        const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-
-        // Only override if they are empty
-        if (!formData.activity_date) updateFormData({ activity_date: date });
-        if (!formData.activity_time) updateFormData({ activity_time: time });
-
-        // Get GPS only if not already filled
-        if (formData.latitude == null || formData.longitude == null) {
-            const pos = await fetchLocation();
-            if (pos) {
-                updateFormData({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-            }
-        }
+        await refreshLocation('retry');
     };
 
-    // Auto-trigger on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // GPS lookup fills Division/Range/Beat. Only fall back to the user's assigned
+    // territory when there is still no GPS match.
     useEffect(() => {
-        if (formData.latitude == null || !formData.activity_date) {
-            handleAutofill();
-        }
-    }, []);
+        if (!profile) return;
+        if (formData.latitude != null && formData.longitude != null) return;
+        if (formData.division_id || formData.range_id || formData.beat_id) return;
+        updateFormData({
+            division_id: profile.division_id ?? null,
+            range_id: profile.range_id ?? null,
+            beat_id: profile.beat_id ?? null,
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profile?.id, formData.latitude, formData.longitude]);
+
+    const locationBlocked = Boolean(gpsError) && formData.latitude == null;
 
     return (
         <motion.div
@@ -55,40 +50,48 @@ export function DateTimeLocationStep() {
                 </button>
             </div>
 
+            {locationBlocked && (
+                <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+                    {t('dtl_location_required')}
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Date */}
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                         <Clock className="w-4 h-4 text-muted-foreground" />
                         {t('dtl_date')} <span className="text-destructive">*</span>
                     </label>
-                    <input
-                        type="date"
-                        value={formData.activity_date}
-                        max={new Date().toISOString().split('T')[0]}
-                        onChange={e => updateFormData({ activity_date: e.target.value })}
-                        className="w-full px-4 py-3.5 rounded-2xl bg-muted/30 border-2 border-border/50 text-base font-medium focus:outline-none focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all"
-                        required
-                    />
+                    <div className="w-full px-4 py-3.5 rounded-2xl bg-muted/50 border-2 border-border/50 text-base font-medium text-foreground">
+                        {formData.activity_date || '—'}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t('dtl_auto_locked')}</p>
                 </div>
 
-                {/* Time */}
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                         <Clock className="w-4 h-4 text-muted-foreground" />
                         {t('dtl_time')} <span className="text-destructive">*</span>
                     </label>
-                    <input
-                        type="time"
-                        value={formData.activity_time}
-                        onChange={e => updateFormData({ activity_time: e.target.value })}
-                        className="w-full px-4 py-3.5 rounded-2xl bg-muted/30 border-2 border-border/50 text-base font-medium focus:outline-none focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all"
-                        required
-                    />
+                    <div className="w-full px-4 py-3.5 rounded-2xl bg-muted/50 border-2 border-border/50 text-base font-medium text-foreground">
+                        {formData.activity_time || '—'}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t('dtl_auto_locked')}</p>
                 </div>
             </div>
 
-            {/* Location */}
+            <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                    {t('dtl_dms_location')}
+                </label>
+                <div className="w-full px-4 py-3 rounded-2xl bg-muted/40 border border-border text-sm font-mono">
+                    {formData.latitude != null && formData.longitude != null
+                        ? formatLatLngDms(formData.latitude, formData.longitude)
+                        : '—'}
+                </div>
+            </div>
+
             <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -124,7 +127,15 @@ export function DateTimeLocationStep() {
                 </div>
                 {gpsError && (
                     <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                        ⚠ {gpsError}
+                        ⚠ {gpsError === 'LOCATION_PERMISSION_DENIED'
+                            ? t('geo_err_denied')
+                            : gpsError === 'LOCATION_UNAVAILABLE'
+                              ? t('geo_err_unavailable')
+                              : gpsError === 'LOCATION_TIMEOUT'
+                                ? t('geo_err_timeout')
+                                : gpsError === 'LOCATION_UNSUPPORTED'
+                                  ? t('geo_err_unsupported')
+                                  : t('geo_err_failed')}
                     </p>
                 )}
                 {formData.latitude != null && formData.longitude != null && (
@@ -133,6 +144,19 @@ export function DateTimeLocationStep() {
                     </p>
                 )}
             </div>
+
+            <TerritorySelect
+                value={{
+                    division_id: formData.division_id,
+                    range_id: formData.range_id,
+                    beat_id: formData.beat_id,
+                }}
+                latitude={formData.latitude}
+                longitude={formData.longitude}
+                includeBeat
+                required={false}
+                onChange={(next) => updateFormData(next)}
+            />
         </motion.div>
     );
 }

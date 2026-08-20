@@ -1,3 +1,4 @@
+import './lib/legacyPolyfills'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { defineCustomElements } from '@ionic/pwa-elements/loader';
@@ -6,7 +7,10 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import './index.css'
 import App from './App.tsx'
 import { AppErrorBoundary } from './components/AppErrorBoundary.tsx'
+import { initPostHog } from './lib/posthogClient'
+import { logger } from './lib/logger'
 
+initPostHog();
 defineCustomElements(window);
 
 async function configureNativeChrome() {
@@ -16,7 +20,7 @@ async function configureNativeChrome() {
     await StatusBar.setStyle({ style: Style.Dark });
     await StatusBar.setBackgroundColor({ color: '#ffffff' });
   } catch (err) {
-    console.warn('[StatusBar] configure failed', err);
+    logger.warn('StatusBar', 'configure failed', { error: String(err) });
   }
 }
 

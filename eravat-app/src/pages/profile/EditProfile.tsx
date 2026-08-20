@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../supabase';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { LocationFields } from '../../components/profile/LocationFields';
+import { track } from '../../lib/analytics';
 
 export default function EditProfile() {
     const navigate = useNavigate();
@@ -52,6 +53,13 @@ export default function EditProfile() {
             if (error) throw error;
 
             await refreshProfile();
+            track('profile_updated', {
+                name_changed:
+                    firstName.trim() !== profile.first_name || lastName.trim() !== profile.last_name,
+                location_changed:
+                    location.latitude !== (profile.latitude ?? null) ||
+                    location.longitude !== (profile.longitude ?? null),
+            });
             setMessage({ type: 'success', text: t('profile.updateSuccess') });
 
             // Auto close after 2 seconds on success

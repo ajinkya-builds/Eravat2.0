@@ -87,7 +87,7 @@ test.describe('Settings Module', () => {
 
         await ensureOnPage(page, '/');
         await expect(
-            page.getByText(/गतिविधि|रिपोर्ट|डैशबोर्ड|डॅशबोर्ड|Report Activity/i).first(),
+            page.getByText(/साइटिंग|रिपोर्ट|डैशबोर्ड|डॅशबोर्ड|Add Sighting/i).first(),
         ).toBeVisible({ timeout: 30_000 });
 
         // Restore English

@@ -8,6 +8,7 @@ import {
     type GeoDivision,
 } from '../services/adminAnalyticsService';
 import { useAuth } from '../contexts/AuthContext';
+import { trackFailed } from '../lib/analytics';
 
 const DIVISION_SCOPED_ROLES = new Set(['dfo', 'range_officer']);
 
@@ -37,6 +38,7 @@ export function useAdminFilters(defaultDays = 30) {
             setDivisions(data);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load divisions');
+            trackFailed('admin.load_divisions', 'fetch_failed', { screen: 'admin' });
         }
     }, []);
 
@@ -48,13 +50,21 @@ export function useAdminFilters(defaultDays = 30) {
             setReports(data);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load reports');
+            trackFailed('admin.apply_filters', 'fetch_failed', { screen: 'admin' });
         } finally {
             setLoading(false);
         }
     }, [filters]);
 
     useEffect(() => { void loadDivisions(); }, [loadDivisions]);
-    useEffect(() => { void loadReports(); }, [loadReports]);
+
+    // Wait for DFO/RO profile territory before first fetch so we never flash unscoped data
+    useEffect(() => {
+        if (!profile) return;
+        if (DIVISION_SCOPED_ROLES.has(profile.role) && !profile.division_id) return;
+        if (DIVISION_SCOPED_ROLES.has(profile.role) && !filters.divisionId) return;
+        void loadReports();
+    }, [loadReports, profile, filters.divisionId]);
 
     return {
         divisions,

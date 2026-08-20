@@ -78,8 +78,19 @@ beyond Test OTP numbers.
 
 1. Uninstall any previous **debug** APK (signature change).
 2. Install signed release APK (`versionName 2.0.0` / `versionCode 2`).
-3. Login with pilot phone + OTP `123456` → set 4-digit PIN.
+3. Login with pilot phone + OTP `123456` (OTP-only — local PIN lock was removed from current app builds).
 4. Airplane mode: create report + optional photo → reconnect → Dashboard sync → confirm rows in `reports` / Storage.
 5. Deny location permission → enter lat/lng manually → submit.
-6. Cold start after unlock session → PIN unlock still works.
-7. Known gaps to brief pilots: biometrics stub, no push, Hindi/Marathi incomplete, photo compression setting display-only.
+6. Cold start → session restores or re-login with OTP.
+7. Known gaps to brief pilots: biometrics stub, no push without `google-services.json`, Hindi/Marathi incomplete, photo compression setting display-only.
+
+## Production readiness gate (2026-08-17 audit)
+
+**Do not ship a production APK until all of the following are true:**
+
+1. Prod project `mnytrlcmdpkfhrzrtesf` has pilot `auth.users` + `profiles` + territory assignments (currently **0** users after wipe).
+2. Staging Aug migrations that matter for life-safety alerts are promoted — especially chain notify recipients (`beat_guard` / `rrt`) from `geo_notify_staff_and_villagers` (present on staging, **absent** on prod).
+3. Real SMS / DLT provider enabled **or** explicitly limited to Dashboard Test OTP phones with written pilot scope.
+4. Release APK includes `google-services.json` if push is required for RRT response; otherwise brief pilots that alerts are in-app only.
+5. Legacy JWT `service_role` keys revoked (see top of this doc).
+6. Manual smoke: offline report + photo sync, map pins for a known beat, chain notification to RO/DFO after a new sighting.

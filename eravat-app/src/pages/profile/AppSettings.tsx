@@ -1,108 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, Smartphone, Wifi, Globe, Map, Languages, Bell, Radio, MapPin, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ArrowLeft, Moon, Sun, Smartphone, Map, Languages } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../supabase';
-
-// ── Proximity radius helpers ──────────────────────────────────────────────────
-const MIN_KM = 1, MAX_KM = 100, DEBOUNCE_MS = 800;
-type SaveState = 'idle' | 'saving' | 'saved' | 'error';
-function clamp(v: number) { return Math.min(MAX_KM, Math.max(MIN_KM, v)); }
-
-function RadiusSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-    const { t } = useLanguage();
-    const pct = ((value - MIN_KM) / (MAX_KM - MIN_KM)) * 100;
-    return (
-        <div className="space-y-3">
-            <div className="relative h-2 rounded-full bg-muted overflow-visible">
-                <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-emerald-400 transition-all duration-150" style={{ width: `${pct}%` }} />
-                <input id="radius-slider" type="range" min={MIN_KM} max={MAX_KM} step={1} value={value}
-                    onChange={e => onChange(Number(e.target.value))}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" aria-label="Alert radius in kilometres" />
-                <div className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white border-2 border-primary shadow-lg shadow-primary/30 transition-all duration-150 pointer-events-none"
-                    style={{ left: `calc(${pct}% - 10px)` }} />
-            </div>
-            <div className="flex justify-between text-xs text-muted-foreground select-none">
-                <span>{MIN_KM} {t('km')}</span><span>{MAX_KM} {t('km')}</span>
-            </div>
-        </div>
-    );
-}
-
-function SaveIndicator({ state }: { state: SaveState }) {
-    const { t } = useLanguage();
-    if (state === 'idle') return null;
-    const config = {
-        saving: { icon: <Loader2 size={14} className="animate-spin" />, text: t('saving'), cls: 'text-primary' },
-        saved:  { icon: <CheckCircle size={14} />, text: t('saved'), cls: 'text-emerald-500' },
-        error:  { icon: <AlertCircle size={14} />, text: t('save_failed'), cls: 'text-destructive' },
-    }[state];
-    return <motion.span key={state} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-        className={`flex items-center gap-1 text-xs font-medium ${config.cls}`}>{config.icon}{config.text}</motion.span>;
-}
-
-function RadiusPreview({ km }: { km: number }) {
-    const { t } = useLanguage();
-    const r = 30 + (km / MAX_KM) * 90;
-    return (
-        <div className="relative mx-auto flex items-center justify-center" style={{ width: 220, height: 220 }} aria-hidden>
-            {[1, 0.65, 0.35].map((scale, i) => (
-                <div key={i} className="absolute rounded-full border border-primary/20 bg-primary/5 transition-all duration-500"
-                    style={{ width: r * 2 * scale, height: r * 2 * scale }} />
-            ))}
-            <div className="relative z-10 flex flex-col items-center gap-1">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-emerald-400 shadow-lg shadow-primary/40 flex items-center justify-center">
-                    <MapPin size={14} className="text-white" />
-                </div>
-                <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{km} {t('km')}</span>
-            </div>
-        </div>
-    );
-}
 
 export default function AppSettings() {
-    const { user, profile } = useAuth();
     const { t, language: globalLanguage, setLanguage: setGlobalLanguage } = useLanguage();
     const { theme, setTheme } = useTheme();
-
-    // ── Proximity radius state ────────────────────────────────────────────────
-    const [radius, setRadius] = useState<number>(profile?.notification_radius_km ?? 10);
-    const [saveState, setSaveState] = useState<SaveState>('idle');
-    const radiusHydrated = useRef(false);
-
-    useEffect(() => {
-        const r = profile?.notification_radius_km;
-        if (typeof r === 'number') {
-            setRadius(r);
-            radiusHydrated.current = false;
-        }
-    }, [profile]);
-
-    const persist = useCallback(async (newRadius: number) => {
-        if (!user?.id) return;
-        setSaveState('saving');
-        const { error } = await supabase.from('profiles').update({ notification_radius_km: newRadius }).eq('id', user.id);
-        setSaveState(error ? 'error' : 'saved');
-        setTimeout(() => setSaveState('idle'), 2500);
-    }, [user?.id]);
-
-    useEffect(() => {
-        if (!radiusHydrated.current) {
-            radiusHydrated.current = true;
-            return;
-        }
-        const timer = setTimeout(() => persist(radius), DEBOUNCE_MS);
-        return () => clearTimeout(timer);
-    }, [radius, persist]);
-
-    const handleRadiusChange = (v: number) => { setRadius(clamp(v)); setSaveState('idle'); };
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const parsed = parseInt(e.target.value, 10);
-        if (!isNaN(parsed)) handleRadiusChange(parsed);
-    };
     const navigate = useNavigate();
 
     // Load from local storage synchronously
@@ -110,22 +14,25 @@ export default function AppSettings() {
         try {
             const saved = localStorage.getItem('eravat_app_settings');
             if (saved) return JSON.parse(saved);
-        } catch (e) { }
+        } catch { /* ignore malformed settings */ }
         return {};
     };
 
     const initial = getInitialState();
 
-    // Local state for settings.
-    const [autoSync, setAutoSync] = useState(initial.autoSync !== undefined ? initial.autoSync : true);
-    const [wifiOnly, setWifiOnly] = useState(initial.wifiOnly !== undefined ? initial.wifiOnly : false);
     const [mapStyle, setMapStyle] = useState<'terrain' | 'satellite'>(initial.mapStyle || 'terrain');
 
-    // Persist sync/map prefs (theme via ThemeContext; language via LanguageContext)
+    // Persist map prefs (theme via ThemeContext; language via LanguageContext).
+    // Auto-sync is always on and uploads as soon as connectivity returns, so it
+    // no longer has a user toggle; likewise "Wi-Fi only" was removed to avoid
+    // field staff accidentally blocking uploads.
     useEffect(() => {
-        const settings = { autoSync, wifiOnly, mapStyle };
+        const settings = { ...initial, mapStyle };
+        delete settings.autoSync;
+        delete settings.wifiOnly;
         localStorage.setItem('eravat_app_settings', JSON.stringify(settings));
-    }, [autoSync, wifiOnly, mapStyle]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mapStyle]);
 
     return (
         <div className="min-h-screen bg-background pb-[80px]">
@@ -157,6 +64,8 @@ export default function AppSettings() {
                                 <button
                                     type="button"
                                     data-testid="theme-light"
+                                    data-ph-action="settings.theme.light"
+                                    data-ph-screen="settings"
                                     onClick={() => setTheme('light')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'light' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                                 >
@@ -165,6 +74,8 @@ export default function AppSettings() {
                                 <button
                                     type="button"
                                     data-testid="theme-dark"
+                                    data-ph-action="settings.theme.dark"
+                                    data-ph-screen="settings"
                                     onClick={() => setTheme('dark')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'dark' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                                 >
@@ -173,6 +84,8 @@ export default function AppSettings() {
                                 <button
                                     type="button"
                                     data-testid="theme-system"
+                                    data-ph-action="settings.theme.system"
+                                    data-ph-screen="settings"
                                     onClick={() => setTheme('system')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'system' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                                 >
@@ -190,6 +103,8 @@ export default function AppSettings() {
                             </div>
                             <select
                                 data-testid="language-select"
+                                data-ph-filter="settings.language"
+                                data-ph-screen="settings"
                                 value={globalLanguage}
                                 onChange={(e) => setGlobalLanguage(e.target.value as 'en' | 'hi' | 'mr')}
                                 className="bg-background border border-border rounded-lg px-2 py-1 text-sm outline-none"
@@ -202,46 +117,8 @@ export default function AppSettings() {
                     </div>
                 </div>
 
-                {/* Offline Sync Behavior */}
-                <div className="space-y-3 animate-fade-in" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
-                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t('offline_sync')}</h2>
-                    <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
-                        <label className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/20 transition-colors">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
-                                    <Globe size={18} />
-                                </div>
-                                <div>
-                                    <div className="font-medium">{t('user_auto_sync')}</div>
-                                    <div className="text-xs text-muted-foreground mt-0.5">{t('user_auto_sync_desc')}</div>
-                                </div>
-                            </div>
-                            <div className="relative inline-block w-12 h-6 align-middle select-none">
-                                <input type="checkbox" className="toggle-checkbox peer absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer z-10" checked={autoSync} onChange={(e) => setAutoSync(e.target.checked)} />
-                                <label className="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer bg-muted peer-checked:bg-primary transition-colors"></label>
-                            </div>
-                        </label>
-
-                        <label className={`p-4 flex items-center justify-between transition-colors ${!autoSync ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-muted/20'}`}>
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500">
-                                    <Wifi size={18} />
-                                </div>
-                                <div>
-                                    <div className="font-medium">{t('wifi_only')}</div>
-                                    <div className="text-xs text-muted-foreground mt-0.5">{t('wifi_desc')}</div>
-                                </div>
-                            </div>
-                            <div className="relative inline-block w-12 h-6 align-middle select-none">
-                                <input type="checkbox" className="toggle-checkbox peer absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer z-10" checked={wifiOnly} onChange={(e) => setWifiOnly(e.target.checked)} />
-                                <label className="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer bg-muted peer-checked:bg-primary transition-colors"></label>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
                 {/* Map Settings */}
-                <div className="space-y-3 animate-fade-in" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
+                <div className="space-y-3 animate-fade-in" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
                     <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t('map_options')}</h2>
                     <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
                         <div className="p-4 flex items-center justify-between">
@@ -252,54 +129,16 @@ export default function AppSettings() {
                                 <span className="font-medium">{t('map_style')}</span>
                             </div>
                             <select
+                                data-ph-filter="settings.map_style"
+                                data-ph-screen="settings"
                                 value={mapStyle}
-                                onChange={(e) => setMapStyle(e.target.value as any)}
+                                onChange={(e) => setMapStyle(e.target.value as 'terrain' | 'satellite')}
                                 className="bg-background border border-border rounded-lg px-2 py-1 text-sm outline-none"
                             >
                                 <option value="terrain">{t('terrain')}</option>
                                 <option value="satellite">{t('satellite')}</option>
                             </select>
                         </div>
-                    </div>
-                </div>
-
-                {/* Proximity Alert Radius */}
-                <div className="space-y-3 animate-fade-in" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
-                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t('user_notifications')}</h2>
-                    <div className="glass-card rounded-2xl p-5 space-y-5">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-primary/10 text-primary"><Bell size={18} /></div>
-                            <div>
-                                <div className="font-medium">{t('proximity_alert_radius')}</div>
-                                <div className="text-xs text-muted-foreground mt-0.5">{t('proximity_desc')}</div>
-                            </div>
-                        </div>
-
-                        <RadiusPreview km={radius} />
-
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <label htmlFor="radius-slider" className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                    <Radio size={15} className="text-primary" />
-                                    {t('user_alert_radius')}
-                                </label>
-                                <div className="flex items-center gap-2">
-                                    <SaveIndicator state={saveState} />
-                                    <div className="flex items-center gap-1 bg-primary/10 rounded-xl px-3 py-1">
-                                        <input type="number" min={MIN_KM} max={MAX_KM} value={radius} onChange={handleInputChange}
-                                            className="w-10 bg-transparent text-center text-sm font-bold text-primary focus:outline-none"
-                                            aria-label="Alert radius value" />
-                                        <span className="text-xs font-semibold text-primary/70">{t('km')}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <RadiusSlider value={radius} onChange={handleRadiusChange} />
-                        </div>
-
-                        <p className="text-xs text-muted-foreground leading-relaxed bg-muted/50 rounded-2xl px-4 py-3 border border-border/50">
-                            {t('radius_note')}{' '}
-                            <span className="font-semibold text-foreground">{radius} {t('km')}</span> {t('radius_note_suffix_user')}
-                        </p>
                     </div>
                 </div>
 

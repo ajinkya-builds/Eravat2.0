@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { syncData } from '../syncService';
+import { syncData, buildReportUpsertRow } from '../syncService';
 import { db } from '../../db';
 import { supabase } from '../../supabase';
 
@@ -127,6 +127,51 @@ describe('SyncService', () => {
     });
   });
 
+  it('maps direct observation with damage to conflict_loss type', async () => {
+    (db.reports.where as any).mockReturnValueOnce({
+      anyOf: vi.fn(() => ({
+        toArray: vi.fn().mockResolvedValue([{
+          id: 'report-uuid-damage',
+          user_id: 'test-user-id',
+          beat_id: 'beat-uuid-1',
+          device_timestamp: new Date().toISOString(),
+          latitude: 21.5,
+          longitude: 80.5,
+          notes: null,
+          observation_type: 'direct',
+          male_count: 1,
+          female_count: 0,
+          calf_count: 0,
+          unknown_count: 0,
+          compass_bearing: 90,
+          indirect_sign_details: [],
+          conflict_loss_details: ['crop'],
+          loss_type: ['crop'],
+          sync_status: 'pending',
+        }]),
+      })),
+    });
+
+    (db.report_media.where as any).mockReturnValueOnce({
+      equals: vi.fn(() => ({
+        toArray: vi.fn().mockResolvedValue([]),
+      })),
+    });
+
+    await syncData();
+
+    const observationsPayload = mockUpsert.mock.calls
+      .map(([payload]) => payload)
+      .find((p) => p && !Array.isArray(p) && p.report_id === 'report-uuid-damage' && p.type === 'conflict_loss');
+
+    expect(observationsPayload).toBeDefined();
+    expect(observationsPayload).toMatchObject({
+      report_id: 'report-uuid-damage',
+      type: 'conflict_loss',
+      conflict_loss_details: ['crop'],
+    });
+  });
+
   it('sends conflict_loss_details to observations for loss reports', async () => {
     (db.reports.where as any).mockReturnValueOnce({
       anyOf: vi.fn(() => ({
@@ -218,6 +263,77 @@ describe('SyncService', () => {
       category: 'crop',
       description: 'Custom crop damage detail text',
       estimated_value: 5000,
+      affected_people: 1,
     });
+  });
+
+  it('maps human injury/death to enum categories and people counts', async () => {
+    (db.reports.where as any).mockReturnValueOnce({
+      anyOf: vi.fn(() => ({
+        toArray: vi.fn().mockResolvedValue([{
+          id: 'report-uuid-4',
+          user_id: 'test-user-id',
+          beat_id: 'beat-uuid-1',
+          device_timestamp: new Date().toISOString(),
+          latitude: 21.5,
+          longitude: 80.5,
+          notes: null,
+          observation_type: 'loss',
+          male_count: 0,
+          female_count: 0,
+          calf_count: 0,
+          unknown_count: 0,
+          compass_bearing: null,
+          indirect_sign_details: [],
+          conflict_loss_details: ['human_injury'],
+          loss_type: ['human_injury'],
+          affected_people: 2,
+          sync_status: 'pending',
+        }]),
+      })),
+    });
+
+    (db.report_media.where as any).mockReturnValueOnce({
+      equals: vi.fn(() => ({
+        toArray: vi.fn().mockResolvedValue([]),
+      })),
+    });
+
+    await syncData();
+
+    const damagesPayload = mockUpsert.mock.calls
+      .map(([payload]) => payload)
+      .find((p) => Array.isArray(p) && p.length > 0 && p[0]?.report_id === 'report-uuid-4');
+
+    expect(damagesPayload[0]).toMatchObject({
+      report_id: 'report-uuid-4',
+      category: 'human_injury',
+      affected_people: 2,
+    });
+  });
+});
+
+describe('buildReportUpsertRow', () => {
+  const base = {
+    id: 'report-uuid-gps',
+    user_id: 'test-user-id',
+    device_timestamp: '2026-08-18T11:18:58.762Z',
+    latitude: 24.1540533333333,
+    longitude: 81.3209016666667,
+    notes: 'offline gps only',
+  };
+
+  it('omits beat_id when unset so assign_report_geography can fill from GPS', () => {
+    const row = buildReportUpsertRow({ ...base, beat_id: null });
+    expect(row).toMatchObject({
+      id: 'report-uuid-gps',
+      location: 'SRID=4326;POINT(81.3209016666667 24.1540533333333)',
+    });
+    expect(row).not.toHaveProperty('beat_id');
+  });
+
+  it('keeps an explicit beat_id when the user confirmed territory', () => {
+    const row = buildReportUpsertRow({ ...base, beat_id: 'beat-uuid-1' });
+    expect(row.beat_id).toBe('beat-uuid-1');
   });
 });

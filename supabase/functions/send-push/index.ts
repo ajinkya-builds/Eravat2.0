@@ -109,6 +109,19 @@ function isAuthorized(req: Request): boolean {
     return true
   }
 
+  // Accept signed service-role JWT (Supabase CLI / pg_net / functions.invoke)
+  if (bearer.includes('.')) {
+    try {
+      const payload = JSON.parse(atob(bearer.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+      const projectRef = (Deno.env.get('SUPABASE_URL') ?? '').match(/https:\/\/([^.]+)\./)?.[1]
+      if (payload.role === 'service_role' && (!projectRef || payload.ref === projectRef)) {
+        return true
+      }
+    } catch {
+      /* not a JWT */
+    }
+  }
+
   const headerSecret = req.headers.get('X-Push-Webhook-Secret') ?? ''
   return Boolean(webhookSecret && headerSecret === webhookSecret)
 }

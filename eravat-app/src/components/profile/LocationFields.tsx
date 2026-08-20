@@ -45,7 +45,19 @@ export function LocationFields({ value, onChange, required = true }: LocationFie
         {t('profile.captureGps')}
       </button>
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && (
+        <p className="text-xs text-destructive">
+          {error === 'LOCATION_PERMISSION_DENIED'
+            ? t('geo_err_denied')
+            : error === 'LOCATION_UNAVAILABLE'
+              ? t('geo_err_unavailable')
+              : error === 'LOCATION_TIMEOUT'
+                ? t('geo_err_timeout')
+                : error === 'LOCATION_UNSUPPORTED'
+                  ? t('geo_err_unsupported')
+                  : t('geo_err_failed')}
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <div>

@@ -1,17 +1,23 @@
 # Manual smoke checklist (Eravat 2.0)
 
+> **Superseded by** [`GO_LIVE_CERTIFICATION.md`](./GO_LIVE_CERTIFICATION.md) for go-live validation.
+> Run automation: `cd eravat-app && npm run test:certify:quick`
+
+Base URL (staging): https://eravat.netlify.app  
 Base URL (local): `http://localhost:5173/Eravat2.0/`
 
-## Credentials (E2E)
+## Credentials (UAT OTP)
 
-| Role | Phone | Password |
-|------|-------|----------|
-| Beat guard | 8899776655 | pass123 |
-| Admin | 9988775566 | P@ss123 |
+Use `Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json` — OTP pattern `48` + last 4 digits of phone.
+
+| Role | Example phone | OTP |
+|------|---------------|-----|
+| Beat guard | 9752458789 | 488789 |
+| Admin | 9545893779 | 483779 |
 
 ## Flows
 
-- [ ] Login (password) → dashboard
+- [ ] Login (OTP) → dashboard
 - [ ] Dashboard → Report Activity (step 1 visible)
 - [ ] Map loads
 - [ ] Profile → Edit profile

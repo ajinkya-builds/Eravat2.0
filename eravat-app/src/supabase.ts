@@ -37,8 +37,19 @@ if (import.meta.env.DEV && disableAutoRefresh) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    persistSession: false,
+    // Persist the session so OTP login lasts until the user explicitly signs out.
+    persistSession: true,
     autoRefreshToken: !disableAutoRefresh,
     detectSessionInUrl: true,
+  },
+  global: {
+    fetch: (input, init = {}) => {
+      const headers = new Headers(init.headers);
+      const prefer = headers.get('Prefer') ?? '';
+      if (!/count=/.test(prefer)) {
+        headers.set('Prefer', prefer ? `${prefer},count=none` : 'count=none');
+      }
+      return fetch(input, { ...init, headers });
+    },
   },
 });

@@ -59,6 +59,9 @@ export function AdminFilterBar({
                 <select
                     className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
                     value={filters.divisionId ?? ''}
+                    data-ph-filter="admin.division"
+                    data-ph-value-mode="presence"
+                    data-ph-screen="admin"
                     onChange={(e) => onChange({ ...filters, divisionId: e.target.value || null })}
                 >
                     <option value="">{t('admin.filters.allDivisions')}</option>
@@ -73,6 +76,8 @@ export function AdminFilterBar({
                     type="date"
                     className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
                     value={format(filters.startDate, 'yyyy-MM-dd')}
+                    data-ph-filter="admin.start_date"
+                    data-ph-screen="admin"
                     onChange={(e) => onChange({ ...filters, startDate: new Date(e.target.value) })}
                 />
             </label>
@@ -82,11 +87,15 @@ export function AdminFilterBar({
                     type="date"
                     className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
                     value={format(filters.endDate, 'yyyy-MM-dd')}
+                    data-ph-filter="admin.end_date"
+                    data-ph-screen="admin"
                     onChange={(e) => onChange({ ...filters, endDate: new Date(e.target.value) })}
                 />
             </label>
             <button
                 type="button"
+                data-ph-action="admin.apply_filters"
+                data-ph-screen="admin"
                 onClick={onApply}
                 disabled={loading}
                 className="rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold disabled:opacity-60"

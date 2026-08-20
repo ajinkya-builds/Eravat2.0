@@ -7,10 +7,9 @@ test.describe('Authentication', () => {
     await page.waitForLoadState('networkidle');
   });
 
-  test('should display translation properly on Login screen', async ({ page }) => {
-    // Check that the Hindi translation renders successfully. We give it 30s to allow Vite to build on the first run.
-    await expect(page.locator('text=जंगली हाथी निगरानी प्रणाली (2025)')).toBeVisible({ timeout: 30000 });
-  });
+    test('should display Eravat 2.0 branding on Login screen', async ({ page }) => {
+        await expect(page.getByRole('heading', { name: 'Eravat 2.0' })).toBeVisible({ timeout: 30000 });
+    });
 
   test('should show validation error for short phone number', async ({ page }) => {
     // Fill the phone number heavily under the 10 digit requirement

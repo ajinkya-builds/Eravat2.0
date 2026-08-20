@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
-import { ShieldCheck, History, User, Activity, CloudOff, RefreshCw, ChevronRight, UserPlus, MapPin, Loader2 } from 'lucide-react';
-import { canOnboardVolunteers } from '../lib/rbac';
+import { ShieldCheck, History, Activity, CloudOff, RefreshCw, ChevronRight, UserPlus, Users, Navigation } from 'lucide-react';
+import { canOnboardVolunteers, canOnboardVillagers, canReadVillagers } from '../lib/rbac';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { syncData } from '../services/syncService';
@@ -10,28 +10,16 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
-import { QuickSOSButton } from '../components/shared/QuickSOSButton';
 import { Network } from '@capacitor/network';
-import { supabase } from '../supabase';
-import { formatDistanceToNow } from 'date-fns';
-
-type RecentSighting = {
-    id: string;
-    device_timestamp: string;
-    beat_name?: string | null;
-    obs_type?: string | null;
-    elephant_total: number;
-};
+import { trackClick, trackFailed } from '../lib/analytics';
 
 export default function Dashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const navigate = useNavigate();
-    const { profile, user } = useAuth();
+    const { profile } = useAuth();
     const { t } = useLanguage();
     const [isOnline, setIsOnline] = useState(true);
-    const [recentSightings, setRecentSightings] = useState<RecentSighting[]>([]);
-    const [recentLoading, setRecentLoading] = useState(true);
 
     useEffect(() => {
         let isMounted = true;
@@ -63,51 +51,6 @@ export default function Dashboard() {
         };
     }, []);
 
-    useEffect(() => {
-        if (!user?.id) return;
-        let cancelled = false;
-        const loadRecent = async () => {
-            setRecentLoading(true);
-            const { data, error } = await supabase
-                .from('reports')
-                .select(`
-                    id,
-                    device_timestamp,
-                    geo_beats ( name ),
-                    observations ( type, male_count, female_count, calf_count, unknown_count )
-                `)
-                .order('device_timestamp', { ascending: false })
-                .limit(8);
-
-            if (cancelled) return;
-            if (error) {
-                console.error('[Dashboard] recent sightings', error);
-                setRecentSightings([]);
-            } else {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const rows: RecentSighting[] = (data || []).map((r: any) => {
-                    const obs = r.observations?.[0];
-                    const elephant_total =
-                        (obs?.male_count || 0) +
-                        (obs?.female_count || 0) +
-                        (obs?.calf_count || 0) +
-                        (obs?.unknown_count || 0);
-                    return {
-                        id: r.id,
-                        device_timestamp: r.device_timestamp,
-                        beat_name: r.geo_beats?.name ?? null,
-                        obs_type: obs?.type ?? null,
-                        elephant_total,
-                    };
-                });
-                setRecentSightings(rows);
-            }
-            setRecentLoading(false);
-        };
-        void loadRecent();
-        return () => { cancelled = true; };
-    }, [user?.id]);
-
     const pendingCount = useLiveQuery(
         () => db.reports.where('sync_status').anyOf(['pending', 'failed']).count(),
         []
@@ -115,6 +58,7 @@ export default function Dashboard() {
 
     const handleManualSync = async () => {
         if (!pendingCount || isSyncing) return;
+        trackClick('dashboard.manual_sync', { screen: 'dashboard', pending_count: pendingCount });
         setIsSyncing(true);
         setSyncMessage(null);
         try {
@@ -128,20 +72,22 @@ export default function Dashboard() {
                 } else if (result.count === 0) {
                     text = t('sync_already_done') || 'Everything is already synced.';
                 } else {
-                    text = `Synced ${result.count} of ${total} reports successfully!`;
+                    text = t('sync_success', { count: result.count ?? 0, total: total ?? 0 });
                 }
                 setSyncMessage({ type: 'success', text });
                 setTimeout(() => setSyncMessage(null), 3000);
             } else {
+                trackFailed('dashboard.manual_sync', 'sync_failed', { screen: 'dashboard' });
                 setSyncMessage({
                     type: 'error',
-                    text: result.error?.toString() || 'Sync failed. Please try again.'
+                    text: result.error?.toString() || t('sync_failed_retry')
                 });
             }
         } catch {
+            trackFailed('dashboard.manual_sync', 'sync_exception', { screen: 'dashboard' });
             setSyncMessage({
                 type: 'error',
-                text: 'Sync failed. Please check your connection.'
+                text: t('sync_failed_connection')
             });
         } finally {
             setIsSyncing(false);
@@ -149,16 +95,9 @@ export default function Dashboard() {
     };
 
     const hasAdminAccess = ['admin', 'ccf', 'dfo'].includes(profile?.role || '');
-    const canOnboard = canOnboardVolunteers(profile?.role);
-
-    const typeLabel = (type?: string | null) => {
-        if (!type) return 'Observation';
-        const lower = type.toLowerCase();
-        if (lower.includes('direct')) return 'Direct';
-        if (lower.includes('indirect')) return 'Indirect';
-        if (lower.includes('loss') || lower.includes('conflict')) return 'Conflict';
-        return type;
-    };
+    const canOnboardHathiMitra = canOnboardVolunteers(profile?.role);
+    const canOnboardVillager = canOnboardVillagers(profile?.role);
+    const canBrowseVillagers = canReadVillagers(profile?.role);
 
     return (
         <div className="relative min-h-screen w-full bg-background overflow-hidden flex flex-col pt-6 px-6 pb-24">
@@ -170,20 +109,8 @@ export default function Dashboard() {
                     <div className="w-24 h-24 sm:w-28 sm:h-28 mb-4 relative flex items-center justify-center overflow-visible">
                         <img src={ELEPHANT_LOGO_URL} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
                     </div>
-                    <h2 className="text-xl font-bold tracking-tight text-foreground z-10 relative">{t('wild_elephant_monitoring')}</h2>
-                    <p className="text-muted-foreground mt-2 text-[15px] font-medium z-10 relative">जंगली हाथी निगरानी प्रणाली (2025)</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground z-10 relative">{t('app_name')}</h1>
                 </div>
-
-                <motion.div
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    className="mb-8"
-                >
-                    <div className="space-y-2">
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('dashboard.welcomeMsg')}</h1>
-                        <p className="text-muted-foreground">{t('dashboard.welcomeSub')}</p>
-                    </div>
-                </motion.div>
 
                 {syncMessage && (
                     <motion.div
@@ -230,72 +157,15 @@ export default function Dashboard() {
                     </motion.div>
                 ) : null}
 
-                <div className="mb-6 z-10">
-                    <QuickSOSButton />
-                </div>
-
-                <motion.section
-                    initial={{ y: 16, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.05 }}
-                    className="mb-6 z-10"
-                >
-                    <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-lg font-bold text-foreground">Recent Sightings</h2>
-                        <button
-                            type="button"
-                            onClick={() => navigate('/history')}
-                            className="text-xs font-semibold text-primary flex items-center gap-1"
-                        >
-                            View all <ChevronRight size={12} />
-                        </button>
-                    </div>
-                    <div className="glass-card rounded-2xl border border-border/50 overflow-hidden">
-                        {recentLoading ? (
-                            <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground text-sm">
-                                <Loader2 size={16} className="animate-spin" /> Loading…
-                            </div>
-                        ) : recentSightings.length === 0 ? (
-                            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                                No sightings in your territory yet. Tap Report Activity to add one.
-                            </div>
-                        ) : (
-                            <ul className="divide-y divide-border/40">
-                                {recentSightings.map((s) => (
-                                    <li key={s.id}>
-                                        <button
-                                            type="button"
-                                            onClick={() => navigate('/history')}
-                                            className="w-full px-4 py-3 flex items-start gap-3 text-left hover:bg-muted/30 transition-colors"
-                                        >
-                                            <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
-                                                <MapPin size={16} />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="font-semibold text-sm text-foreground truncate">
-                                                    {s.beat_name || 'Unknown beat'} · {typeLabel(s.obs_type)}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground mt-0.5">
-                                                    {formatDistanceToNow(new Date(s.device_timestamp), { addSuffix: true })}
-                                                    {s.elephant_total > 0 ? ` · ${s.elephant_total} elephants` : ''}
-                                                </p>
-                                            </div>
-                                            <ChevronRight size={14} className="text-muted-foreground shrink-0 mt-1" />
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-                </motion.section>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 z-10">
                     <motion.button
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.1 }}
+                        data-ph-action="dashboard.add_sighting"
+                        data-ph-screen="dashboard"
                         onClick={() => navigate('/report')}
-                        className="group relative overflow-hidden rounded-3xl p-6 text-left flex flex-col justify-between h-48 border border-primary/20 bg-gradient-to-br from-primary/10 to-emerald-500/5 hover:from-primary/20 hover:to-emerald-500/10 transition-colors shadow-lg shadow-primary/5"
+                        className="md:col-span-2 group relative overflow-hidden rounded-3xl p-6 text-left flex flex-col justify-between h-44 border border-primary/20 bg-gradient-to-br from-primary/10 to-emerald-500/5 hover:from-primary/20 hover:to-emerald-500/10 transition-colors shadow-lg shadow-primary/5"
                     >
                         <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
                             <Activity size={100} />
@@ -311,66 +181,121 @@ export default function Dashboard() {
                         </div>
                     </motion.button>
 
-                    <div className="grid grid-cols-2 gap-4 h-48">
-                        <motion.button
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.2 }}
-                            onClick={() => navigate('/profile')}
-                            className="group glass-card rounded-3xl p-5 text-left flex flex-col justify-between hover:bg-muted/40 transition-colors border border-border/50"
-                        >
-                            <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl w-max">
-                                <User size={20} />
+                    <motion.button
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.15 }}
+                        data-ph-action="dashboard.open_nearby"
+                        data-ph-screen="dashboard"
+                        onClick={() => navigate('/nearby')}
+                        className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-blue-500/20 min-h-28"
+                    >
+                        <div className="flex items-center gap-5">
+                            <div className="p-4 bg-blue-500/10 text-blue-600 rounded-2xl">
+                                <Navigation size={28} />
                             </div>
-                            <div>
-                                <h3 className="font-bold text-foreground">{t('dashboard.profileAction')}</h3>
-                                <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.profileDesc')}</p>
+                            <div className="text-left">
+                                <h2 className="text-xl font-bold text-foreground">{t('dashboard.nearbyAction')}</h2>
+                                <p className="text-sm text-muted-foreground">{t('dashboard.nearbyDesc')}</p>
                             </div>
-                        </motion.button>
+                        </div>
+                        <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    </motion.button>
 
-                        <motion.button
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.3 }}
-                            onClick={() => navigate('/history')}
-                            className="group glass-card rounded-3xl p-5 text-left flex flex-col justify-between hover:bg-muted/40 transition-colors border border-border/50"
-                        >
-                            <div className="p-2.5 bg-amber-500/10 text-amber-500 rounded-xl w-max">
-                                <History size={20} />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-foreground">{t('dashboard.historyAction')}</h3>
-                                <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.historyDesc')}</p>
-                            </div>
-                        </motion.button>
-                    </div>
+                    {(canOnboardVillager || canOnboardHathiMitra) && (
+                        <div className="md:col-span-2 grid grid-cols-2 gap-4">
+                            {canOnboardVillager && (
+                                <motion.button
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    transition={{ delay: 0.2 }}
+                                    data-ph-action="dashboard.onboard_villager"
+                                    data-ph-screen="dashboard"
+                                    onClick={() => navigate('/villagers/onboard')}
+                                    className="group glass-card rounded-3xl p-5 text-left flex flex-col justify-between min-h-36 hover:bg-muted/40 transition-colors border border-amber-500/20"
+                                >
+                                    <div className="p-2.5 bg-amber-500/10 text-amber-700 rounded-xl w-max">
+                                        <Users size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-foreground">{t('hathiMitra.onboardTitle')}</h3>
+                                        <p className="text-xs text-muted-foreground mt-0.5">{t('hathiMitra.onboardShortDesc')}</p>
+                                    </div>
+                                </motion.button>
+                            )}
+                            {canOnboardHathiMitra && (
+                                <motion.button
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    transition={{ delay: 0.25 }}
+                                    data-ph-action="dashboard.onboard_hathi_mitra"
+                                    data-ph-screen="dashboard"
+                                    onClick={() => navigate('/volunteers/onboard')}
+                                    className="group glass-card rounded-3xl p-5 text-left flex flex-col justify-between min-h-36 hover:bg-muted/40 transition-colors border border-emerald-500/20"
+                                >
+                                    <div className="p-2.5 bg-emerald-500/10 text-emerald-600 rounded-xl w-max">
+                                        <UserPlus size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-foreground">{t('volunteer.onboardTitle')}</h3>
+                                        <p className="text-xs text-muted-foreground mt-0.5">{t('volunteer.onboardShortDesc')}</p>
+                                    </div>
+                                </motion.button>
+                            )}
+                        </div>
+                    )}
 
-                    {canOnboard && (
+                    {!canOnboardVillager && canBrowseVillagers && (
                         <motion.button
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.35 }}
-                            onClick={() => navigate('/volunteers/onboard')}
-                            className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-emerald-500/20"
+                            transition={{ delay: 0.28 }}
+                            data-ph-action="dashboard.open_villagers"
+                            data-ph-screen="dashboard"
+                            onClick={() => navigate('/villagers')}
+                            className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-amber-500/20"
                         >
                             <div className="flex items-center gap-5">
-                                <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl">
-                                    <UserPlus size={28} />
+                                <div className="p-4 bg-amber-500/10 text-amber-700 rounded-2xl">
+                                    <Users size={28} />
                                 </div>
                                 <div className="text-left">
-                                    <h2 className="text-xl font-bold text-foreground">{t('volunteer.onboardTitle')}</h2>
-                                    <p className="text-sm text-muted-foreground">{t('volunteer.onboardDesc')}</p>
+                                    <h2 className="text-xl font-bold text-foreground">{t('hathiMitra.listTitle')}</h2>
+                                    <p className="text-sm text-muted-foreground">{t('hathiMitra.listDesc')}</p>
                                 </div>
                             </div>
                             <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                         </motion.button>
                     )}
 
+                    <motion.button
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        data-ph-action="dashboard.open_history"
+                        data-ph-screen="dashboard"
+                        onClick={() => navigate('/history')}
+                        className="md:col-span-2 group glass-card rounded-3xl p-5 flex items-center justify-between hover:bg-muted/40 transition-colors border border-border/50"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="p-2.5 bg-amber-500/10 text-amber-500 rounded-xl">
+                                <History size={20} />
+                            </div>
+                            <div className="text-left">
+                                <h3 className="font-bold text-foreground">{t('dashboard.historyAction')}</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.historyDesc')}</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    </motion.button>
+
                     {hasAdminAccess && (
                         <motion.button
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.4 }}
+                            data-ph-action="dashboard.open_admin"
+                            data-ph-screen="dashboard"
                             onClick={() => navigate('/admin')}
                             className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border-2 border-primary/20 overflow-hidden relative"
                         >

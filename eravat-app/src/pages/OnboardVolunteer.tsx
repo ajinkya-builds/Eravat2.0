@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, UserPlus, Loader2, CheckCircle2 } from 'lucide-react';
@@ -6,7 +6,9 @@ import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { LocationFields } from '../components/profile/LocationFields';
+import { TerritorySelect, type TerritoryValue } from '../components/shared/TerritorySelect';
 import { canOnboardVolunteers } from '../lib/rbac';
+import { track } from '../lib/analytics';
 
 export default function OnboardVolunteer() {
     const navigate = useNavigate();
@@ -19,9 +21,23 @@ export default function OnboardVolunteer() {
         latitude: null,
         longitude: null,
     });
+    const [territory, setTerritory] = useState<TerritoryValue>({
+        division_id: null,
+        range_id: null,
+        beat_id: null,
+    });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<{ name: string; tempPassword?: string } | null>(null);
+    const [success, setSuccess] = useState<{ name: string } | null>(null);
+
+    useEffect(() => {
+        if (!profile) return;
+        setTerritory((prev) => ({
+            division_id: prev.division_id ?? profile.division_id ?? null,
+            range_id: prev.range_id ?? profile.range_id ?? null,
+            beat_id: prev.beat_id ?? profile.beat_id ?? null,
+        }));
+    }, [profile?.id]);
 
     if (!canOnboardVolunteers(profile?.role)) {
         return (
@@ -60,6 +76,9 @@ export default function OnboardVolunteer() {
                     latitude: location.latitude,
                     longitude: location.longitude,
                     onboard_volunteer: true,
+                    division_id: territory.division_id,
+                    range_id: territory.range_id,
+                    beat_id: territory.beat_id,
                 },
                 headers: { Authorization: `Bearer ${accessToken}` },
             });
@@ -67,13 +86,14 @@ export default function OnboardVolunteer() {
             if (fnErr) throw fnErr;
             if (data?.error) throw new Error(data.error);
 
+            track('volunteer_onboarded', { role: 'volunteer' });
             setSuccess({
                 name: fullName.trim(),
-                tempPassword: data?.user?.temporary_password,
             });
             setFullName('');
             setPhone('');
             setLocation({ latitude: null, longitude: null });
+            setTerritory({ division_id: null, range_id: null, beat_id: null });
         } catch (err) {
             setError(err instanceof Error ? err.message : t('volunteer.onboardFailed'));
         } finally {
@@ -96,12 +116,6 @@ export default function OnboardVolunteer() {
 
             <div className="p-6 max-w-lg mx-auto space-y-6">
                 <p className="text-sm text-muted-foreground">{t('volunteer.onboardDesc')}</p>
-
-                {profile?.beat_name && (
-                    <div className="text-xs font-medium text-primary bg-primary/10 rounded-xl px-4 py-2">
-                        {t('volunteer.onboardBeat')}: {profile.beat_name}
-                    </div>
-                )}
 
                 {success && (
                     <motion.div
@@ -149,6 +163,15 @@ export default function OnboardVolunteer() {
                     </div>
 
                     <LocationFields value={location} onChange={setLocation} required />
+
+                    <TerritorySelect
+                        value={territory}
+                        onChange={setTerritory}
+                        latitude={location.latitude}
+                        longitude={location.longitude}
+                        includeBeat
+                        required
+                    />
 
                     <button
                         type="submit"

@@ -45,7 +45,13 @@ supabase/.temp/
 # Local Netlify folder
 .netlify
 
-# Native APK
+# Native APK build outputs
 app-debug.apk
+*.apk
+
+# Go-live prep generated test-run artifacts and APKs
+Go live Prep - Staging/generated/
+Go live Prep - Staging/*.apk
+Go live Prep - Staging/*.log
 
 backups/

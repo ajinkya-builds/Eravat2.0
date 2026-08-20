@@ -40,7 +40,7 @@ export default function AdminNotifications() {
                 .gte('created_at', `${startDate}T00:00:00`)
                 .lte('created_at', `${endDate}T23:59:59`)
                 .order('created_at', { ascending: false })
-                .limit(500);
+                .limit(200);
             if (error) throw error;
             setRows((data as unknown as NotificationRow[]) ?? []);
         } finally {
@@ -94,6 +94,8 @@ export default function AdminNotifications() {
                 <select
                     className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
                     value={typeFilter}
+                    data-ph-filter="admin.notification_type"
+                    data-ph-screen="admin.notifications"
                     onChange={(e) => setTypeFilter(e.target.value)}
                 >
                     <option value="">{t('admin.notifications.allTypes')}</option>
@@ -101,8 +103,8 @@ export default function AdminNotifications() {
                     <option value="proximity">{t('admin.notifications.typeProximity')}</option>
                     <option value="chain_of_command">{t('admin.notifications.typeChain')}</option>
                 </select>
-                <input type="date" className="rounded-xl border border-border bg-background px-3 py-2 text-sm" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                <input type="date" className="rounded-xl border border-border bg-background px-3 py-2 text-sm" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <input type="date" className="rounded-xl border border-border bg-background px-3 py-2 text-sm" value={startDate} data-ph-filter="admin.notification_start_date" data-ph-screen="admin.notifications" onChange={(e) => setStartDate(e.target.value)} />
+                <input type="date" className="rounded-xl border border-border bg-background px-3 py-2 text-sm" value={endDate} data-ph-filter="admin.notification_end_date" data-ph-screen="admin.notifications" onChange={(e) => setEndDate(e.target.value)} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

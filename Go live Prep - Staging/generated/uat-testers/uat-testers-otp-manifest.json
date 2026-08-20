@@ -1,0 +1,173 @@
+[
+  {
+    "name": "Kundan Kumar Sharma",
+    "role": "beat_guard",
+    "phone_app": "9752458789",
+    "test_otp_key": "919752458789",
+    "otp": "488789",
+    "division": "Anuppur",
+    "device": "T3_Vivo"
+  },
+  {
+    "name": "Narvada Pratap Patel",
+    "role": "beat_guard",
+    "phone_app": "7415740750",
+    "test_otp_key": "917415740750",
+    "otp": "480750",
+    "division": "Anuppur",
+    "device": ""
+  },
+  {
+    "name": "Narendra Kumar Patel",
+    "role": "beat_guard",
+    "phone_app": "8770984995",
+    "test_otp_key": "918770984995",
+    "otp": "484995",
+    "division": "Anuppur",
+    "device": ""
+  },
+  {
+    "name": "Ram Kumar Prajapati",
+    "role": "beat_guard",
+    "phone_app": "9752552212",
+    "test_otp_key": "919752552212",
+    "otp": "482212",
+    "division": "Bandhavgarh NP",
+    "device": "T4x_Vivo"
+  },
+  {
+    "name": "Shailendra Kumar Sharma",
+    "role": "beat_guard",
+    "phone_app": "7772067087",
+    "test_otp_key": "917772067087",
+    "otp": "487087",
+    "division": "Bandhavgarh NP",
+    "device": ""
+  },
+  {
+    "name": "Laxman Sahu",
+    "role": "beat_guard",
+    "phone_app": "6261890445",
+    "test_otp_key": "916261890445",
+    "otp": "480445",
+    "division": "Bandhavgarh NP",
+    "device": ""
+  },
+  {
+    "name": "Arjun Das Baiga",
+    "role": "beat_guard",
+    "phone_app": "9009319067",
+    "test_otp_key": "919009319067",
+    "otp": "489067",
+    "division": "Bandhavgarh NP",
+    "device": ""
+  },
+  {
+    "name": "Rajdhani Singh",
+    "role": "beat_guard",
+    "phone_app": "7566246445",
+    "test_otp_key": "917566246445",
+    "otp": "486445",
+    "division": "North Shahdol",
+    "device": "A15_ Samsung"
+  },
+  {
+    "name": "Ghanshyam Singh Maravi",
+    "role": "beat_guard",
+    "phone_app": "9340983708",
+    "test_otp_key": "919340983708",
+    "otp": "483708",
+    "division": "North Shahdol",
+    "device": ""
+  },
+  {
+    "name": "Pushpendra Mishra",
+    "role": "beat_guard",
+    "phone_app": "6265182717",
+    "test_otp_key": "916265182717",
+    "otp": "482717",
+    "division": "North Shahdol",
+    "device": ""
+  },
+  {
+    "name": "Arvind Kol",
+    "role": "beat_guard",
+    "phone_app": "8120973941",
+    "test_otp_key": "918120973941",
+    "otp": "483941",
+    "division": "North Shahdol",
+    "device": ""
+  },
+  {
+    "name": "Divakar Singh",
+    "role": "range_officer",
+    "phone_app": "9009603210",
+    "test_otp_key": "919009603210",
+    "otp": "483210",
+    "division": "Sanjay National Park",
+    "device": ""
+  },
+  {
+    "name": "Shailendra Singh Rathod",
+    "role": "beat_guard",
+    "phone_app": "7089967800",
+    "test_otp_key": "917089967800",
+    "otp": "487800",
+    "division": "Umaria",
+    "device": ""
+  },
+  {
+    "name": "Aakash Kaurav",
+    "role": "beat_guard",
+    "phone_app": "9516084467",
+    "test_otp_key": "919516084467",
+    "otp": "484467",
+    "division": "Bandhavgarh NP",
+    "device": ""
+  },
+  {
+    "name": "Daduram Yadav",
+    "role": "beat_guard",
+    "phone_app": "9165327539",
+    "test_otp_key": "919165327539",
+    "otp": "487539",
+    "division": "Global",
+    "device": "Y400_Vivo"
+  },
+  {
+    "name": "Sumit Saha",
+    "role": "dfo",
+    "phone_app": "8250463914",
+    "test_otp_key": "918250463914",
+    "otp": "483914",
+    "division": "Global",
+    "device": "V70_Vivo"
+  },
+  {
+    "name": "Shivkumar Yadav",
+    "role": "volunteer",
+    "phone_app": "9238583474",
+    "test_otp_key": "919238583474",
+    "otp": "483474",
+    "division": "Global",
+    "device": "1820_Vivo"
+  },
+  {
+    "name": "Amey Paranjape",
+    "role": "admin",
+    "phone_app": "9545893779",
+    "test_otp_key": "919545893779",
+    "otp": "483779",
+    "division": "Global",
+    "device": "A57_Samsung"
+  },
+  {
+    "name": "Amey Paranjape",
+    "role": "range_officer",
+    "phone_app": "8319714182",
+    "test_otp_key": "918319714182",
+    "otp": "484182",
+    "division": "Global",
+    "device": "Nord CE 2_One Plus"
+  }
+]

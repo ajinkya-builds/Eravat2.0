@@ -1,12 +1,13 @@
-import { db } from '../db';
+import { db, type LocalReport } from '../db';
 import { supabase } from '../supabase';
+import { track } from '../lib/analytics';
+import { logger } from '../lib/logger';
+import { newUuid } from '../lib/uuid';
 
 let isSyncing = false;
 const SYNC_LOCK_KEY = 'eravat_sync_lock';
 const SYNC_LOCK_TTL_MS = 120_000;
-const SYNC_TAB_ID = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `tab-${Date.now()}`;
+const SYNC_TAB_ID = newUuid();
 
 function tryAcquireCrossTabSyncLock(): boolean {
     if (typeof localStorage === 'undefined') return true;
@@ -42,6 +43,11 @@ function releaseCrossTabSyncLock(): void {
     } catch {
         // ignore lock cleanup errors
     }
+}
+
+/** Cheap pending-queue check — no lock, no network. */
+export async function countPendingSyncReports(): Promise<number> {
+    return db.reports.where('sync_status').anyOf(['pending', 'failed']).count();
 }
 let mediaPathColumnHint: 'file_path' | 'storage_path' | 'path' | 'media_path' | 'object_path' | null = null;
 
@@ -94,19 +100,26 @@ async function insertReportMediaWithFallback(args: {
 }): Promise<MediaInsertResult> {
     const { mediaId, reportId, fileName } = args;
 
-    // Your live schema lacks both content_type and mime_type.
-    // Insert only safe/common columns and try path variants.
+    // Live schema uses storage_path (+ optional media_type). Older envs may use
+    // file_path / path variants — try storage_path first to avoid failed inserts
+    // marking an otherwise-synced report as failed.
     const pathColumns: Array<'file_path' | 'storage_path' | 'path' | 'media_path' | 'object_path'> = [
-        'file_path', 'storage_path', 'path', 'media_path', 'object_path',
+        'storage_path', 'file_path', 'path', 'media_path', 'object_path',
     ];
     const orderedColumns = mediaPathColumnHint
         ? [mediaPathColumnHint, ...pathColumns.filter((c) => c !== mediaPathColumnHint)]
         : pathColumns;
 
-    const attempts: Record<string, unknown>[] = orderedColumns.flatMap((column) => ([
-        { id: mediaId, report_id: reportId, [column]: fileName },
-        { report_id: reportId, [column]: fileName },
-    ]));
+    const attempts: Record<string, unknown>[] = orderedColumns.flatMap((column) => {
+        const base = { id: mediaId, report_id: reportId, [column]: fileName };
+        const withType = { ...base, media_type: 'image' };
+        return [
+            withType,
+            base,
+            { report_id: reportId, [column]: fileName, media_type: 'image' },
+            { report_id: reportId, [column]: fileName },
+        ];
+    });
 
     let firstError: unknown = null;
     for (const payload of attempts) {
@@ -149,14 +162,25 @@ function normalizeTextArray(value: unknown): string[] | null {
     return null;
 }
 
-function mapLossCategory(loss: string): string {
+export function mapLossCategory(loss: string): string {
     const normalized = loss.trim().toLowerCase();
     if (normalized === 'no loss') return 'none';
-    if (normalized === 'crop') return 'crop';
+    if (normalized === 'human_injury' || normalized === 'injury') return 'human_injury';
+    if (normalized === 'human_death' || normalized === 'death') return 'human_death';
+    if (normalized === 'crop' || normalized === 'grain') return 'crop';
     if (normalized === 'livestock') return 'livestock';
-    // Keep category aligned with existing DB enum values.
-    // Store specific loss text in description.
+    // DB enum is crop | property | livestock | human_injury | human_death.
+    // Grain stays as crop in the enum; keep the original token in description/details.
+    // Map fencing / naka / other / legacy labels into property.
     return 'property';
+}
+
+function peopleForLoss(loss: string, affectedPeople: number | undefined): number {
+    const cat = mapLossCategory(loss);
+    if (cat === 'human_injury' || cat === 'human_death') {
+        return Math.max(0, affectedPeople ?? 1);
+    }
+    return 1;
 }
 
 function stableHex32(input: string): string {
@@ -175,6 +199,25 @@ function stableHex32(input: string): string {
 function stableUuidFrom(input: string): string {
     const hex = stableHex32(input);
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+/** Report row for upsert. GPS-only reports omit beat_id so the DB trigger can assign it. */
+export function buildReportUpsertRow(report: Pick<LocalReport, 'id' | 'user_id' | 'beat_id' | 'device_timestamp' | 'latitude' | 'longitude' | 'notes'>): Record<string, unknown> {
+    const location = report.latitude != null && report.longitude != null
+        ? `POINT(${report.longitude} ${report.latitude})`
+        : null;
+    const row: Record<string, unknown> = {
+        id: report.id,
+        user_id: report.user_id,
+        device_timestamp: report.device_timestamp,
+        location: location ? `SRID=4326;${location}` : null,
+        notes: report.notes,
+        status: 'pending',
+    };
+    if (report.beat_id) {
+        row.beat_id = report.beat_id;
+    }
+    return row;
 }
 
 export async function syncData() {
@@ -196,12 +239,14 @@ export async function syncData() {
     isSyncing = true;
     let successCount = 0;
     let failureCount = 0;
+    const syncStartedAt = Date.now();
 
     try {
         // Use local session (no network) so sync can proceed after reconnect
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user;
         if (!user) {
+            track('sync.failed', { error_code: 'not_authenticated' });
             return { success: false, error: 'Not authenticated' };
         }
 
@@ -215,6 +260,8 @@ export async function syncData() {
         if (reportsToSync.length === 0) {
             return { success: true, count: 0, total: 0, message: 'Nothing to sync' };
         }
+
+        track('sync.started', { pending_count: reportsToSync.length });
 
         for (const report of reportsToSync) {
             try {
@@ -232,26 +279,16 @@ export async function syncData() {
                     continue;
                 }
 
-                // Build PostGIS POINT from lat/lng
-                const location = report.latitude != null && report.longitude != null
-                    ? `POINT(${report.longitude} ${report.latitude})`
-                    : null;
-
-                // 1. Upsert to `reports` table
+                // 1. Upsert to `reports` table.
+                // Omit beat_id when unset so BEFORE INSERT assign_report_geography()
+                // can fill it from GPS, and so a retry does not wipe a filled beat.
                 const { error: reportError } = await supabase
                     .from('reports')
-                    .upsert({
-                        id: report.id,
-                        user_id: report.user_id,
-                        beat_id: report.beat_id,
-                        device_timestamp: report.device_timestamp,
-                        location: location ? `SRID=4326;${location}` : null,
-                        notes: report.notes,
-                        status: 'pending',
-                    });
+                    .upsert(buildReportUpsertRow(report));
 
                 if (reportError) {
-                    console.error('[SyncService] Report upsert error:', reportError);
+                    logger.error('SyncService', 'Report upsert error', reportError, { stage: 'report_upsert' });
+                    track('sync.failed', { error_code: 'report_upsert', stage: 'report_upsert' });
                     await db.reports.update(report.id, { sync_status: 'failed' });
                     failureCount++;
                     continue;
@@ -268,6 +305,12 @@ export async function syncData() {
                     // Use pre-generated stable UUID from Dexie (set at report-save time) for idempotency
                     const obsId = report.obs_id ?? stableUuidFrom(`${report.id}:obs`);
 
+                    // Damage-only / damage+sighting: persist as conflict_loss so admin KPIs count it
+                    const hasDamage = Array.isArray(report.loss_type) && report.loss_type.length > 0;
+                    const mappedType = hasDamage
+                        ? 'conflict_loss'
+                        : (typeMapping[report.observation_type] || report.observation_type);
+
                     // Calculate total elephants from individual counts
                     const totalElephants = (report.male_count ?? 0) +
                                           (report.female_count ?? 0) +
@@ -279,7 +322,7 @@ export async function syncData() {
                         .upsert({
                             id: obsId,
                             report_id: report.id,
-                            type: typeMapping[report.observation_type] || report.observation_type,
+                            type: mappedType,
                             male_count: report.male_count ?? 0,
                             female_count: report.female_count ?? 0,
                             calf_count: report.calf_count ?? 0,
@@ -304,12 +347,16 @@ export async function syncData() {
                         id: stableUuidFrom(`${report.id}:${idx}:${loss}`),
                         report_id: report.id,
                         category: mapLossCategory(loss),
-                        description: idx === 0 
-                            ? (report.damage_description || loss) 
-                            : loss,
-                        estimated_value: idx === 0 
-                            ? (report.damage_value || null) 
+                        description:
+                            idx === 0
+                                ? (report.damage_description?.trim()
+                                    ? report.damage_description.trim()
+                                    : loss)
+                                : loss,
+                        estimated_value: idx === 0
+                            ? (report.damage_value || null)
                             : null,
+                        affected_people: peopleForLoss(loss, report.affected_people),
                     }));
 
                     const { error: damageError } = await supabase
@@ -393,7 +440,8 @@ export async function syncData() {
                 }
 
                 if (hasMediaError) {
-                    console.error('[SyncService] media upload error');
+                    logger.error('SyncService', 'media upload error', undefined, { stage: 'media_upload' });
+                    track('sync.media_failed', { error_code: 'media_upload' });
                     await db.reports.update(report.id, { sync_status: 'failed' });
                     failureCount++;
                     continue;
@@ -403,10 +451,23 @@ export async function syncData() {
                 successCount++;
 
             } catch (err) {
-                console.error('[SyncService] Unexpected error syncing report:', err);
+                logger.error('SyncService', 'Unexpected error syncing report', err, { stage: 'unexpected' });
+                track('sync.failed', { error_code: 'unexpected', stage: 'unexpected' });
                 await db.reports.update(report.id, { sync_status: 'failed' });
                 failureCount++;
             }
+        }
+
+        const duration_ms = Date.now() - syncStartedAt;
+        if (failureCount === 0) {
+            track('sync.completed', { uploaded: successCount, duration_ms, pending_count: reportsToSync.length });
+        } else {
+            track('sync.failed', {
+                error_code: 'partial_or_full_failure',
+                uploaded: successCount,
+                failed: failureCount,
+                duration_ms,
+            });
         }
 
         return {
@@ -416,6 +477,8 @@ export async function syncData() {
             failed: failureCount
         };
     } catch (error) {
+        logger.error('SyncService', 'Sync aborted', error);
+        track('sync.failed', { error_code: 'aborted' });
         return { success: false, error };
     } finally {
         isSyncing = false;

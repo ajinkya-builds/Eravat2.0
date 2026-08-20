@@ -46,7 +46,11 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.STAGE_VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGE_VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_BASE_PATH: /
-        run: npm run build
+          VITE_APP_ENV: staging
+          VITE_POSTHOG_PROJECT_TOKEN: ${{ secrets.STAGE_VITE_POSTHOG_PROJECT_TOKEN }}
+          VITE_POSTHOG_HOST: ${{ secrets.STAGE_VITE_POSTHOG_HOST }}
+          VITE_APP_VERSION: 2.0.0
+        run: npm run build -- --mode staging
 
       - name: Sync Capacitor Android
         working-directory: eravat-app

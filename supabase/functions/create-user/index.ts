@@ -170,19 +170,15 @@ serve(async (req) => {
     if (!hasValue(last_name)) last_name = ''
 
     if (role === 'volunteer') {
-      if (callerProfile.role === 'beat_guard') {
-        if (!callerAssignment?.beat_id) {
-          return new Response(JSON.stringify({ error: 'Your beat assignment is missing. Contact your Range Officer.' }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          })
-        }
+      // Prefer client-supplied (location-based) territory. Fall back to the caller's assignment.
+      if (!hasValue(beat_id) && callerAssignment?.beat_id) {
         beat_id = callerAssignment.beat_id
-        range_id = callerAssignment.range_id
-        division_id = callerAssignment.division_id
+        if (!hasValue(range_id)) range_id = callerAssignment.range_id
+        if (!hasValue(division_id)) division_id = callerAssignment.division_id
       }
 
       if (!hasValue(beat_id)) {
-        return new Response(JSON.stringify({ error: 'Beat assignment is required for volunteers.' }), {
+        return new Response(JSON.stringify({ error: 'Beat assignment is required for Hathi Mitra. Capture GPS so Division/Range/Beat can be filled from location.' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
@@ -221,7 +217,7 @@ serve(async (req) => {
 
     if (!isValidCoordinate(profileLat, profileLng)) {
       if (role === 'volunteer') {
-        return new Response(JSON.stringify({ error: 'GPS location is required when onboarding a volunteer.' }), {
+        return new Response(JSON.stringify({ error: 'GPS location is required when onboarding a Hathi Mitra.' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }

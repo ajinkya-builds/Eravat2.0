@@ -82,11 +82,11 @@ export default function AdminObservations() {
             const to = from + PAGE_SIZE - 1;
             const { data, error, count } = await supabase
                 .from('reports')
-                .select('*, geo_beats(name, geo_ranges(name, geo_divisions(name))), observations(*), conflict_damages(*)', { count: 'exact' })
+                .select('id, user_id, beat_id, device_timestamp, status, notes, server_created_at, geo_beats(name, geo_ranges(name, geo_divisions(name))), observations(*), conflict_damages(*)', { count: 'estimated' })
                 .order('server_created_at', { ascending: false })
                 .range(from, to);
             if (error) throw error;
-            setObservations((data as ReportWithObs[]) || []);
+            setObservations((data as unknown as ReportWithObs[]) || []);
             setTotalCount(count ?? 0);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch observations');
@@ -98,7 +98,7 @@ export default function AdminObservations() {
     useEffect(() => { fetchObservations(currentPage); }, [currentPage]);
 
     const handleDelete = async (id: string) => {
-        setConfirmState({ ids: [id], label: 'Delete this report permanently?' });
+        setConfirmState({ ids: [id], label: t('admin.obs.deletePermanently') });
     };
 
     const handleBulkDelete = async () => {
@@ -109,8 +109,13 @@ export default function AdminObservations() {
     const handleConfirmDelete = async () => {
         if (!confirmState) return;
         try {
-            const { error } = await supabase.from('reports').delete().in('id', confirmState.ids);
+            const { data, error } = await supabase
+                .from('reports')
+                .delete()
+                .in('id', confirmState.ids)
+                .select('id');
             if (error) throw error;
+            if (!data?.length) throw new Error('Delete blocked — you may not have permission for these reports.');
             setSelected(prev => prev.filter(id => !confirmState.ids.includes(id)));
             setConfirmState(null);
             fetchObservations(currentPage);
@@ -119,8 +124,14 @@ export default function AdminObservations() {
 
     const handleMarkReviewed = async (id: string) => {
         try {
-            const { error } = await supabase.from('reports').update({ status: 'reviewed' }).eq('id', id);
+            // Live enum is pending | synced | flagged (no "reviewed")
+            const { data, error } = await supabase
+                .from('reports')
+                .update({ status: 'flagged' })
+                .eq('id', id)
+                .select('id');
             if (error) throw error;
+            if (!data?.length) throw new Error('Update blocked — you may not have permission for this report.');
             fetchObservations(currentPage);
         } catch (err) { setError(err instanceof Error ? err.message : 'Update failed'); }
     };
@@ -158,11 +169,12 @@ export default function AdminObservations() {
         countsData: { male: number; female: number; calf: number; unknown: number } | null
     ) => {
         try {
-            const { error } = await supabase.from('reports').update({
+            const { data, error } = await supabase.from('reports').update({
                 notes: reportData.notes,
                 status: reportData.status,
-            }).eq('id', reportData.id);
+            }).eq('id', reportData.id).select('id');
             if (error) throw error;
+            if (!data?.length) throw new Error('Save blocked — you may not have permission for this report.');
 
             const obs = reportData.observations?.[0];
             if (obs && countsData && ['direct', 'direct_sighting'].includes(obs.type)) {
@@ -269,8 +281,8 @@ export default function AdminObservations() {
                                                         : (obs.conflict_damages.map(cd => cd.description).join(', ') || '—')}
                                             </td>
                                             <td className="p-4">
-                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${obs.status === 'reviewed' ? 'bg-emerald-500/15 text-emerald-600' : obs.status === 'synced' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                                                    {obs.status || 'pending'}
+                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${obs.status === 'flagged' ? 'bg-emerald-500/15 text-emerald-600' : obs.status === 'synced' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                                                    {obs.status === 'flagged' ? t('admin.obs.reviewed') : (obs.status || 'pending')}
                                                 </span>
                                             </td>
                                             <td className="p-4">
@@ -324,17 +336,17 @@ export default function AdminObservations() {
                             <div className="p-2.5 rounded-xl bg-destructive/10">
                                 <AlertTriangle className="text-destructive" size={20} />
                             </div>
-                            <h2 className="text-base font-bold">Confirm Deletion</h2>
+                            <h2 className="text-base font-bold">{t('admin.obs.confirmDelete')}</h2>
                         </div>
                         <p className="text-sm text-muted-foreground">{confirmState.label}</p>
                         <div className="flex gap-3 pt-1">
                             <button onClick={() => setConfirmState(null)}
                                 className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">
-                                Cancel
+                                {t('cancel')}
                             </button>
                             <button onClick={handleConfirmDelete}
                                 className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-semibold hover:opacity-90 transition-opacity">
-                                Delete
+                                {t('delete')}
                             </button>
                         </div>
                     </motion.div>
@@ -403,7 +415,7 @@ function EditReportModal({
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {localReport.observations?.[0] && ['direct', 'direct_sighting'].includes(localReport.observations[0].type) && localCounts && (
                         <div className="space-y-2 p-3 bg-primary/5 rounded-xl border border-primary/10">
-                            <p className="text-xs font-semibold text-primary">Elephant Counts</p>
+                            <p className="text-xs font-semibold text-primary">{t('admin.obs.elephantCounts')}</p>
                             <div className="grid grid-cols-2 gap-2">
                                 {(['male', 'female', 'calf', 'unknown'] as const).map(key => (
                                     <div key={key}>
@@ -436,7 +448,7 @@ function EditReportModal({
                             className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                             <option value="pending">{t('admin.obs.pending')}</option>
                             <option value="synced">{t('admin.obs.synced')}</option>
-                            <option value="reviewed">{t('admin.obs.reviewed')}</option>
+                            <option value="flagged">{t('admin.obs.reviewed')}</option>
                         </select>
                     </div>
                     <div className="flex gap-3 pt-2">
