@@ -1,10 +1,8 @@
-# send-push-notifications (legacy, remote-only)
+# send-push-notifications (removed)
 
-This function exists as **ACTIVE** on production (`mnytrlcmdpkfhrzrtesf`) but
-could not be downloaded into the repo (eszip decode failure with current CLI).
+This legacy Edge Function existed only on production and had no in-repo source.
+Canonical delivery is [`../send-push`](../send-push).
 
-Canonical push delivery in-repo is [`../send-push`](../send-push).
-
-**Reconcile action (manual):** In the Dashboard, confirm nothing still invokes
-`send-push-notifications`. If only `send-push` is wired from `pg_net` /
-triggers, delete the orphan remote function to avoid drift.
+It was deleted from production (`mnytrlcmdpkfhrzrtesf`) on 2026-08-20 after
+confirming `push_dispatch_config.send_push_url` and notification triggers call
+`/functions/v1/send-push` only.
