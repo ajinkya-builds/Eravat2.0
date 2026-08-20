@@ -108,6 +108,15 @@ await check('Non-mobile 10-digit rejected client-side', async () => {
   await shot(page, '02b-invalid-phone');
 });
 
+await check('Report an issue from login', async () => {
+  await clearSession(page);
+  await page.getByTestId('report-issue-open').click();
+  await page.getByTestId('report-issue-notes').fill('E2E login: OTP screen felt slow');
+  await page.getByTestId('report-issue-submit').click();
+  await page.getByText(/Thanks|received your note/i).waitFor({ timeout: 15000 });
+  await shot(page, '02c-report-issue-login');
+});
+
 await check('Beat guard OTP login', async () => {
   await clearSession(page);
   await loginOTP(page, USERS.beat_guard.phone, USERS.beat_guard.otp);
@@ -202,6 +211,13 @@ await check('Admin villagers tracker', async () => {
   const body = await adminPage.content();
   if (!/villager|search|register|mobile/i.test(body)) throw new Error('Admin villagers page missing');
   await shot(adminPage, '13b-admin-villagers');
+});
+
+await check('Admin support inbox', async () => {
+  await adminPage.goto(`${BASE}/admin/support`);
+  await adminPage.waitForTimeout(4000);
+  await adminPage.getByText(/OTP screen felt slow|Support inbox|Open/i).first().waitFor({ timeout: 15000 });
+  await shot(adminPage, '13c-admin-support');
 });
 
 await check('Admin observations', async () => {

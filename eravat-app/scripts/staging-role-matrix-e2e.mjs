@@ -43,6 +43,7 @@ const ADMIN_ROUTES = [
   '/admin/user-stats',
   '/admin/divisions',
   '/admin/notifications',
+  '/admin/support',
   '/admin/settings',
   '/admin/map',
 ];

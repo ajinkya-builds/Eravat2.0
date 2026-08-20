@@ -10,9 +10,11 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 import { Network } from '@capacitor/network';
 import { countPendingSyncReports, syncData } from './services/syncService';
+import { flushPendingSupportIssues } from './lib/supportIssues';
 import { Loader2 } from 'lucide-react';
 import { ScreenAnalytics } from './components/ScreenAnalytics';
 import { InteractionAnalytics } from './components/InteractionAnalytics';
+import { ReportIssueWidget } from './components/ReportIssueWidget';
 import { track } from './lib/analytics';
 
 const ReportActivityPage = lazy(() => import('./pages/ReportActivityPage'));
@@ -43,6 +45,7 @@ const AdminLatestEntries = lazy(() => import('./pages/admin/AdminLatestEntries')
 const AdminUserStats = lazy(() => import('./pages/admin/AdminUserStats'));
 const AdminNotifications = lazy(() => import('./pages/admin/AdminNotifications'));
 const AdminVillagers = lazy(() => import('./pages/admin/AdminVillagers'));
+const AdminSupport = lazy(() => import('./pages/admin/AdminSupport'));
 
 function RouteFallback() {
   return (
@@ -69,6 +72,7 @@ function NetworkSync() {
       wasOfflineRef.current = false;
       try {
         const pending = await countPendingSyncReports();
+        void flushPendingSupportIssues();
         if (pending === 0) return;
         void syncData();
       } catch {
@@ -118,6 +122,7 @@ function App() {
           <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
             <ScreenAnalytics />
             <InteractionAnalytics />
+            <ReportIssueWidget />
             <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/login" element={<Login />} />
@@ -157,6 +162,7 @@ function App() {
                     <Route path="observations" element={<AdminObservations />} />
                     <Route path="map" element={<AdminMap />} />
                     <Route path="notifications" element={<AdminNotifications />} />
+                    <Route path="support" element={<AdminSupport />} />
                     <Route path="settings" element={<AdminSettings />} />
                   </Route>
                 </Route>

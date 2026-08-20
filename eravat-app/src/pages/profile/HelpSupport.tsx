@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, BookOpen, RefreshCw, FileText, ExternalLink, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, BookOpen, RefreshCw, FileText, ExternalLink, AlertCircle, MessageCircleWarning } from 'lucide-react';
 import { syncData } from '../../services/syncService';
 import { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { openReportIssueDialog } from '../../lib/supportIssues';
 
 export default function HelpSupport() {
     const navigate = useNavigate();
@@ -49,6 +50,23 @@ export default function HelpSupport() {
                 >
                     <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t('help.contactAdmin')}</h2>
                     <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
+                        <button
+                            type="button"
+                            onClick={openReportIssueDialog}
+                            className="w-full p-4 flex items-center justify-between text-left hover:bg-muted/40 transition-colors"
+                            data-testid="help-report-issue"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                                    <MessageCircleWarning size={18} />
+                                </div>
+                                <div>
+                                    <div className="font-medium">{t('support.reportIssue')}</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">{t('support.hint')}</div>
+                                </div>
+                            </div>
+                        </button>
+
                         <div className="p-4 flex items-center justify-between text-left opacity-70">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">

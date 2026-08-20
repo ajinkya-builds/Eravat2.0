@@ -1,8 +1,8 @@
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    LayoutDashboard, Users, Activity, Settings, LogOut, Menu, X, Layers,
-    AlertTriangle, Radio, ListOrdered, BarChart3, Bell, Lock, Map, Contact
+    LayoutDashboard, Users, Activity, Settings, LogOut, Menu, X,     Layers,
+    AlertTriangle, Radio, ListOrdered, BarChart3, Bell, Lock, Map, Contact, LifeBuoy
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
@@ -34,6 +34,7 @@ const operationsNav = (): NavItem[] => [
     { id: 'observations', path: '/admin/observations', icon: Activity, label: 'admin.nav.observations' },
     { id: 'map', path: '/admin/map', icon: Map, label: 'nav.map' },
     { id: 'notifications', path: '/admin/notifications', icon: Bell, label: 'admin.nav.notifications' },
+    { id: 'support', path: '/admin/support', icon: LifeBuoy, label: 'admin.nav.support' },
     { id: 'settings', path: '/admin/settings', icon: Settings, label: 'admin.nav.settings' },
 ];
 

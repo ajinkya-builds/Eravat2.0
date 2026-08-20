@@ -3,7 +3,6 @@ export type DeferredCapabilityId =
     | 'communication_hub'
     | 'electric_fence'
     | 'crowd_data'
-    | 'help_requests'
     | 'blog_cms'
     | 'device_management'
     | 'odk_forms'
@@ -41,11 +40,6 @@ export const DEFERRED_CAPABILITIES: DeferredCapability[] = [
         id: 'crowd_data',
         labelKey: 'admin.deferred.crowdData',
         reason: 'No public villager reporting channel separate from field personnel.',
-    },
-    {
-        id: 'help_requests',
-        labelKey: 'admin.deferred.helpRequests',
-        reason: 'No ticketing / help_request table.',
     },
     {
         id: 'blog_cms',
