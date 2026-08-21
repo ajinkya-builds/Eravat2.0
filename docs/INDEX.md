@@ -30,11 +30,14 @@ docs/
 ├── DASHBOARD_METRICS_REFERENCE.md ← KPI and dashboard calculation formulas
 ├── ROLE_CAPABILITY_MATRIX.md   ← Role intents vs implementation + gaps
 ├── schema.md                   ← Database schema quick reference
+├── SUPABASE_OPERATIONS.md      ← Live Supabase apply/verify policy
+├── MCP_SETUP.md                ← Supabase + GitHub MCP (Desktop + Cloud Agents)
 ├── SYNC_RUNBOOK.md             ← Sync troubleshooting playbook
 ├── OBSERVABILITY_AND_ANALYTICS.md ← Logging, errors, funnels (PostHog free-tier plan)
 ├── AUTH_ARCHITECTURE.md        ← Offline-first auth proposal (draft — decision pending)
 ├── MANUAL_TESTING.md           ← QA Test specifications for PWA/Offline Edge Cases
 └── sessions/
+    ├── 2026-07-29-mcp-supabase-github-setup.md
     ├── 2026-05-21-roles-gps-volunteer-onboarding.md
     ├── 2026-05-13-gh-pages-logo-auth-env-deploy.md
     ├── 2026-05-12-main-yash-dev-merge-backups-gh-pages.md
@@ -71,6 +74,7 @@ docs/
 
 | Date       | Topic                          | Key Outcomes                                                                                                             |
 | ---------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| 2026-07-29 | MCP Supabase + GitHub setup    | `.cursor/mcp.json` + `MCP_SETUP.md`; Cloud Agents still need dashboard enable + OAuth/PAT                                |
 | 2026-02-21 | Database Setup & First Login   | Discovered real schema, fixed Login.tsx, wired Supabase auth                                                             |
 | 2026-02-21 | User Management & RBAC         | Created Edit/Delete user flows, built Edge Functions for strict Role-Based Access Control                                |
 | 2026-02-21 | UI/UX Centralization & Cleanup | Unified App/Admin layouts, reused MapComponent to fix Dashboard map, removed legacy views                                |

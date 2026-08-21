@@ -1,0 +1,18 @@
+---
+description: Prefer project MCP servers (supabase-prod, supabase-staging, github) once authenticated; point humans to docs/MCP_SETUP.md for Cloud Agent dashboard enablement.
+alwaysApply: true
+---
+
+# MCP — project tooling
+
+Shared config: `.cursor/mcp.json`
+
+| Name | Target |
+|------|--------|
+| `supabase-prod` | `mnytrlcmdpkfhrzrtesf` |
+| `supabase-staging` | `ttjtyvxfiqhjdngkgdkf` |
+| `github` | `https://api.githubcopilot.com/mcp/` |
+
+- If those servers are missing in a Cloud Agent, tell the user to follow `docs/MCP_SETUP.md` section A (dashboard HTTP servers + OAuth/PAT). Do not pretend MCP is available when only `cursor-cloud` is listed.
+- Prefer MCP for live DB work when present; keep matching files under `supabase/`. Say clearly whether a change targets **staging** or **prod**.
+- Never commit PATs or put raw secrets in `.cursor/mcp.json`; use `${env:GITHUB_PAT}` or dashboard encrypted headers.

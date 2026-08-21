@@ -132,5 +132,6 @@ supabase stop
 ## Related docs
 
 - [`SUPABASE_OPERATIONS.md`](./SUPABASE_OPERATIONS.md) — production migration policy
+- [`MCP_SETUP.md`](./MCP_SETUP.md) — Supabase + GitHub MCP for Desktop and Cloud Agents
 - [`README.md`](./README.md) — full architecture
 - [`testing/E2E_RUN_LOG.md`](./testing/E2E_RUN_LOG.md) — Playwright against localhost:5173
