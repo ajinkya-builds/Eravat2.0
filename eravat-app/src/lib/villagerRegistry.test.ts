@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   csvEscape,
+  emptyVillagerForm,
   isUuid,
   nestedName,
   onboarderLabel,
@@ -10,6 +11,19 @@ import {
 } from './villagerRegistry';
 
 describe('villagerRegistry', () => {
+  it('does not seed onboarder beat into empty form (Review 3 §7)', () => {
+    const form = emptyVillagerForm({
+      division_id: 'div-guard',
+      range_id: 'rng-guard',
+      beat_id: 'beat-guard',
+    });
+    expect(form.territory).toEqual({
+      division_id: null,
+      range_id: null,
+      beat_id: null,
+    });
+  });
+
   it('requires name, phone, and village', () => {
     const result = validateVillagerForm({
       name: ' ',

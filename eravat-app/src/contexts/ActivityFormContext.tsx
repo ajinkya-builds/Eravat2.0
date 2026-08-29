@@ -121,7 +121,13 @@ const ActivityFormContext = createContext<ActivityFormContextValue | null>(null)
 export function ActivityFormProvider({ children }: { children: ReactNode }) {
     const [formData, setFormData] = useState<ActivityFormData>(DEFAULT_FORM);
     const [stepIndex, setStepIndex] = useState(0);
-    const { fetchLocation, loading: gpsLoading, error: gpsError, lastErrorCode } = useGeolocation();
+    const {
+        fetchLocation,
+        loading: gpsLoading,
+        error: gpsError,
+        lastErrorCode,
+        getLastKnownLocation,
+    } = useGeolocation();
     const prefetchStartedRef = useRef(false);
     const locationRequestIdRef = useRef(0);
 
@@ -162,11 +168,31 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
             });
             logger.info('ReportLocation', 'gps acquired', { duration_ms: gpsMs, accuracy_m: accuracyM, source });
         } else {
-            const errorCode = lastErrorCode() ?? 'LOCATION_FAILED';
-            track('report.gps_failed', { duration_ms: gpsMs, error_code: errorCode, source });
-            logger.warn('ReportLocation', 'gps failed', { duration_ms: gpsMs, error_code: errorCode, source });
+            const fallback = getLastKnownLocation();
+            if (fallback) {
+                updateFormData({
+                    latitude: fallback.coords.latitude,
+                    longitude: fallback.coords.longitude,
+                });
+                const errorCode = lastErrorCode() ?? 'LOCATION_FAILED';
+                track('report.gps_fallback_used', {
+                    duration_ms: gpsMs,
+                    error_code: errorCode,
+                    source,
+                    cache_age_ms: Date.now() - fallback.timestamp,
+                });
+                logger.warn('ReportLocation', 'gps fallback to last known fix', {
+                    duration_ms: gpsMs,
+                    error_code: errorCode,
+                    source,
+                });
+            } else {
+                const errorCode = lastErrorCode() ?? 'LOCATION_FAILED';
+                track('report.gps_failed', { duration_ms: gpsMs, error_code: errorCode, source });
+                logger.warn('ReportLocation', 'gps failed', { duration_ms: gpsMs, error_code: errorCode, source });
+            }
         }
-    }, [fetchLocation, lastErrorCode, updateFormData]);
+    }, [fetchLocation, getLastKnownLocation, lastErrorCode, updateFormData]);
 
     useEffect(() => {
         if (prefetchStartedRef.current) return;

@@ -73,11 +73,13 @@ export function onboarderLabel(rel: NestedPerson): string | null {
   return name || null;
 }
 
-export function emptyVillagerForm(profile?: {
+export function emptyVillagerForm(_profile?: {
   division_id?: string | null;
   range_id?: string | null;
   beat_id?: string | null;
 } | null): VillagerFormValues {
+  // Do not seed the onboarder's assigned beat — TerritorySelect fills DRB from GPS
+  // (or the user picks from the cached geo lists when offline).
   return {
     name: '',
     phone: '',
@@ -85,9 +87,9 @@ export function emptyVillagerForm(profile?: {
     selectedVillage: null,
     location: { latitude: null, longitude: null },
     territory: {
-      division_id: profile?.division_id ?? null,
-      range_id: profile?.range_id ?? null,
-      beat_id: profile?.beat_id ?? null,
+      division_id: null,
+      range_id: null,
+      beat_id: null,
     },
     notes: '',
     alertOptIn: true,

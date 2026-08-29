@@ -1,1 +1,1 @@
-if('serviceWorker' in navigator) navigator.serviceWorker.register('/dev-sw.js?dev-sw', { scope: '/', type: 'classic' })
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/Eravat2.0/dev-sw.js?dev-sw', { scope: '/Eravat2.0/', type: 'classic' })

@@ -33,9 +33,26 @@ async function loginOTP(page, phone) {
   await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 30000 });
 }
 
+async function injectPhoto(page) {
+  const btn = page.getByTestId('e2e-inject-photo');
+  if (await btn.count()) {
+    await btn.click();
+    return true;
+  }
+  return false;
+}
+
 async function clickContinue(page) {
-  const btn = page.getByRole('button', { name: /Continue|Next|समीक्षा|आगे/i }).or(page.locator('button').filter({ hasText: /Continue|Next/i }));
-  await btn.last().click();
+  const btn = page.getByRole('button', { name: /Continue|Next|समीक्षा|आगे|पुढे/i }).or(page.locator('button').filter({ hasText: /Continue|Next/i }));
+  await btn.last().waitFor({ state: 'visible', timeout: 15000 });
+  await btn.last().click({ force: true });
+}
+
+async function advancePastPhoto(page) {
+  await injectPhoto(page);
+  await page.waitForTimeout(400);
+  await clickContinue(page);
+  await page.getByText(/Type of Observation|Direct Observation|Indirect Observation/i).first().waitFor({ timeout: 15000 });
 }
 
 await mkdir(OUT, { recursive: true });
@@ -90,27 +107,19 @@ const browser = await chromium.launch();
       record('bg language switch', true, 'control not labelled as expected — page loaded');
     }
 
-    // Report wizard: location → direct → damage on → grain/crop → compass → photo
+    // Report wizard: photo → observation → damage → location → review
     await page.goto(`${BASE}/report`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2500);
-    const getLoc = page.getByRole('button', { name: /location|GPS|स्थान/i });
-    if (await getLoc.count()) await getLoc.first().click().catch(() => {});
-    await page.waitForTimeout(1500);
-    const lat = page.locator('input[type="number"]').first();
-    if (await lat.count()) {
-      await lat.fill('23.75');
-      const lng = page.locator('input[type="number"]').nth(1);
-      if (await lng.count()) await lng.fill('80.93');
-    }
-    record('bg report step location', /date|time|location|latitude|beat/i.test(await page.locator('body').innerText()));
+    const photoInjected = await injectPhoto(page);
+    record('bg report photo required', photoInjected || /photo|gallery|camera|साक्ष्य|Use test photo/i.test(await page.locator('body').innerText()));
     await clickContinue(page).catch(() => {});
     await page.waitForTimeout(1200);
 
     const direct = page.getByText(/Direct Observation|Direct Sighting|प्रत्यक्ष/i).first();
     if (await direct.count()) await direct.click();
     await page.waitForTimeout(600);
-    await page.locator('.bg-primary').filter({ has: page.locator('svg') }).first().click().catch(() => {});
-    await page.waitForTimeout(300);
+    const plus = page.locator('button:has(.lucide-plus)').first();
+    if (await plus.count()) await plus.click();
     const damageToggle = page.locator('input[type="checkbox"]').first();
     if (await damageToggle.count()) {
       await damageToggle.check({ force: true }).catch(async () => {
@@ -137,24 +146,25 @@ const browser = await chromium.launch();
     await clickContinue(page).catch(() => {});
     await page.waitForTimeout(1000);
 
-    const deg = page.getByPlaceholder(/degree|डिग्री/i).or(page.locator('input[type="number"]').last());
-    if (await deg.count()) await deg.first().fill('90').catch(() => {});
+    const lat = page.locator('input[type="number"]').first();
+    if (await lat.count()) {
+      await lat.fill('23.75');
+      const lng = page.locator('input[type="number"]').nth(1);
+      if (await lng.count()) await lng.fill('80.93');
+    }
+    record('bg report step location', /date|time|location|latitude|beat|division/i.test(await page.locator('body').innerText()));
     record(
       'bg report compass removed',
       !/compass|bearing/i.test((await page.locator('body').innerText()).toLowerCase()),
       'compass UX was dropped from the product',
     );
-    await clickContinue(page).catch(() => {});
-    await page.waitForTimeout(800);
-    record('bg report photo required', /photo|gallery|camera|साक्ष्य/i.test((await page.locator('body').innerText()).toLowerCase()));
     await shot(page, 'bg-report-photo');
 
     // Indirect path
     await page.goto(`${BASE}/report`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2000);
-    await clickContinue(page).catch(() => {});
-    await page.waitForTimeout(800);
-    const indirect = page.getByText(/Indirect|अप्रत्यक्ष|sign/i).first();
+    await advancePastPhoto(page).catch(() => {});
+    const indirect = page.getByText(/Indirect Observation|Indirect Sign|अप्रत्यक्ष/i).first();
     if (await indirect.count()) await indirect.click();
     await page.waitForTimeout(400);
     const pug = page.getByText(/Pug|Footprint|पग/i).first();

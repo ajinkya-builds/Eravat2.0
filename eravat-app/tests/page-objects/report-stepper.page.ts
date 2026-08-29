@@ -35,8 +35,8 @@ export class ReportStepperPage {
         this.latInput = page.locator('input[type="number"]').first();
         this.lngInput = page.locator('input[type="number"]').nth(1);
 
-        this.directSightingCard = page.locator('button').filter({ hasText: /Direct Sighting/i }).first();
-        this.indirectSignCard = page.locator('button').filter({ hasText: /Indirect Sign/i }).first();
+        this.directSightingCard = page.locator('button').filter({ hasText: /Direct Observation|Direct Sighting/i }).first();
+        this.indirectSignCard = page.locator('button').filter({ hasText: /Indirect Observation|Indirect Sign/i }).first();
         this.lossDamageCard = page.locator('button').filter({ hasText: /Loss/i }).first();
 
         this.successMessage = page.locator('text=/Report Saved|रिपोर्ट सहेजी|अहवाल जतन/i').first();

@@ -189,6 +189,22 @@ Run automation: `node scripts/staging-notification-alerts-e2e.mjs`
 
 ---
 
+### N. Review 3 field feedback (27 Aug PDF / 20260819 build)
+
+Automation: `node scripts/review-feedback-e2e.mjs` (includes R3.* checks) + unit tests for share date / geo cache / villager form.
+
+- [ ] **R3.1** Offline reopen with a prior session reaches home (not OTP/PIN spinner forever). First-ever install still needs one online open for PWA/shell.
+- [ ] **R3.2** Get Location returns a fresh fix; stale-cache messaging is clear; Nearby falls back sensibly.
+- [ ] **R3.3** Editing report lat/lng updates Division/Range/Beat online.
+- [ ] **R3.4** Offline report review shows selected DRB names (or “on sync”); share includes DRB when known.
+- [ ] **R3.5** Nearby lists sightings near device GPS (also visible on Map).
+- [ ] **R3.6** Share text uses DD-MM-YYYY, includes description, and photo when the platform supports file share.
+- [ ] **R3.7** Villager / Hathi Mitra onboard DRB comes from GPS (not the guard’s assigned beat).
+- [ ] **R3.8** My Villagers shows only people the current user onboarded.
+- [ ] **R3.9** Report photo step: **Take Photo Now** primary, **Attach from Gallery** secondary.
+
+---
+
 ## Release sign-off template
 
 | Field | Value |

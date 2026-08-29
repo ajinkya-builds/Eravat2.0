@@ -1,24 +1,26 @@
 /**
  * Headless manual smoke via Playwright — run: node scripts/manual-smoke.mjs
  * Requires dev server at http://localhost:5173/Eravat2.0/
+ * Auth: OTP (password login was removed). Local sandbox OTP is 123456.
  */
 import { chromium } from '@playwright/test';
 import { mkdir, writeFile } from 'fs/promises';
 
-const BASE = 'http://localhost:5173/Eravat2.0';
-const FIELD = { phone: '8899776655', password: 'pass123' };
-const ADMIN = { phone: '9988775566', password: 'P@ss123' };
+const BASE = process.env.E2E_BASE || 'http://localhost:5173/Eravat2.0';
+const FIELD = { phone: '8899776655', otp: '123456' };
+const ADMIN = { phone: '9988775566', otp: '123456' };
 
 const results = [];
 
 async function login(page, creds) {
   await page.goto(`${BASE}/login`);
-  const passwordTab = page.getByRole('button', { name: /Login with Password|पासवर्ड/i });
-  if (await passwordTab.isVisible().catch(() => false)) await passwordTab.click();
-  await page.getByPlaceholder('+91 98765 43210').fill(creds.phone);
-  await page.getByPlaceholder('••••••••').fill(creds.password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL((u) => !u.pathname.endsWith('/login'), { timeout: 60_000 });
+  await page.getByPlaceholder('9876543210').waitFor({ timeout: 20_000 });
+  await page.getByPlaceholder('9876543210').fill(creds.phone);
+  await page.getByRole('button', { name: /Send OTP/i }).click();
+  await page.getByPlaceholder(/Enter 6-digit code|6-digit|OTP/i).waitFor({ timeout: 25_000 });
+  await page.getByPlaceholder(/Enter 6-digit code|6-digit|OTP/i).fill(creds.otp);
+  await page.getByRole('button', { name: /Verify/i }).click();
+  await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 60_000 });
 }
 
 async function check(name, fn) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, List } from 'lucide-react';
@@ -25,18 +25,6 @@ export default function OnboardVillager() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!profile) return;
-    setValues((prev) => ({
-      ...prev,
-      territory: {
-        division_id: prev.territory.division_id ?? profile.division_id ?? null,
-        range_id: prev.territory.range_id ?? profile.range_id ?? null,
-        beat_id: prev.territory.beat_id ?? profile.beat_id ?? null,
-      },
-    }));
-  }, [profile?.id]);
-
   if (!canOnboardVillagers(profile?.role)) {
     return (
       <div className="min-h-screen p-6 max-w-lg mx-auto">
@@ -62,8 +50,8 @@ export default function OnboardVillager() {
     setIsSubmitting(true);
     try {
       const divisionId =
-        values.territory.division_id ?? values.selectedVillage?.division_id ?? profile?.division_id ?? null;
-      const rangeId = values.territory.range_id ?? profile?.range_id ?? null;
+        values.territory.division_id ?? values.selectedVillage?.division_id ?? null;
+      const rangeId = values.territory.range_id ?? null;
       const villageId = await ensureVillageId(values.villageName, values.selectedVillage, divisionId);
 
       const { error: insertErr } = await supabase.from('villagers').insert({

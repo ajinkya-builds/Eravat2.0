@@ -44,10 +44,10 @@ export function ReportIssueWidget() {
     return () => window.removeEventListener('online', flush);
   }, []);
 
+  // Raise above bottom nav / report wizard footer so the FAB never covers primary CTAs.
   const raisedNav =
     !location.pathname.startsWith('/admin') &&
     location.pathname !== '/login' &&
-    location.pathname !== '/report' &&
     !location.pathname.startsWith('/profile/complete-location');
 
   const handleSubmit = async (e: React.FormEvent) => {

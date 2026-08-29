@@ -79,8 +79,15 @@ export default defineConfig({
           },
         ],
       },
+      workbox: {
+        navigateFallback: "index.html",
+        // Cover Netlify (/) and GitHub Pages (/Eravat2.0/) so offline SPA reloads work
+        // after the first online visit that installs the service worker.
+        navigateFallbackAllowlist: [/^\/$/, /^\/index\.html$/, /^\/Eravat2\.0\//],
+      },
       devOptions: {
         enabled: true,
+        navigateFallbackAllowlist: [/^\/$/, /^\/index\.html$/, /^\/Eravat2\.0\//],
       },
     }),
   ],

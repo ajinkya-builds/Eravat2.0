@@ -107,7 +107,7 @@ await check('Unenrolled phone rejected', async () => {
   const phoneInput = page.locator('input').first();
   await phoneInput.fill(USERS.unenrolled.phone);
   await page.getByRole('button', { name: /Send OTP|OTP/i }).click();
-  await page.getByText(/Invalid credentials|not found|try again|अमान्य/i).waitFor({ timeout: 15000 });
+  await page.getByText(/not enrolled|Invalid credentials|not registered|try again|अमान्य|पंजीकृत नहीं/i).waitFor({ timeout: 15000 });
   await shot(page, '02-unenrolled');
 });
 

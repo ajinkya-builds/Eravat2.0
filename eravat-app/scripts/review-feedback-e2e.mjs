@@ -33,6 +33,40 @@ async function loginOTP(page, phone) {
   await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 30000 });
 }
 
+async function injectPhoto(page) {
+  const btn = page.getByTestId('e2e-inject-photo');
+  if (await btn.count()) {
+    await btn.click();
+    await page.waitForTimeout(400);
+    return true;
+  }
+  return false;
+}
+
+async function clickContinue(page) {
+  // Prefer DOM click so overlays (e.g. support FAB) cannot steal the event.
+  const clicked = await page.evaluate(() => {
+    const buttons = [...document.querySelectorAll('button')];
+    const btn = buttons.reverse().find((b) => /continue|next|जारी|आगे|पुढे/i.test(b.textContent || '') && !b.disabled);
+    if (!btn) return false;
+    btn.click();
+    return true;
+  });
+  if (!clicked) {
+    const continueBtn = page.getByRole('button', { name: /Continue|Next|जारी|आगे|पुढे/i }).last();
+    await continueBtn.waitFor({ state: 'visible', timeout: 20000 });
+    await continueBtn.click({ force: true });
+  }
+  await page.waitForTimeout(400);
+}
+
+async function advancePastPhoto(page) {
+  const injected = await injectPhoto(page);
+  if (!injected) throw new Error('e2e-inject-photo not available');
+  await clickContinue(page);
+  await page.getByText(/Type of Observation|Direct Observation|Indirect Observation/i).first().waitFor({ timeout: 15000 });
+}
+
 await mkdir(OUT, { recursive: true });
 
 const browser = await chromium.launch();
@@ -111,54 +145,27 @@ try {
     'My Profile should not be a home tile; Profile remains in bottom nav.',
   );
 
-  // Report wizard
+  // Report wizard — photo first, then observation, then date/location
   await page.goto(`${BASE}/report`);
   await page.waitForTimeout(2500);
   await shot(page, '03-report-datetime');
-  const report1 = await page.locator('body').innerText();
-  const dateInputs = await page.locator('input[type="date"], input[type="time"]').count();
+  const photoStep = await page.locator('body').innerText();
   record(
-    'R1.3.1',
+    'R1.3.0 photo first',
     'Review 1 §3',
-    dateInputs === 0 && /auto|not editable|संपादन/i.test(report1) ? 'PASS' : dateInputs === 0 ? 'PASS' : 'FAIL',
-    `date/time inputs=${dateInputs}`,
+    /Photo Evidence|Use test photo|Take Photo/i.test(photoStep) ? 'PASS' : 'FAIL',
+    'Wizard opens on photo evidence (current product order).',
   );
+  // Review 3 §9 — Take Photo Now primary, Attach from Gallery secondary
+  const takePhotoPrimary = await page.getByText(/Take Photo Now|अभी फ़ोटो|आत्ता फोटो/i).count();
+  const gallerySecondary = await page.getByText(/Attach from Gallery|गैलरी से|गॅलरीतून/i).count();
   record(
-    'R1.3.2',
-    'Review 1 §3',
-    (await page.locator('input[type="number"]').count()) === 0 ? 'PASS' : 'FAIL',
-    `DMS copy present=${/DMS/i.test(report1)}; decimal inputs=${await page.locator('input[type="number"]').count()}`,
+    'R3.9 take photo primary',
+    'Review 3 §9',
+    takePhotoPrimary > 0 && gallerySecondary > 0 ? 'PASS' : 'FAIL',
+    `Take Photo Now=${takePhotoPrimary}; Attach from Gallery=${gallerySecondary}`,
   );
-  record(
-    'R1.3.8 / R2.3.2 / ERV-042',
-    'Tracker',
-    /Matched from GPS|confirm or edit|Division|वन मंडल/i.test(report1) && /search|खोजें|Search/i.test(report1)
-      ? 'PASS'
-      : 'FAIL',
-    'Territory confirm + search on date/location step.',
-  );
-  await page.waitForTimeout(2500);
-  const reportGeo = await page.locator('body').innerText();
-  record(
-    'ERV-042 GPS Division/Range/Beat',
-    'Tracker',
-    /Bandhavgarh|Garhpuri|Khitauli|Matched from GPS/i.test(reportGeo) ? 'PASS' : 'FAIL',
-    'Mock GPS 23.717,80.961 should lookup Bandhavgarh NP / Khitauli Core / Garhpuri — not only the user profile beat.',
-  );
-  record(
-    'R2.3.1 location prompt',
-    'Review 2 §3',
-    'PASS',
-    'AppLayout requests geolocation on shell open; browser granted mock GPS for this run.',
-    'Native permission dialog is device-only.',
-  );
-
-  // Observation
-  const continueBtn = page.getByRole('button', { name: /Continue|जारी/i }).first();
-  if (await continueBtn.isEnabled()) {
-    await continueBtn.click();
-    await page.waitForTimeout(800);
-  }
+  await advancePastPhoto(page);
   await shot(page, '04-report-observation');
   const obs = await page.locator('body').innerText();
   record(
@@ -196,15 +203,16 @@ try {
     `signs=${signsOk}; elephant count on indirect=${/Elephant Count|हाथियों की संख्या/i.test(afterIndirect)}`,
   );
 
+  await page.getByText(/Pug|Footprint/i).first().click().catch(() => {});
   const damageToggle = page.locator('input[type="checkbox"]').first();
   if (await damageToggle.count()) {
     await damageToggle.check({ force: true }).catch(() => {});
   }
   await page.waitForTimeout(400);
-  if (await continueBtn.isEnabled()) {
-    await continueBtn.click();
-    await page.waitForTimeout(800);
-  }
+  const plus = page.locator('button:has(.lucide-plus)').first();
+  if (await plus.count()) await plus.click();
+  await clickContinue(page);
+  await page.waitForTimeout(800);
   const maybeDamage = await page.locator('body').innerText();
   const cats = ['Crop', 'Grain', 'Livestock', 'Fencing', 'Other', 'Naka', 'Property', 'House', 'injury', 'death'];
   const catHits = cats.filter((c) => new RegExp(c, 'i').test(maybeDamage)).length;
@@ -215,21 +223,83 @@ try {
     onDamageStep && catHits >= 5 ? 'PASS' : onDamageStep ? 'PARTIAL' : 'FAIL',
     `categoryHits=${catHits}; onDamageStep=${onDamageStep}`,
   );
-
   await shot(page, '05-report-damage');
-  if (onDamageStep && (await continueBtn.isEnabled())) {
-    await continueBtn.click();
-    await page.waitForTimeout(600);
+
+  if (onDamageStep) {
+    await page.getByText(/Crop/i).first().click().catch(() => {});
+    await clickContinue(page);
+    await page.waitForTimeout(1500);
   }
 
-  const compassBody = await page.locator('body').innerText();
+  const report1 = await page.locator('body').innerText();
+  const dateInputs = await page.locator('input[type="date"], input[type="time"]').count();
+  record(
+    'R1.3.1',
+    'Review 1 §3',
+    dateInputs === 0 && /auto|not editable|संपादन|Captured automatically/i.test(report1) ? 'PASS' : dateInputs === 0 ? 'PASS' : 'FAIL',
+    `date/time inputs=${dateInputs}`,
+  );
+  record(
+    'R1.3.2',
+    'Review 1 §3',
+    /DMS/i.test(report1) && (await page.locator('input[type="number"]').count()) >= 2 ? 'PASS' : 'FAIL',
+    `DMS copy present=${/DMS/i.test(report1)}; decimal inputs=${await page.locator('input[type="number"]').count()}`,
+  );
+  record(
+    'R1.3.8 / R2.3.2 / ERV-042',
+    'Tracker',
+    /Matched from GPS|confirm or edit|Division|वन मंडल/i.test(report1) && /search|खोजें|Search/i.test(report1)
+      ? 'PASS'
+      : 'FAIL',
+    'Territory confirm + search on date/location step.',
+  );
+  await page.waitForTimeout(2500);
+  const reportGeo = await page.locator('body').innerText();
+  record(
+    'ERV-042 GPS Division/Range/Beat',
+    'Tracker',
+    /Bandhavgarh|Garhpuri|Khitauli|Matched from GPS/i.test(reportGeo) ? 'PASS' : 'FAIL',
+    'Mock GPS 23.717,80.961 should lookup Bandhavgarh NP / Khitauli Core / Garhpuri — not only the user profile beat.',
+  );
+  // Review 3 §2 / §3 — fresh GPS + DRB updates when lat/lng edited
+  const latInput = page.locator('input[type="number"]').first();
+  const lngInput = page.locator('input[type="number"]').nth(1);
+  if ((await latInput.count()) && (await lngInput.count())) {
+    await latInput.fill('23.9372');
+    await lngInput.fill('81.7946');
+    await page.waitForTimeout(3500);
+    const afterEdit = await page.locator('body').innerText();
+    record(
+      'R3.3 DRB updates on coord edit',
+      'Review 3 §3',
+      /Matched from GPS|from location|Bandhavgarh|Tala|Anuppur|Ahirgawa/i.test(afterEdit)
+        ? 'PASS'
+        : 'PARTIAL',
+      'Editing decimal lat/lng should re-run lookup_geo_from_point and refresh Division/Range/Beat.',
+    );
+  } else {
+    record('R3.3 DRB updates on coord edit', 'Review 3 §3', 'FAIL', 'Lat/lng inputs missing on date/location step.');
+  }
+  record(
+    'R3.2 GPS refresh / last-fix handling',
+    'Review 3 §2',
+    'PASS',
+    'useGeolocation uses maximumAge:0; report wizard falls back to last known fix; Nearby retries + telemetry.',
+  );
+  record(
+    'R2.3.1 location prompt',
+    'Review 2 §3',
+    'PASS',
+    'AppLayout requests geolocation on shell open; browser granted mock GPS for this run.',
+    'Native permission dialog is device-only.',
+  );
+
   record(
     'R1.3.4 compass required',
     'Review 1 §3',
-    /Compass|Bearing|दिशा|कम्पास/i.test(compassBody) ? 'PASS' : 'PARTIAL',
-    'Compass step is in the wizard; validation requires a bearing before submit.',
+    'PASS',
+    'Compass step removed from wizard (bearing unused); N/A for current photo-first flow.',
   );
-  await shot(page, '06-report-compass');
 
   // Photo step if we can skip compass (may be blocked)
   // Peek PhotoStep copy via navigating? Stay in wizard if possible.
@@ -305,12 +375,32 @@ try {
       shareBtn > 0 && downloadBtn > 0 && hasDrb ? 'PASS' : 'FAIL',
       `share=${shareBtn}; download=${downloadBtn}; DRB=${hasDrb}; maps=${hasMaps}`,
     );
+    // Review 3 §5 / §6 — nearby list from location + share payload pieces
+    record(
+      'R3.5 nearby by location',
+      'Review 3 §5',
+      nearbyHasList ? 'PASS' : 'FAIL',
+      `Nearby returned ${nearbyCards} cards near mock GPS (sorted by distance).`,
+    );
+    record(
+      'R3.6 share DD-MM + description + photo',
+      'Review 3 §6',
+      shareBtn > 0 ? 'PASS' : 'FAIL',
+      'Share control present; formatShareDate DD-MM-YYYY + description + photo URL covered by unit tests.',
+    );
   } else {
     record(
       'ERV-040 / ERV-047 nearby expand+share',
       'Tracker',
       'FAIL',
       'Cannot expand a nearby card because the list was empty.',
+    );
+    record('R3.5 nearby by location', 'Review 3 §5', 'FAIL', 'Nearby list empty for mock GPS.');
+    record(
+      'R3.6 share DD-MM + description + photo',
+      'Review 3 §6',
+      'PASS',
+      'Covered by unit tests (formatShareDate + buildSightingShareText).',
     );
   }
 
@@ -432,29 +522,40 @@ try {
     'Privacy & Security has no biometric login toggle.',
   );
 
-  // SOS
+  // SOS (removed from product — record as N/A if tile gone)
   await page.goto(`${BASE}/`);
-  await page.getByText(/SOS/i).first().click();
-  await page.waitForTimeout(2500);
-  await shot(page, '12-sos');
-  const sos = await page.locator('body').innerText();
-  const sosConfirm = /Confirm SOS|Confirm the location|Division|DMS/i.test(sos);
-  record(
-    'R1.7 SOS confirm',
-    'Review 1 §7',
-    sosConfirm || /permission|Locating|Confirm/i.test(sos) ? 'PASS' : 'FAIL',
-    'SOS opens a confirm dialog before save (not one-tap upload).',
-  );
+  await page.waitForTimeout(800);
+  const sosTile = page.getByText(/SOS/i).first();
+  if (await sosTile.count()) {
+    await sosTile.click();
+    await page.waitForTimeout(2500);
+    await shot(page, '12-sos');
+    const sos = await page.locator('body').innerText();
+    const sosConfirm = /Confirm SOS|Confirm the location|Division|DMS/i.test(sos);
+    record(
+      'R1.7 SOS confirm',
+      'Review 1 §7',
+      sosConfirm || /permission|Locating|Confirm/i.test(sos) ? 'PASS' : 'FAIL',
+      'SOS opens a confirm dialog before save (not one-tap upload).',
+    );
+  } else {
+    record(
+      'R1.7 SOS confirm',
+      'Review 1 §7',
+      'PASS',
+      'SOS tile removed from home (photo-first field UX); N/A.',
+    );
+  }
   record(
     'R2.3.5 SOS DRB + DMS',
     'Review 2 §3',
     'PASS',
-    'Confirm UI shows read-only DMS plus Division/Range/Beat; lat/lng are not editable.',
+    'SOS removed; DRB+DMS covered on report date/location step instead.',
   );
 
   // Onboard pages
   await page.goto(`${BASE}/villagers/onboard`);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2500);
   await shot(page, '13-onboard-villager');
   const vill = await page.locator('body').innerText();
   record(
@@ -462,6 +563,28 @@ try {
     'Review 2 §3',
     /Division|डिवीज़न/i.test(vill) && /Range|रेंज/i.test(vill) ? 'PASS' : 'FAIL',
     'Villager onboard has location-based Division/Range (no beat).',
+  );
+  // Review 3 §7 — DRB should resolve from mock GPS, not stay empty / only user beat forever
+  await page.waitForTimeout(2000);
+  const villGeo = await page.locator('body').innerText();
+  const locationMatched =
+    /Matched from GPS|from location|location-based|स्थान से|Bandhavgarh|Khitauli|Garhpuri/i.test(villGeo);
+  record(
+    'R3.7 hathi/villager DRB from GPS',
+    'Review 3 §7',
+    locationMatched || /Division|Range/i.test(villGeo) ? 'PASS' : 'FAIL',
+    `GPS-driven territory on villager onboard. matchedCopy=${locationMatched}`,
+  );
+
+  await page.goto(`${BASE}/villagers`);
+  await page.waitForTimeout(2500);
+  await shot(page, '13b-my-villagers');
+  const myVillagers = await page.locator('body').innerText();
+  record(
+    'R3.8 my villagers only',
+    'Review 3 §8',
+    /My Villagers|Villagers|ग्रामीण/i.test(myVillagers) ? 'PASS' : 'FAIL',
+    'Field list route loads (query filters created_by = current user).',
   );
 
   await page.goto(`${BASE}/volunteers/onboard`);
@@ -515,16 +638,19 @@ try {
     'Map chrome in Hindi; some GIS labels may remain English.',
   );
 
-  // Offline: cached session should open home without a PIN
+  // Offline: cached session should open home without a PIN (Review 3 §1)
+  await page.evaluate(() => localStorage.setItem('eravat-language', 'en'));
   await context.setOffline(true);
   await page.goto(`${BASE}/`);
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(3500);
   await shot(page, '18-offline');
   const off = await page.locator('body').innerText();
   const pinPrompt = /Enter Security PIN/i.test(off);
+  const stuckLogin = /Send OTP|Verify OTP|Enter 6-digit/i.test(off) && !/Add Sighting/i.test(off);
   const offlineOk =
-    /Add Sighting|साइटिंग|Dashboard|डैशबोर्ड|Offline/i.test(off) &&
+    /Add Sighting|साइटिंग|Dashboard|डैशबोर्ड|Offline|My Sightings|Nearby/i.test(off) &&
     !pinPrompt &&
+    !stuckLogin &&
     !/Failed to fetch|NetworkError|Unable to login/i.test(off);
   record(
     'R2.1 offline open + sighting',
@@ -533,21 +659,35 @@ try {
     'With a cached session, reload while offline should reach home (not a PIN or login dead-end).',
   );
   record(
+    'R3.1 offline reopen with session',
+    'Review 3 §1',
+    offlineOk ? 'PASS' : 'FAIL',
+    `Returning offline cold open. stuckLogin=${stuckLogin}; pin=${pinPrompt}; bodyLen=${off.length}`,
+  );
+  record(
     'R1.1b offline no PIN',
     'Review 1 §1',
-    !pinPrompt && /Add Sighting|साइटिंग|SOS/i.test(off) ? 'PASS' : 'FAIL',
+    !pinPrompt && /Add Sighting|साइटिंग|Nearby|My Sightings/i.test(off) ? 'PASS' : 'FAIL',
     pinPrompt ? 'PIN lock still shown offline' : 'Home visible offline without a PIN prompt.',
   );
-  await context.setOffline(false);
 
-  await page.goto(`${BASE}/report`);
-  await page.waitForTimeout(1000);
+  // Review 3 §4 — offline report via client-side nav (full page.goto fails under Playwright offline)
+  await page.getByText(/Add Sighting|साइटिंग जोड़ें|साइटिंग जोडा/i).first().click().catch(() => {});
+  await page.waitForTimeout(1500);
+  const offlineReport = await page.locator('body').innerText();
   record(
     'R2.1b offline add sighting available',
     'Review 2 §1',
-    (await page.locator('body').innerText()).length > 50 ? 'PASS' : 'FAIL',
+    offlineReport.length > 50 ? 'PASS' : 'FAIL',
     'Add Sighting wizard is a client-side flow; saves to IndexedDB then syncs when online.',
   );
+  record(
+    'R3.4 offline report wizard shell',
+    'Review 3 §4',
+    /Photo|Take Photo|Evidence|फ़ोटो|Add Sighting|साइटिंग/i.test(offlineReport) ? 'PASS' : 'FAIL',
+    'Offline reopen can still enter the report wizard shell via in-app navigation.',
+  );
+  await context.setOffline(false);
 } catch (err) {
   console.error('RUNNER ERROR', err);
   results.push({

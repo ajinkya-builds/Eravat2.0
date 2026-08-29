@@ -57,9 +57,40 @@ async function injectPhoto(page) {
   return false;
 }
 
+const OBS_DIRECT = /Direct Observation|Direct Sighting|प्रत्यक्ष/i;
+const OBS_INDIRECT = /Indirect Observation|Indirect Sign|Indirect Evidence|अप्रत्यक्ष/i;
+
 async function clickContinue(page) {
-  const btn = page.getByRole('button', { name: /Continue|Next|जारी|आगे/i }).last();
-  await btn.click({ force: true });
+  await page.waitForFunction(() => {
+    const buttons = [...document.querySelectorAll('button')];
+    return buttons.some((b) => /continue|next|जारी|आगे|पुढे/i.test(b.textContent || '') && !b.disabled);
+  }, null, { timeout: 15000 });
+  const clicked = await page.evaluate(() => {
+    const buttons = [...document.querySelectorAll('button')];
+    const btn = buttons.reverse().find((b) => /continue|next|जारी|आगे|पुढे/i.test(b.textContent || '') && !b.disabled);
+    if (!btn) return false;
+    btn.click();
+    return true;
+  });
+  if (!clicked) {
+    const btn = page.getByRole('button', { name: /Continue|Next|जारी|आगे|पुढे/i }).last();
+    await btn.click({ force: true });
+  }
+  await page.waitForTimeout(400);
+}
+
+async function advancePastPhoto(page) {
+  await injectPhoto(page);
+  await page.waitForTimeout(400);
+  await clickContinue(page);
+  await page.getByText(/Type of Observation|Direct Observation|Indirect Observation/i).first().waitFor({ timeout: 15000 });
+}
+
+async function selectDirectWithCount(page) {
+  await page.getByText(OBS_DIRECT).first().click();
+  await page.waitForTimeout(300);
+  const plus = page.locator('button:has(.lucide-plus)').first();
+  if (await plus.count()) await plus.click();
 }
 
 await mkdir(OUT, { recursive: true });
@@ -82,12 +113,9 @@ try {
   const injected = await injectPhoto(page);
   record('report inject test photo', injected || (await page.locator('img[alt="Captured evidence"]').count()) > 0);
   if (injected) await clickContinue(page);
-  await page.waitForTimeout(800);
+  await page.getByText(/Type of Observation|Direct Observation|Indirect Observation/i).first().waitFor({ timeout: 15000 });
 
-  await page.getByText(/Direct Sighting|Direct Observation/i).first().click();
-  await page.waitForTimeout(400);
-  const plus = page.locator('button:has(.lucide-plus)').first();
-  if (await plus.count()) await plus.click();
+  await selectDirectWithCount(page);
   await clickContinue(page);
   await page.waitForTimeout(1000);
 
@@ -125,16 +153,12 @@ try {
   // ── Conflict damage wizard — all loss categories ──
   await page.goto(`${BASE}/report`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
-  await injectPhoto(page);
-  await clickContinue(page).catch(() => {});
-  await page.waitForTimeout(600);
-  await page.getByText(/Direct Sighting|Direct Observation/i).first().click();
-  await page.waitForTimeout(300);
+  await advancePastPhoto(page);
+  await selectDirectWithCount(page);
   const damageToggle = page.locator('input[type="checkbox"]').first();
   if (await damageToggle.count()) await damageToggle.check({ force: true });
   else await page.getByText(/conflict damage|damage|नुकसान/i).first().click().catch(() => {});
   await page.waitForTimeout(300);
-  if (await plus.count()) await plus.click();
   await clickContinue(page);
   await page.waitForTimeout(1000);
 
@@ -158,10 +182,8 @@ try {
   try {
     await page.goto(`${BASE}/report`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2000);
-    await injectPhoto(page);
-    await clickContinue(page);
-    await page.waitForTimeout(800);
-    const indirect = page.getByText(/Indirect Sign|Indirect Evidence|अप्रत्यक्ष/i).first();
+    await advancePastPhoto(page);
+    const indirect = page.getByText(OBS_INDIRECT).first();
     if (await indirect.count()) {
       await indirect.click();
       await page.waitForTimeout(400);
@@ -180,16 +202,19 @@ try {
 
   // ── Offline queue → online sync ──
   try {
+    await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1000);
     await ctx.setOffline(true);
     await page.route('**/rest/v1/**', (route) => route.abort());
-    await page.goto(`${BASE}/report`, { waitUntil: 'domcontentloaded' });
+    // Client-side nav — full page.goto fails under Playwright offline.
+    await page.getByText(/Add Sighting|साइटिंग/i).first().click();
     await page.waitForTimeout(1500);
-    const offlineWizard = /Photo Evidence|photo|फ़ोटो|Use test photo/i.test(await page.locator('body').innerText());
+    const offlineWizard = /Photo Evidence|photo|फ़ोटो|Use test photo|Take Photo/i.test(await page.locator('body').innerText());
     record('offline report wizard opens', offlineWizard);
 
     await injectPhoto(page);
     await clickContinue(page).catch(() => {});
-    await page.locator('button').filter({ hasText: /Direct Sighting/i }).first().click().catch(() => {});
+    await page.getByText(OBS_DIRECT).first().click().catch(() => {});
     const plusBtn = page.locator('button:has(.lucide-plus)').first();
     if (await plusBtn.count()) await plusBtn.click();
     await clickContinue(page).catch(() => {});
@@ -204,7 +229,7 @@ try {
       await offlineSubmit.click({ force: true });
       await page.waitForTimeout(3000);
       const offBody = await page.locator('body').innerText();
-      record('offline submit queued locally', /Stored locally|offline|pending|sync|Saved/i.test(offBody), offBody.slice(0, 80));
+      record('offline submit queued locally', /Stored locally|offline|pending|sync|Saved|सहेजी|जतन/i.test(offBody), offBody.slice(0, 80));
     } else {
       record('offline submit queued locally', false, 'submit not reached');
     }

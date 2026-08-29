@@ -194,9 +194,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         let cancelled = false;
+        let initialSettled = false;
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
         // Drop PIN-wrapped blobs from older builds; session lives in Supabase persistSession.
         localStorage.removeItem('eravat_secure_session');
         localStorage.removeItem('eravat_bypass_pin_lock');
+
+        const AUTH_INIT_TIMEOUT_MS = 5_000;
+
+        const applyCachedForUser = (userId: string) => {
+            const cached = loadCachedProfile<UserProfile>(userId);
+            if (cached) {
+                setProfile(cached);
+                profileCacheRef.current = { userId, fetchedAt: Date.now() };
+            }
+        };
+
+        const applyInitialSession = (newSession: Session | null) => {
+            if (cancelled || initialSettled) return;
+            initialSettled = true;
+            setSession(newSession);
+            if (newSession?.user) {
+                wasAuthenticated[0].current = true;
+                const userId = newSession.user.id;
+                // Apply disk cache first so offline cold starts can leave the spinner.
+                applyCachedForUser(userId);
+                void fetchProfile(userId);
+                if (typeof navigator === 'undefined' || navigator.onLine) {
+                    PushNotificationService.register(userId).catch(err =>
+                        console.error('[AuthContext] Failed to register push notifications:', err)
+                    );
+                }
+            }
+            setLoading(false);
+        };
+
+        // getSession() can hang while offline when token refresh retries. Cap wait so
+        // a persisted session + cached profile can still open the app.
+        timeoutId = setTimeout(() => {
+            if (cancelled || initialSettled) return;
+            logger.warn('AuthContext', 'Auth init exceeded timeout; continuing with local session if any', {
+                supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+            });
+            initialSettled = true;
+            setLoading(false);
+        }, AUTH_INIT_TIMEOUT_MS);
+
+        void supabase.auth
+            .getSession()
+            .then(({ data: { session: existing } }) => {
+                if (cancelled) return;
+                if (timeoutId !== undefined) clearTimeout(timeoutId);
+                applyInitialSession(existing);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                if (timeoutId !== undefined) clearTimeout(timeoutId);
+                logger.warn('AuthContext', 'getSession failed', {
+                    message: err instanceof Error ? err.message : String(err),
+                });
+                applyInitialSession(null);
+            });
 
         const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
             if (import.meta.env.DEV) {
@@ -208,13 +266,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (newSession?.user) {
                 wasAuthenticated[0].current = true;
                 const userId = newSession.user.id;
+                applyCachedForUser(userId);
                 if (
                     shouldLoadProfileOnAuthEvent(event) ||
                     !isProfileCacheFresh(profileCacheRef.current.userId, userId, profileCacheRef.current.fetchedAt)
                 ) {
                     void fetchProfile(userId, { force: event === 'USER_UPDATED' });
                 }
-                if (shouldRegisterPushOnAuthEvent(event)) {
+                if (shouldRegisterPushOnAuthEvent(event) && (typeof navigator === 'undefined' || navigator.onLine)) {
                     PushNotificationService.register(userId).catch(err =>
                         console.error('[AuthContext] Failed to register push notifications:', err)
                     );
@@ -232,6 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return () => {
             cancelled = true;
+            if (timeoutId !== undefined) clearTimeout(timeoutId);
             listener.subscription.unsubscribe();
         };
     }, [fetchProfile]);

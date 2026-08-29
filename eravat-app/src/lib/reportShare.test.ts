@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSightingShareText, mapsLink } from './reportShare';
+import { buildSightingShareText, formatShareDate, mapsLink } from './reportShare';
 import cameraSrc from '../hooks/useCamera.ts?raw';
 
 const labels = {
@@ -46,6 +46,19 @@ describe('ERV-031 / ERV-040 share payload', () => {
     expect(text).toContain('23.717000, 80.961000');
     expect(text).toContain('https://www.google.com/maps?q=23.717,80.961');
     expect(text).toContain('https://example.com/photo.jpg');
+  });
+
+  it('includes description/notes in share text (Review 3 §6)', () => {
+    const text = buildSightingShareText({
+      typeLabel: 'Direct Sighting',
+      notes: 'Herd near naka',
+      labels,
+    });
+    expect(text).toContain('Description: Herd near naka');
+  });
+
+  it('formatShareDate is DD-MM-YYYY (Review 3 §6)', () => {
+    expect(formatShareDate('2026-08-19T11:22:34+05:30')).toMatch(/^19-08-2026,/);
   });
 
   it('mapsLink is a Google Maps query URL', () => {
