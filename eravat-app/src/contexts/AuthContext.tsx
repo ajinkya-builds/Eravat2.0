@@ -200,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('eravat_secure_session');
         localStorage.removeItem('eravat_bypass_pin_lock');
 
-        const AUTH_INIT_TIMEOUT_MS = 5_000;
+        const AUTH_INIT_TIMEOUT_MS = 8_000;
 
         const applyCachedForUser = (userId: string) => {
             const cached = loadCachedProfile<UserProfile>(userId);
@@ -211,7 +211,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
 
         const applyInitialSession = (newSession: Session | null) => {
-            if (cancelled || initialSettled) return;
+            if (cancelled) return;
+            // Always clear the hang watchdog, but still apply a late session even if we
+            // already cleared the loading spinner (common on slow Android cold starts).
+            if (timeoutId !== undefined) {
+                clearTimeout(timeoutId);
+                timeoutId = undefined;
+            }
+            const firstApply = !initialSettled;
             initialSettled = true;
             setSession(newSession);
             if (newSession?.user) {
@@ -226,17 +233,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     );
                 }
             }
-            setLoading(false);
+            if (firstApply || newSession) setLoading(false);
         };
 
         // getSession() can hang while offline when token refresh retries. Cap wait so
         // a persisted session + cached profile can still open the app.
         timeoutId = setTimeout(() => {
             if (cancelled || initialSettled) return;
-            logger.warn('AuthContext', 'Auth init exceeded timeout; continuing with local session if any', {
+            logger.warn('AuthContext', 'Auth init exceeded timeout; keeping spinner cleared while session resolves', {
                 supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
             });
-            initialSettled = true;
+            // Do not mark initialSettled — a late getSession / INITIAL_SESSION must still apply.
             setLoading(false);
         }, AUTH_INIT_TIMEOUT_MS);
 
