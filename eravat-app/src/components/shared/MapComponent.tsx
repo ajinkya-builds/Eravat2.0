@@ -5,7 +5,6 @@ import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap, CircleMarker, 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Layers, Eye, AlertTriangle, Footprints, Maximize2, Minimize2, LocateFixed, Satellite, Map as MapIcon } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { Buffer } from 'buffer';
 import wkx from 'wkx';
 import * as turf from '@turf/turf';
@@ -51,37 +50,45 @@ const userIcon = new L.DivIcon({
 
 // ─── Map helpers (children of MapContainer) ────────────────────────────────────
 
-/** Fit the map to the union of the selected boundary, visible pins, and user location. */
-function FitToData({
+/** Fit once when territory selection changes — never on GPS/pin churn (that fights pan/zoom). */
+function FitToTerritory({
     geojsonData,
-    pins,
-    userLoc,
     fitKey,
 }: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     geojsonData: any;
-    pins: { lat: number; lng: number }[];
-    userLoc: { lat: number; lng: number } | null;
     fitKey: string;
 }) {
     const map = useMap();
     useEffect(() => {
+        if (!fitKey || !geojsonData) return;
         try {
-            const bounds = L.latLngBounds([]);
-            if (geojsonData) {
-                const layer = L.geoJSON(geojsonData);
-                if (layer.getBounds().isValid()) bounds.extend(layer.getBounds());
-            }
-            pins.forEach((p) => bounds.extend([p.lat, p.lng]));
-            if (userLoc) bounds.extend([userLoc.lat, userLoc.lng]);
+            const layer = L.geoJSON(geojsonData);
+            const bounds = layer.getBounds();
             if (bounds.isValid()) {
-                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+                map.fitBounds(bounds, { padding: [48, 48], maxZoom: 13, animate: false });
             }
         } catch (e) {
             console.error('Could not fit bounds', e);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fitKey]);
+    return null;
+}
+
+/** One-shot fly when the user taps Locate (does not re-run on every GPS tick). */
+function FlyToUser({
+    userLoc,
+    nonce,
+}: {
+    userLoc: { lat: number; lng: number } | null;
+    nonce: number;
+}) {
+    const map = useMap();
+    useEffect(() => {
+        if (!userLoc || nonce < 1) return;
+        map.flyTo([userLoc.lat, userLoc.lng], Math.max(map.getZoom(), 12), { duration: 0.5 });
+    }, [nonce, userLoc, map]);
     return null;
 }
 
@@ -228,6 +235,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
     const [radiusKm, setRadiusKm] = useState(0);
+    const [locateNonce, setLocateNonce] = useState(0);
     const { fetchLocation, loading: locating, error: geoError } = useGeolocation();
     const mapWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -609,6 +617,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
         if (pos?.coords) {
             setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
             if (!radiusKm) setRadiusKm(50);
+            setLocateNonce((n) => n + 1);
         } else {
             trackFailed('map.locate', 'geolocation_failed', { screen: 'map' });
         }
@@ -673,15 +682,13 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     };
 
     const activeGeo = beatGeo || rangeGeo || divisionGeo;
-    const fitKey = `${selectedDivision}|${selectedRange}|${selectedBeat}|${visiblePins.length}|${userLoc ? `${userLoc.lat},${userLoc.lng}` : ''}|${radiusKm}`;
+    // Only re-fit when the user changes territory — never on pin/GPS updates.
+    const fitKey = `${selectedDivision}|${selectedRange}|${selectedBeat}`;
+    const MAX_MARKERS = 250;
+    const renderPins = visiblePins.slice(0, MAX_MARKERS);
 
     return (
-        <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="glass-card rounded-2xl p-6 flex flex-col gap-4 col-span-1 lg:col-span-3"
-        >
+        <div className="glass-card rounded-2xl p-6 flex flex-col gap-4 col-span-1 lg:col-span-3">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -886,56 +893,72 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     center={[23.4733, 77.9479]}
                     zoom={6}
                     scrollWheelZoom={true}
+                    preferCanvas={true}
                     className="w-full h-full"
                     style={{ zIndex: 1 }}
                 >
                     {baseLayer === 'satellite' ? (
                         <TileLayer
+                            // Clarity World Imagery — no ArcGIS API-key watermark (server.arcgisonline.com now stamps "API key required").
                             attribution='Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
-                            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                            url="https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                             maxZoom={19}
+                            updateWhenZooming={false}
+                            updateWhenIdle={true}
+                            keepBuffer={2}
                         />
                     ) : (
                         <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                            maxZoom={20}
+                            updateWhenZooming={false}
+                            updateWhenIdle={true}
+                            keepBuffer={2}
                         />
                     )}
 
                     {/* All-divisions outline when no single division is selected */}
                     {!selectedDivision && allDivisionsGeo && (
-                        <GeoJSON key="all-divisions" data={allDivisionsGeo}
-                            style={{ color: 'hsl(215.4, 16.3%, 46.9%)', weight: 1.5, opacity: 0.6, fillOpacity: 0.04 }}
+                        <GeoJSON
+                            key="all-divisions"
+                            data={allDivisionsGeo}
+                            style={{ color: 'hsl(215.4, 16.3%, 46.9%)', weight: 1.5, opacity: 0.55, fillOpacity: 0.03 }}
                             onEachFeature={(feature, layer) => {
                                 const name = feature.properties?.name;
                                 if (name) {
-                                    layer.bindTooltip(String(name), { permanent: true, direction: 'center', className: 'geo-label', opacity: 0.85 });
+                                    // Hover only — permanent labels across all divisions destroy pan/zoom FPS.
+                                    layer.bindTooltip(String(name), { sticky: true, direction: 'center', opacity: 0.9 });
                                 }
-                            }} />
+                            }}
+                        />
                     )}
 
                     {labelGeo && selectedDivision && (
-                        <GeoJSON key={`labels-${selectedDivision}-${selectedRange}-${selectedBeat}`} data={labelGeo}
+                        <GeoJSON
+                            key={`labels-${selectedDivision}-${selectedRange}-${selectedBeat}`}
+                            data={labelGeo}
                             style={{ color: 'transparent', weight: 0, fillOpacity: 0 }}
                             onEachFeature={(feature, layer) => {
                                 const name = feature.properties?.name;
                                 if (name) {
-                                    layer.bindTooltip(String(name), { permanent: true, direction: 'center', className: 'geo-label', opacity: 0.9 });
+                                    layer.bindTooltip(String(name), { sticky: true, direction: 'center', opacity: 0.9 });
                                 }
-                            }} />
+                            }}
+                        />
                     )}
 
                     {/* Geo overlays for the active selection */}
                     {divisionGeo && (
-                        <GeoJSON key={`div-${JSON.stringify(divisionGeo)}`} data={divisionGeo}
+                        <GeoJSON key={`div-${selectedDivision}`} data={divisionGeo}
                             style={{ color: 'hsl(215.4, 16.3%, 46.9%)', weight: 2, opacity: 0.5, fillOpacity: 0.05 }} />
                     )}
                     {rangeGeo && (
-                        <GeoJSON key={`rng-${JSON.stringify(rangeGeo)}`} data={rangeGeo}
+                        <GeoJSON key={`rng-${selectedRange || selectedDivision}`} data={rangeGeo}
                             style={{ color: 'hsl(214, 30%, 32%)', weight: 3, opacity: 0.8, fillOpacity: 0.1 }} />
                     )}
                     {beatGeo && (
-                        <GeoJSON key={`bt-${JSON.stringify(beatGeo)}`} data={beatGeo}
+                        <GeoJSON key={`bt-${selectedBeat || selectedRange}`} data={beatGeo}
                             style={{ color: 'hsl(152, 60%, 46%)', weight: 4, opacity: 1, fillOpacity: 0.3 }} />
                     )}
 
@@ -953,7 +976,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     )}
 
                     {/* Heatmap Overlay Layer */}
-                    {showHeatmap && visiblePins.map((pin) => {
+                    {showHeatmap && renderPins.map((pin) => {
                         const color = pin.type === 'loss' ? 'hsl(0, 84.2%, 60.2%)' : pin.type === 'indirect' ? 'hsl(38, 92%, 50%)' : 'hsl(152, 60%, 46%)';
                         return (
                             <CircleMarker
@@ -970,7 +993,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     })}
 
                     {/* Observation Pins (only when heatmap is off) */}
-                    {!showHeatmap && visiblePins.map((pin) => {
+                    {!showHeatmap && renderPins.map((pin) => {
                         const total = pin.maleCount + pin.femaleCount + pin.calfCount + pin.unknownCount;
                         const dateStr = new Date(pin.deviceTimestamp).toLocaleString(undefined, {
                             month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -1036,10 +1059,11 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                         </Marker>
                     ))}
 
-                    <FitToData geojsonData={activeGeo} pins={visiblePins} userLoc={userLoc} fitKey={fitKey} />
+                    <FitToTerritory geojsonData={activeGeo} fitKey={fitKey} />
+                    <FlyToUser userLoc={userLoc} nonce={locateNonce} />
                     <MapResizer trigger={isFullscreen} />
                 </MapContainer>
             </div>
-        </motion.div>
+        </div>
     );
 }

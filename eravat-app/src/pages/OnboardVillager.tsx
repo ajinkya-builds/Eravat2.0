@@ -14,6 +14,7 @@ import {
   validateVillagerForm,
   type VillagerFormValues,
 } from '../lib/villagerRegistry';
+import { PAGE_STICKY_HEADER } from '../lib/layout';
 
 export default function OnboardVillager() {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ export default function OnboardVillager() {
     return (
       <div className="min-h-screen p-6 max-w-lg mx-auto">
         <p className="text-destructive text-sm">{t('hathiMitra.onboardForbidden')}</p>
-        <button onClick={() => navigate(-1)} className="mt-4 text-primary text-sm font-semibold">
+        <button onClick={() => navigate('/', { replace: true })} className="mt-4 text-primary text-sm font-semibold">
           {t('profile.cancel')}
         </button>
       </div>
@@ -83,11 +84,11 @@ export default function OnboardVillager() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="sticky top-16 z-30 glass-effect border-b border-border/50 px-4 py-4 flex items-center gap-3">
+    <div className="bg-background pb-24">
+      <div className={PAGE_STICKY_HEADER}>
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/villagers', { replace: true })}
           className="p-2 rounded-xl hover:bg-muted/50 transition-colors"
         >
           <ArrowLeft size={20} />
@@ -95,7 +96,7 @@ export default function OnboardVillager() {
         <h1 className="text-lg font-bold flex-1">{t('hathiMitra.onboardTitle')}</h1>
         <button
           type="button"
-          onClick={() => navigate('/villagers')}
+          onClick={() => navigate('/villagers', { replace: true })}
           className="p-2 rounded-xl hover:bg-muted/50 transition-colors text-muted-foreground"
           aria-label={t('hathiMitra.myListTitle')}
         >

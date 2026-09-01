@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, UserPlus, Loader2, CheckCircle2 } from 'lucide-react';
@@ -10,6 +10,16 @@ import { TerritorySelect, type TerritoryValue } from '../components/shared/Terri
 import { canOnboardVolunteers } from '../lib/rbac';
 import { track } from '../lib/analytics';
 import { digitsForMobileInput, toE164India } from '../lib/phone';
+import { PAGE_STICKY_HEADER } from '../lib/layout';
+
+function emptyVolunteerTerritory(): TerritoryValue {
+  // Match villager onboard: do not seed beat; GPS/TerritorySelect fills DRB.
+  return {
+    division_id: null,
+    range_id: null,
+    beat_id: null,
+  };
+}
 
 export default function OnboardVolunteer() {
     const navigate = useNavigate();
@@ -22,29 +32,16 @@ export default function OnboardVolunteer() {
         latitude: null,
         longitude: null,
     });
-    const [territory, setTerritory] = useState<TerritoryValue>({
-        division_id: null,
-        range_id: null,
-        beat_id: null,
-    });
+    const [territory, setTerritory] = useState<TerritoryValue>(() => emptyVolunteerTerritory());
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<{ name: string } | null>(null);
-
-    useEffect(() => {
-        if (!profile) return;
-        setTerritory((prev) => ({
-            division_id: prev.division_id ?? profile.division_id ?? null,
-            range_id: prev.range_id ?? profile.range_id ?? null,
-            beat_id: prev.beat_id ?? profile.beat_id ?? null,
-        }));
-    }, [profile?.id]);
 
     if (!canOnboardVolunteers(profile?.role)) {
         return (
             <div className="min-h-screen p-6 max-w-lg mx-auto">
                 <p className="text-destructive text-sm">{t('volunteer.onboardForbidden')}</p>
-                <button onClick={() => navigate(-1)} className="mt-4 text-primary text-sm font-semibold">
+                <button onClick={() => navigate('/', { replace: true })} className="mt-4 text-primary text-sm font-semibold">
                     {t('profile.cancel')}
                 </button>
             </div>
@@ -99,7 +96,7 @@ export default function OnboardVolunteer() {
             setFullName('');
             setPhone('');
             setLocation({ latitude: null, longitude: null });
-            setTerritory({ division_id: null, range_id: null, beat_id: null });
+            setTerritory(emptyVolunteerTerritory());
         } catch (err) {
             setError(err instanceof Error ? err.message : t('volunteer.onboardFailed'));
         } finally {
@@ -108,11 +105,11 @@ export default function OnboardVolunteer() {
     };
 
     return (
-        <div className="min-h-screen bg-background pb-24">
-            <div className="sticky top-16 z-30 glass-effect border-b border-border/50 px-4 py-4 flex items-center gap-3">
+        <div className="bg-background pb-24">
+            <div className={PAGE_STICKY_HEADER}>
                 <button
                     type="button"
-                    onClick={() => navigate(-1)}
+                    onClick={() => navigate('/', { replace: true })}
                     className="p-2 rounded-xl hover:bg-muted/50 transition-colors"
                 >
                     <ArrowLeft size={20} />

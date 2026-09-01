@@ -66,7 +66,7 @@ export default function VillagersList() {
     return (
       <div className="min-h-screen p-6 max-w-lg mx-auto">
         <p className="text-destructive text-sm">{t('hathiMitra.onboardForbidden')}</p>
-        <button onClick={() => navigate(-1)} className="mt-4 text-primary text-sm font-semibold">
+        <button onClick={() => navigate('/')} className="mt-4 text-primary text-sm font-semibold">
           {t('profile.cancel')}
         </button>
       </div>
@@ -78,11 +78,11 @@ export default function VillagersList() {
     : t('hathiMitra.listEmptyMine');
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="sticky top-16 z-30 glass-effect border-b border-border/50 px-4 py-4 flex items-center gap-3">
+    <div className="bg-background pb-8">
+      <div className="border-b border-border/50 px-4 py-3 flex items-center gap-3">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/', { replace: true })}
           className="p-2 rounded-xl hover:bg-muted/50 transition-colors"
         >
           <ArrowLeft size={20} />
@@ -92,15 +92,15 @@ export default function VillagersList() {
           <button
             type="button"
             onClick={() => navigate('/villagers/onboard')}
-            className="p-2 rounded-xl hover:bg-muted/50 transition-colors text-primary"
+            className="p-2 rounded-xl bg-primary text-primary-foreground"
             aria-label={t('hathiMitra.onboardTitle')}
           >
-            <UserPlus size={20} />
+            <UserPlus size={18} />
           </button>
         )}
       </div>
 
-      <div className="p-4 max-w-lg mx-auto space-y-4">
+      <div className="p-4 max-w-lg mx-auto space-y-3">
         <p className="text-sm text-muted-foreground">{t('hathiMitra.myListDesc')}</p>
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -129,11 +129,11 @@ export default function VillagersList() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground text-sm">
+          <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground text-sm">
             <Loader2 size={16} className="animate-spin" /> {t('loading')}
           </div>
         ) : rows.length === 0 ? (
-          <div className="text-center py-10 space-y-3">
+          <div className="rounded-2xl border border-border/50 bg-muted/20 px-4 py-5 space-y-2">
             <p className="text-sm text-muted-foreground">{emptyMessage}</p>
             {canOnboard && !query.trim() && (
               <button

@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, BookOpen, RefreshCw, FileText, ExternalLink, AlertCircle, MessageCircleWarning } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, BookOpen, RefreshCw, ExternalLink, AlertCircle, MessageCircleWarning } from 'lucide-react';
 import { syncData } from '../../services/syncService';
 import { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { openReportIssueDialog } from '../../lib/supportIssues';
+import { PAGE_STICKY_HEADER } from '../../lib/layout';
 
 export default function HelpSupport() {
     const navigate = useNavigate();
@@ -29,7 +30,7 @@ export default function HelpSupport() {
     return (
         <div className="min-h-screen bg-background pb-[80px]">
             {/* Header */}
-            <div className="sticky top-0 z-40 glass-effect border-b border-border/50 px-4 py-4 flex items-center gap-3">
+            <div className={PAGE_STICKY_HEADER}>
                 <button
                     onClick={() => navigate(-1)}
                     className="p-2 rounded-xl hover:bg-muted/50 transition-colors"
@@ -102,10 +103,9 @@ export default function HelpSupport() {
                 >
                     <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">{t('help.resources')}</h2>
                     <div className="glass-card rounded-2xl overflow-hidden divide-y divide-border/50">
-                        <a
-                            href="https://github.com/ajinkya-builds/Eravat2.0"
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <button
+                            type="button"
+                            onClick={() => navigate('/faq')}
                             className="w-full p-4 flex items-center justify-between hover:bg-muted/20 transition-colors text-left"
                         >
                             <div className="flex items-center gap-3">
@@ -114,18 +114,8 @@ export default function HelpSupport() {
                                 </div>
                                 <div>
                                     <span className="font-medium">{t('help.userManual')}</span>
-                                    <div className="text-xs text-muted-foreground mt-0.5">{t('help.viewGithub')}</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">{t('help.faq')}</div>
                                 </div>
-                            </div>
-                            <ExternalLink size={16} className="text-muted-foreground" />
-                        </a>
-
-                        <button onClick={() => navigate('/faq')} className="w-full p-4 flex items-center justify-between hover:bg-muted/20 transition-colors text-left">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
-                                    <FileText size={18} />
-                                </div>
-                                <span className="font-medium">{t('help.faq')}</span>
                             </div>
                             <ExternalLink size={16} className="text-muted-foreground" />
                         </button>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Moon, Sun, Smartphone, Map, Languages } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { PAGE_STICKY_HEADER } from '../../lib/layout';
 
 export default function AppSettings() {
     const { t, language: globalLanguage, setLanguage: setGlobalLanguage } = useLanguage();
@@ -37,7 +38,7 @@ export default function AppSettings() {
     return (
         <div className="min-h-screen bg-background pb-[80px]">
             {/* Header */}
-            <div className="sticky top-0 z-40 glass-effect border-b border-border/50 px-4 py-4 flex items-center gap-3">
+            <div className={PAGE_STICKY_HEADER}>
                 <button
                     onClick={() => navigate(-1)}
                     className="p-2 rounded-xl hover:bg-muted/50 transition-colors"

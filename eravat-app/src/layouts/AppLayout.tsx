@@ -139,10 +139,11 @@ export function AppLayout() {
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={location.pathname}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.3, ease: 'easeOut' }}
+                        // Opacity-only: CSS transforms on ancestors break Leaflet pan/zoom performance.
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
                         className="w-full h-full"
                     >
                         <Outlet />
@@ -165,7 +166,7 @@ export function AppLayout() {
                                         key={item.id}
                                         data-ph-action={`nav.${item.id}`}
                                         data-ph-screen="app_shell"
-                                        onClick={() => navigate(item.path)}
+                                        onClick={() => navigate(item.path, { replace: true })}
                                         className="relative p-2 flex flex-col items-center justify-center gap-1 min-w-[64px] transition-all"
                                     >
                                         {/* Active Indicator Bubble */}

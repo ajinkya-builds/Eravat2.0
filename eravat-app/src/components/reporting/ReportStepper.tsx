@@ -20,6 +20,7 @@ import { stampPhotoWithMeta } from '../../lib/stampPhoto';
 import { track } from '../../lib/analytics';
 import { logger } from '../../lib/logger';
 import { newUuid } from '../../lib/uuid';
+import { PAGE_STICKY_TOP } from '../../lib/layout';
 
 function StepperContent() {
     const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm, activeSteps, updateFormData, elephantTotal } = useActivityForm();
@@ -78,14 +79,14 @@ function StepperContent() {
             setShowExitWarning(true);
         } else {
             resetForm();
-            navigate('/');
+            navigate('/', { replace: true });
         }
     };
 
     const handleConfirmExit = () => {
         setShowExitWarning(false);
         resetForm();
-        navigate('/');
+        navigate('/', { replace: true });
     };
 
     const handleBottomBarCapture = async () => {
@@ -196,7 +197,7 @@ function StepperContent() {
                 setTimeout(() => syncData().catch((err) => logger.error('ReportStepper', 'Post-save sync failed', err)), 500);
             }
 
-            setTimeout(() => navigate('/'), 2000);
+            setTimeout(() => navigate('/', { replace: true }), 2000);
         } catch (err) {
             logger.error('ReportStepper', 'Failed to save report', err, { online: isOnline });
             track('report.save_failed', { error_code: 'save_exception', online: isOnline });
@@ -231,7 +232,7 @@ function StepperContent() {
                 onCancel={() => setShowExitWarning(false)}
             />
 
-            <header className="sticky top-0 z-50 px-4 py-4 flex items-center justify-between bg-background/80 backdrop-blur-xl border-b border-border/50">
+            <header className={`sticky z-50 px-4 py-4 flex items-center justify-between bg-background/80 backdrop-blur-xl border-b border-border/50 ${PAGE_STICKY_TOP}`}>
                 <button
                     onClick={handleExitClick}
                     className="p-2 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"

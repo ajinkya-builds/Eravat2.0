@@ -65,7 +65,7 @@ export function VillagerForm({
 
       <VillageAutocomplete
         value={values.villageName}
-        divisionId={values.territory.division_id ?? profile?.division_id}
+        preferredDivisionId={values.territory.division_id ?? profile?.division_id}
         onChange={(name, selected) => patch({ villageName: name, selectedVillage: selected })}
       />
 

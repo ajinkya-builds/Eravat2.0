@@ -61,7 +61,12 @@ export function useAdminFilters(defaultDays = 30) {
     // Wait for DFO/RO profile territory before first fetch so we never flash unscoped data
     useEffect(() => {
         if (!profile) return;
-        if (DIVISION_SCOPED_ROLES.has(profile.role) && !profile.division_id) return;
+        if (DIVISION_SCOPED_ROLES.has(profile.role) && !profile.division_id) {
+            setReports([]);
+            setLoading(false);
+            setError('No division assigned to this account. Contact an administrator.');
+            return;
+        }
         if (DIVISION_SCOPED_ROLES.has(profile.role) && !filters.divisionId) return;
         void loadReports();
     }, [loadReports, profile, filters.divisionId]);

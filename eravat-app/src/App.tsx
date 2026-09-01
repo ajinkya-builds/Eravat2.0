@@ -15,6 +15,7 @@ import { Loader2 } from 'lucide-react';
 import { ScreenAnalytics } from './components/ScreenAnalytics';
 import { InteractionAnalytics } from './components/InteractionAnalytics';
 import { ReportIssueWidget } from './components/ReportIssueWidget';
+import { ScrollToTop } from './components/ScrollToTop';
 import { track } from './lib/analytics';
 
 const ReportActivityPage = lazy(() => import('./pages/ReportActivityPage'));
@@ -120,6 +121,7 @@ function App() {
         <AuthProvider>
           <NetworkSync />
           <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
+            <ScrollToTop />
             <ScreenAnalytics />
             <InteractionAnalytics />
             <ReportIssueWidget />

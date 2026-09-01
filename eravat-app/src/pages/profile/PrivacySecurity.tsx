@@ -6,6 +6,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { getAnalyticsConsent, setAnalyticsConsent } from '../../lib/analyticsConsent';
 import { applyAnalyticsConsent } from '../../lib/posthogClient';
 import { track } from '../../lib/analytics';
+import { PAGE_STICKY_HEADER } from '../../lib/layout';
 
 export default function PrivacySecurity() {
     const navigate = useNavigate();
@@ -29,7 +30,7 @@ export default function PrivacySecurity() {
     return (
         <div className="min-h-screen bg-background pb-[80px]">
             {/* Header */}
-            <div className="sticky top-0 z-40 glass-effect border-b border-border/50 px-4 py-4 flex items-center gap-3">
+            <div className={PAGE_STICKY_HEADER}>
                 <button
                     onClick={() => navigate(-1)}
                     className="p-2 rounded-xl hover:bg-muted/50 transition-colors"

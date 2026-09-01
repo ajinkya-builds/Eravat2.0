@@ -344,7 +344,7 @@ export default function NearbySightings() {
     return (
         <div className="min-h-screen bg-background pb-20 pt-8 px-4">
             <div className="max-w-md mx-auto relative z-10">
-                <button onClick={() => navigate(-1)} className="mb-6 p-2 rounded-full glass-card border border-border hover:bg-muted transition-colors inline-flex items-center gap-2 pr-4 text-sm font-medium">
+                <button onClick={() => navigate('/', { replace: true })} className="mb-6 p-2 rounded-full glass-card border border-border hover:bg-muted transition-colors inline-flex items-center gap-2 pr-4 text-sm font-medium">
                     <ArrowLeft size={18} /> {t('history.backToDashboard')}
                 </button>
 

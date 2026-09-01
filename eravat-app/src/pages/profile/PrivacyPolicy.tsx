@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { PAGE_STICKY_HEADER } from '../../lib/layout';
 
 export default function PrivacyPolicy() {
     const navigate = useNavigate();
@@ -8,7 +9,7 @@ export default function PrivacyPolicy() {
 
     return (
         <div className="min-h-screen bg-background pb-[80px]">
-            <div className="sticky top-0 z-40 glass-effect border-b border-border/50 px-4 py-4 flex items-center gap-3">
+            <div className={PAGE_STICKY_HEADER}>
                 <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-muted/50 transition-colors">
                     <ArrowLeft size={20} className="text-foreground" />
                 </button>

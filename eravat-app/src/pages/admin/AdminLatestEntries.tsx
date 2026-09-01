@@ -31,7 +31,7 @@ export default function AdminLatestEntries() {
             <button
                 type="button"
                 className="text-primary text-xs font-semibold hover:underline"
-                onClick={() => navigate('/map')}
+                onClick={() => navigate('/admin/map')}
             >
                 {t('admin.latest.viewMap')}
             </button>

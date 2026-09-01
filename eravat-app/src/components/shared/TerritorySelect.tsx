@@ -58,6 +58,8 @@ export function TerritorySelect({
     const [fromLocation, setFromLocation] = useState(false);
     const [lookupNonce, setLookupNonce] = useState(0);
     const lastLookupKey = useRef<string>('');
+    /** Once the user edits DRB manually, GPS must not overwrite their choice. */
+    const manualOverrideRef = useRef(false);
 
     useEffect(() => {
         const cached = readCache();
@@ -130,9 +132,18 @@ export function TerritorySelect({
     }, []);
 
     useEffect(() => {
-        if (latitude == null || longitude == null) return;
+        if (latitude == null || longitude == null) {
+            setLookingUp(false);
+            return;
+        }
         const key = `${latitude.toFixed(5)},${longitude.toFixed(5)}`;
         if (lastLookupKey.current === key) return;
+        // User already picked Division/Range/Beat by hand — don't clobber on re-GPS.
+        if (manualOverrideRef.current) {
+            lastLookupKey.current = key;
+            setLookingUp(false);
+            return;
+        }
         let cancelled = false;
         setLookingUp(true);
         track('territory.lookup_started', { include_beat: includeBeat, source: 'gps' });
@@ -163,7 +174,10 @@ export function TerritorySelect({
             if (!cancelled) setLookingUp(false);
             track('territory.lookup_failed', { include_beat: includeBeat, source: 'gps', error_code: 'lookup_exception' });
         });
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+            setLookingUp(false);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [latitude, longitude, includeBeat, lookupNonce]);
 
@@ -193,6 +207,7 @@ export function TerritorySelect({
                 placeholder={t('dtl_search')}
                 onChange={(id) => {
                     setFromLocation(false);
+                    manualOverrideRef.current = true;
                     lastLookupKey.current = '';
                     onChange({ division_id: id, range_id: null, beat_id: null });
                 }}
@@ -206,6 +221,7 @@ export function TerritorySelect({
                 placeholder={t('dtl_search')}
                 onChange={(id) => {
                     setFromLocation(false);
+                    manualOverrideRef.current = true;
                     lastLookupKey.current = '';
                     onChange({ ...value, range_id: id, beat_id: null });
                 }}
@@ -220,6 +236,7 @@ export function TerritorySelect({
                     placeholder={t('dtl_search')}
                     onChange={(id) => {
                         setFromLocation(false);
+                        manualOverrideRef.current = true;
                         lastLookupKey.current = '';
                         onChange({ ...value, beat_id: id });
                     }}

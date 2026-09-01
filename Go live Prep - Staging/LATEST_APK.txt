@@ -1,0 +1,3 @@
+USE-THIS-Eravat-Staging-FINAL-20260829-2301.apk
+Cross-app hardening: nav replace, sticky safe-area, territory GPS lock, map Clarity, village search, scroll-to-top
+Ignore older APKs in this folder (esp. Jul backups with PIN/SOS).
