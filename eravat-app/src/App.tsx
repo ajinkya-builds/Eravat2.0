@@ -9,13 +9,14 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 import { Network } from '@capacitor/network';
-import { countPendingSyncReports, syncData } from './services/syncService';
-import { flushPendingSupportIssues } from './lib/supportIssues';
+import { syncAllPending } from './lib/appSync';
 import { Loader2 } from 'lucide-react';
 import { ScreenAnalytics } from './components/ScreenAnalytics';
 import { InteractionAnalytics } from './components/InteractionAnalytics';
 import { ReportIssueWidget } from './components/ReportIssueWidget';
 import { ScrollToTop } from './components/ScrollToTop';
+import { useAndroidBackButton } from './hooks/useAndroidBackButton';
+import { useAppLifecycleSync } from './hooks/useAppLifecycleSync';
 import { track } from './lib/analytics';
 
 const ReportActivityPage = lazy(() => import('./pages/ReportActivityPage'));
@@ -61,24 +62,17 @@ function NetworkSync() {
   const wasOfflineRef = useRef(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useAppLifecycleSync(Boolean(session));
+
   useEffect(() => {
     if (!session) return;
 
     const runSyncIfNeeded = async (reason: 'initial' | 'reconnect') => {
-      if (reason === 'initial') {
-        // Initial online check: only sync if there is work.
-      } else if (!wasOfflineRef.current) {
+      if (reason === 'reconnect' && !wasOfflineRef.current) {
         return;
       }
       wasOfflineRef.current = false;
-      try {
-        const pending = await countPendingSyncReports();
-        void flushPendingSupportIssues();
-        if (pending === 0) return;
-        void syncData();
-      } catch {
-        // Dexie/network probe failed — avoid throwing from listener
-      }
+      void syncAllPending(reason);
     };
 
     const scheduleSync = (reason: 'initial' | 'reconnect') => {
@@ -99,9 +93,7 @@ function NetworkSync() {
         track('network.went_offline');
         return;
       }
-      void countPendingSyncReports()
-        .then((pending_count) => track('network.came_online', { pending_count }))
-        .catch(() => track('network.came_online'));
+      track('network.came_online');
       scheduleSync('reconnect');
     });
 
@@ -114,19 +106,17 @@ function NetworkSync() {
   return null;
 }
 
-function App() {
+function AppRoutes() {
+  useAndroidBackButton();
+
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <AuthProvider>
-          <NetworkSync />
-          <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
-            <ScrollToTop />
-            <ScreenAnalytics />
-            <InteractionAnalytics />
-            <ReportIssueWidget />
-            <Suspense fallback={<RouteFallback />}>
-              <Routes>
+    <>
+      <ScrollToTop />
+      <ScreenAnalytics />
+      <InteractionAnalytics />
+      <ReportIssueWidget />
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
                 <Route path="/login" element={<Login />} />
 
                 <Route element={<ProtectedRoute />}>
@@ -172,6 +162,18 @@ function App() {
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <NetworkSync />
+          <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
+            <AppRoutes />
           </BrowserRouter>
         </AuthProvider>
       </LanguageProvider>

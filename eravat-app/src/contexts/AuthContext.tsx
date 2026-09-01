@@ -13,6 +13,7 @@ import { identifyUser, resetUser } from '../lib/posthogClient';
 import { logger } from '../lib/logger';
 import { clearCachedProfile, loadCachedProfile, saveCachedProfile } from '../lib/profileCache';
 import { toE164India } from '../lib/phone';
+import { hasPersistedSupabaseSession, isBrowserOffline } from '../lib/offlineSession';
 
 // Matches the `profiles` table + joined user_region_assignments
 export interface UserProfile {
@@ -70,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userId: null,
         fetchedAt: null,
     });
+    /** Ignore transient null-session events during cold start / offline token refresh. */
+    const bootstrappingRef = useRef(true);
 
     const fetchProfile = useCallback(async (userId: string, opts?: { force?: boolean }) => {
         if (
@@ -202,6 +205,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const AUTH_INIT_TIMEOUT_MS = 8_000;
 
+        const bootstrapTimer = setTimeout(() => {
+            bootstrappingRef.current = false;
+        }, 12_000);
+
         const applyCachedForUser = (userId: string) => {
             const cached = loadCachedProfile<UserProfile>(userId);
             if (cached) {
@@ -259,8 +266,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (timeoutId !== undefined) clearTimeout(timeoutId);
                 logger.warn('AuthContext', 'getSession failed', {
                     message: err instanceof Error ? err.message : String(err),
+                    persisted: hasPersistedSupabaseSession(),
                 });
-                applyInitialSession(null);
+                // Keep waiting for onAuthStateChange / INITIAL_SESSION — do not wipe session.
+                if (!hasPersistedSupabaseSession()) {
+                    applyInitialSession(null);
+                } else if (!initialSettled) {
+                    setLoading(false);
+                }
             });
 
         const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
@@ -288,16 +301,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } else {
                 profileIssueLogged.current.clear();
                 profileCacheRef.current = { userId: null, fetchedAt: null };
-                if (wasAuthenticated[0].current && event !== 'SIGNED_OUT') {
-                    setSessionExpired(true);
+                if (event === 'SIGNED_OUT') {
+                    setProfile(null);
+                    setSessionExpired(false);
+                } else {
+                    const offline = isBrowserOffline();
+                    const persisted = hasPersistedSupabaseSession();
+                    const treatAsExpiry =
+                        wasAuthenticated[0].current &&
+                        !bootstrappingRef.current &&
+                        !offline &&
+                        !persisted;
+                    if (treatAsExpiry) {
+                        setSessionExpired(true);
+                    }
+                    if (!persisted && !offline) {
+                        setProfile(null);
+                    }
                 }
-                setProfile(null);
             }
             setLoading(false);
         });
 
         return () => {
             cancelled = true;
+            clearTimeout(bootstrapTimer);
             if (timeoutId !== undefined) clearTimeout(timeoutId);
             listener.subscription.unsubscribe();
         };
@@ -305,6 +333,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signInWithPhoneOTP = async (phone: string) => {
         try {
+            if (isBrowserOffline()) {
+                track('auth.otp_failed', { error_code: 'offline' });
+                return {
+                    error: new Error('Internet required to sign in. Connect and try again.'),
+                    message: 'offline',
+                };
+            }
             const e164Phone = toE164India(phone);
             if (!e164Phone) {
                 return {

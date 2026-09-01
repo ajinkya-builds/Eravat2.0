@@ -8,7 +8,7 @@ export function shouldRegisterPushOnAuthEvent(event: string): boolean {
   return event === 'SIGNED_IN';
 }
 
-export const PROFILE_CACHE_TTL_MS = 10 * 60 * 1000;
+export const PROFILE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function isProfileCacheFresh(
   cachedUserId: string | null | undefined,

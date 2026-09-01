@@ -58,9 +58,49 @@ export interface LocalMedia {
   sync_status: 'pending' | 'synced' | 'failed';
 }
 
+export type SyncStatus = 'pending' | 'synced' | 'failed';
+
+/** Villager (Hathi Mitra alert recipient) queued for upload when offline. */
+export interface PendingVillager {
+  id: string;
+  name: string;
+  mobile: string;
+  latitude: number;
+  longitude: number;
+  village_name: string;
+  village_id: string | null;
+  division_id: string | null;
+  range_id: string | null;
+  created_by: string;
+  alert_opt_in: boolean;
+  is_active: boolean;
+  notes: string | null;
+  device_timestamp: string;
+  sync_status: SyncStatus;
+  last_error?: string | null;
+}
+
+/** Volunteer (Hathi Mitra app user) queued for create-user edge function when offline. */
+export interface PendingVolunteer {
+  id: string;
+  full_name: string;
+  phone: string;
+  latitude: number;
+  longitude: number;
+  division_id: string | null;
+  range_id: string | null;
+  beat_id: string | null;
+  created_by: string;
+  device_timestamp: string;
+  sync_status: SyncStatus;
+  last_error?: string | null;
+}
+
 export class EravatDatabase extends Dexie {
   reports!: Table<LocalReport>;
   report_media!: Table<LocalMedia>;
+  pending_villagers!: Table<PendingVillager>;
+  pending_volunteers!: Table<PendingVolunteer>;
 
   constructor() {
     super('EravatDB');
@@ -76,6 +116,12 @@ export class EravatDatabase extends Dexie {
     this.version(4).stores({
       reports: 'id, sync_status, device_timestamp, beat_id',
       report_media: 'id, report_id, sync_status',
+    });
+    this.version(5).stores({
+      reports: 'id, sync_status, device_timestamp, beat_id',
+      report_media: 'id, report_id, sync_status',
+      pending_villagers: 'id, sync_status, device_timestamp',
+      pending_volunteers: 'id, sync_status, device_timestamp',
     });
   }
 }

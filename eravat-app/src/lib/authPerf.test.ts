@@ -23,7 +23,7 @@ describe('authPerf', () => {
   it('treats profile cache as fresh within TTL for same user', () => {
     const now = 1_000_000;
     expect(isProfileCacheFresh('u1', 'u1', now - 60_000, now)).toBe(true);
-    expect(isProfileCacheFresh('u1', 'u1', now - 11 * 60_000, now)).toBe(false);
+    expect(isProfileCacheFresh('u1', 'u1', now - 8 * 24 * 60 * 60_000, now)).toBe(false);
     expect(isProfileCacheFresh('u1', 'u2', now - 1_000, now)).toBe(false);
     expect(isProfileCacheFresh(null, 'u1', now, now)).toBe(false);
   });

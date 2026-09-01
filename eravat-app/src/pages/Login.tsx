@@ -88,6 +88,8 @@ export default function Login() {
                 setOtpError(t('otp.invalidPhone'));
             } else if (message === 'send_failed') {
                 setOtpError(t('otp.sendFailed'));
+            } else if (message === 'offline') {
+                setOtpError(t('auth.offlineLogin'));
             } else {
                 setOtpError(t('otp.unexpected'));
             }

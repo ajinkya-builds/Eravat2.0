@@ -5,11 +5,13 @@ import { ArrowLeft, UserPlus, Loader2, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { Network } from '@capacitor/network';
 import { LocationFields } from '../components/profile/LocationFields';
 import { TerritorySelect, type TerritoryValue } from '../components/shared/TerritorySelect';
 import { canOnboardVolunteers } from '../lib/rbac';
 import { track } from '../lib/analytics';
 import { digitsForMobileInput, toE164India } from '../lib/phone';
+import { queuePendingVolunteer } from '../services/registrationSyncService';
 import { PAGE_STICKY_HEADER } from '../lib/layout';
 
 function emptyVolunteerTerritory(): TerritoryValue {
@@ -35,7 +37,7 @@ export default function OnboardVolunteer() {
     const [territory, setTerritory] = useState<TerritoryValue>(() => emptyVolunteerTerritory());
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<{ name: string } | null>(null);
+    const [success, setSuccess] = useState<{ name: string; queued?: boolean } | null>(null);
 
     if (!canOnboardVolunteers(profile?.role)) {
         return (
@@ -70,6 +72,28 @@ export default function OnboardVolunteer() {
         try {
             const accessToken = session?.access_token;
             if (!accessToken) throw new Error('Not authenticated');
+
+            const net = await Network.getStatus();
+            if (!net.connected) {
+                if (!profile?.id) throw new Error(t('volunteer.onboardFailed'));
+                await queuePendingVolunteer({
+                    fullName: fullName.trim(),
+                    phone: mobile,
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                    divisionId: territory.division_id,
+                    rangeId: territory.range_id,
+                    beatId: territory.beat_id,
+                    createdBy: profile.id,
+                });
+                track('volunteer_onboarded', { role: 'volunteer', queued: true });
+                setSuccess({ name: fullName.trim(), queued: true });
+                setFullName('');
+                setPhone('');
+                setLocation({ latitude: null, longitude: null });
+                setTerritory(emptyVolunteerTerritory());
+                return;
+            }
 
             const { data, error: fnErr } = await supabase.functions.invoke('create-user', {
                 body: {
@@ -128,7 +152,9 @@ export default function OnboardVolunteer() {
                     >
                         <div className="flex items-center gap-2 text-emerald-700 font-semibold text-sm">
                             <CheckCircle2 size={18} />
-                            {`${success.name} ${t('volunteer.onboardSuccess')}`}
+                            {success.queued
+                                ? t('volunteer.queuedOffline')
+                                : `${success.name} ${t('volunteer.onboardSuccess')}`}
                         </div>
 
                         <p className="text-xs text-muted-foreground">{t('volunteer.onboardOtpHint')}</p>

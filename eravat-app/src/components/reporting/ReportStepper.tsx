@@ -20,6 +20,7 @@ import { stampPhotoWithMeta } from '../../lib/stampPhoto';
 import { track } from '../../lib/analytics';
 import { logger } from '../../lib/logger';
 import { newUuid } from '../../lib/uuid';
+import { readCachedGeoFromPoint } from '../../lib/geoLookup';
 import { PAGE_STICKY_TOP } from '../../lib/layout';
 
 function StepperContent() {
@@ -119,6 +120,22 @@ function StepperContent() {
             const hasMedia = Boolean(formData.photo_url);
             track('report.save_started', { has_media: hasMedia, online: isOnline, report_type: formData.observation_type ?? 'unknown' });
 
+            let division_id = formData.division_id || null;
+            let range_id = formData.range_id || null;
+            let beat_id = formData.beat_id || null;
+            if (formData.latitude != null && formData.longitude != null) {
+                const geo = readCachedGeoFromPoint(formData.latitude, formData.longitude);
+                if (geo?.beat_id) {
+                    division_id = geo.division_id;
+                    range_id = geo.range_id;
+                    beat_id = geo.beat_id;
+                } else if (!beat_id) {
+                    division_id = null;
+                    range_id = null;
+                    beat_id = null;
+                }
+            }
+
             await db.reports.add({
                 id: reportId,
                 user_id: profile.id,
@@ -142,9 +159,9 @@ function StepperContent() {
                 conflict_loss_details: formData.conflict_loss_details || [],
                 loss_type: formData.loss_type || [],
                 affected_people: formData.affected_people || 1,
-                division_id: formData.division_id || null,
-                range_id: formData.range_id || null,
-                beat_id: formData.beat_id || null,
+                division_id,
+                range_id,
+                beat_id,
                 notes,
                 device_timestamp: new Date().toISOString(),
                 sync_status: 'pending',

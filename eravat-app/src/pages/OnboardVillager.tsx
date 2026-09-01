@@ -5,6 +5,7 @@ import { ArrowLeft, CheckCircle2, List } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { Network } from '@capacitor/network';
 import { VillagerForm } from '../components/villagers/VillagerForm';
 import { canOnboardVillagers } from '../lib/rbac';
 import {
@@ -14,6 +15,7 @@ import {
   validateVillagerForm,
   type VillagerFormValues,
 } from '../lib/villagerRegistry';
+import { queuePendingVillager } from '../services/registrationSyncService';
 import { PAGE_STICKY_HEADER } from '../lib/layout';
 
 export default function OnboardVillager() {
@@ -25,6 +27,7 @@ export default function OnboardVillager() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [queuedOffline, setQueuedOffline] = useState(false);
 
   if (!canOnboardVillagers(profile?.role)) {
     return (
@@ -41,6 +44,7 @@ export default function OnboardVillager() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    setQueuedOffline(false);
 
     const parsed = validateVillagerForm(values);
     if (!parsed.ok) {
@@ -53,6 +57,30 @@ export default function OnboardVillager() {
       const divisionId =
         values.territory.division_id ?? values.selectedVillage?.division_id ?? null;
       const rangeId = values.territory.range_id ?? null;
+
+      const net = await Network.getStatus();
+      if (!net.connected) {
+        if (!profile?.id) throw new Error(t('hathiMitra.onboardFailed'));
+        await queuePendingVillager({
+          name: values.name,
+          mobile: parsed.mobile,
+          latitude: values.location.latitude!,
+          longitude: values.location.longitude!,
+          villageName: values.villageName,
+          selectedVillage: values.selectedVillage,
+          divisionId,
+          rangeId,
+          createdBy: profile.id,
+          alertOptIn: values.alertOptIn,
+          isActive: values.isActive,
+          notes: values.notes.trim() || null,
+        });
+        setSuccess(values.name.trim());
+        setQueuedOffline(true);
+        setValues(emptyVillagerForm(profile));
+        return;
+      }
+
       const villageId = await ensureVillageId(values.villageName, values.selectedVillage, divisionId);
 
       const { error: insertErr } = await supabase.from('villagers').insert({
@@ -118,7 +146,9 @@ export default function OnboardVillager() {
           >
             <div className="flex items-center gap-2 text-emerald-700 font-semibold text-sm">
               <CheckCircle2 size={18} />
-              {`${success} ${t('hathiMitra.onboardSuccess')}`}
+              {queuedOffline
+                ? t('hathiMitra.queuedOffline')
+                : `${success} ${t('hathiMitra.onboardSuccess')}`}
             </div>
           </motion.div>
         )}

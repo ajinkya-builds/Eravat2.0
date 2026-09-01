@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { track } from '../lib/analytics';
 import { logger } from '../lib/logger';
 import { newUuid } from '../lib/uuid';
+import { lookupGeoFromPoint, readCachedGeoFromPoint } from '../lib/geoLookup';
 
 let isSyncing = false;
 const SYNC_LOCK_KEY = 'eravat_sync_lock';
@@ -202,7 +203,10 @@ function stableUuidFrom(input: string): string {
 }
 
 /** Report row for upsert. GPS-only reports omit beat_id so the DB trigger can assign it. */
-export function buildReportUpsertRow(report: Pick<LocalReport, 'id' | 'user_id' | 'beat_id' | 'device_timestamp' | 'latitude' | 'longitude' | 'notes'>): Record<string, unknown> {
+export function buildReportUpsertRow(
+    report: Pick<LocalReport, 'id' | 'user_id' | 'beat_id' | 'device_timestamp' | 'latitude' | 'longitude' | 'notes'>,
+    beatOverride?: string | null,
+): Record<string, unknown> {
     const location = report.latitude != null && report.longitude != null
         ? `POINT(${report.longitude} ${report.latitude})`
         : null;
@@ -214,10 +218,27 @@ export function buildReportUpsertRow(report: Pick<LocalReport, 'id' | 'user_id' 
         notes: report.notes,
         status: 'pending',
     };
-    if (report.beat_id) {
-        row.beat_id = report.beat_id;
+    const beatId = beatOverride !== undefined ? beatOverride : report.beat_id;
+    if (beatId) {
+        row.beat_id = beatId;
     }
     return row;
+}
+
+/** Prefer GPS-derived beat over stale profile/manual DRB so offline reports land in the right territory. */
+export async function resolveBeatForSync(report: Pick<LocalReport, 'latitude' | 'longitude' | 'beat_id'>): Promise<string | null> {
+    if (report.latitude == null || report.longitude == null) {
+        return report.beat_id || null;
+    }
+    const cached = readCachedGeoFromPoint(report.latitude, report.longitude);
+    if (cached?.beat_id) return cached.beat_id;
+    const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+    if (online) {
+        const match = await lookupGeoFromPoint(report.latitude, report.longitude);
+        if (match?.beat_id) return match.beat_id;
+    }
+    // Omit beat on sync so assign_report_geography trigger can derive from GPS.
+    return null;
 }
 
 export async function syncData() {
@@ -280,11 +301,11 @@ export async function syncData() {
                 }
 
                 // 1. Upsert to `reports` table.
-                // Omit beat_id when unset so BEFORE INSERT assign_report_geography()
-                // can fill it from GPS, and so a retry does not wipe a filled beat.
+                // Resolve beat from GPS first — stale profile DRB must not block server geography.
+                const resolvedBeat = await resolveBeatForSync(report);
                 const { error: reportError } = await supabase
                     .from('reports')
-                    .upsert(buildReportUpsertRow(report));
+                    .upsert(buildReportUpsertRow(report, resolvedBeat));
 
                 if (reportError) {
                     logger.error('SyncService', 'Report upsert error', reportError, { stage: 'report_upsert' });
