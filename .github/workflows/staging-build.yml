@@ -68,6 +68,7 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.STAGE_VITE_POSTHOG_HOST }}
           VITE_APP_VERSION: ${{ steps.ver.outputs.version_name }}
           VITE_APP_VERSION_CODE: ${{ steps.ver.outputs.version_code }}
+          VITE_DISABLE_PWA: 'true'
           VITE_UPDATE_MANIFEST_URL: https://ttjtyvxfiqhjdngkgdkf.supabase.co/storage/v1/object/public/app-updates/staging/latest.json
         run: npm run build -- --mode staging
 

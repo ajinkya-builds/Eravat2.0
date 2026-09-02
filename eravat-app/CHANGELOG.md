@@ -7,6 +7,14 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.1] — 2026-09-02 (versionCode 20101)
+
+- Fix reinstall restoring PIN-era UI via Android Auto Backup / Service Worker
+- Disable Service Worker on Capacitor APK builds
+- Block Android backup restore of WebView data
+- Clear stale SW caches on version change without wiping offline data
+
+---
 ## [2.1.0] — 2026-09-03 (versionCode 20100)
 
 First tracked release with in-app update support. Share this shell APK once; later builds install from **Settings → Update**.

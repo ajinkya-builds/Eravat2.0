@@ -15,6 +15,8 @@ if (!hasGoogleServices) {
 }
 
 // https://vite.dev/config/
+const disablePwa = process.env.VITE_DISABLE_PWA === 'true';
+
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || (process.env.NETLIFY === "true" ? "/" : "/Eravat2.0/"),
   define: {
@@ -44,52 +46,57 @@ export default defineConfig({
     }),
     tailwindcss(),
     nodePolyfills(),
-    VitePWA({
-      registerType: "autoUpdate",
-      includeAssets: [
-        "elephant-logo.png",
-        "elephant-favicon.svg",
-        "apple-touch-icon.png",
-        "masked-icon.svg",
-      ],
-      manifest: {
-        name: "Eravat 2.0",
-        short_name: "Eravat",
-        description: "Elephant Monitoring Progressive Web App",
-        theme_color: "#10b981",
-        background_color: "#0f172a",
-        display: "standalone",
-        orientation: "portrait",
-        icons: [
-          {
-            src: "elephant-logo.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "elephant-logo.png",
-            sizes: "512x512",
-            type: "image/png",
-          },
-          {
-            src: "elephant-logo.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-        ],
-      },
-      workbox: {
-        navigateFallback: "index.html",
-        // Cover Netlify (/) and GitHub Pages (/Eravat2.0/) so offline SPA reloads work
-        // after the first online visit that installs the service worker.
-        navigateFallbackAllowlist: [/^\/$/, /^\/index\.html$/, /^\/Eravat2\.0\//],
-      },
-      devOptions: {
-        enabled: true,
-        navigateFallbackAllowlist: [/^\/$/, /^\/index\.html$/, /^\/Eravat2\.0\//],
-      },
-    }),
+    // Capacitor APKs already ship assets offline. A Service Worker on Android
+    // can be restored via Auto Backup and serve stale PIN-era JS after reinstall.
+    // Keep PWA only for browser/Netlify builds.
+    ...(!disablePwa
+      ? [
+          VitePWA({
+            registerType: "autoUpdate",
+            includeAssets: [
+              "elephant-logo.png",
+              "elephant-favicon.svg",
+              "apple-touch-icon.png",
+              "masked-icon.svg",
+            ],
+            manifest: {
+              name: "Eravat 2.0",
+              short_name: "Eravat",
+              description: "Elephant Monitoring Progressive Web App",
+              theme_color: "#10b981",
+              background_color: "#0f172a",
+              display: "standalone",
+              orientation: "portrait",
+              icons: [
+                {
+                  src: "elephant-logo.png",
+                  sizes: "192x192",
+                  type: "image/png",
+                },
+                {
+                  src: "elephant-logo.png",
+                  sizes: "512x512",
+                  type: "image/png",
+                },
+                {
+                  src: "elephant-logo.png",
+                  sizes: "512x512",
+                  type: "image/png",
+                  purpose: "any maskable",
+                },
+              ],
+            },
+            workbox: {
+              navigateFallback: "index.html",
+              navigateFallbackAllowlist: [/^\/$/, /^\/index\.html$/, /^\/Eravat2\.0\//],
+            },
+            devOptions: {
+              enabled: true,
+              navigateFallbackAllowlist: [/^\/$/, /^\/index\.html$/, /^\/Eravat2\.0\//],
+            },
+          }),
+        ]
+      : []),
   ],
   test: {
     globals: true,

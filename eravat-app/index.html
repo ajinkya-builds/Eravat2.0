@@ -11,6 +11,32 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      Capacitor + Android Auto Backup can restore an old Service Worker that keeps
+      serving PIN-era JS after reinstall. Nuke SW/caches before the app bundle loads.
+    -->
+    <script>
+      (function () {
+        try {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              regs.forEach(function (r) { r.unregister(); });
+            });
+          }
+        } catch (e) {}
+        try {
+          if (window.caches && caches.keys) {
+            caches.keys().then(function (keys) {
+              keys.forEach(function (k) { caches.delete(k); });
+            });
+          }
+        } catch (e) {}
+        try {
+          localStorage.removeItem('eravat_secure_session');
+          localStorage.removeItem('eravat_bypass_pin_lock');
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

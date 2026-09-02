@@ -14,6 +14,7 @@ const version = JSON.parse(fs.readFileSync(path.join(root, 'version.json'), 'utf
 const env = {
   ...process.env,
   VITE_BASE_PATH: '/',
+  VITE_DISABLE_PWA: 'true',
   VITE_APP_ENV: process.env.VITE_APP_ENV || 'staging',
   VITE_APP_VERSION: String(version.versionName),
   VITE_APP_VERSION_CODE: String(version.versionCode),
