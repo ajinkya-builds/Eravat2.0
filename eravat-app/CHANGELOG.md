@@ -1,0 +1,40 @@
+# Eravat app changelog
+
+All notable staging/production app releases are tracked here.
+Version source of truth: [`version.json`](./version.json).
+
+Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always increases).
+
+---
+
+## [2.1.0] — 2026-09-03 (versionCode 20100)
+
+First tracked release with in-app update support. Share this shell APK once; later builds install from **Settings → Update**.
+
+### Added
+- Settings → Check for update / Download & install (full APK)
+- Staging publish of APK + `latest.json` to Supabase `app-updates` bucket
+- Version registry (`version.json`) and this changelog
+
+### Fixed
+- Unexpected logout / OTP prompts after idle or offline use
+- Offline cold start asking to log in again
+- Offline sightings syncing wrong Division/Range/Beat
+- Hathi Mitra / villager onboarding failing offline (Edge Function / network)
+- Android hardware back closing the app immediately
+
+### Changed
+- Offline queues for villager + volunteer registration; sync on reconnect/resume
+- Stale web caches cleared on update; login + Dexie offline data preserved
+
+---
+
+## [2.0.0] — 2026-08 (versionCode 2)
+
+Pre-tracking baseline (field review APKs through Aug–Sep 2026).
+
+### Included (historical)
+- Cross-app layout / scroll / map hardening
+- Review 3 offline/GPS/DRB and E2E hardening
+- In-app support notes + Command Center inbox
+- Hathi Mitra villager registry and field edit flows

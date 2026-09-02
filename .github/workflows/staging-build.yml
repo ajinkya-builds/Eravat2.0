@@ -40,6 +40,23 @@ jobs:
         working-directory: eravat-app
         run: npm run test:run
 
+      - name: Resolve staging version
+        id: ver
+        working-directory: eravat-app
+        run: |
+          NAME=$(node -p "require('./version.json').versionName")
+          CODE=$(node -p "require('./version.json').versionCode")
+          node -e "const v=require('./version.json'); require('fs').writeFileSync('release-notes.txt', (v.changes||[]).join('\\n'))"
+          {
+            echo "version_code=$CODE"
+            echo "version_name=$NAME"
+            echo "release_notes<<EOF"
+            cat release-notes.txt
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "Staging version $NAME ($CODE)"
+          cat version.json
+
       - name: Build Web App (Staging env, Android base /)
         working-directory: eravat-app
         env:
@@ -49,7 +66,9 @@ jobs:
           VITE_APP_ENV: staging
           VITE_POSTHOG_PROJECT_TOKEN: ${{ secrets.STAGE_VITE_POSTHOG_PROJECT_TOKEN }}
           VITE_POSTHOG_HOST: ${{ secrets.STAGE_VITE_POSTHOG_HOST }}
-          VITE_APP_VERSION: 2.0.0
+          VITE_APP_VERSION: ${{ steps.ver.outputs.version_name }}
+          VITE_APP_VERSION_CODE: ${{ steps.ver.outputs.version_code }}
+          VITE_UPDATE_MANIFEST_URL: https://ttjtyvxfiqhjdngkgdkf.supabase.co/storage/v1/object/public/app-updates/staging/latest.json
         run: npm run build -- --mode staging
 
       - name: Sync Capacitor Android
@@ -60,7 +79,9 @@ jobs:
         working-directory: eravat-app/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug \
+            -PversionCode=${{ steps.ver.outputs.version_code }} \
+            -PversionName=${{ steps.ver.outputs.version_name }}
 
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
@@ -68,6 +89,31 @@ jobs:
           name: Eravat-Staging-APK
           path: eravat-app/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
+
+      - name: Publish APK for in-app updates
+        working-directory: eravat-app
+        env:
+          STAGE_SUPABASE_URL: ${{ secrets.STAGE_VITE_SUPABASE_URL }}
+          STAGE_SUPABASE_SERVICE_ROLE: ${{ secrets.STAGE_SUPABASE_SERVICE_ROLE }}
+          VERSION_CODE: ${{ steps.ver.outputs.version_code }}
+          VERSION_NAME: ${{ steps.ver.outputs.version_name }}
+          RELEASE_NOTES: ${{ steps.ver.outputs.release_notes }}
+          APK_PATH: android/app/build/outputs/apk/debug/app-debug.apk
+        run: |
+          if [ -z "$STAGE_SUPABASE_SERVICE_ROLE" ]; then
+            echo "::warning::STAGE_SUPABASE_SERVICE_ROLE secret is not set — in-app Update will not see this build."
+            echo "Add the staging Supabase service_role key as STAGE_SUPABASE_SERVICE_ROLE."
+            exit 0
+          fi
+          node scripts/publish-staging-apk.mjs
+          echo "### In-app update published" >> "$GITHUB_STEP_SUMMARY"
+          echo "version \`${{ steps.ver.outputs.version_name }}\` (code ${{ steps.ver.outputs.version_code }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Changes:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.ver.outputs.release_notes }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "Manifest: \`$STAGE_SUPABASE_URL/storage/v1/object/public/app-updates/staging/latest.json\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload to Appetize.io (Staging)
         env:

@@ -9,6 +9,8 @@ import App from './App.tsx'
 import { AppErrorBoundary } from './components/AppErrorBoundary.tsx'
 import { initPostHog } from './lib/posthogClient'
 import { logger } from './lib/logger'
+import { runPendingCacheClearIfNeeded } from './lib/appCacheCleanup'
+import { AppUpdate } from './plugins/AppUpdate'
 
 initPostHog();
 defineCustomElements(window);
@@ -24,7 +26,21 @@ async function configureNativeChrome() {
   }
 }
 
+async function clearCachesAfterUpdate() {
+  try {
+    let versionCode = Number(import.meta.env.VITE_APP_VERSION_CODE || 0);
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+      const info = await AppUpdate.getAppInfo();
+      versionCode = info.versionCode;
+    }
+    await runPendingCacheClearIfNeeded(versionCode);
+  } catch (err) {
+    logger.warn('AppUpdate', 'post-update cache clear skipped', { error: String(err) });
+  }
+}
+
 void configureNativeChrome();
+void clearCachesAfterUpdate();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

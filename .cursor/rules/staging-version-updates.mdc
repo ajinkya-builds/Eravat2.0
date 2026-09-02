@@ -1,0 +1,46 @@
+---
+description: Staging version bumps and in-app APK update deploys — always ask before publishing
+alwaysApply: true
+---
+
+# Staging app versioning & in-app updates
+
+## Version scheme (staging → same model later for production)
+
+Format: `MAJOR.MINOR.PATCH` + Android `versionCode` (always increases).
+
+| When | Bump | Example |
+|------|------|---------|
+| Day-to-day / meaningful staging ship | **patch** (last number) | `2.1.0` → `2.1.1` → `2.1.2` |
+| User says build is **stable** / ready to stabilize the minor line | **minor** (middle number); patch resets to 0 | `2.1.7` → `2.2.0` |
+| Breaking / major product line (rare; user must say so) | **major** | `2.x.y` → `3.0.0` |
+
+**Never** bump minor or major unless the user explicitly asks to stabilize or start a new major line.
+
+## Source of truth
+
+- `eravat-app/version.json` — versionName, versionCode, changes[]
+- `eravat-app/CHANGELOG.md` — human history
+- Generated: `eravat-app/src/version.meta.ts` (via `npm run version:sync`)
+
+## Before any meaningful staging ship that installed apps should receive
+
+1. **Ask the user** whether this work should be published to **installed staging Android apps** (Settings → Update), unless they already said so.
+2. If **yes**, bump with change notes (default **patch** unless they asked to stabilize → **minor**):
+
+```bash
+cd eravat-app
+npm run version:bump -- patch "Short change 1" "Short change 2"
+# stabilize: npm run version:bump -- minor "Stable staging line 2.2" "…"
+```
+
+3. Then commit, push `staging`, and ensure CI can publish APK + `latest.json` (`STAGE_SUPABASE_SERVICE_ROLE` required for in-app Update).
+4. If **no** (code-only / WIP / web-only), push or commit without `version:bump` — installed APKs stay on their current version.
+
+## Rules
+
+- Never bump version or publish an APK update without user confirmation (or an explicit “push update to staging apps” / “release 2.1.0” ask).
+- Never hand-edit `src/version.meta.ts` — use `version:bump` / `version:sync`.
+- versionCode must always increase; include real change bullets for testers.
+- First install of a line needs a shell APK once; later patch/minor ships go through Settings → Update after bump + CI.
+- Production will follow this same patch/minor stabilize model when that channel is set up.

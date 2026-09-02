@@ -7,6 +7,7 @@ import {
     clamp, MAX_KM, MIN_KM, type SaveState,
 } from '../../components/shared/RadiusSlider';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { APP_VERSION, formatAppVersionLabel } from '../../lib/appVersion';
 
 // ─── Toggle ──────────────────────────────────────────────────────────────────
 
@@ -222,8 +223,8 @@ export default function AdminSettings() {
                 </h3>
                 <div className="space-y-4">
                     {[
-                        { label: 'Web App', version: '2.0.0', status: 'Current' },
-                        { label: 'Android APK', version: '2.0.0 (versionCode 2)', status: 'Current' },
+                        { label: 'Web App', version: APP_VERSION.versionName, status: 'Current' },
+                        { label: 'Android APK', version: formatAppVersionLabel(APP_VERSION), status: 'Current' },
                         { label: 'Supabase Backend', version: 'v2 (hosted)', status: 'Online' },
                         { label: 'PostGIS Extension', version: '3.4', status: 'Active' },
                     ].map((item) => (

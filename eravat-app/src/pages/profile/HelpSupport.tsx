@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { openReportIssueDialog } from '../../lib/supportIssues';
 import { PAGE_STICKY_HEADER } from '../../lib/layout';
+import { APP_VERSION, formatAppVersionLabel } from '../../lib/appVersion';
 
 export default function HelpSupport() {
     const navigate = useNavigate();
@@ -148,7 +149,9 @@ export default function HelpSupport() {
                                 </div>
                                 <div>
                                     <div className="font-medium">{t('help.appVersion')}</div>
-                                    <div className="text-xs text-muted-foreground mt-0.5">Eravat 2.0.0 (Android versionCode 2)</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                        Eravat {formatAppVersionLabel(APP_VERSION)} · {APP_VERSION.releasedAt}
+                                    </div>
                                 </div>
                             </div>
                         </div>

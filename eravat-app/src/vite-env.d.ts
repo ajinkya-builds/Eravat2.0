@@ -9,6 +9,9 @@ interface ImportMetaEnv {
   /** staging | production | development */
   readonly VITE_APP_ENV?: string;
   readonly VITE_APP_VERSION?: string;
+  readonly VITE_APP_VERSION_CODE?: string;
+  /** Public URL to latest.json for in-app APK updates */
+  readonly VITE_UPDATE_MANIFEST_URL?: string;
   readonly VITE_SUPABASE_DISABLE_AUTO_REFRESH?: string;
   readonly VITE_DISABLE_PUSH_NOTIFICATIONS?: string;
   readonly VITE_BASE_PATH?: string;
