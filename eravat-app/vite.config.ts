@@ -103,6 +103,11 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: "./src/setupTests.ts",
     css: true,
-    exclude: ["tests/**", "node_modules/**"]
+    exclude: ["tests/**", "node_modules/**"],
+    // CI has no .env.local; keep unit tests from throwing in supabase.ts module init.
+    env: {
+      VITE_SUPABASE_URL: "https://example.supabase.co",
+      VITE_SUPABASE_PUBLISHABLE_KEY: "test-publishable-key",
+    },
   },
 });

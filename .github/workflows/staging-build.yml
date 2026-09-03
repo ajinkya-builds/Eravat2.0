@@ -38,6 +38,9 @@ jobs:
 
       - name: Unit tests
         working-directory: eravat-app
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
         run: npm run test:run
 
       - name: Resolve staging version
