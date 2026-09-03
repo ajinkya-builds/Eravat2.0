@@ -9,7 +9,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 import { Network } from '@capacitor/network';
-import { syncAllPending } from './lib/appSync';
+import { scheduleSyncAllPending } from './lib/appSync';
 import { Loader2 } from 'lucide-react';
 import { ScreenAnalytics } from './components/ScreenAnalytics';
 import { InteractionAnalytics } from './components/InteractionAnalytics';
@@ -60,31 +60,24 @@ function RouteFallback() {
 function NetworkSync() {
   const { session } = useAuth();
   const wasOfflineRef = useRef(false);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useAppLifecycleSync(Boolean(session));
 
   useEffect(() => {
     if (!session) return;
 
-    const runSyncIfNeeded = async (reason: 'initial' | 'reconnect') => {
+    const scheduleIfNeeded = (reason: 'initial' | 'reconnect') => {
       if (reason === 'reconnect' && !wasOfflineRef.current) {
         return;
       }
       wasOfflineRef.current = false;
-      void syncAllPending(reason);
-    };
-
-    const scheduleSync = (reason: 'initial' | 'reconnect') => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = setTimeout(() => {
-        void runSyncIfNeeded(reason);
-      }, reason === 'reconnect' ? 3000 : 500);
+      // Shared debounce with native eravat-network-online (see appSync).
+      scheduleSyncAllPending(reason);
     };
 
     Network.getStatus().then(status => {
       wasOfflineRef.current = !status.connected;
-      if (status.connected) scheduleSync('initial');
+      if (status.connected) scheduleIfNeeded('initial');
     });
 
     const listener = Network.addListener('networkStatusChange', status => {
@@ -94,11 +87,10 @@ function NetworkSync() {
         return;
       }
       track('network.came_online');
-      scheduleSync('reconnect');
+      scheduleIfNeeded('reconnect');
     });
 
     return () => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       listener.then(l => l.remove());
     };
   }, [session]);

@@ -7,6 +7,13 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.3] — 2026-09-03 (versionCode 20103)
+
+- Pause notification realtime socket while backgrounded; FCM covers push, resume refetches
+- Unify reconnect sync debounce across Capacitor and native online events
+- Exponential backoff after failed automatic offline sync batches
+
+---
 ## [2.1.1] — 2026-09-02 (versionCode 20101)
 
 - Fix reinstall restoring PIN-era UI via Android Auto Backup / Service Worker

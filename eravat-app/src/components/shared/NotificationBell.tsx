@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Bell, Check, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { NotificationService, type Notification } from '../../services/NotificationService';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -8,44 +11,91 @@ import { cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { track } from '../../lib/analytics';
 
+/**
+ * Foreground: realtime WS for instant delivery.
+ * Background: drop the socket (FCM covers push); on resume, refetch + resubscribe.
+ */
 export function NotificationBell() {
     const { profile, user } = useAuth();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const channelRef = useRef<RealtimeChannel | null>(null);
     const { t } = useLanguage();
 
     useEffect(() => {
         if (!user?.id || !profile) return;
 
-        // Load initial notifications
+        let cancelled = false;
+
+        const applyInsert = (payload: { new: Notification }) => {
+            setNotifications(prev => {
+                const newNotification = payload.new;
+                if (prev.find(n => n.id === newNotification.id)) return prev;
+                const updated = [newNotification, ...prev].slice(0, 20);
+                setUnreadCount(updated.filter(n => !n.is_read).length);
+                return updated;
+            });
+        };
+
         const loadNotifications = async () => {
             const [data, unread] = await Promise.all([
                 NotificationService.getNotifications(20),
                 NotificationService.getUnreadCount(),
             ]);
+            if (cancelled) return;
             setNotifications(data);
             setUnreadCount(unread);
         };
 
-        loadNotifications();
+        const unsubscribeRealtime = () => {
+            if (channelRef.current) {
+                channelRef.current.unsubscribe();
+                channelRef.current = null;
+            }
+        };
 
-        // Subscribe to new notifications
-        const channel = NotificationService.subscribeToNotifications(user.id, (payload) => {
-            setNotifications(prev => {
-                const newNotification = payload.new as Notification;
-                // avoid duplicates
-                if (prev.find(n => n.id === newNotification.id)) return prev;
-                const updated = [newNotification, ...prev].slice(0, 20); // Keep last 20
-                setUnreadCount(updated.filter(n => !n.is_read).length);
-                return updated;
+        const subscribeRealtime = () => {
+            if (cancelled || channelRef.current || !user.id) return;
+            channelRef.current = NotificationService.subscribeToNotifications(user.id, applyInsert);
+        };
+
+        const onBecameActive = () => {
+            void loadNotifications();
+            subscribeRealtime();
+        };
+
+        const onBecameInactive = () => {
+            unsubscribeRealtime();
+        };
+
+        void loadNotifications();
+        subscribeRealtime();
+
+        let removeAppState: (() => void) | undefined;
+
+        if (Capacitor.isNativePlatform()) {
+            const sub = CapApp.addListener('appStateChange', ({ isActive }) => {
+                if (isActive) onBecameActive();
+                else onBecameInactive();
             });
-        });
+            removeAppState = () => {
+                void sub.then((h) => h.remove());
+            };
+        } else {
+            const onVisibility = () => {
+                if (document.visibilityState === 'visible') onBecameActive();
+                else onBecameInactive();
+            };
+            document.addEventListener('visibilitychange', onVisibility);
+            removeAppState = () => document.removeEventListener('visibilitychange', onVisibility);
+        }
 
         return () => {
-            // Clean up subscription
-            channel.unsubscribe();
+            cancelled = true;
+            unsubscribeRealtime();
+            removeAppState?.();
         };
     }, [user?.id, profile?.id]);
 
