@@ -49,13 +49,19 @@ jobs:
         run: |
           NAME=$(node -p "require('./version.json').versionName")
           CODE=$(node -p "require('./version.json').versionCode")
-          node -e "const v=require('./version.json'); require('fs').writeFileSync('release-notes.txt', (v.changes||[]).join('\\n'))"
+          node <<'NODE'
+          const fs = require('fs');
+          const v = require('./version.json');
+          const body = (v.changes || []).join('\n');
+          // Trailing newline required so the GITHUB_OUTPUT delimiter is on its own line.
+          fs.writeFileSync('release-notes.txt', body.endsWith('\n') ? body : `${body}\n`);
+          NODE
           {
-            echo "version_code=$CODE"
-            echo "version_name=$NAME"
-            echo "release_notes<<EOF"
+            echo "version_code=${CODE}"
+            echo "version_name=${NAME}"
+            echo "release_notes<<ERAVAT_RELNOTES"
             cat release-notes.txt
-            echo "EOF"
+            echo "ERAVAT_RELNOTES"
           } >> "$GITHUB_OUTPUT"
           echo "Staging version $NAME ($CODE)"
           cat version.json
