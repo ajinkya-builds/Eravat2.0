@@ -7,6 +7,12 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.5] — 2026-09-03 (versionCode 20105)
+
+- Fix Capacitor CORS for Hathi Mitra onboarding Edge Functions
+- Remove Sign out from all devices stub on Privacy & Security
+
+---
 ## [2.1.4] — 2026-09-03 (versionCode 20104)
 
 - Sign staging APKs with a stable keystore so in-app updates can install

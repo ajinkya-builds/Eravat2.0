@@ -1,21 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getCorsHeaders } from '../_shared/cors.ts'
 import { canManageRole, VALID_ROLES } from '../_shared/rbac.ts'
-
-const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').map(o => o.trim()).filter(Boolean)
-const DEFAULT_ORIGINS = ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://localhost', 'capacitor://localhost']
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('Origin') || ''
-  const allowed = ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : DEFAULT_ORIGINS
-  const allowedOrigin = allowed.includes(origin) ? origin : (allowed[0] || '*')
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Vary': 'Origin',
-  }
-}
 
 const MAX_NAME_LENGTH = 100
 const MAX_PHONE_LENGTH = 20

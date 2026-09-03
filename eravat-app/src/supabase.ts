@@ -44,6 +44,11 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   },
   global: {
     fetch: (input, init = {}) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      // Prefer is a PostgREST hint — do not attach it to Edge Function calls or CORS preflight fails.
+      if (/\/functions\/v1\//.test(url)) {
+        return fetch(input, init);
+      }
       const headers = new Headers(init.headers);
       const prefer = headers.get('Prefer') ?? '';
       if (!/count=/.test(prefer)) {

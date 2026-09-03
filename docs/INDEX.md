@@ -22,6 +22,7 @@ context is never lost between AI chat sessions.
 
 ```
 docs/
+├── ERAVAT_ARCHITECTURE.html    ← Full architecture + CTO handbook (open in browser)
 ├── PROJECT_BRAIN.md            ← 🧠 Comprehensive project brain (start here)
 ├── README.md                   ← Main architecture reference (always up to date)
 ├── INDEX.md                    ← This file

@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Eravat 2.0 — Full Architecture & CTO Handbook</title>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "neutral",
+      securityLevel: "loose",
+      flowchart: { curve: "basis", htmlLabels: true },
+    });
+  </script>
+  <style>
+    :root {
+      --bg: #f6f4ef;
+      --surface: #fffdf8;
+      --ink: #1c1917;
+      --muted: #57534e;
+      --line: #d6d3d1;
+      --accent: #14532d;
+      --accent-soft: #dcfce7;
+      --warn-bg: #fff7ed;
+      --warn-ink: #9a3412;
+      --info-bg: #eff6ff;
+      --info-ink: #1e3a8a;
+      --code-bg: #f5f5f4;
+      --nav-w: 260px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.55;
+      font-size: 15px;
+    }
+    a { color: var(--accent); }
+    code, .mono {
+      font-family: var(--mono);
+      font-size: 0.88em;
+      background: var(--code-bg);
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+    pre {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      background: #1c1917;
+      color: #fafaf9;
+      padding: 14px 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      line-height: 1.45;
+    }
+    pre code { background: transparent; color: inherit; padding: 0; }
+    .layout {
+      display: grid;
+      grid-template-columns: var(--nav-w) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+    nav.toc {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      border-right: 1px solid var(--line);
+      background: var(--surface);
+      padding: 20px 16px 40px;
+    }
+    nav.toc .brand {
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.02em;
+      margin-bottom: 4px;
+    }
+    nav.toc .sub {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 18px;
+    }
+    nav.toc a {
+      display: block;
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      margin-bottom: 2px;
+    }
+    nav.toc a:hover { background: var(--code-bg); color: var(--ink); }
+    nav.toc a.group {
+      color: var(--ink);
+      font-weight: 600;
+      margin-top: 12px;
+    }
+    main {
+      max-width: 980px;
+      padding: 32px 40px 80px;
+    }
+    header.hero {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 24px;
+      margin-bottom: 28px;
+    }
+    header.hero h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      letter-spacing: -0.02em;
+    }
+    header.hero p.lead {
+      margin: 0;
+      color: var(--muted);
+      max-width: 62ch;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pill strong { color: var(--ink); font-weight: 600; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 20px 0 0;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .stat .v { font-size: 22px; font-weight: 700; color: var(--accent); }
+    .stat .l { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    h2 {
+      margin: 40px 0 12px;
+      font-size: 22px;
+      letter-spacing: -0.02em;
+      scroll-margin-top: 20px;
+    }
+    h3 {
+      margin: 28px 0 10px;
+      font-size: 17px;
+      scroll-margin-top: 20px;
+    }
+    h4 { margin: 18px 0 8px; font-size: 14px; }
+    p { margin: 0 0 12px; }
+    ul, ol { margin: 0 0 14px; padding-left: 1.25rem; }
+    li { margin-bottom: 4px; }
+    .callout {
+      border: 1px solid var(--line);
+      border-left-width: 4px;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin: 14px 0 18px;
+      background: var(--surface);
+    }
+    .callout.info { border-left-color: #2563eb; background: var(--info-bg); color: var(--info-ink); }
+    .callout.warn { border-left-color: #ea580c; background: var(--warn-bg); color: var(--warn-ink); }
+    .callout.ok { border-left-color: #16a34a; background: var(--accent-soft); color: var(--accent); }
+    .callout.danger { border-left-color: #dc2626; background: #fef2f2; color: #991b1b; }
+    .toc-note { font-size: 11px; color: var(--muted); margin: 8px 0 0; line-height: 1.35; }
+    details.block {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 10px 14px;
+      margin: 10px 0 14px;
+    }
+    details.block summary {
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    details.block[open] summary { margin-bottom: 10px; }
+    .checklist { list-style: none; padding-left: 0; }
+    .checklist li {
+      padding: 6px 0 6px 28px;
+      position: relative;
+      border-bottom: 1px solid var(--line);
+    }
+    .checklist li:last-child { border-bottom: 0; }
+    .checklist li::before {
+      content: "□";
+      position: absolute;
+      left: 6px;
+      color: var(--muted);
+    }
+    .callout strong { display: block; margin-bottom: 4px; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 12px 0 18px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 12px 0 18px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .card h4 { margin-top: 0; }
+    .card ul { margin-bottom: 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      margin: 10px 0 18px;
+      background: var(--surface);
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f5f5f4; font-weight: 600; }
+    .diagram {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      margin: 12px 0 20px;
+      overflow-x: auto;
+    }
+    .path { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+    footer {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      nav.toc { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .stats, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      main { padding: 20px 16px 60px; }
+    }
+    @media print {
+      nav.toc { display: none; }
+      .layout { grid-template-columns: 1fr; }
+      main { max-width: none; }
+      .callout, .card, .diagram { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <nav class="toc" aria-label="Table of contents">
+      <div class="brand">Eravat 2.0</div>
+      <div class="sub">Full architecture · CTO handbook</div>
+      <p class="toc-note">Read §0 first if you only have 10 minutes. Everything else is the operating manual.</p>
+      <a class="group" href="#cto-brief">0. CTO brief</a>
+      <a href="#decisions">Decisions &amp; non-goals</a>
+      <a href="#open-questions">Open product decisions</a>
+      <a class="group" href="#overview">1. System overview</a>
+      <a href="#verdict">Architecture verdict</a>
+      <a href="#system-map">System map</a>
+      <a href="#layers">Logical layers</a>
+      <a href="#request-paths">Request paths</a>
+      <a class="group" href="#product">2. Product &amp; personas</a>
+      <a href="#scale">Scale assumptions</a>
+      <a href="#hathi">Hathi Mitra</a>
+      <a class="group" href="#envs">3. Environments</a>
+      <a href="#secrets">Secrets &amp; keys</a>
+      <a href="#versioning">Versioning / updates</a>
+      <a class="group" href="#client">4. Client app</a>
+      <a href="#stack">Tech stack</a>
+      <a href="#providers">Providers &amp; state</a>
+      <a href="#routes">Routes</a>
+      <a href="#services">Services &amp; hooks</a>
+      <a href="#report-wizard">Report wizard</a>
+      <a href="#lib-map">lib/ map</a>
+      <a class="group" href="#data">5. Data &amp; spatial</a>
+      <a href="#erd">Entity model</a>
+      <a href="#tables">Tables &amp; RLS</a>
+      <a href="#triggers">Triggers &amp; RPCs</a>
+      <a href="#metrics">Dashboard metrics caveats</a>
+      <a class="group" href="#auth">6. Auth &amp; RBAC</a>
+      <a href="#login">Login flow</a>
+      <a href="#auth-reality">Auth reality vs docs</a>
+      <a href="#roles">Roles</a>
+      <a href="#role-gaps">Role gaps</a>
+      <a class="group" href="#sync">7. Offline sync</a>
+      <a href="#sync-flow">Sync pipeline</a>
+      <a class="group" href="#notify">8. Notifications &amp; edge</a>
+      <a href="#edge">Edge functions</a>
+      <a class="group" href="#security">9. Security posture</a>
+      <a href="#security-ok">What is secured</a>
+      <a href="#security-risks">Risk register</a>
+      <a class="group" href="#deploy">10. Deploy &amp; DR</a>
+      <a href="#backups">Backups</a>
+      <a href="#golive">Go-live gates</a>
+      <a href="#observability">Observability &amp; privacy</a>
+      <a class="group" href="#quality">11. Quality &amp; debt</a>
+      <a href="#testing">Testing</a>
+      <a href="#debt">Technical debt</a>
+      <a href="#deferred">Deferred capabilities</a>
+      <a href="#roadmap">Roadmap sketch</a>
+      <a class="group" href="#ops">12. Day-2 ops</a>
+      <a href="#support">Support / incidents</a>
+      <a href="#checklist">CTO checklist</a>
+      <a href="#repo-map">Repo map</a>
+      <a href="#further">Further reading</a>
+    </nav>
+
+    <main>
+      <header class="hero">
+        <h1>Eravat 2.0 architecture</h1>
+        <p class="lead">
+          End-to-end handbook for CTOs and engineers: system architecture,
+          product constraints, security, environments, go-live gates, debt,
+          and day-2 operations. Modular monolith + Supabase BaaS (not microservices).
+          Open in any browser; Mermaid diagrams need network once.
+        </p>
+        <div class="meta">
+          <span class="pill"><strong>Style</strong> Modular monolith + BaaS</span>
+          <span class="pill"><strong>App</strong> eravat-app @ 2.1.2 (staging channel)</span>
+          <span class="pill"><strong>Bundle</strong> com.forestdept.eravat</span>
+          <span class="pill"><strong>Prod project</strong> mnytrlcmdpkfhrzrtesf</span>
+          <span class="pill"><strong>Updated</strong> 2026-09-03 · CTO-complete</span>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="v">1</div><div class="l">Frontend codebase</div></div>
+          <div class="stat"><div class="v">1</div><div class="l">Supabase backend</div></div>
+          <div class="stat"><div class="v">4</div><div class="l">Edge functions</div></div>
+          <div class="stat"><div class="v">9</div><div class="l">User roles</div></div>
+        </div>
+      </header>
+
+      <!-- 0. CTO BRIEF -->
+      <h2 id="cto-brief">0. CTO brief (read this first)</h2>
+      <p>
+        Eravat is a <strong>life-safety-adjacent field operations tool</strong> for MP Forest Department
+        elephant monitoring. The engineering bet is: <em>one reliable offline-first app + one managed
+        Postgres/PostGIS backend</em>, not a microservice estate. Success is measured by field staff
+        filing reports without signal, officers getting timely alerts, and data staying territory-scoped.
+      </p>
+      <div class="grid-2">
+        <div class="card">
+          <h4>What you own as CTO</h4>
+          <ul>
+            <li>Architecture style: modular monolith + BaaS (locked)</li>
+            <li>Staging vs production promotion discipline</li>
+            <li>Security / key rotation / RLS debt</li>
+            <li>Go-live gates (SMS, push, pilot accounts)</li>
+            <li>$0 telemetry posture (PostHog free + billing caps)</li>
+            <li>What we explicitly will <em>not</em> build yet (Kafka, custom API farms)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>What “done” looks like for a pilot</h4>
+          <ul>
+            <li>Signed Android APK on staging/prod with correct env</li>
+            <li>Offline report + photo sync works after reconnect</li>
+            <li>Chain-of-command / proximity alerts fire for scoped officers</li>
+            <li>Only enrolled phones can auth (no ghost users)</li>
+            <li>Backups landing on Eravat Drive nightly</li>
+            <li>No service_role secrets in git or client bundles</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 id="decisions">Standing architecture decisions</h3>
+      <table>
+        <thead><tr><th>Decision</th><th>Choice</th><th>Rationale</th></tr></thead>
+        <tbody>
+          <tr><td>App shape</td><td>Single <code>eravat-app</code> codebase</td><td>One team, one workflow, PWA + Android same UX</td></tr>
+          <tr><td>Backend</td><td>Supabase (Auth, Postgres/PostGIS, Storage, Realtime, Edge)</td><td>Speed + spatial + RLS without ops team</td></tr>
+          <tr><td>Offline</td><td>Dexie first, sync when online</td><td>Forest connectivity is intermittent</td></tr>
+          <tr><td>Privileged ops</td><td>Deno Edge Functions + service role</td><td>Keep secrets off device; centralize RBAC</td></tr>
+          <tr><td>Push</td><td>FCM via <code>send-push</code></td><td>Enough for department scale</td></tr>
+          <tr><td>Analytics</td><td>PostHog free tier, opt-in, $0 billing caps</td><td>Funnels + crashes without Sentry tax</td></tr>
+          <tr><td>Queues / Kafka / SQS</td><td><strong>Deferred</strong></td><td>Phone + DB triggers are the queue today</td></tr>
+          <tr><td>Custom microservice APIs</td><td><strong>Deferred</strong></td><td>No multi-team / partner platform need yet</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="open-questions">Open product / eng decisions (do not silently “fix”)</h3>
+      <table>
+        <thead><tr><th>Issue</th><th>Why it matters</th><th>Options</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Range Officer blocked from <code>/admin</code></td>
+            <td>RLS already range-scopes data; UI denies supervisor shell</td>
+            <td>Extend AdminRoute · or RO-only routes · or keep intentional</td>
+          </tr>
+          <tr>
+            <td>CCF intended read-only vs write-capable admin</td>
+            <td>Docs say analytics-only; RBAC may allow broader writes</td>
+            <td>Enforce read-only in UI + Edge · or update product intent</td>
+          </tr>
+          <tr>
+            <td>Real SMS / DLT vs Test OTP</td>
+            <td>Pilot uses fixed OTP <code>123456</code>; Twilio disabled on prod intentionally</td>
+            <td>Keep Test OTP for closed pilot · enable DLT before scale</td>
+          </tr>
+          <tr>
+            <td>PIN / biometrics status</td>
+            <td>Docs conflict; go-live notes say local PIN lock removed from some builds</td>
+            <td>Confirm live <code>AuthContext</code> / Login behavior per channel</td>
+          </tr>
+          <tr>
+            <td>Push without <code>google-services.json</code></td>
+            <td>RRT response may be in-app only</td>
+            <td>Ship Firebase config · or brief pilots explicitly</td>
+          </tr>
+          <tr>
+            <td>Promote staging migrations (notify recipients, perf indexes)</td>
+            <td>Staging ahead of prod on life-safety alert paths</td>
+            <td>Explicit promote after soak — never silent</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 1. OVERVIEW -->
+      <h2 id="overview">1. System overview</h2>
+      <p>
+        <strong>Eravat</strong> is a mobile-first Progressive Web App (and Capacitor Android build)
+        for the Madhya Pradesh Forest Department to log elephant activity
+        (direct sightings, indirect signs, conflict/loss) in low-connectivity field conditions.
+        Geography is seeded at <strong>11 divisions → 80 ranges → 1,222 beats</strong> with PostGIS polygons.
+      </p>
+
+      <h3 id="verdict">Architecture verdict</h3>
+      <div class="callout ok">
+        <strong>This is a modular monolith on a BaaS — not microservices.</strong>
+        One React app (<code>eravat-app/</code>), one Postgres database, shared Auth/Storage/Realtime,
+        and a handful of Deno Edge Functions for privileged operations.
+        Edge functions are serverless helpers on the same project — not independently owned domain services.
+      </div>
+
+      <h3 id="system-map">System map</h3>
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart TB
+  subgraph Users
+    F[Field staff]
+    A[Admin / officers]
+  end
+
+  subgraph Clients
+    PWA[Browser PWA]
+    AND[Capacitor Android]
+  end
+
+  subgraph App["eravat-app React 19"]
+    UI[Pages / components]
+    SVC[Services / contexts]
+    DEX[(Dexie IndexedDB)]
+  end
+
+  subgraph Supa["Supabase project"]
+    API[PostgREST + Auth + Realtime]
+    PG[(Postgres + PostGIS)]
+    ST[(Storage report-media)]
+    EF[Edge Functions]
+  end
+
+  EXT1[Firebase FCM]
+  EXT2[PostHog]
+  EXT3[GitHub Pages / CI]
+
+  F --> PWA
+  F --> AND
+  A --> PWA
+  PWA --> UI
+  AND --> UI
+  UI --> SVC
+  SVC --> DEX
+  SVC --> API
+  SVC --> EXT2
+  API --> PG
+  API --> ST
+  EF --> PG
+  EF --> EXT1
+  UI -.-> EXT3
+        </pre>
+      </div>
+
+      <h3 id="layers">Logical layers</h3>
+      <div class="grid-3">
+        <div class="card">
+          <h4>1. Presentation</h4>
+          <ul>
+            <li>React 19 + Vite + Tailwind v4</li>
+            <li>React Router v7</li>
+            <li>Field + Admin UI shells</li>
+            <li>i18n: en / hi / mr</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>2. Client domain</h4>
+          <ul>
+            <li><code>AuthContext</code>, route guards</li>
+            <li><code>syncService</code>, registration sync</li>
+            <li>Notifications + FCM + analytics</li>
+            <li>Capacitor GPS / Camera / Push</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>3. Local persistence</h4>
+          <ul>
+            <li>Dexie: reports + media</li>
+            <li><code>pending / synced / failed</code></li>
+            <li>Queued volunteers / villagers</li>
+            <li>Cross-tab sync lock</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>4. Supabase API plane</h4>
+          <ul>
+            <li>Anon key via <code>VITE_*</code></li>
+            <li>JWT session drives RLS</li>
+            <li>Bucket <code>report-media</code></li>
+            <li>Realtime notification feeds</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>5. Data + policy</h4>
+          <ul>
+            <li>profiles, reports, observations…</li>
+            <li>geo_divisions → ranges → beats</li>
+            <li>RLS + spatial triggers</li>
+            <li>RPCs e.g. <code>get_email_by_phone</code></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>6. Privileged edge</h4>
+          <ul>
+            <li>create / update / delete user</li>
+            <li><code>send-push</code> → FCM</li>
+            <li><code>_shared/rbac.ts</code></li>
+            <li>Service role (server only)</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 id="request-paths">Request paths (cheat sheet)</h3>
+      <table>
+        <thead>
+          <tr><th>User action</th><th>Client path</th><th>Server path</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Phone login</td>
+            <td><code>Login.tsx</code> → RPC <code>get_email_by_phone</code></td>
+            <td>Auth <code>signInWithPassword</code> → <code>profiles</code></td>
+          </tr>
+          <tr>
+            <td>File report offline</td>
+            <td><code>ReportStepper</code> → Dexie <code>pending</code></td>
+            <td>Queued until online</td>
+          </tr>
+          <tr>
+            <td>Sync report</td>
+            <td><code>syncService.ts</code></td>
+            <td><code>reports</code> + <code>observations</code> + <code>conflict_damages</code> + Storage</td>
+          </tr>
+          <tr>
+            <td>Beat auto-assign</td>
+            <td>(transparent after insert)</td>
+            <td>Trigger <code>assign_report_geography()</code></td>
+          </tr>
+          <tr>
+            <td>Create officer</td>
+            <td><code>AdminUsers</code> → <code>functions.invoke</code></td>
+            <td><code>create-user</code> (service role + RBAC)</td>
+          </tr>
+          <tr>
+            <td>Proximity / chain alert</td>
+            <td>NotificationBell / FCM</td>
+            <td>AFTER INSERT triggers + <code>send-push</code></td>
+          </tr>
+          <tr>
+            <td>Product analytics</td>
+            <td><code>analytics.ts</code> / <code>logger.ts</code></td>
+            <td>PostHog (privacy opt-in)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 2. PRODUCT -->
+      <h2 id="product">2. Product, personas &amp; scale</h2>
+      <h3>Mission</h3>
+      <p>
+        Digitize wild elephant monitoring for Madhya Pradesh Forest Department:
+        field staff log sightings / signs / conflict; officers get territory-scoped
+        dashboards and alerts; data supports RRT and research.
+      </p>
+      <h3>Personas (intended)</h3>
+      <table>
+        <thead><tr><th>Role</th><th>Scope</th><th>Primary job</th></tr></thead>
+        <tbody>
+          <tr><td>Admin</td><td>Global</td><td>Personnel, settings, full analytics</td></tr>
+          <tr><td>CCF</td><td>State</td><td>Intended: read-only state monitoring</td></tr>
+          <tr><td>Biologist / Veterinarian</td><td>Research / medical</td><td>Observation access for science &amp; response</td></tr>
+          <tr><td>DFO</td><td>Division</td><td>Manage RO/BG; division oversight</td></tr>
+          <tr><td>RRT</td><td>Division response</td><td>Rapid response; limited user create</td></tr>
+          <tr><td>Range Officer</td><td>Range</td><td>Supervise beat guards; alerts</td></tr>
+          <tr><td>Beat Guard</td><td>Beat</td><td>Primary field reporter; volunteer onboard</td></tr>
+          <tr><td>Volunteer (Gram Mitra)</td><td>Own reports</td><td>Citizen / community reporting</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="scale">Scale assumptions (design envelope)</h3>
+      <table>
+        <thead><tr><th>Dimension</th><th>Current / target</th><th>Implication</th></tr></thead>
+        <tbody>
+          <tr><td>Geography</td><td>11 divisions · 80 ranges · 1,222 beats</td><td>PostGIS + assignment tables are core</td></tr>
+          <tr><td>Foreground concurrency</td><td>≥50 smooth sessions (staging goal)</td><td>Indexes, debounce, avoid N+1 / full scans</td></tr>
+          <tr><td>Background logged-in</td><td>~3,000 devices model</td><td>No polling storms; careful Realtime / refresh</td></tr>
+          <tr><td>Users (near-term)</td><td>Hundreds → low thousands staff</td><td>Not consumer scale; Kafka unnecessary</td></tr>
+          <tr><td>Hathi Mitra data</td><td>Staging ~6.7k villagers (order of)</td><td>Search must be limited/indexed</td></tr>
+          <tr><td>Admin dashboard pull</td><td>30-day window, <code>limit(500)</code></td><td>Metrics can undercount busy divisions</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="hathi">Hathi Mitra (villagers) — staging-first feature</h3>
+      <div class="callout warn">
+        <strong>Environment skew</strong>
+        Villages / villagers schema and UI were advanced on <strong>staging</strong>.
+        Confirm prod has equivalent tables before assuming production parity.
+        Routes: <code>/villagers</code>, <code>/villagers/onboard</code>, <code>/villagers/:id</code>, admin <code>/admin/villagers</code>.
+        Client helpers: <code>lib/villagerRegistry.ts</code>, <code>registrationSyncService.ts</code>.
+      </div>
+      <ul>
+        <li>Onboarding can queue offline and sync via registration sync service.</li>
+        <li>Certification scripts cover villager onboard + SMS queue events on staging.</li>
+        <li>Do not full-table-scan villagers on every keystroke — debounce + indexes.</li>
+      </ul>
+
+      <!-- 3. ENVIRONMENTS -->
+      <h2 id="envs">3. Environments &amp; configuration</h2>
+      <table>
+        <thead><tr><th>Env</th><th>Supabase ref</th><th>App config</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Production</td>
+            <td><code>mnytrlcmdpkfhrzrtesf</code></td>
+            <td><code>.env.production.local</code> / CI secrets</td>
+            <td>Go-live pilot project; geography seeded; activity may be wiped/reseeded</td>
+          </tr>
+          <tr>
+            <td>Staging</td>
+            <td><code>ttjtyvxfiqhjdngkgdkf</code></td>
+            <td><code>.env.staging.local</code></td>
+            <td>Primary eng branch <code>staging</code>; Hathi Mitra + perf work lands here first</td>
+          </tr>
+          <tr>
+            <td>Local / web preview</td>
+            <td>Usually staging or local</td>
+            <td><code>.env.local</code></td>
+            <td>Empty PostHog key = no remote telemetry</td>
+          </tr>
+        </tbody>
+      </table>
+      <ul>
+        <li>GitHub Pages historically served web at <code>/Eravat2.0/</code>; staging web may use Netlify.</li>
+        <li>Android builds use <code>VITE_BASE_PATH=/</code> (no Pages subpath).</li>
+        <li><strong>Never</strong> point a staging APK at prod DB by accident — verify URL in env before install.</li>
+        <li>Workspace rule: DB/Edge changes must be applied on the remote project, not only committed as migration files.</li>
+      </ul>
+
+      <h3 id="secrets">Secrets &amp; key classes</h3>
+      <table>
+        <thead><tr><th>Key</th><th>Where allowed</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>VITE_SUPABASE_URL</code> + publishable / anon</td><td>Client bundle</td><td>Public by design; protected by RLS</td></tr>
+          <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code> / <code>sb_secret_...</code></td><td>Edge, CI, local scripts only</td><td><strong>Never</strong> <code>VITE_*</code>; bypasses RLS</td></tr>
+          <tr><td>PostHog project token</td><td>Client (opt-in)</td><td>Staging vs prod projects; tag <code>app_env</code></td></tr>
+          <tr><td>Android keystore</td><td>Local <code>backups/android-signing/</code> + CI secrets</td><td>Gitignored; required for release signing</td></tr>
+          <tr><td>FCM / <code>google-services.json</code></td><td>Android app</td><td>Without it, push may not work</td></tr>
+          <tr><td>RCLONE / Drive backup secrets</td><td>GitHub Actions</td><td>Nightly dumps to Eravat Google Drive</td></tr>
+        </tbody>
+      </table>
+      <div class="callout danger">
+        <strong>Incident note (must know)</strong>
+        A production legacy JWT <code>service_role</code> was previously committed in public repo scripts.
+        Ops require rotating/disabling legacy JWT keys in Supabase Dashboard, confirming CI uses modern keys,
+        enabling leaked-password protection, and considering making the GitHub repo private.
+        See <code>docs/GO_LIVE_OPS.md</code>.
+      </div>
+      <p>Canonical local template: <code>eravat-app/.env.example</code>.</p>
+
+      <h3 id="versioning">Staging versioning &amp; in-app updates</h3>
+      <ul>
+        <li>Source of truth: <code>eravat-app/version.json</code> (+ <code>CHANGELOG.md</code>); generated <code>src/version.meta.ts</code> via <code>npm run version:sync</code>.</li>
+        <li>Scheme: <code>MAJOR.MINOR.PATCH</code> + always-increasing Android <code>versionCode</code>.</li>
+        <li>Day-to-day staging ship → <strong>patch</strong>; user says “stable” → <strong>minor</strong> (patch resets).</li>
+        <li><strong>Never</strong> bump or publish APK update without explicit user confirmation.</li>
+        <li>In-app Settings → Update needs CI + <code>STAGE_SUPABASE_SERVICE_ROLE</code> (or equivalent) to publish <code>latest.json</code>.</li>
+        <li>Current staging line (as of doc update): <code>2.1.2</code> / versionCode <code>20102</code>.</li>
+      </ul>
+
+      <!-- 4. CLIENT -->
+      <h2 id="client">4. Client application</h2>
+      <p>
+        Single codebase ships as browser PWA and Capacitor Android.
+        Root: <span class="path">eravat-app/</span>
+      </p>
+
+      <h3 id="stack">Tech stack (verified)</h3>
+      <table>
+        <thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+        <tbody>
+          <tr><td>UI</td><td>React 19, TypeScript, Vite (SWC), Tailwind CSS v4</td></tr>
+          <tr><td>Routing</td><td>React Router DOM v7</td></tr>
+          <tr><td>Backend client</td><td>@supabase/supabase-js → <code>src/supabase.ts</code></td></tr>
+          <tr><td>Offline DB</td><td>Dexie.js → <code>src/db.ts</code></td></tr>
+          <tr><td>Maps</td><td>Leaflet + react-leaflet + Turf + WKX</td></tr>
+          <tr><td>Charts</td><td>Recharts</td></tr>
+          <tr><td>i18n</td><td>i18next + react-i18next (<code>src/i18n/</code>)</td></tr>
+          <tr><td>Native</td><td>Capacitor 8 (Android SDK 34/35)</td></tr>
+          <tr><td>Tests</td><td>Playwright E2E + Vitest</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="providers">Provider stack &amp; state</h3>
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart LR
+  M[main.tsx] --> T[ThemeContext]
+  T --> L[LanguageContext]
+  L --> A[AuthContext]
+  A --> R[BrowserRouter]
+  R --> P[Pages]
+  P --> AF[ActivityFormContext<br/>report wizard only]
+        </pre>
+      </div>
+      <ul>
+        <li>No Redux / Zustand — direct Supabase calls from components/services.</li>
+        <li>PostHog init + <code>AppErrorBoundary</code> + screen analytics wrap the tree.</li>
+        <li>Contexts live in <span class="path">eravat-app/src/contexts/</span>.</li>
+      </ul>
+
+      <h3 id="routes">Routes (from <code>App.tsx</code>)</h3>
+      <table>
+        <thead><tr><th>Area</th><th>Paths</th><th>Guard</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Public</td>
+            <td><code>/login</code></td>
+            <td>None</td>
+          </tr>
+          <tr>
+            <td>Field (AppLayout)</td>
+            <td>
+              <code>/</code>, <code>/map</code>, <code>/report</code>, <code>/history</code>,
+              <code>/nearby</code>, <code>/profile*</code>, <code>/settings</code>,
+              <code>/privacy</code>, <code>/help</code>, <code>/faq</code>,
+              <code>/volunteers/onboard</code>, <code>/villagers*</code>
+            </td>
+            <td><code>ProtectedRoute</code></td>
+          </tr>
+          <tr>
+            <td>Admin (AdminLayout)</td>
+            <td>
+              <code>/admin</code>, <code>/admin/conflict</code>, <code>/admin/live</code>,
+              <code>/admin/latest</code>, <code>/admin/user-stats</code>,
+              <code>/admin/users</code>, <code>/admin/villagers</code>,
+              <code>/admin/divisions</code>, <code>/admin/observations</code>,
+              <code>/admin/map</code>, <code>/admin/notifications</code>,
+              <code>/admin/support</code>, <code>/admin/settings</code>
+            </td>
+            <td><code>AdminRoute</code> (<code>role === 'admin'</code>)</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout warn">
+        <strong>Known product misalignment</strong>
+        Range officers get geographically scoped RLS reads, but route guards block non-admin
+        users from <code>/admin/*</code>. Do not “fix” this without a product decision.
+      </div>
+
+      <h3 id="services">Services &amp; hooks</h3>
+      <table>
+        <thead><tr><th>File</th><th>Responsibility</th></tr></thead>
+        <tbody>
+          <tr><td><code>services/syncService.ts</code></td><td>Offline→Supabase report + media sync, locks, retries</td></tr>
+          <tr><td><code>services/registrationSyncService.ts</code></td><td>Queued volunteer / villager creates</td></tr>
+          <tr><td><code>services/NotificationService.ts</code></td><td>In-app notification read / mark</td></tr>
+          <tr><td><code>services/PushNotificationService.ts</code></td><td>FCM token registration → <code>push_tokens</code></td></tr>
+          <tr><td><code>services/adminAnalyticsService.ts</code></td><td>Admin KPI aggregation</td></tr>
+          <tr><td><code>services/edIntelligence.ts</code></td><td>ED dashboard intelligence helpers</td></tr>
+          <tr><td><code>services/appUpdateService.ts</code></td><td>Staging APK / <code>latest.json</code> update channel</td></tr>
+          <tr><td><code>hooks/useGeolocation.ts</code></td><td>Capacitor GPS</td></tr>
+          <tr><td><code>hooks/useCamera.ts</code></td><td>Capacitor camera → base64</td></tr>
+          <tr><td><code>hooks/useAppLifecycleSync.ts</code></td><td>Resume / network-driven sync</td></tr>
+          <tr><td><code>hooks/useAdminFilters.ts</code></td><td>Division / range / beat filter state</td></tr>
+        </tbody>
+      </table>
+
+
+      <h3 id="report-wizard">Report wizard (field critical path)</h3>
+      <ol>
+        <li><strong>DateTimeLocation</strong> — device clock + GPS (Capacitor) or manual lat/lng</li>
+        <li><strong>ObservationType</strong> — direct / indirect / loss (+ counts, signs, damages)</li>
+        <li><strong>CompassBearing</strong> — 0–360°</li>
+        <li><strong>Photo</strong> — camera/gallery → base64 in Dexie; Storage on sync</li>
+      </ol>
+      <p>
+        State: <code>ActivityFormContext</code>. Controller: <code>components/reporting/ReportStepper.tsx</code>.
+        Host page: <code>/report</code> → <code>ReportActivityPage.tsx</code>.
+        On submit: Dexie <code>pending</code> → auto-sync if online.
+      </p>
+
+      <h3 id="lib-map">Notable <code>src/lib/</code> modules</h3>
+      <table>
+        <thead><tr><th>Module</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>posthogClient.ts</code> / <code>analytics.ts</code> / <code>logger.ts</code></td><td>Telemetry init, events, structured errors</td></tr>
+          <tr><td><code>analyticsConsent.ts</code></td><td>Privacy → Share Analytics gate</td></tr>
+          <tr><td><code>phone.ts</code></td><td>Normalize / validate IN phone numbers</td></tr>
+          <tr><td><code>rbac.ts</code></td><td>Client-side role helpers (must stay aligned with Edge)</td></tr>
+          <tr><td><code>offlineSession.ts</code></td><td>Session restore / offline unlock helpers</td></tr>
+          <tr><td><code>appSync.ts</code> / <code>appCacheCleanup.ts</code></td><td>App-level sync orchestration / cache hygiene</td></tr>
+          <tr><td><code>appVersion.ts</code></td><td>Version display / update checks</td></tr>
+          <tr><td><code>geoLookup.ts</code> / <code>geoFormat.ts</code></td><td>Territory helpers</td></tr>
+          <tr><td><code>villagerRegistry.ts</code></td><td>Hathi Mitra registry helpers</td></tr>
+          <tr><td><code>supportIssues.ts</code></td><td>In-app support issue plumbing</td></tr>
+          <tr><td><code>stampPhoto.ts</code> / <code>captureDeviceDateTime.ts</code></td><td>Media + device time stamping</td></tr>
+          <tr><td><code>publicAsset.ts</code></td><td>BASE_URL-safe asset URLs (GitHub Pages)</td></tr>
+        </tbody>
+      </table>
+
+      <!-- 5. DATA -->
+      <h2 id="data">5. Data model &amp; spatial architecture</h2>
+
+      <h3 id="erd">Entity relationships</h3>
+      <div class="diagram">
+        <pre class="mermaid">
+erDiagram
+  AUTH_USERS ||--|| PROFILES : "id = id"
+  PROFILES ||--o{ USER_REGION_ASSIGNMENTS : user_id
+  PROFILES ||--o{ REPORTS : user_id
+  PROFILES ||--o{ NOTIFICATIONS : user_id
+  PROFILES ||--o{ PUSH_TOKENS : user_id
+  REPORTS ||--o{ OBSERVATIONS : report_id
+  REPORTS ||--o{ CONFLICT_DAMAGES : report_id
+  REPORTS ||--o{ REPORT_MEDIA : report_id
+  REPORTS }o--|| GEO_BEATS : beat_id
+  GEO_DIVISIONS ||--o{ GEO_RANGES : division_id
+  GEO_RANGES ||--o{ GEO_BEATS : range_id
+  USER_REGION_ASSIGNMENTS }o--|| GEO_DIVISIONS : division_id
+  USER_REGION_ASSIGNMENTS }o--o| GEO_RANGES : range_id
+  USER_REGION_ASSIGNMENTS }o--o| GEO_BEATS : beat_id
+        </pre>
+      </div>
+
+      <h3 id="tables">Key tables &amp; RLS posture</h3>
+      <table>
+        <thead><tr><th>Table</th><th>RLS (typical)</th><th>Notes for developers</th></tr></thead>
+        <tbody>
+          <tr><td><code>profiles</code></td><td>Historically weak / off</td><td><code>id = auth.users.id</code>; <code>user_role</code> enum; phone <code>91XXXXXXXXXX</code></td></tr>
+          <tr><td><code>reports</code></td><td>ON (geo + role)</td><td><code>geography(POINT,4326)</code>; <code>sync_status</code></td></tr>
+          <tr><td><code>observations</code></td><td>ON (via reports)</td><td>sighting / indirect / conflict fields</td></tr>
+          <tr><td><code>conflict_damages</code></td><td>Often off</td><td>Client must supply explicit UUID</td></tr>
+          <tr><td><code>report_media</code></td><td>Often off</td><td>Path column drift handled in sync</td></tr>
+          <tr><td><code>geo_divisions/ranges/beats</code></td><td>Often off</td><td>Boundaries + centroids</td></tr>
+          <tr><td><code>user_region_assignments</code></td><td>Scoped</td><td>Territory + primary contact flag</td></tr>
+          <tr><td><code>notifications</code> / <code>push_tokens</code></td><td>User-scoped</td><td>In-app + FCM</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Enums</h4>
+      <ul>
+        <li><code>user_role</code>: admin, ccf, biologist, veterinarian, dfo, rrt, range_officer, beat_guard, volunteer</li>
+        <li><code>obs_type</code>: direct_sighting, indirect_sign, conflict_loss</li>
+        <li><code>sync_status</code>: pending, synced, reviewed</li>
+      </ul>
+
+      <h3 id="triggers">Triggers &amp; RPCs</h3>
+      <table>
+        <thead><tr><th>Name</th><th>When</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>assign_report_geography()</code></td><td>BEFORE INSERT reports</td><td><code>ST_Intersects</code>, else nearest beat boundary</td></tr>
+          <tr><td>chain-of-command notify</td><td>AFTER INSERT reports</td><td>Notify RO + DFO for territory</td></tr>
+          <tr><td>proximity notify</td><td>AFTER INSERT reports</td><td><code>ST_DWithin</code> vs user radius (km→m)</td></tr>
+          <tr><td>phone normalize</td><td>profiles write</td><td>Enforce <code>91XXXXXXXXXX</code></td></tr>
+          <tr><td>centroid populate</td><td>geo_* write</td><td><code>ST_Centroid(boundary)</code></td></tr>
+          <tr><td><code>get_email_by_phone</code></td><td>RPC</td><td>Login phone → synthetic email</td></tr>
+        </tbody>
+      </table>
+      <p>
+        GIS seed pipeline: shapefiles in <code>data/Shape_Files/</code> → Python/geopandas →
+        SQL under <code>supabase/seeds/</code> → import into geo tables.
+      </p>
+
+      <!-- 4. AUTH -->
+      
+      <h3 id="metrics">Admin dashboard metrics caveats</h3>
+      <ul>
+        <li>Primary window: last <strong>30 days</strong> by <code>device_timestamp</code>; trends often 7-day subset.</li>
+        <li>Hard <code>limit(500)</code> — busy territories can make KPIs incomplete (no pagination fallback).</li>
+        <li>Observation type normalization accepts both DB enums and legacy short labels (<code>direct</code>/<code>indirect</code>/<code>loss</code>).</li>
+        <li>Unknown types default defensively to <code>direct</code>.</li>
+        <li>Full formulas: <code>docs/DASHBOARD_METRICS_REFERENCE.md</code>.</li>
+      </ul>
+
+<h2 id="auth">6. Authentication &amp; RBAC</h2>
+
+      <h3 id="login">Live login flow</h3>
+      <div class="diagram">
+        <pre class="mermaid">
+sequenceDiagram
+  participant U as User
+  participant L as Login.tsx
+  participant DB as Postgres RPC
+  participant AU as Supabase Auth
+  participant AC as AuthContext
+
+  U->>L: Enter phone + password
+  L->>L: Normalize to 91XXXXXXXXXX
+  L->>DB: get_email_by_phone(phone)
+  DB-->>L: synthetic email
+  L->>AU: signInWithPassword(email, password)
+  AU-->>L: session JWT
+  L->>AC: load profiles row
+  Note over AC: Admin may require TOTP MFA
+        </pre>
+      </div>
+
+      <h4>Three enforcement planes (must stay consistent)</h4>
+      <ol>
+        <li><strong>Route guards</strong> — <code>ProtectedRoute</code> / <code>AdminRoute</code> in <code>App.tsx</code></li>
+        <li><strong>Postgres RLS</strong> — geographic + role row filters on reports/observations</li>
+        <li><strong>Edge RBAC</strong> — <code>supabase/functions/_shared/rbac.ts</code> for user lifecycle</li>
+      </ol>
+
+      <h3 id="roles">Who can manage whom</h3>
+      <table>
+        <thead><tr><th>Manager</th><th>Can manage</th><th>Geo required to create</th></tr></thead>
+        <tbody>
+          <tr><td>admin, ccf</td><td>All roles (*)</td><td>None (state-wide)</td></tr>
+          <tr><td>dfo</td><td>range_officer, beat_guard, volunteer</td><td>division_id</td></tr>
+          <tr><td>range_officer</td><td>beat_guard, volunteer</td><td>division + range</td></tr>
+          <tr><td>rrt</td><td>beat_guard</td><td>division-scoped</td></tr>
+          <tr><td>beat_guard</td><td>volunteer (onboard flow)</td><td>division + range + beat</td></tr>
+          <tr><td>biologist, veterinarian, volunteer</td><td>Nobody</td><td>—</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Offline PIN unlock / hybrid auth design lives in
+        <code>docs/AUTH_ARCHITECTURE.md</code> (proposal; treat as draft vs live code).
+      </p>
+
+      <!-- 5. SYNC -->
+      
+      <h3 id="auth-reality">Auth reality vs documentation drift</h3>
+      <div class="callout warn">
+        <strong>Do not trust a single doc for auth</strong>
+        <code>ERAVAT_SOURCE_OF_TRUTH</code>, <code>AUTH_ARCHITECTURE</code>, and <code>GO_LIVE_OPS</code> disagree in places
+        (password vs OTP-only, PIN present vs removed). Treat <strong>live code</strong>
+        (<code>Login.tsx</code>, <code>AuthContext.tsx</code>, Supabase Auth settings) as source of truth per environment.
+      </div>
+      <ul>
+        <li><strong>Prod pilot (as of GO_LIVE_OPS):</strong> phone provider may be disabled; Test OTP <code>123456</code> for enrolled numbers; app treats provider-disabled as proceed-to-verify after phone registration check.</li>
+        <li><strong>Ghost-user prevention:</strong> only pre-provisioned phones should authenticate; login must not create auth users implicitly.</li>
+        <li><strong>Admin MFA:</strong> TOTP via <code>supabase.auth.mfa</code> when <code>role === 'admin'</code> (verify still enforced in AuthContext).</li>
+        <li><strong>Profile location gate:</strong> users may be forced through <code>/profile/complete-location</code> before full app use.</li>
+        <li><strong>Proposed hybrid PIN auth</strong> in <code>AUTH_ARCHITECTURE.md</code> is a design draft — not automatic production fact.</li>
+      </ul>
+
+      <h3 id="role-gaps">Field hierarchy: intent vs implementation</h3>
+      <p>Summarized from <code>docs/ROLE_CAPABILITY_MATRIX.md</code>:</p>
+      <table>
+        <thead><tr><th>Capability</th><th>Intended</th><th>Implemented</th></tr></thead>
+        <tbody>
+          <tr><td>DFO / RO personnel manage via admin UI</td><td>Yes for supervisors</td><td>Only <code>admin</code> passes <code>AdminRoute</code></td></tr>
+          <tr><td>RO create beat guards</td><td>Yes</td><td>Edge RBAC yes; UI path limited</td></tr>
+          <tr><td>Beat Guard onboard volunteers</td><td>Yes</td><td>Yes — <code>/volunteers/onboard</code> + RBAC</td></tr>
+          <tr><td>Volunteer territory</td><td>Beat-scoped</td><td>create-user requires beat; inherits from BG caller</td></tr>
+          <tr><td>Profile GPS required</td><td>Yes</td><td>Columns + completion UI + centroid fallback</td></tr>
+          <tr><td>Report read scope</td><td>Division/range/beat/own</td><td>RLS <code>can_read_report</code> (and staging perf variants)</td></tr>
+        </tbody>
+      </table>
+
+<h2 id="sync">7. Offline-first sync</h2>
+      <p>
+        Field writes go to Dexie first. When online, <code>syncService</code> maps flat local rows
+        to normalized Supabase tables. See also <code>docs/SYNC_RUNBOOK.md</code>.
+      </p>
+
+      <h3 id="sync-flow">Pipeline</h3>
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart TD
+  A[ReportStepper submit] --> B[Dexie reports pending + media base64]
+  B --> C{Online?}
+  C -->|No| D[Stay queued]
+  D --> E[Network restored]
+  E --> F[SyncService]
+  C -->|Yes| F
+  F --> G[Acquire localStorage cross-tab lock]
+  G --> H[Normalize lat/lng arrays enums MIME]
+  H --> I[Upsert reports]
+  I --> J[Upsert observations]
+  J --> K[Upsert conflict_damages]
+  K --> L[Upload Storage + report_media]
+  L --> M{OK?}
+  M -->|Yes| N[sync_status = synced]
+  M -->|No| O[sync_status = failed]
+  O --> P[Manual sync retries failed]
+        </pre>
+      </div>
+      <ul>
+        <li><strong>Auto-sync:</strong> <code>pending</code> only</li>
+        <li><strong>Manual sync:</strong> <code>pending</code> + <code>failed</code></li>
+        <li><strong>UI badge:</strong> pending count</li>
+      </ul>
+      <table>
+        <thead><tr><th>Failure</th><th>Cause</th><th>Mitigation in client</th></tr></thead>
+        <tbody>
+          <tr><td>PGRST204 on report_media</td><td>Column name drift</td><td><code>mediaPathColumnHint</code> trial</td></tr>
+          <tr><td>22P02 on observations</td><td>Bad array literal</td><td><code>normalizeTextArray()</code></td></tr>
+          <tr><td>Enum on damages</td><td>UI label ≠ DB enum</td><td>Explicit mapping + deterministic UUIDs</td></tr>
+          <tr><td>Media upload</td><td>jpg vs jpeg</td><td>Normalize to <code>image/jpeg</code></td></tr>
+        </tbody>
+      </table>
+
+      <!-- 6. NOTIFY / EDGE -->
+      <h2 id="notify">8. Notifications &amp; Edge Functions</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Notification channels</h4>
+          <ul>
+            <li>In-app rows in <code>notifications</code></li>
+            <li>Realtime badge (<code>NotificationBell</code>)</li>
+            <li>OS push via FCM</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Push path</h4>
+          <ul>
+            <li>Capacitor registers token → <code>push_tokens</code></li>
+            <li>Trigger / caller invokes <code>send-push</code></li>
+            <li>Edge reads tokens → Firebase Cloud Messaging</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 id="edge">Edge functions</h3>
+      <p class="path">supabase/functions/</p>
+      <table>
+        <thead><tr><th>Function</th><th>What it does</th><th>Privileges</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>create-user</code></td>
+            <td>JWT → RBAC → <code>auth.users</code> + <code>profiles</code> + region assignment</td>
+            <td>Service role</td>
+          </tr>
+          <tr>
+            <td><code>update-user</code></td>
+            <td>RBAC → profile / password / geography updates</td>
+            <td>Service role</td>
+          </tr>
+          <tr>
+            <td><code>delete-user</code></td>
+            <td>RBAC → cascade assignments → profile → auth user</td>
+            <td>Service role</td>
+          </tr>
+          <tr>
+            <td><code>send-push</code></td>
+            <td>Lookup <code>push_tokens</code> → dispatch FCM</td>
+            <td>Push credentials</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Shared: <code>_shared/rbac.ts</code>, <code>_shared/cors.ts</code>.
+        Apply changes with CLI/MCP deploy — migration files alone are incomplete
+        (see workspace rule + <code>docs/SUPABASE_OPERATIONS.md</code>).
+      </p>
+
+      <!-- 7. DEPLOY -->
+      
+      <!-- 9. SECURITY -->
+      <h2 id="security">9. Security posture</h2>
+      <h3 id="security-ok">What is in good shape</h3>
+      <ul>
+        <li>Reports / observations: RLS with geographic + role policies</li>
+        <li>Notifications: user-scoped RLS</li>
+        <li>Edge user lifecycle: RBAC before service-role mutations</li>
+        <li>Auth via Supabase; admin MFA path exists</li>
+        <li><code>report_media</code> Storage bucket intended <strong>private</strong> post wipe</li>
+        <li>Geo public SELECT policies tightened in go-live work (verify per env)</li>
+      </ul>
+
+      <h3 id="security-risks">Risk register (CTO must track)</h3>
+      <table>
+        <thead><tr><th>Risk</th><th>Severity</th><th>Resource</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>profiles readable broadly</td><td>HIGH</td><td><code>profiles</code></td><td>Tighten RLS; audit phone/PII exposure</td></tr>
+          <tr><td>conflict_damages RLS weak/off</td><td>HIGH</td><td>conflict data</td><td>Enable policies mirroring reports</td></tr>
+          <tr><td>report_media RLS weak/off</td><td>MEDIUM</td><td>media metadata</td><td>Align with Storage privacy</td></tr>
+          <tr><td>user_region_assignments exposure</td><td>MEDIUM</td><td>assignments</td><td>Scope reads</td></tr>
+          <tr><td><code>get_push_dispatch_auth_token()</code> anon-callable</td><td>HIGH</td><td>RPC</td><td>Lock down immediately if still present</td></tr>
+          <tr><td>Service role in files / history</td><td>CRITICAL</td><td>keys</td><td>Rotate; never commit; scrub history if needed</td></tr>
+          <tr><td>Leaked password protection off</td><td>MEDIUM</td><td>Auth</td><td>Enable HIBP in Dashboard</td></tr>
+          <tr><td>Duplicate migration folders</td><td>LOW</td><td><code>supabase/</code> vs <code>eravat-app/supabase/</code></td><td>Single source of truth</td></tr>
+          <tr><td>Telemetry PII</td><td>MEDIUM</td><td>PostHog</td><td>No OTP/PIN/photos; mask phones; honor opt-out</td></tr>
+        </tbody>
+      </table>
+
+<h2 id="deploy">10. Deployment, DR &amp; operations</h2>
+      <div class="grid-3">
+        <div class="card">
+          <h4>Web / PWA</h4>
+          <ul>
+            <li>Vite build with <code>VITE_SUPABASE_*</code></li>
+            <li><code>.github/workflows/deploy.yml</code> → gh-pages</li>
+            <li>Base path <code>/Eravat2.0/</code> for Pages</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Android</h4>
+          <ul>
+            <li><code>npm run build</code> → <code>cap sync</code> → Gradle APK</li>
+            <li>Staging: <code>version.json</code> + in-app Update</li>
+            <li><code>staging-build.yml</code> CI</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Supabase</h4>
+          <ul>
+            <li><code>supabase/migrations/</code> applied remotely</li>
+            <li><code>supabase functions deploy</code></li>
+            <li>Nightly backup workflow</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 id="backups">Backups &amp; disaster recovery</h3>
+      <ul>
+        <li><strong>Nightly GitHub Action:</strong> <code>.github/workflows/nightly-db-backup.yml</code> (18:30 UTC / 00:00 IST) → Eravat Google Drive via <code>scripts/backup-db-to-gdrive.sh</code> + rclone.</li>
+        <li>Secrets: <code>RCLONE_CONFIG</code>, <code>SUPABASE_ACCESS_TOKEN</code>, DB passwords for prod + staging.</li>
+        <li>Drive retention: dumps older than 30 days deleted.</li>
+        <li><strong>Local full prod snapshot pointer:</strong> <code>backups/LATEST_FULL_STAMP.txt</code> → e.g. <code>full-20260727T052931Z</code> (gitignored). Includes schema+data, inventory, edge list.</li>
+        <li>Pre-wipe dumps: <code>backups/prod-prewipe-*</code>. Do not commit <code>backups/</code>.</li>
+        <li>Android signing keystore: <code>backups/android-signing/</code> (gitignored).</li>
+      </ul>
+
+      <h3 id="golive">Go-live / production readiness gates</h3>
+      <p>From <code>docs/GO_LIVE_OPS.md</code> + certification docs — treat as a checklist, not folklore:</p>
+      <ul class="checklist">
+        <li>Prod has pilot <code>auth.users</code> + <code>profiles</code> + territory assignments (not an empty wipe)</li>
+        <li>Promote staging life-safety migrations (e.g. chain notify recipients including beat_guard/rrt) only after explicit ask</li>
+        <li>Real SMS/DLT enabled <em>or</em> written scope limited to Test OTP phones</li>
+        <li>Release APK includes <code>google-services.json</code> if push is required; else brief “in-app only”</li>
+        <li>Legacy JWT service_role keys revoked; modern publishable/secret in CI</li>
+        <li>Smoke: offline report + photo sync; map pins; chain notify after sighting</li>
+        <li>Leaked password protection enabled</li>
+        <li>Uninstall old debug APK before installing signed release (signature change)</li>
+      </ul>
+      <details class="block">
+        <summary>Pilot Test OTP phones (ops reference — rotate when expanding)</summary>
+        <table>
+          <thead><tr><th>Role</th><th>Phone (app)</th><th>Test OTP key</th></tr></thead>
+          <tbody>
+            <tr><td>admin</td><td>9988775566</td><td>919988775566</td></tr>
+            <tr><td>beat_guard</td><td>8899776655</td><td>918899776655</td></tr>
+            <tr><td>range_officer</td><td>9876500001</td><td>919876500001</td></tr>
+            <tr><td>beat_guard</td><td>9876500002</td><td>919876500002</td></tr>
+            <tr><td>beat_guard</td><td>9876500003</td><td>919876500003</td></tr>
+            <tr><td>volunteer</td><td>9876500004</td><td>919876500004</td></tr>
+          </tbody>
+        </table>
+        <p>Fixed OTP: <code>123456</code>. Territory example: Anuppur → Ahirgawa (replace with real assignments).</p>
+      </details>
+
+      <h3 id="observability">Observability &amp; privacy (product analytics)</h3>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Client</h4>
+          <ul>
+            <li>PostHog SDK — opt-in Privacy toggle</li>
+            <li><code>logger.ts</code> → exceptions</li>
+            <li><code>analytics.ts</code> journey events</li>
+            <li>Screen views; auth/sync funnels</li>
+            <li>Tag <code>app_env</code>: development/staging/production</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Server</h4>
+          <ul>
+            <li>Supabase Dashboard / MCP logs</li>
+            <li>Edge function console</li>
+            <li>Advisors for RLS/index health</li>
+            <li><code>audit_log</code> table exists; app write historically limited</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout info">
+        <strong>Privacy non-negotiables</strong>
+        No OTP/PIN/passwords/tokens in events. Prefer user UUID. Mask phones. Never send report photos or narrative text to PostHog.
+        Session replay off by default. Billing limits $0 on PostHog. Today: one Staging PostHog project may temporarily serve multiple <code>app_env</code> tags until a Production project exists.
+      </div>
+      <div class="callout warn">
+        <strong>Secrets</strong>
+        Never commit <code>SUPABASE_SERVICE_ROLE_KEY</code>. Client only gets anon/publishable keys via Vite env.
+      </div>
+
+      <h3 id="non-goals">CTO non-goals (current scale)</h3>
+      <div class="callout info">
+        <strong>Do not introduce Kafka, SQS, or a custom microservice API layer yet.</strong>
+        Department scale is served by Dexie offline queue + Postgres triggers + Edge <code>send-push</code> + FCM.
+        Revisit only if missed alerts become operationally systemic, multi-channel blast needs retries/credits,
+        or Eravat becomes a public integration platform.
+      </div>
+
+      <!-- 11. QUALITY -->
+      <h2 id="quality">11. Quality, debt &amp; roadmap</h2>
+      <h3 id="testing">Testing</h3>
+      <ul>
+        <li><strong>Playwright E2E</strong> under <code>eravat-app/tests/</code> (auth, dashboard, admin, offline-sync, report, i18n, privacy, …).</li>
+        <li><strong>Vitest</strong> unit tests co-located / under <code>lib/__tests__</code>, <code>services/__tests__</code>.</li>
+        <li><strong>Staging certification:</strong> <code>docs/testing/GO_LIVE_CERTIFICATION.md</code> — scripts like <code>test:staging:deep</code>, notification/SMS queue e2e.</li>
+        <li><strong>FCM device setup:</strong> <code>docs/testing/FCM_AND_DEVICE_SETUP.md</code>.</li>
+        <li><strong>Manual smoke:</strong> <code>docs/SMOKE_TEST_PILOT.md</code>, <code>docs/testing/MANUAL_SMOKE_CHECKLIST.md</code>.</li>
+      </ul>
+
+      <h3 id="debt">Technical debt register (abridged)</h3>
+      <table>
+        <thead><tr><th>Area</th><th>Issue</th></tr></thead>
+        <tbody>
+          <tr><td>Code size</td><td>Login, AdminUsers, AdminDivisions, AdminDashboard, syncService, AuthContext oversized</td></tr>
+          <tr><td>i18n</td><td>Large inline packs; MapPage/sync/loaders/errors partially untranslated</td></tr>
+          <tr><td>Schema</td><td><code>loss_category</code> poorly documented; report_media column drift across envs</td></tr>
+          <tr><td>RBAC</td><td>Three enforcement planes can disagree (routes / RLS / Edge)</td></tr>
+          <tr><td>Product</td><td>No incident lifecycle (open→responding→resolved); overlapping admin dashboards</td></tr>
+          <tr><td>Docs drift</td><td>Root README nearly empty; React 18 vs 19; MobilePatrol references; OTP guide missing</td></tr>
+          <tr><td>Settings UX</td><td>Some toggles historically stubs (verify photo compression / biometrics)</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="deferred">Deferred capabilities (locked in admin UI)</h3>
+      <p>From <code>admin/deferredCapabilities.ts</code> — visible but not backed:</p>
+      <ol>
+        <li>Voice Call Alerts</li><li>Communication Hub</li><li>Electric Fence IoT</li>
+        <li>Crowd-Sourced Data</li><li>Help Requests</li><li>Blog CMS</li>
+        <li>Device Management</li><li>ODK Forms</li><li>Category Master</li>
+        <li>Master Records</li><li>Villager Accounts (broader than Hathi Mitra phase)</li>
+        <li>Affected Villagers</li><li>KML Overlays</li><li>Notification Credits</li>
+      </ol>
+
+      <h3 id="roadmap">Suggested roadmap sketch</h3>
+      <table>
+        <thead><tr><th>Phase</th><th>Focus</th></tr></thead>
+        <tbody>
+          <tr><td>A (2–3 wks)</td><td>RO supervisor shell decision; CCF read-only; history nav; notification inbox</td></tr>
+          <tr><td>B (4–6 wks)</td><td>PIN unlock increments (if product confirms); sync failure UI; i18n gaps; role dashboards</td></tr>
+          <tr><td>C (4–6 wks)</td><td>Consolidate admin hubs; incident status workflow; exports; web push</td></tr>
+          <tr><td>D later</td><td>Citizen channel; KML corridors; voice/SMS escalation; ODK</td></tr>
+        </tbody>
+      </table>
+
+      <!-- 12. OPS -->
+      <h2 id="ops">12. Day-2 operations</h2>
+      <h3 id="support">When something breaks — where to look</h3>
+      <table>
+        <thead><tr><th>Symptom</th><th>First places</th></tr></thead>
+        <tbody>
+          <tr><td>Login fails</td><td>Supabase Auth logs; phone normalize; Test OTP vs SMS provider; <code>get_email_by_phone</code> / registration checks</td></tr>
+          <tr><td>Report missing on server</td><td>Dexie sync_status; <code>SYNC_RUNBOOK.md</code>; Storage errors; RLS on insert</td></tr>
+          <tr><td>Wrong beat assigned</td><td>GPS quality; <code>assign_report_geography</code>; nearest-boundary fallback</td></tr>
+          <tr><td>No push</td><td><code>google-services.json</code>; <code>push_tokens</code>; <code>send-push</code> logs; FCM credentials</td></tr>
+          <tr><td>Admin can’t create user</td><td>Edge RBAC; CORS on Capacitor; function deploy version; caller JWT role</td></tr>
+          <tr><td>App crash in field</td><td>PostHog exceptions (if opted in); device console; AppErrorBoundary</td></tr>
+          <tr><td>Staging/prod skew</td><td>Compare migrations list; villagers tables; notify trigger definitions</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="checklist">Standing CTO checklist</h3>
+      <ul class="checklist">
+        <li>Know which Supabase project each installed APK points at</li>
+        <li>Confirm nightly Drive backups succeeded this week</li>
+        <li>No service_role in client or public git</li>
+        <li>Staging soak before promoting notify/RLS/index migrations</li>
+        <li>Version bump only with explicit “push update to staging apps”</li>
+        <li>Privacy Policy / analytics consent before broad PostHog on prod</li>
+        <li>Pilot briefed on Test OTP limits and push availability</li>
+        <li>Revisit Kafka/custom APIs only when scale triggers in §non-goals fire</li>
+      </ul>
+
+      <h3 id="repo-map">Repo map (high signal)</h3>
+<pre><code>/Volumes/Eravat/Eravat 2.0/
+├── eravat-app/                 # React PWA + Capacitor Android
+│   ├── src/                    # App, routes, contexts, services, lib
+│   ├── android/                # Native project
+│   ├── tests/                  # Playwright
+│   ├── version.json            # Staging versionName / versionCode
+│   └── .env.example            # Env template
+├── supabase/
+│   ├── migrations/             # Schema history (apply remotely!)
+│   ├── functions/              # Edge: create/update/delete-user, send-push
+│   ├── seeds/                  # Geography SQL
+│   └── config.toml
+├── data/Shape_Files/           # Source GIS
+├── scripts/                    # Backup, GIS processing, Drive auth
+├── backups/                    # Local only — DB dumps, keystore (gitignored)
+├── docs/                       # This handbook + runbooks
+├── Go live Prep - Staging/     # Pilot / review artifacts
+└── .github/workflows/          # deploy, staging-build, nightly-db-backup
+</code></pre>
+
+      <h3 id="further">Further reading</h3>
+      <ul>
+        <li><code>docs/PROJECT_BRAIN.md</code> — exhaustive project brain</li>
+        <li><code>docs/GO_LIVE_OPS.md</code> — key rotation, pilot OTP, readiness gates</li>
+        <li><code>docs/SYNC_RUNBOOK.md</code> — sync troubleshooting</li>
+        <li><code>docs/ROLE_CAPABILITY_MATRIX.md</code> — role intent vs code</li>
+        <li><code>docs/AUTH_ARCHITECTURE.md</code> — offline auth proposal (draft)</li>
+        <li><code>docs/OBSERVABILITY_AND_ANALYTICS.md</code> — PostHog catalog &amp; privacy</li>
+        <li><code>docs/SUPABASE_OPERATIONS.md</code> — remote apply / deploy</li>
+        <li><code>docs/DASHBOARD_METRICS_REFERENCE.md</code> — KPI formulas</li>
+        <li><code>docs/testing/GO_LIVE_CERTIFICATION.md</code> — staging certification</li>
+        <li><code>docs/schema.md</code> — schema quick reference</li>
+        <li>Workspace rules: staging version bumps; always apply Supabase remotely; prod backup pointer</li>
+      </ul>
+
+
+            <footer>
+        CTO-complete handbook derived from architecture canvas, PROJECT_BRAIN, GO_LIVE_OPS,
+        ROLE_CAPABILITY_MATRIX, OBSERVABILITY plan, and live repo layout (updated 2026-09-03).
+        If this HTML and reality diverge, prefer: (1) applied remote Supabase schema/functions,
+        (2) <code>eravat-app</code> code on the branch that built the APK, (3) then docs.
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

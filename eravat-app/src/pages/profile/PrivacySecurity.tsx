@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Activity, ShieldAlert, LogOut } from 'lucide-react';
+import { ArrowLeft, Activity, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { getAnalyticsConsent, setAnalyticsConsent } from '../../lib/analyticsConsent';
 import { applyAnalyticsConsent } from '../../lib/posthogClient';
@@ -83,23 +83,6 @@ export default function PrivacySecurity() {
                                 <label className="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer bg-muted peer-checked:bg-primary transition-colors"></label>
                             </div>
                         </label>
-                    </div>
-                </motion.div>
-
-                {/* Danger Zone */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                >
-                    <div className="w-full glass-card rounded-2xl p-4 flex items-center gap-3 text-muted-foreground border border-border opacity-70 cursor-default">
-                        <div className="p-2 rounded-lg bg-muted text-muted-foreground">
-                            <LogOut size={18} />
-                        </div>
-                        <div className="flex-1 text-left">
-                            <div className="font-semibold text-sm">{t('privacy.signOutAll')}</div>
-                            <div className="text-xs opacity-80 font-medium">Coming soon — use Profile → Sign out on this device</div>
-                        </div>
                     </div>
                 </motion.div>
             </div>
