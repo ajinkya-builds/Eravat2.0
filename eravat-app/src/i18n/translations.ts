@@ -120,6 +120,7 @@ const translations: Record<Language, Record<string, string>> = {
         "settings.updateAvailable": "Update available: {version} (build {code}). Tap Download & install.",
         "settings.updateCheckFailed": "Could not check for updates. Check your internet and try again.",
         "settings.updateInstallFailed": "Could not install the update. Try again.",
+        "settings.updateSignatureHint": "If Android says App not installed, uninstall Eravat once, then install the new APK. After that, Settings → Update will work.",
         "settings.updateInstallPrompted": "Android installer opened. Confirm install, then reopen Eravat.",
         "settings.updateAllowInstalls": "Allow Eravat to install updates in system settings, then try again.",
         "settings.updateAndroidOnly": "In-app APK updates are available only on the Android app.",
@@ -1097,8 +1098,6 @@ const translations: Record<Language, Record<string, string>> = {
         "privacy.activeSessions": "Active Sessions",
         "privacy.shareAnalytics": "Share Analytics",
         "privacy.analyticsDesc": "Help us improve by sharing usage data",
-        "privacy.signOutAll": "Sign out from all devices",
-        "privacy.revokeWarning": "Revoke all active session tokens",
 
         // ── Help & Support ────────────────────────────────────────────────
         "help.title": "Help & Support",
@@ -1336,6 +1335,7 @@ const translations: Record<Language, Record<string, string>> = {
         "settings.updateAvailable": "अपडेट उपलब्ध: {version} (बिल्ड {code})। डाउनलोड और इंस्टॉल टैप करें।",
         "settings.updateCheckFailed": "अपडेट जाँच नहीं हो सकी। इंटरनेट जाँचें और पुनः प्रयास करें।",
         "settings.updateInstallFailed": "अपडेट इंस्टॉल नहीं हो सका। पुनः प्रयास करें।",
+        "settings.updateSignatureHint": "अगर Android कहे App not installed, Eravat एक बार अनइंस्टॉल करें और नया APK इंस्टॉल करें। उसके बाद Settings → Update काम करेगा।",
         "settings.updateInstallPrompted": "Android इंस्टॉलर खुल गया। इंस्टॉल कन्फ़र्म करें, फिर ईरावत फिर खोलें।",
         "settings.updateAllowInstalls": "सिस्टम सेटिंग्स में ईरावत को अपडेट इंस्टॉल करने दें, फिर पुनः प्रयास करें।",
         "settings.updateAndroidOnly": "इन-ऐप APK अपडेट केवल Android ऐप पर उपलब्ध हैं।",
@@ -2287,9 +2287,6 @@ const translations: Record<Language, Record<string, string>> = {
         "privacy.activeSessions": "सक्रिय सत्र",
         "privacy.shareAnalytics": "विश्लेषिकी साझा करें",
         "privacy.analyticsDesc": "उपयोग डेटा साझा करके हमें सुधारने में मदद करें",
-        "privacy.signOutAll": "सभी डिवाइस से साइन आउट करें",
-        "privacy.revokeWarning": "सभी सक्रिय सत्र टोकन रद्द करें",
-
         // ── Help & Support ────────────────────────────────────────────────
         "help.title": "मदद और समर्थन",
         "help.contactAdmin": "व्यवस्थापक से संपर्क करें",
@@ -2526,6 +2523,7 @@ const translations: Record<Language, Record<string, string>> = {
         "settings.updateAvailable": "अपडेट उपलब्ध: {version} (बिल्ड {code}). डाउनलोड आणि इन्स्टॉल टॅप करा.",
         "settings.updateCheckFailed": "अपडेट तपासता आले नाही. इंटरनेट तपासा आणि पुन्हा प्रयत्न करा.",
         "settings.updateInstallFailed": "अपडेट इन्स्टॉल करता आले नाही. पुन्हा प्रयत्न करा.",
+        "settings.updateSignatureHint": "Android वर App not installed दिसल्यास Eravat एकदा अनइंस्टॉल करा आणि नवीन APK इन्स्टॉल करा. त्यानंतर Settings → Update चालेल.",
         "settings.updateInstallPrompted": "Android इन्स्टॉलर उघडला. इन्स्टॉल कन्फर्म करा, नंतर इरावत पुन्हा उघडा.",
         "settings.updateAllowInstalls": "सिस्टम सेटिंग्जमध्ये इरावतला अपडेट इन्स्टॉल करण्याची परवानगी द्या, नंतर पुन्हा प्रयत्न करा.",
         "settings.updateAndroidOnly": "इन-अ‍ॅप APK अपडेट फक्त Android अ‍ॅपवर उपलब्ध आहेत.",
@@ -3483,9 +3481,6 @@ const translations: Record<Language, Record<string, string>> = {
         "privacy.activeSessions": "सक्रिय सत्र",
         "privacy.shareAnalytics": "विश्लेषण शेअर करा",
         "privacy.analyticsDesc": "वापर डेटा शेअर करून आम्हाला सुधारण्यास मदत करा",
-        "privacy.signOutAll": "सर्व उपकरणांतून साइन आउट करा",
-        "privacy.revokeWarning": "सर्व सक्रिय सत्र टोकन रद्द करा",
-
         // ── Help & Support ────────────────────────────────────────────────
         "help.title": "मदत आणि समर्थन",
         "help.contactAdmin": "प्रशासकाशी संपर्क साधा",

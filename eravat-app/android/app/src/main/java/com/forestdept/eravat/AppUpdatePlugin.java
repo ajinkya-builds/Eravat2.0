@@ -14,6 +14,10 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.channels.FileChannel;
 
 @CapacitorPlugin(name = "AppUpdate")
 public class AppUpdatePlugin extends Plugin {
@@ -99,19 +103,51 @@ public class AppUpdatePlugin extends Plugin {
         }
 
         try {
+            File installFile = copyToInstallDir(file);
             Uri uri = FileProvider.getUriForFile(
                 getContext(),
                 getContext().getPackageName() + ".fileprovider",
-                file
+                installFile
             );
             Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.setDataAndType(uri, "application/vnd.android.package-archive");
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            grantInstallerUriPermission(uri);
             getContext().startActivity(intent);
             call.resolve();
         } catch (Exception e) {
             call.reject("Failed to start APK install: " + e.getMessage(), e);
+        }
+    }
+
+    private File copyToInstallDir(File source) throws IOException {
+        File dir = new File(getContext().getFilesDir(), "apk-updates");
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new IOException("Could not create APK install directory");
+        }
+        File dest = new File(dir, "eravat-update.apk");
+        try (FileChannel in = new FileInputStream(source).getChannel();
+                FileChannel out = new FileOutputStream(dest).getChannel()) {
+            out.transferFrom(in, 0, in.size());
+        }
+        return dest;
+    }
+
+    private void grantInstallerUriPermission(Uri uri) {
+        int flags = Intent.FLAG_GRANT_READ_URI_PERMISSION;
+        String[] packages = new String[] {
+            "com.google.android.packageinstaller",
+            "com.android.packageinstaller",
+            "com.google.android.apps.nbu.files",
+            "com.android.documentsui"
+        };
+        for (String pkg : packages) {
+            try {
+                getContext().grantUriPermission(pkg, uri, flags);
+            } catch (Exception ignored) {
+                // Package may not exist on this device.
+            }
         }
     }
 }

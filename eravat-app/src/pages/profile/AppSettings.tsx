@@ -274,6 +274,7 @@ export default function AppSettings() {
                             {updateError && (
                                 <p className="text-xs text-destructive">{updateError}</p>
                             )}
+                            <p className="text-xs text-muted-foreground">{t('settings.updateSignatureHint')}</p>
 
                             <div className="flex flex-col sm:flex-row gap-2">
                                 <button

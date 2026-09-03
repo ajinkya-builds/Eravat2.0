@@ -7,6 +7,12 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.4] — 2026-09-03 (versionCode 20104)
+
+- Sign staging APKs with a stable keystore so in-app updates can install
+- If Android says App not installed, uninstall Eravat once then install this build
+
+---
 ## [2.1.3] — 2026-09-03 (versionCode 20103)
 
 - Pause notification realtime socket while backgrounded; FCM covers push, resume refetches
