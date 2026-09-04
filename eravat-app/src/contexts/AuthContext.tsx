@@ -342,11 +342,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setProfile(null);
                 setSessionExpired(false);
             } else {
-                // TOKEN_REFRESHED / INITIAL_SESSION can emit null while offline refresh fails.
-                // Keep disk tokens + cached profile so the app still opens.
+                // TOKEN_REFRESHED / INITIAL_SESSION can emit null when refresh fails
+                // (offline or flaky network) while tokens remain in localStorage.
                 const offline = isBrowserOffline();
                 const local = readPersistedSupabaseSession();
-                if (local?.user && (offline || bootstrappingRef.current)) {
+                if (local?.user) {
                     track('auth.offline_session_hydrated', {
                         reason: `auth_event_${event || 'unknown'}`,
                         offline,
