@@ -45,7 +45,7 @@ export function readPersistedSupabaseSession(): Session | null {
         refresh_token: stored.refresh_token ?? '',
         expires_at: stored.expires_at,
         expires_in: stored.expires_in ?? 0,
-        token_type: stored.token_type ?? 'bearer',
+        token_type: 'bearer',
         user: stored.user,
     };
 }
