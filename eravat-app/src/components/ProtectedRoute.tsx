@@ -7,6 +7,8 @@ import { hasPersistedSupabaseSession, isBrowserOffline } from '../lib/offlineSes
 
 const ADMIN_ROLES = ['admin', 'ccf', 'dfo'];
 const PROFILE_LOAD_TIMEOUT_MS = 30_000;
+const PROFILE_LOAD_TIMEOUT_OFFLINE_MS = 3_000;
+const SESSION_HYDRATE_WAIT_MS = 10_000;
 
 function RouteLoadingScreen({ message }: { message?: string }) {
     const { t } = useLanguage();
@@ -63,23 +65,33 @@ export function ProtectedRoute() {
     const { session, profile, loading } = useAuth();
     const location = useLocation();
     const [timedOut, setTimedOut] = useState(false);
+    const [sessionWaitTimedOut, setSessionWaitTimedOut] = useState(false);
     const offline = isBrowserOffline();
 
     useEffect(() => {
         if (!loading && session && !profile) {
-            const timer = setTimeout(() => setTimedOut(true), PROFILE_LOAD_TIMEOUT_MS);
+            const waitMs = offline ? PROFILE_LOAD_TIMEOUT_OFFLINE_MS : PROFILE_LOAD_TIMEOUT_MS;
+            const timer = setTimeout(() => setTimedOut(true), waitMs);
             return () => clearTimeout(timer);
         }
         setTimedOut(false);
-    }, [loading, session, profile]);
+    }, [loading, session, profile, offline]);
+
+    useEffect(() => {
+        if (!loading && !session && offline && hasPersistedSupabaseSession()) {
+            const timer = setTimeout(() => setSessionWaitTimedOut(true), SESSION_HYDRATE_WAIT_MS);
+            return () => clearTimeout(timer);
+        }
+        setSessionWaitTimedOut(false);
+    }, [loading, session, offline]);
 
     if (loading) {
         return <RouteLoadingScreen />;
     }
 
     if (!session) {
-        if (offline && hasPersistedSupabaseSession()) {
-            return <RouteLoadingScreen message={undefined} />;
+        if (offline && hasPersistedSupabaseSession() && !sessionWaitTimedOut) {
+            return <RouteLoadingScreen />;
         }
         return <Navigate to="/login" replace />;
     }
@@ -107,22 +119,32 @@ export function ProtectedRoute() {
 export function AdminRoute() {
     const { session, profile, loading } = useAuth();
     const [timedOut, setTimedOut] = useState(false);
+    const [sessionWaitTimedOut, setSessionWaitTimedOut] = useState(false);
     const offline = isBrowserOffline();
 
     useEffect(() => {
         if (!loading && session && !profile) {
-            const timer = setTimeout(() => setTimedOut(true), PROFILE_LOAD_TIMEOUT_MS);
+            const waitMs = offline ? PROFILE_LOAD_TIMEOUT_OFFLINE_MS : PROFILE_LOAD_TIMEOUT_MS;
+            const timer = setTimeout(() => setTimedOut(true), waitMs);
             return () => clearTimeout(timer);
         }
         setTimedOut(false);
-    }, [loading, session, profile]);
+    }, [loading, session, profile, offline]);
+
+    useEffect(() => {
+        if (!loading && !session && offline && hasPersistedSupabaseSession()) {
+            const timer = setTimeout(() => setSessionWaitTimedOut(true), SESSION_HYDRATE_WAIT_MS);
+            return () => clearTimeout(timer);
+        }
+        setSessionWaitTimedOut(false);
+    }, [loading, session, offline]);
 
     if (loading) {
         return <RouteLoadingScreen />;
     }
 
     if (!session) {
-        if (offline && hasPersistedSupabaseSession()) {
+        if (offline && hasPersistedSupabaseSession() && !sessionWaitTimedOut) {
             return <RouteLoadingScreen />;
         }
         return <Navigate to="/login" replace />;

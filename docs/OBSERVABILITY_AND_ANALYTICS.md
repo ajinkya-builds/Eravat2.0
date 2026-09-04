@@ -239,6 +239,9 @@ Keep a **single event catalog** in this doc (below). Engineers must not invent o
 | `auth.pin_unlock_succeeded` | Cold start unlock OK | |
 | `auth.pin_unlock_failed` | Wrong PIN / lockout | `attempts` |
 | `auth.session_restored` | Returning session | |
+| `auth.offline_session_hydrated` | Cold start used localStorage session after Auth refresh returned null | `reason`, `offline` |
+| `auth.init_timeout` | Auth bootstrap exceeded hang watchdog | `persisted`, `offline` |
+| `auth.get_session_failed` | `getSession()` threw | `persisted`, `offline` |
 
 #### Core field loop
 

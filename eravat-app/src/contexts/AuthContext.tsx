@@ -13,7 +13,11 @@ import { identifyUser, resetUser } from '../lib/posthogClient';
 import { logger } from '../lib/logger';
 import { clearCachedProfile, loadCachedProfile, saveCachedProfile } from '../lib/profileCache';
 import { toE164India } from '../lib/phone';
-import { hasPersistedSupabaseSession, isBrowserOffline } from '../lib/offlineSession';
+import {
+    hasPersistedSupabaseSession,
+    isBrowserOffline,
+    readPersistedSupabaseSession,
+} from '../lib/offlineSession';
 
 // Matches the `profiles` table + joined user_region_assignments
 export interface UserProfile {
@@ -217,6 +221,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         };
 
+        /** Prefer disk tokens when Auth returns null (common offline expired-JWT refresh). */
+        const resolveSession = (fromAuth: Session | null, reason: string): Session | null => {
+            if (fromAuth?.user) return fromAuth;
+            const local = readPersistedSupabaseSession();
+            if (!local?.user) return fromAuth;
+            track('auth.offline_session_hydrated', {
+                reason,
+                offline: isBrowserOffline(),
+                had_auth_session: Boolean(fromAuth),
+            });
+            return local;
+        };
+
         const applyInitialSession = (newSession: Session | null) => {
             if (cancelled) return;
             // Always clear the hang watchdog, but still apply a late session even if we
@@ -247,9 +264,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // a persisted session + cached profile can still open the app.
         timeoutId = setTimeout(() => {
             if (cancelled || initialSettled) return;
-            logger.warn('AuthContext', 'Auth init exceeded timeout; keeping spinner cleared while session resolves', {
+            logger.warn('AuthContext', 'Auth init exceeded timeout; hydrating from local session if present', {
                 supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+                persisted: hasPersistedSupabaseSession(),
+                offline: isBrowserOffline(),
             });
+            track('auth.init_timeout', {
+                persisted: hasPersistedSupabaseSession(),
+                offline: isBrowserOffline(),
+            });
+            const hydrated = resolveSession(null, 'init_timeout');
+            if (hydrated) {
+                applyInitialSession(hydrated);
+                return;
+            }
             // Do not mark initialSettled — a late getSession / INITIAL_SESSION must still apply.
             setLoading(false);
         }, AUTH_INIT_TIMEOUT_MS);
@@ -259,7 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .then(({ data: { session: existing } }) => {
                 if (cancelled) return;
                 if (timeoutId !== undefined) clearTimeout(timeoutId);
-                applyInitialSession(existing);
+                applyInitialSession(resolveSession(existing, 'get_session_null'));
             })
             .catch((err) => {
                 if (cancelled) return;
@@ -267,8 +295,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 logger.warn('AuthContext', 'getSession failed', {
                     message: err instanceof Error ? err.message : String(err),
                     persisted: hasPersistedSupabaseSession(),
+                    offline: isBrowserOffline(),
                 });
-                // Keep waiting for onAuthStateChange / INITIAL_SESSION — do not wipe session.
+                track('auth.get_session_failed', {
+                    persisted: hasPersistedSupabaseSession(),
+                    offline: isBrowserOffline(),
+                });
+                const hydrated = resolveSession(null, 'get_session_error');
+                if (hydrated) {
+                    applyInitialSession(hydrated);
+                    return;
+                }
                 if (!hasPersistedSupabaseSession()) {
                     applyInitialSession(null);
                 } else if (!initialSettled) {
@@ -282,8 +319,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             if (cancelled) return;
 
-            setSession(newSession);
             if (newSession?.user) {
+                setSession(newSession);
                 wasAuthenticated[0].current = true;
                 const userId = newSession.user.id;
                 applyCachedForUser(userId);
@@ -298,15 +335,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         console.error('[AuthContext] Failed to register push notifications:', err)
                     );
                 }
-            } else {
+            } else if (event === 'SIGNED_OUT') {
                 profileIssueLogged.current.clear();
                 profileCacheRef.current = { userId: null, fetchedAt: null };
-                if (event === 'SIGNED_OUT') {
-                    setProfile(null);
-                    setSessionExpired(false);
+                setSession(null);
+                setProfile(null);
+                setSessionExpired(false);
+            } else {
+                // TOKEN_REFRESHED / INITIAL_SESSION can emit null while offline refresh fails.
+                // Keep disk tokens + cached profile so the app still opens.
+                const offline = isBrowserOffline();
+                const local = readPersistedSupabaseSession();
+                if (local?.user && (offline || bootstrappingRef.current)) {
+                    track('auth.offline_session_hydrated', {
+                        reason: `auth_event_${event || 'unknown'}`,
+                        offline,
+                    });
+                    setSession(local);
+                    wasAuthenticated[0].current = true;
+                    applyCachedForUser(local.user.id);
                 } else {
-                    const offline = isBrowserOffline();
                     const persisted = hasPersistedSupabaseSession();
+                    setSession(null);
+                    profileIssueLogged.current.clear();
+                    profileCacheRef.current = { userId: null, fetchedAt: null };
                     const treatAsExpiry =
                         wasAuthenticated[0].current &&
                         !bootstrappingRef.current &&

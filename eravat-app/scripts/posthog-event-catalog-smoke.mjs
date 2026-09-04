@@ -23,6 +23,9 @@ const CATALOG = [
   'auth.pin_setup_completed',
   'auth.pin_unlock_succeeded',
   'auth.pin_unlock_failed',
+  'auth.offline_session_hydrated',
+  'auth.init_timeout',
+  'auth.get_session_failed',
   // app / network / sync
   'app.screen_viewed',
   'network.went_offline',
