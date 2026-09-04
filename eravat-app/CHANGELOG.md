@@ -9,7 +9,7 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ## [2.1.6] — 2026-09-04 (versionCode 20106)
 
-- Open app offline offline after JWT expiry (cold start)
+- Open app offline after JWT expiry (cold start)
 - Hydrate session from local storage when Auth refresh fails
 - PostHog: auth.offline_session_hydrated / init_timeout events
 

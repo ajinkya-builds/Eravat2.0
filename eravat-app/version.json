@@ -4,7 +4,7 @@
   "channel": "staging",
   "releasedAt": "2026-09-04",
   "changes": [
-    "Open app offline offline after JWT expiry (cold start)",
+    "Open app offline after JWT expiry (cold start)",
     "Hydrate session from local storage when Auth refresh fails",
     "PostHog: auth.offline_session_hydrated / init_timeout events"
   ]
