@@ -7,6 +7,14 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.8] — 2026-09-21 (versionCode 20108)
+
+- Open the app offline without the long Loading wait
+- GPS fills on first try instead of 2–3 refreshes
+- Ask to turn on location when the app starts
+- Retry GPS automatically after location is turned on
+
+---
 ## [2.1.7] — 2026-09-21 (versionCode 20107)
 
 - One-time signing reset: Update saves APK to Downloads then guides uninstall

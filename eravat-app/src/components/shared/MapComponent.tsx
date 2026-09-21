@@ -9,6 +9,7 @@ import { Buffer } from 'buffer';
 import wkx from 'wkx';
 import * as turf from '@turf/turf';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { geoErrorTranslationKey } from '../../lib/deviceLocation';
 import { trackClick, trackFailed, trackFilter } from '../../lib/analytics';
 import { RadiusSlider } from './RadiusSlider';
 
@@ -826,7 +827,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     {t('map.heatmap')}
                 </label>
 
-                {geoError && <span className="text-destructive">{geoError}</span>}
+                {geoError && <span className="text-destructive">{t(geoErrorTranslationKey(geoError))}</span>}
             </div>
 
             {/* Legend — counts reflect active filters */}

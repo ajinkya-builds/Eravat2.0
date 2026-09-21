@@ -1,45 +1,105 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation, type Position } from '@capacitor/geolocation';
+import { LocationSettings } from '../plugins/LocationSettings';
+import {
+    acquireDevicePosition,
+    classifyGeolocationError,
+    geoErrorTranslationKey,
+    nativeFixToPosition,
+    persistLastGpsFix,
+    readLastGpsFix,
+    DEFAULT_LAST_GPS_MAX_AGE_MS,
+    GEOLOCATION_TIMEOUT_MS,
+    LOCATION_ENABLED_EVENT,
+    type LocationAdapters,
+} from '../lib/deviceLocation';
+import { isBrowserOffline } from '../lib/offlineSession';
 
-export const GEOLOCATION_TIMEOUT_MS = 10_000;
-const LAST_GPS_KEY = 'eravat_last_gps_fix_v1';
-const DEFAULT_LAST_GPS_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6h
-
-type LastGpsFix = {
-    latitude: number;
-    longitude: number;
-    accuracy: number | null;
-    timestamp: number;
+export {
+    classifyGeolocationError,
+    geoErrorTranslationKey,
+    GEOLOCATION_TIMEOUT_MS,
+    persistLastGpsFix,
+    readLastGpsFix,
 };
 
-function persistLastGpsFix(position: Position): void {
-    try {
-        const payload: LastGpsFix = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy ?? null,
-            timestamp: position.timestamp,
-        };
-        localStorage.setItem(LAST_GPS_KEY, JSON.stringify(payload));
-    } catch {
-        // ignore cache write failures
-    }
+function toNativePosition(): Promise<Position | null> {
+    return LocationSettings.getLastKnown()
+        .then((fix) => {
+            if (typeof fix.latitude !== 'number' || typeof fix.longitude !== 'number' || typeof fix.timestamp !== 'number') {
+                return null;
+            }
+            return nativeFixToPosition({
+                latitude: fix.latitude,
+                longitude: fix.longitude,
+                accuracy: fix.accuracy,
+                timestamp: fix.timestamp,
+            });
+        })
+        .catch(() => null);
 }
 
-export function classifyGeolocationError(err: unknown): string {
-    if (typeof GeolocationPositionError !== 'undefined' && err instanceof GeolocationPositionError) {
-        const messages: Record<number, string> = {
-            [GeolocationPositionError.PERMISSION_DENIED]: 'LOCATION_PERMISSION_DENIED',
-            [GeolocationPositionError.POSITION_UNAVAILABLE]: 'LOCATION_UNAVAILABLE',
-            [GeolocationPositionError.TIMEOUT]: 'LOCATION_TIMEOUT',
-        };
-        return messages[err.code] ?? 'LOCATION_FAILED';
+function createAdapters(): LocationAdapters {
+    return {
+        getCurrentPosition: (options) => Geolocation.getCurrentPosition(options),
+        watchPosition: (options, callback) => Geolocation.watchPosition(options, callback),
+        clearWatch: (id) => Geolocation.clearWatch({ id }),
+        getNativeLastKnown: toNativePosition,
+        ensureLocationEnabled: async () => {
+            if (!Capacitor.isNativePlatform()) return true;
+            const result = await LocationSettings.ensureEnabled();
+            return result.enabled;
+        },
+    };
+}
+
+async function requestWebPosition(): Promise<Position> {
+    if (!navigator.geolocation) {
+        throw new Error('LOCATION_UNSUPPORTED');
     }
-    if (err instanceof Error) {
-        return err.message || 'LOCATION_FAILED';
+    const coordinates = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: GEOLOCATION_TIMEOUT_MS,
+            maximumAge: 15_000,
+        });
+    });
+    return {
+        coords: {
+            latitude: coordinates.coords.latitude,
+            longitude: coordinates.coords.longitude,
+            accuracy: coordinates.coords.accuracy,
+            altitude: coordinates.coords.altitude,
+            altitudeAccuracy: coordinates.coords.altitudeAccuracy,
+            heading: coordinates.coords.heading,
+            speed: coordinates.coords.speed,
+        },
+        timestamp: coordinates.timestamp,
+    };
+}
+
+let acquireInflight: Promise<Position> | null = null;
+
+async function acquirePosition(promptIfDisabled: boolean): Promise<Position> {
+    if (acquireInflight) return acquireInflight;
+    const run = (async () => {
+        if (!Capacitor.isNativePlatform()) {
+            const pos = await requestWebPosition();
+            persistLastGpsFix(pos);
+            return pos;
+        }
+        return acquireDevicePosition(createAdapters(), {
+            promptIfDisabled,
+            offline: isBrowserOffline(),
+        });
+    })();
+    acquireInflight = run;
+    try {
+        return await run;
+    } finally {
+        acquireInflight = null;
     }
-    return 'LOCATION_FAILED';
 }
 
 export function useGeolocation() {
@@ -47,82 +107,21 @@ export function useGeolocation() {
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const lastErrorRef = useRef<string | null>(null);
+
     const lastErrorCode = useCallback(() => lastErrorRef.current, []);
     const getLastKnownLocation = useCallback((maxAgeMs = DEFAULT_LAST_GPS_MAX_AGE_MS): Position | null => {
-        try {
-            const raw = localStorage.getItem(LAST_GPS_KEY);
-            if (!raw) return null;
-            const cached = JSON.parse(raw) as LastGpsFix;
-            if (!cached || typeof cached.timestamp !== 'number') return null;
-            if (Date.now() - cached.timestamp > maxAgeMs) return null;
-            return {
-                coords: {
-                    latitude: cached.latitude,
-                    longitude: cached.longitude,
-                    accuracy: cached.accuracy ?? 0,
-                    altitude: null,
-                    altitudeAccuracy: null,
-                    heading: null,
-                    speed: null,
-                },
-                timestamp: cached.timestamp,
-            };
-        } catch {
-            return null;
-        }
+        return readLastGpsFix(maxAgeMs);
     }, []);
 
-    const requestLocation = useCallback(async () => {
+    const requestLocation = useCallback(async (opts?: { promptIfDisabled?: boolean }) => {
         setIsLoading(true);
         setError(null);
         lastErrorRef.current = null;
         try {
-            if (Capacitor.isNativePlatform()) {
-                // Native Android/iOS — use Capacitor geolocation with permission flow
-                const permissions = await Geolocation.checkPermissions();
-                if (permissions.location !== 'granted') {
-                    const req = await Geolocation.requestPermissions();
-                    if (req.location !== 'granted') {
-                        throw new Error('LOCATION_PERMISSION_DENIED');
-                    }
-                }
-                const coordinates = await Geolocation.getCurrentPosition({
-                    enableHighAccuracy: true,
-                    timeout: GEOLOCATION_TIMEOUT_MS,
-                    maximumAge: 0,
-                });
-                setPosition(coordinates);
-                persistLastGpsFix(coordinates);
-                return coordinates;
-            } else {
-                // Web browser — use the native browser Geolocation API
-                if (!navigator.geolocation) {
-                    throw new Error('LOCATION_UNSUPPORTED');
-                }
-                const coordinates = await new Promise<GeolocationPosition>((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, {
-                        enableHighAccuracy: true,
-                        timeout: GEOLOCATION_TIMEOUT_MS,
-                        maximumAge: 0,
-                    });
-                });
-                // Normalise to the same shape as a Capacitor Position
-                const pos: Position = {
-                    coords: {
-                        latitude: coordinates.coords.latitude,
-                        longitude: coordinates.coords.longitude,
-                        accuracy: coordinates.coords.accuracy,
-                        altitude: coordinates.coords.altitude,
-                        altitudeAccuracy: coordinates.coords.altitudeAccuracy,
-                        heading: coordinates.coords.heading,
-                        speed: coordinates.coords.speed,
-                    },
-                    timestamp: coordinates.timestamp,
-                };
-                setPosition(pos);
-                persistLastGpsFix(pos);
-                return pos;
-            }
+            const coordinates = await acquirePosition(opts?.promptIfDisabled ?? false);
+            setPosition(coordinates);
+            persistLastGpsFix(coordinates);
+            return coordinates;
         } catch (err: unknown) {
             const code = classifyGeolocationError(err);
             lastErrorRef.current = code;
@@ -133,6 +132,17 @@ export function useGeolocation() {
         }
     }, []);
 
+    useEffect(() => {
+        const onLocationState = (event: Event) => {
+            const enabled = Boolean((event as CustomEvent<{ enabled?: boolean }>).detail?.enabled);
+            if (!enabled) return;
+            if (position) return;
+            void requestLocation({ promptIfDisabled: false });
+        };
+        window.addEventListener(LOCATION_ENABLED_EVENT, onLocationState);
+        return () => window.removeEventListener(LOCATION_ENABLED_EVENT, onLocationState);
+    }, [position, requestLocation]);
+
     return {
         latitude: position?.coords.latitude,
         longitude: position?.coords.longitude,
@@ -142,8 +152,21 @@ export function useGeolocation() {
         getLastKnownLocation,
         loading: isLoading,
         isLoading,
-        // fetchLocation is an alias for requestLocation
         fetchLocation: requestLocation,
-        requestLocation
+        requestLocation,
     };
+}
+
+/** Prompt to turn on device location and warm GPS as soon as the native app boots. */
+export function useDeviceLocationBootstrap() {
+    const startedRef = useRef(false);
+
+    useEffect(() => {
+        if (startedRef.current) return;
+        startedRef.current = true;
+        if (!Capacitor.isNativePlatform()) return;
+        void acquirePosition(true).catch(() => {
+            // Banner in AppLayout covers the denied / still-off case.
+        });
+    }, []);
 }

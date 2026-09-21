@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useMemo, useEffect, u
 import type { ObservationType } from '../types/activity-report';
 import { useGeolocation, GEOLOCATION_TIMEOUT_MS } from '../hooks/useGeolocation';
 import { captureDeviceDateTime } from '../lib/captureDeviceDateTime';
+import { LOCATION_ENABLED_EVENT } from '../lib/deviceLocation';
 import { track } from '../lib/analytics';
 import { logger } from '../lib/logger';
 
@@ -199,6 +200,17 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
         prefetchStartedRef.current = true;
         void refreshLocation('prefetch');
     }, [refreshLocation]);
+
+    useEffect(() => {
+        const onLocationState = (event: Event) => {
+            const enabled = Boolean((event as CustomEvent<{ enabled?: boolean }>).detail?.enabled);
+            if (!enabled) return;
+            if (formData.latitude != null && formData.longitude != null) return;
+            void refreshLocation('retry');
+        };
+        window.addEventListener(LOCATION_ENABLED_EVENT, onLocationState);
+        return () => window.removeEventListener(LOCATION_ENABLED_EVENT, onLocationState);
+    }, [formData.latitude, formData.longitude, refreshLocation]);
 
     const normalizedStepIndex = Math.min(stepIndex, activeSteps.length - 1);
 

@@ -61,6 +61,17 @@ async function check(name, fn) {
 function launchApp() {
   adb('shell', 'am', 'force-stop', PKG);
   sleep(800);
+  try {
+    adb('shell', 'pm', 'grant', PKG, 'android.permission.ACCESS_FINE_LOCATION');
+    adb('shell', 'pm', 'grant', PKG, 'android.permission.ACCESS_COARSE_LOCATION');
+  } catch {
+    /* first install may not have granted yet */
+  }
+  try {
+    adb('emu', 'geo', 'fix', '80.988653', '23.181467');
+  } catch {
+    /* ignore if not an emulator console */
+  }
   adb('shell', 'am', 'start', '-n', `${PKG}/.MainActivity`);
   sleep(3500);
 }
@@ -341,6 +352,26 @@ await check('Offline mode: report page reachable', async () => {
   adb('shell', 'svc', 'data', 'enable');
   sleep(3000);
   await shot('16-online-restored');
+});
+
+await check('Offline cold start restores session quickly', async () => {
+  adb('shell', 'svc', 'wifi', 'disable');
+  adb('shell', 'svc', 'data', 'disable');
+  sleep(1000);
+  page.close();
+  const started = Date.now();
+  launchApp();
+  page = await connectPage();
+  await page.waitFor('!location.pathname.includes("/login")', 8000);
+  const elapsed = Date.now() - started;
+  console.log('offline cold start ms', elapsed);
+  if (elapsed > 7000) {
+    throw new Error(`Offline cold start took ${elapsed}ms`);
+  }
+  await shot('17-offline-cold-start');
+  adb('shell', 'svc', 'wifi', 'enable');
+  adb('shell', 'svc', 'data', 'enable');
+  sleep(2000);
 });
 
 page.close();

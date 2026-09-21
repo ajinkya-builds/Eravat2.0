@@ -9,6 +9,7 @@ import { supabase } from '../supabase';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { formatDistanceToNow } from 'date-fns';
+import { geoErrorTranslationKey } from '../lib/deviceLocation';
 import { track, trackClick, trackFailed, trackFilter } from '../lib/analytics';
 import { RadiusSlider } from '../components/shared/RadiusSlider';
 import { shareOrCopy, buildSightingShareText, downloadTextFile, mapsLink, formatShareDate } from '../lib/reportShare';
@@ -373,15 +374,7 @@ export default function NearbySightings() {
 
                 {geoError && (
                     <p className="text-sm text-destructive mb-4">
-                        {geoError === 'LOCATION_PERMISSION_DENIED'
-                            ? t('geo_err_denied')
-                            : geoError === 'LOCATION_UNAVAILABLE'
-                              ? t('geo_err_unavailable')
-                              : geoError === 'LOCATION_TIMEOUT'
-                                ? t('geo_err_timeout')
-                                : geoError === 'LOCATION_UNSUPPORTED'
-                                  ? t('geo_err_unsupported')
-                                  : t('geo_err_failed')}
+                        {t(geoErrorTranslationKey(geoError))}
                     </p>
                 )}
 

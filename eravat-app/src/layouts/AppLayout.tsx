@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Map, Settings, User, AlertTriangle } from 'lucide-react';
-import { useGeolocation } from '../hooks/useGeolocation';
+import { Home, Map, Settings, User, AlertTriangle, MapPin, Loader2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
+import { LocationSettings } from '../plugins/LocationSettings';
+import { LOCATION_ENABLED_EVENT } from '../lib/deviceLocation';
 
 import { cn } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -19,7 +21,8 @@ export function AppLayout() {
     const { t } = useLanguage();
     const { sessionExpired, clearSessionExpired } = useAuth();
     const [isOnline, setIsOnline] = useState(true);
-    const { fetchLocation } = useGeolocation();
+    const [locationOff, setLocationOff] = useState(false);
+    const [enablingLocation, setEnablingLocation] = useState(false);
 
     useEffect(() => {
         let isMounted = true;
@@ -50,9 +53,29 @@ export function AppLayout() {
     }, []);
 
     useEffect(() => {
-        void fetchLocation();
-        // Ask for device location as soon as the shell opens (review §3.1).
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        if (!Capacitor.isNativePlatform()) return;
+
+        let cancelled = false;
+        const refresh = async () => {
+            try {
+                const { enabled } = await LocationSettings.isEnabled();
+                if (!cancelled) setLocationOff(!enabled);
+            } catch {
+                if (!cancelled) setLocationOff(false);
+            }
+        };
+        void refresh();
+
+        const onState = (event: Event) => {
+            const enabled = (event as CustomEvent<{ enabled?: boolean }>).detail?.enabled;
+            if (typeof enabled === 'boolean') setLocationOff(!enabled);
+            else void refresh();
+        };
+        window.addEventListener(LOCATION_ENABLED_EVENT, onState);
+        return () => {
+            cancelled = true;
+            window.removeEventListener(LOCATION_ENABLED_EVENT, onState);
+        };
     }, []);
 
     const getStatusLabel = () => (isOnline ? t('status_online') : t('status_offline'));
@@ -106,6 +129,32 @@ export function AppLayout() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {locationOff && (
+                <div className="fixed top-[calc(4rem+env(safe-area-inset-top,0px))] left-0 right-0 z-40 px-4 pt-2">
+                    <div className="mx-auto max-w-lg flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/15 px-4 py-3 text-sm text-amber-900 dark:text-amber-100 shadow-sm">
+                        <MapPin size={16} className="shrink-0" />
+                        <p className="flex-1 font-medium">{t('location_off_banner')}</p>
+                        <button
+                            type="button"
+                            disabled={enablingLocation}
+                            onClick={async () => {
+                                setEnablingLocation(true);
+                                try {
+                                    const { enabled } = await LocationSettings.ensureEnabled();
+                                    setLocationOff(!enabled);
+                                } finally {
+                                    setEnablingLocation(false);
+                                }
+                            }}
+                            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-semibold disabled:opacity-50"
+                        >
+                            {enablingLocation ? <Loader2 size={14} className="animate-spin" /> : null}
+                            {t('location_off_action')}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Global Header with Logo — padded below system status bar */}
             <header className="fixed top-0 left-0 right-0 pt-safe bg-background/80 backdrop-blur-md border-b border-border z-40 shadow-sm">

@@ -100,7 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
 
         const run = (async () => {
-            applyCached();
+            const hadCache = applyCached();
+            if (!opts?.force && hadCache && isBrowserOffline()) {
+                return;
+            }
             try {
                 if (import.meta.env.DEV) {
                     console.log('[AuthContext] fetchProfile starting for userId:', userId);
@@ -259,6 +262,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             if (firstApply || newSession) setLoading(false);
         };
+
+        // Offline-first: restore disk session immediately so the spinner is not
+        // blocked on getSession() token refresh (can hang ~8s while offline).
+        const localAtBoot = readPersistedSupabaseSession();
+        if (localAtBoot?.user) {
+            applyInitialSession(localAtBoot);
+        }
 
         // getSession() can hang while offline when token refresh retries. Cap wait so
         // a persisted session + cached profile can still open the app.

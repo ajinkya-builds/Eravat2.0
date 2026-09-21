@@ -23,6 +23,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AppUpdatePlugin.class);
+        registerPlugin(LocationSettingsPlugin.class);
         purgeStaleWebViewCachesIfVersionChanged();
         super.onCreate(savedInstanceState);
         configureWebView();
@@ -127,7 +128,6 @@ public class MainActivity extends BridgeActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         }
-        webView.clearCache(true);
     }
 
     /** Drop legacy PIN blob keys if a restored localStorage still has them. */

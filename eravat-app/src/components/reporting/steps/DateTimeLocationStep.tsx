@@ -5,6 +5,7 @@ import { useActivityForm } from '../../../contexts/ActivityFormContext';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formatLatLngDms } from '../../../lib/geoFormat';
+import { geoErrorTranslationKey } from '../../../lib/deviceLocation';
 import { TerritorySelect } from '../../shared/TerritorySelect';
 
 export function DateTimeLocationStep() {
@@ -127,15 +128,7 @@ export function DateTimeLocationStep() {
                 </div>
                 {gpsError && (
                     <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                        ⚠ {gpsError === 'LOCATION_PERMISSION_DENIED'
-                            ? t('geo_err_denied')
-                            : gpsError === 'LOCATION_UNAVAILABLE'
-                              ? t('geo_err_unavailable')
-                              : gpsError === 'LOCATION_TIMEOUT'
-                                ? t('geo_err_timeout')
-                                : gpsError === 'LOCATION_UNSUPPORTED'
-                                  ? t('geo_err_unsupported')
-                                  : t('geo_err_failed')}
+                        ⚠ {t(geoErrorTranslationKey(gpsError))}
                     </p>
                 )}
                 {formData.latitude != null && formData.longitude != null && (

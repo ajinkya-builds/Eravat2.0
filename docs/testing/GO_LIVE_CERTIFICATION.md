@@ -39,6 +39,7 @@ npm run test:android:certify       # emulator only
 | Role matrix | `staging-role-matrix-e2e.mjs` | Every role × field/admin route access |
 | Deep journeys | `staging-deep-journeys-e2e.mjs` | Full report submit, offline queue, damage wizard, villager onboard |
 | Android emulator | `emulator-certification.mjs` | APK install, CDP WebView E2E, offline via adb |
+| Android offline/GPS | `emulator-offline-location.mjs` | Offline cold start timing, first-try GPS, location-off banner |
 | Review feedback | `review-feedback-e2e.mjs` | PDF review checklist items |
 | Performance | `staging-perf-full-smoke.mjs` | TTI, page loads, API latency |
 | Load | `staging-load-50.mjs` | 50 concurrent REST sessions |
@@ -177,12 +178,18 @@ Run automation: `node scripts/staging-notification-alerts-e2e.mjs`
 - [ ] `staging-perf-full-smoke.mjs` — all PASS
 - [ ] `staging-load-50.mjs` — no error spike
 - [ ] APK cold start acceptable on target devices (T3/T4/A15 from UAT sheet)
+- [ ] Offline cold start with a saved session reaches home in a few seconds (does not wait on Auth refresh)
+- [ ] `node scripts/emulator-offline-location.mjs` — offline open + GPS on emulator
 
 ### M. APK-specific (device)
 
 - [ ] Install latest staging APK
 - [ ] OTP login on cellular network
 - [ ] Camera capture in report wizard
+- [ ] App asks to **turn on location** at startup (system dialog), not only on the report form
+- [ ] With location already on, GPS fills on the first attempt (no 2–3 refreshes)
+- [ ] If location is turned on later, GPS retriees automatically (banner + watch)
+- [ ] Offline GPS still returns a fix (or last known) without several refresh taps
 - [ ] GPS permission prompt and accuracy
 - [ ] Offline queue survives force-stop
 - [ ] Back button / gesture does not trap in wizard

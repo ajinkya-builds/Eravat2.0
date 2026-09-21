@@ -8,7 +8,7 @@ import { hasPersistedSupabaseSession, isBrowserOffline } from '../lib/offlineSes
 const ADMIN_ROLES = ['admin', 'ccf', 'dfo'];
 const PROFILE_LOAD_TIMEOUT_MS = 30_000;
 const PROFILE_LOAD_TIMEOUT_OFFLINE_MS = 3_000;
-const SESSION_HYDRATE_WAIT_MS = 10_000;
+const SESSION_HYDRATE_WAIT_MS = 2_000;
 
 function RouteLoadingScreen({ message }: { message?: string }) {
     const { t } = useLanguage();

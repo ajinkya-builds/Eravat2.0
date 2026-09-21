@@ -1,6 +1,7 @@
 import { MapPin, Loader2 } from 'lucide-react';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { geoErrorTranslationKey } from '../../lib/deviceLocation';
 
 export interface LocationValue {
   latitude: number | null;
@@ -47,15 +48,7 @@ export function LocationFields({ value, onChange, required = true }: LocationFie
 
       {error && (
         <p className="text-xs text-destructive">
-          {error === 'LOCATION_PERMISSION_DENIED'
-            ? t('geo_err_denied')
-            : error === 'LOCATION_UNAVAILABLE'
-              ? t('geo_err_unavailable')
-              : error === 'LOCATION_TIMEOUT'
-                ? t('geo_err_timeout')
-                : error === 'LOCATION_UNSUPPORTED'
-                  ? t('geo_err_unsupported')
-                  : t('geo_err_failed')}
+          {t(geoErrorTranslationKey(error))}
         </p>
       )}
 

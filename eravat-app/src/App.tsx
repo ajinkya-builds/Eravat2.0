@@ -17,9 +17,12 @@ import { ReportIssueWidget } from './components/ReportIssueWidget';
 import { ScrollToTop } from './components/ScrollToTop';
 import { useAndroidBackButton } from './hooks/useAndroidBackButton';
 import { useAppLifecycleSync } from './hooks/useAppLifecycleSync';
+import { useDeviceLocationBootstrap } from './hooks/useGeolocation';
 import { track } from './lib/analytics';
 
-const ReportActivityPage = lazy(() => import('./pages/ReportActivityPage'));
+// Field staff open this offline after a cold start. A lazy chunk can hang in
+// WebView when wifi/data are off even though the file is inside the APK.
+import ReportActivityPage from './pages/ReportActivityPage';
 const UserProfile = lazy(() => import('./pages/UserProfile'));
 const EditProfile = lazy(() => import('./pages/profile/EditProfile'));
 const Settings = lazy(() => import('./pages/profile/AppSettings'));
@@ -55,6 +58,11 @@ function RouteFallback() {
       <Loader2 className="w-6 h-6 animate-spin" aria-label="Loading" />
     </div>
   );
+}
+
+function DeviceLocationBootstrap() {
+  useDeviceLocationBootstrap();
+  return null;
 }
 
 function NetworkSync() {
@@ -164,6 +172,7 @@ function App() {
       <LanguageProvider>
         <AuthProvider>
           <NetworkSync />
+          <DeviceLocationBootstrap />
           <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
             <AppRoutes />
           </BrowserRouter>

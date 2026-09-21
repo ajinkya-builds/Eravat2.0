@@ -1,7 +1,7 @@
 {
   "name": "eravat-app",
   "private": true,
-  "version": "2.1.7",
+  "version": "2.1.8",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -22,6 +22,7 @@
     "test:certify:emulator": "node scripts/go-live-certification.mjs --emulator",
     "test:staging:deep": "node scripts/staging-deep-journeys-e2e.mjs",
     "test:android:certify": "node scripts/emulator-certification.mjs",
+    "test:android:location": "node scripts/emulator-offline-location.mjs",
     "test:maestro": "node scripts/maestro-certification.mjs",
     "test:setup-tooling": "node scripts/setup-test-tooling.mjs",
     "test:push-pipeline": "node scripts/staging-push-pipeline-e2e.mjs",
