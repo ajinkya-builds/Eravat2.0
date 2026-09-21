@@ -6,11 +6,24 @@ export type AppUpdateInfo = {
   packageName: string;
 };
 
+export type DownloadsSaveResult = {
+  fileName: string;
+  folder: string;
+  uri?: string;
+  path?: string;
+};
+
 export interface AppUpdatePlugin {
   getAppInfo(): Promise<AppUpdateInfo>;
   canInstallPackages(): Promise<{ allowed: boolean }>;
   openInstallPermissionSettings(): Promise<void>;
   installApk(options: { path: string }): Promise<void>;
+  /** Copy APK into public Downloads so it survives uninstall. */
+  saveApkToDownloads(options: { path: string; fileName?: string }): Promise<DownloadsSaveResult>;
+  /** Open system uninstall confirmation for this app. */
+  openUninstall(): Promise<void>;
+  /** Best-effort open of the Downloads / Files UI. */
+  openDownloads(): Promise<void>;
 }
 
 export const AppUpdate = registerPlugin<AppUpdatePlugin>('AppUpdate', {
@@ -30,6 +43,15 @@ export const AppUpdate = registerPlugin<AppUpdatePlugin>('AppUpdate', {
     },
     async installApk() {
       throw new Error('APK install is only available on Android');
+    },
+    async saveApkToDownloads() {
+      throw new Error('saveApkToDownloads is only available on Android');
+    },
+    async openUninstall() {
+      throw new Error('openUninstall is only available on Android');
+    },
+    async openDownloads() {
+      throw new Error('openDownloads is only available on Android');
     },
   }),
 });

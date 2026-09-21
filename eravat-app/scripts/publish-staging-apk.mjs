@@ -70,6 +70,8 @@ const manifest = {
   channel: versionFile.channel || 'staging',
   notes,
   changes,
+  // Signing-reset / migration builds: Settings saves APK to Downloads then guides uninstall.
+  requiresUninstall: Boolean(versionFile.requiresUninstall),
 };
 
 for (const objectPath of [manifestObject, historyObject]) {

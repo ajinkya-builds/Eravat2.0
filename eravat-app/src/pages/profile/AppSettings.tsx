@@ -9,7 +9,11 @@ import { AppUpdate } from '../../plugins/AppUpdate';
 import {
     checkForAppUpdate,
     downloadAndInstallUpdate,
+    prepareUninstallMigration,
+    openAppUninstall,
+    openDownloadsFolder,
     type UpdateManifest,
+    type MigrationPrepResult,
 } from '../../services/appUpdateService';
 import { APP_VERSION, formatAppVersionLabel } from '../../lib/appVersion';
 
@@ -37,6 +41,7 @@ export default function AppSettings() {
     const [updateMessage, setUpdateMessage] = useState<string | null>(null);
     const [updateError, setUpdateError] = useState<string | null>(null);
     const [pendingManifest, setPendingManifest] = useState<UpdateManifest | null>(null);
+    const [migration, setMigration] = useState<MigrationPrepResult | null>(null);
     const [whatsNew, setWhatsNew] = useState<string[]>(() => [...APP_VERSION.changes]);
 
     useEffect(() => {
@@ -60,6 +65,7 @@ export default function AppSettings() {
         setUpdateError(null);
         setUpdateMessage(null);
         setPendingManifest(null);
+        setMigration(null);
         setUpdatePhase(t('settings.updateChecking'));
         try {
             const result = await checkForAppUpdate();
@@ -97,13 +103,28 @@ export default function AppSettings() {
         setUpdateError(null);
         setUpdateMessage(null);
         try {
-            await downloadAndInstallUpdate(pendingManifest, (p) => {
-                if (p.phase === 'permission') setUpdatePhase(t('settings.updatePermission'));
-                else if (p.phase === 'download') setUpdatePhase(t('settings.updateDownloading'));
-                else if (p.phase === 'cleanup') setUpdatePhase(t('settings.updateCleaning'));
-                else if (p.phase === 'install') setUpdatePhase(t('settings.updateInstalling'));
-            });
-            setUpdateMessage(t('settings.updateInstallPrompted'));
+            if (pendingManifest.requiresUninstall) {
+                const prep = await prepareUninstallMigration(pendingManifest, (p) => {
+                    if (p.phase === 'permission') setUpdatePhase(t('settings.updatePermission'));
+                    else if (p.phase === 'download') setUpdatePhase(t('settings.updateDownloading'));
+                    else if (p.phase === 'save_downloads') setUpdatePhase(t('settings.updateSavingDownloads'));
+                    else if (p.phase === 'cleanup') setUpdatePhase(t('settings.updateCleaning'));
+                });
+                setMigration(prep);
+                setUpdateMessage(
+                    t('settings.updateMigrationReady')
+                        .replace('{file}', prep.fileName)
+                        .replace('{folder}', prep.folder),
+                );
+            } else {
+                await downloadAndInstallUpdate(pendingManifest, (p) => {
+                    if (p.phase === 'permission') setUpdatePhase(t('settings.updatePermission'));
+                    else if (p.phase === 'download') setUpdatePhase(t('settings.updateDownloading'));
+                    else if (p.phase === 'cleanup') setUpdatePhase(t('settings.updateCleaning'));
+                    else if (p.phase === 'install') setUpdatePhase(t('settings.updateInstalling'));
+                });
+                setUpdateMessage(t('settings.updateInstallPrompted'));
+            }
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             if (msg === 'install_permission_required') {
@@ -114,6 +135,25 @@ export default function AppSettings() {
         } finally {
             setUpdateBusy(false);
             setUpdatePhase(null);
+        }
+    };
+
+    const handleUninstallForMigration = async () => {
+        setUpdateError(null);
+        try {
+            await openAppUninstall();
+            setUpdateMessage(t('settings.updateMigrationAfterUninstall'));
+        } catch (err) {
+            setUpdateError(err instanceof Error ? err.message : t('settings.updateInstallFailed'));
+        }
+    };
+
+    const handleOpenDownloads = async () => {
+        setUpdateError(null);
+        try {
+            await openDownloadsFolder();
+        } catch (err) {
+            setUpdateError(err instanceof Error ? err.message : t('settings.updateOpenDownloadsFailed'));
         }
     };
 
@@ -274,7 +314,48 @@ export default function AppSettings() {
                             {updateError && (
                                 <p className="text-xs text-destructive">{updateError}</p>
                             )}
-                            <p className="text-xs text-muted-foreground">{t('settings.updateSignatureHint')}</p>
+                            {pendingManifest?.requiresUninstall && !migration && (
+                                <p className="text-xs text-amber-800 bg-amber-500/10 rounded-xl px-3 py-2">
+                                    {t('settings.updateMigrationHint')}
+                                </p>
+                            )}
+                            {migration && (
+                                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3 space-y-2">
+                                    <p className="text-xs font-semibold text-foreground">
+                                        {t('settings.updateMigrationStepsTitle')}
+                                    </p>
+                                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal pl-4">
+                                        <li>{t('settings.updateMigrationStep1').replace('{file}', migration.fileName)}</li>
+                                        <li>{t('settings.updateMigrationStep2')}</li>
+                                        <li>{t('settings.updateMigrationStep3').replace('{file}', migration.fileName)}</li>
+                                    </ol>
+                                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                                        <button
+                                            type="button"
+                                            data-testid="migration-uninstall"
+                                            data-ph-action="settings.update.uninstall"
+                                            data-ph-screen="settings"
+                                            onClick={() => void handleUninstallForMigration()}
+                                            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-semibold"
+                                        >
+                                            {t('settings.updateUninstallButton')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            data-testid="migration-open-downloads"
+                                            data-ph-action="settings.update.open_downloads"
+                                            data-ph-screen="settings"
+                                            onClick={() => void handleOpenDownloads()}
+                                            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-muted text-foreground text-sm font-semibold"
+                                        >
+                                            {t('settings.updateOpenDownloads')}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            {!pendingManifest?.requiresUninstall && (
+                                <p className="text-xs text-muted-foreground">{t('settings.updateSignatureHint')}</p>
+                            )}
 
                             <div className="flex flex-col sm:flex-row gap-2">
                                 <button
@@ -298,16 +379,18 @@ export default function AppSettings() {
                                     data-testid="install-app-update"
                                     data-ph-action="settings.update.install"
                                     data-ph-screen="settings"
-                                    disabled={updateBusy || !pendingManifest}
+                                    disabled={updateBusy || !pendingManifest || Boolean(migration)}
                                     onClick={() => void handleInstallUpdate()}
                                     className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
                                 >
-                                    {updateBusy && pendingManifest ? (
+                                    {updateBusy && pendingManifest && !migration ? (
                                         <Loader2 size={16} className="animate-spin" />
                                     ) : (
                                         <Download size={16} />
                                     )}
-                                    {t('settings.installUpdate')}
+                                    {pendingManifest?.requiresUninstall
+                                        ? t('settings.prepareMigrationUpdate')
+                                        : t('settings.installUpdate')}
                                 </button>
                             </div>
 

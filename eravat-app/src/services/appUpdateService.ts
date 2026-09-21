@@ -14,6 +14,11 @@ export type UpdateManifest = {
   changes?: string[];
   channel?: string;
   minVersionCode?: number;
+  /**
+   * When true, Update must save the APK to Downloads and guide uninstall
+   * (signing-key reset). Direct overwrite install will fail on Android.
+   */
+  requiresUninstall?: boolean;
 };
 
 export type UpdateCheckResult =
@@ -21,6 +26,13 @@ export type UpdateCheckResult =
   | { status: 'available'; current: number; latest: number; versionName: string; manifest: UpdateManifest }
   | { status: 'unsupported' }
   | { status: 'error'; message: string };
+
+export type MigrationPrepResult = {
+  fileName: string;
+  folder: string;
+  versionName: string;
+  versionCode: number;
+};
 
 const APK_FILENAME = 'eravat-update.apk';
 
@@ -78,33 +90,27 @@ export async function checkForAppUpdate(): Promise<UpdateCheckResult> {
 }
 
 export type InstallProgress = {
-  phase: 'permission' | 'download' | 'cleanup' | 'install';
+  phase: 'permission' | 'download' | 'cleanup' | 'install' | 'save_downloads';
   progress?: number;
 };
 
-/**
- * Download the latest APK, clear stale web caches, and open the Android installer.
- * Preserves auth session + Dexie offline queues.
- */
-export async function downloadAndInstallUpdate(
-  manifest: UpdateManifest,
-  onProgress?: (p: InstallProgress) => void,
-): Promise<void> {
-  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
-    throw new Error('Updates are only available on the Android app');
-  }
-
-  onProgress?.({ phase: 'permission' });
+async function ensureInstallPermission(): Promise<void> {
   const { allowed } = await AppUpdate.canInstallPackages();
   if (!allowed) {
     await AppUpdate.openInstallPermissionSettings();
     throw new Error('install_permission_required');
   }
+}
 
+async function downloadApkToCache(
+  manifest: UpdateManifest,
+  onProgress?: (p: InstallProgress) => void,
+): Promise<string> {
   onProgress?.({ phase: 'download', progress: 0 });
   track('app.update_download_started', {
     version_code: manifest.versionCode,
     version_name: manifest.versionName,
+    requires_uninstall: Boolean(manifest.requiresUninstall),
   });
 
   try {
@@ -122,6 +128,25 @@ export async function downloadAndInstallUpdate(
 
   const path = download.path;
   if (!path) throw new Error('Download did not return a file path');
+  return path;
+}
+
+/**
+ * Download the latest APK, clear stale web caches, and open the Android installer.
+ * Preserves auth session + Dexie offline queues.
+ */
+export async function downloadAndInstallUpdate(
+  manifest: UpdateManifest,
+  onProgress?: (p: InstallProgress) => void,
+): Promise<void> {
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+    throw new Error('Updates are only available on the Android app');
+  }
+
+  onProgress?.({ phase: 'permission' });
+  await ensureInstallPermission();
+
+  const path = await downloadApkToCache(manifest, onProgress);
 
   onProgress?.({ phase: 'cleanup' });
   markPendingCacheClear();
@@ -130,4 +155,51 @@ export async function downloadAndInstallUpdate(
   onProgress?.({ phase: 'install' });
   track('app.update_install_started', { version_code: manifest.versionCode });
   await AppUpdate.installApk({ path });
+}
+
+/**
+ * Signing-reset path: download APK → save to public Downloads → caller opens uninstall.
+ * File remains after uninstall so the user can tap it in Files → Downloads.
+ */
+export async function prepareUninstallMigration(
+  manifest: UpdateManifest,
+  onProgress?: (p: InstallProgress) => void,
+): Promise<MigrationPrepResult> {
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+    throw new Error('Updates are only available on the Android app');
+  }
+
+  onProgress?.({ phase: 'permission' });
+  await ensureInstallPermission();
+
+  const path = await downloadApkToCache(manifest, onProgress);
+
+  onProgress?.({ phase: 'save_downloads' });
+  const fileName = `Eravat-${manifest.versionName}.apk`;
+  const saved = await AppUpdate.saveApkToDownloads({ path, fileName });
+
+  onProgress?.({ phase: 'cleanup' });
+  markPendingCacheClear();
+  await clearStaleAppCaches();
+
+  track('app.update_migration_prepared', {
+    version_code: manifest.versionCode,
+    version_name: manifest.versionName,
+    file_name: saved.fileName,
+  });
+
+  return {
+    fileName: saved.fileName || fileName,
+    folder: saved.folder || 'Downloads',
+    versionName: manifest.versionName,
+    versionCode: manifest.versionCode,
+  };
+}
+
+export async function openAppUninstall(): Promise<void> {
+  await AppUpdate.openUninstall();
+}
+
+export async function openDownloadsFolder(): Promise<void> {
+  await AppUpdate.openDownloads();
 }

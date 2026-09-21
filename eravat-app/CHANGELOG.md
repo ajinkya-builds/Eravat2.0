@@ -7,6 +7,13 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.7] — 2026-09-21 (versionCode 20107)
+
+- One-time signing reset: Update saves APK to Downloads then guides uninstall
+- After uninstall, open Downloads and tap Eravat APK to install
+- Future Settings → Update works normally with the new signing key
+
+---
 ## [2.1.6] — 2026-09-04 (versionCode 20106)
 
 - Open app offline after JWT expiry (cold start)

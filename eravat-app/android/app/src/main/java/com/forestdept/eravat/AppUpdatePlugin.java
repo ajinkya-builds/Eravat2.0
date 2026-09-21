@@ -1,11 +1,14 @@
 package com.forestdept.eravat;
 
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.provider.Settings;
 import androidx.core.content.FileProvider;
 import com.getcapacitor.JSObject;
@@ -17,6 +20,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 
 @CapacitorPlugin(name = "AppUpdate")
@@ -84,16 +88,10 @@ public class AppUpdatePlugin extends Plugin {
             return;
         }
 
-        File file = new File(path);
-        if (!file.exists()) {
-            // Capacitor Filesystem may pass a path without the absolute cache root.
-            File alt = new File(getContext().getCacheDir(), path);
-            if (alt.exists()) {
-                file = alt;
-            } else {
-                call.reject("APK file not found: " + path);
-                return;
-            }
+        File file = resolveApkFile(path);
+        if (file == null) {
+            call.reject("APK file not found: " + path);
+            return;
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
@@ -119,6 +117,163 @@ public class AppUpdatePlugin extends Plugin {
         } catch (Exception e) {
             call.reject("Failed to start APK install: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Copy an APK into the public Downloads folder so it survives app uninstall
+     * (needed for one-time signing-reset migrations).
+     */
+    @PluginMethod
+    public void saveApkToDownloads(PluginCall call) {
+        String path = call.getString("path");
+        String fileName = call.getString("fileName", "Eravat-update.apk");
+        if (path == null || path.isEmpty()) {
+            call.reject("path is required");
+            return;
+        }
+        if (fileName == null || fileName.isEmpty()) {
+            fileName = "Eravat-update.apk";
+        }
+        if (!fileName.toLowerCase().endsWith(".apk")) {
+            fileName = fileName + ".apk";
+        }
+
+        File file = resolveApkFile(path);
+        if (file == null) {
+            call.reject("APK file not found: " + path);
+            return;
+        }
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
+                values.put(MediaStore.Downloads.MIME_TYPE, "application/vnd.android.package-archive");
+                values.put(MediaStore.Downloads.IS_PENDING, 1);
+                Uri collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
+                Uri item = getContext().getContentResolver().insert(collection, values);
+                if (item == null) {
+                    call.reject("Could not create Downloads entry");
+                    return;
+                }
+                try (FileInputStream in = new FileInputStream(file);
+                        OutputStream out = getContext().getContentResolver().openOutputStream(item)) {
+                    if (out == null) {
+                        call.reject("Could not write to Downloads");
+                        return;
+                    }
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) >= 0) {
+                        out.write(buf, 0, n);
+                    }
+                }
+                values.clear();
+                values.put(MediaStore.Downloads.IS_PENDING, 0);
+                getContext().getContentResolver().update(item, values, null, null);
+
+                JSObject ret = new JSObject();
+                ret.put("fileName", fileName);
+                ret.put("uri", item.toString());
+                ret.put("folder", "Downloads");
+                call.resolve(ret);
+            } else {
+                File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                if (!downloads.exists() && !downloads.mkdirs()) {
+                    call.reject("Downloads folder unavailable");
+                    return;
+                }
+                File dest = new File(downloads, fileName);
+                try (FileChannel in = new FileInputStream(file).getChannel();
+                        FileChannel out = new FileOutputStream(dest).getChannel()) {
+                    out.transferFrom(in, 0, in.size());
+                }
+                Intent scan = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+                scan.setData(Uri.fromFile(dest));
+                getContext().sendBroadcast(scan);
+
+                JSObject ret = new JSObject();
+                ret.put("fileName", fileName);
+                ret.put("uri", Uri.fromFile(dest).toString());
+                ret.put("folder", "Downloads");
+                ret.put("path", dest.getAbsolutePath());
+                call.resolve(ret);
+            }
+        } catch (Exception e) {
+            call.reject("Failed to save APK to Downloads: " + e.getMessage(), e);
+        }
+    }
+
+    /** Opens the system uninstall screen for this app (user must confirm). */
+    @PluginMethod
+    public void openUninstall(PluginCall call) {
+        Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("Activity unavailable");
+            return;
+        }
+        try {
+            Intent intent = new Intent(Intent.ACTION_DELETE);
+            intent.setData(Uri.parse("package:" + getContext().getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Failed to open uninstall: " + e.getMessage(), e);
+        }
+    }
+
+    /** Opens the system Files/Downloads UI so the user can tap the saved APK. */
+    @PluginMethod
+    public void openDownloads(PluginCall call) {
+        Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("Activity unavailable");
+            return;
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                Intent intent = new Intent(Intent.ACTION_VIEW);
+                intent.setDataAndType(
+                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    "resource/folder"
+                );
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                try {
+                    activity.startActivity(intent);
+                    call.resolve();
+                    return;
+                } catch (Exception ignored) {
+                    // fall through
+                }
+            }
+            Intent fallback = new Intent(Intent.ACTION_VIEW);
+            fallback.setType("*/*");
+            fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(Intent.createChooser(fallback, "Open Downloads"));
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Failed to open Downloads: " + e.getMessage(), e);
+        }
+    }
+
+    private File resolveApkFile(String path) {
+        File file = new File(path);
+        if (file.exists()) {
+            return file;
+        }
+        File alt = new File(getContext().getCacheDir(), path);
+        if (alt.exists()) {
+            return alt;
+        }
+        // Capacitor may return file:// URIs
+        if (path.startsWith("file:")) {
+            File fromUri = new File(Uri.parse(path).getPath());
+            if (fromUri.exists()) {
+                return fromUri;
+            }
+        }
+        return null;
     }
 
     private File copyToInstallDir(File source) throws IOException {

@@ -2,7 +2,8 @@
 # Upload local Android signing material to GitHub Actions secrets.
 # Prereq: gh auth login (repo admin), and eravat-app/android/keystore.properties present.
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# Repo root is the parent of scripts/ (was wrongly ../.. and broke local uploads).
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROPS="$ROOT/eravat-app/android/keystore.properties"
 REPO="${GITHUB_REPOSITORY:-ajinkya-builds/Eravat2.0}"
 
