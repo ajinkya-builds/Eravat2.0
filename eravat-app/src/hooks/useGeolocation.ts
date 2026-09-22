@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { Geolocation } from '@capacitor/geolocation';
+import { Geolocation, type Position } from '@capacitor/geolocation';
 import { LocationSettings } from '../plugins/LocationSettings';
 import {
     acquireDevicePosition,
