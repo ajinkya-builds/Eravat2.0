@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, Download, Trash2, Pencil, ChevronLeft, ChevronRight, Loader2, X, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Download, Trash2, Pencil, ChevronLeft, ChevronRight, Loader2, X, AlertTriangle, Phone } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { useLanguage } from '../../contexts/LanguageContext';
+import {
+    AdminReportCallsModal,
+    type VillagerCallRow,
+} from '../../components/admin/AdminReportCallsModal';
 
 type ObsType = 'direct' | 'indirect' | 'loss';
 
@@ -70,7 +74,29 @@ export default function AdminObservations() {
     const [selected, setSelected] = useState<string[]>([]);
     const [editTarget, setEditTarget] = useState<ReportWithObs | null>(null);
     const [confirmState, setConfirmState] = useState<{ ids: string[]; label: string } | null>(null);
+    const [callsReport, setCallsReport] = useState<ReportWithObs | null>(null);
+    const [callRows, setCallRows] = useState<VillagerCallRow[]>([]);
+    const [callsLoading, setCallsLoading] = useState(false);
+    const [callsError, setCallsError] = useState<string | null>(null);
     const { t } = useLanguage();
+
+    const openCallsForReport = async (report: ReportWithObs) => {
+        setCallsReport(report);
+        setCallsLoading(true);
+        setCallsError(null);
+        setCallRows([]);
+        try {
+            const { data, error: rpcErr } = await supabase.rpc('get_report_villager_calls', {
+                p_report_id: report.id,
+            });
+            if (rpcErr) throw rpcErr;
+            setCallRows((data as VillagerCallRow[]) || []);
+        } catch (err) {
+            setCallsError(err instanceof Error ? err.message : t('admin.obs.callsLoadFailed'));
+        } finally {
+            setCallsLoading(false);
+        }
+    };
 
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -286,16 +312,27 @@ export default function AdminObservations() {
                                                 </span>
                                             </td>
                                             <td className="p-4">
-                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={() => setEditTarget(obs)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"><Pencil size={14} /></button>
+                                                <div className="flex items-center gap-1">
                                                     <button
-                                                        onClick={() => handleMarkReviewed(obs.id)}
-                                                        title={t('admin.obs.reviewed')}
-                                                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+                                                        type="button"
+                                                        onClick={() => void openCallsForReport(obs)}
+                                                        title={t('admin.obs.viewCalls')}
+                                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border border-border hover:bg-muted text-muted-foreground"
                                                     >
-                                                        <RefreshCw size={14} />
+                                                        <Phone size={12} />
+                                                        {t('admin.obs.viewCallsShort')}
                                                     </button>
-                                                    <button onClick={() => handleDelete(obs.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive"><Trash2 size={14} /></button>
+                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button onClick={() => setEditTarget(obs)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"><Pencil size={14} /></button>
+                                                        <button
+                                                            onClick={() => handleMarkReviewed(obs.id)}
+                                                            title={t('admin.obs.reviewed')}
+                                                            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+                                                        >
+                                                            <RefreshCw size={14} />
+                                                        </button>
+                                                        <button onClick={() => handleDelete(obs.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive"><Trash2 size={14} /></button>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </motion.tr>
@@ -325,6 +362,31 @@ export default function AdminObservations() {
                 report={editTarget}
                 onClose={() => setEditTarget(null)}
                 onSave={handleSaveEdit}
+                t={t}
+            />
+
+            <AdminReportCallsModal
+                open={!!callsReport}
+                reportId={callsReport?.id ?? null}
+                reportLabel={
+                    callsReport
+                        ? [
+                              new Date(callsReport.device_timestamp).toLocaleString(),
+                              callsReport.geo_beats?.name,
+                              callsReport.geo_beats?.geo_ranges?.name,
+                          ]
+                              .filter(Boolean)
+                              .join(' · ')
+                        : undefined
+                }
+                rows={callRows}
+                loading={callsLoading}
+                error={callsError}
+                onClose={() => {
+                    setCallsReport(null);
+                    setCallRows([]);
+                    setCallsError(null);
+                }}
                 t={t}
             />
 

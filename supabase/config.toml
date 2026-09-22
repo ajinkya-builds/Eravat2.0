@@ -318,6 +318,14 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 1
 
+# MSG91 voice webhooks cannot send Supabase JWTs — authenticate via shared secret.
+[functions.msg91-voice-webhook]
+verify_jwt = false
+
+# Dispatch stub: service-role or MSG91_VOICE_DISPATCH_SECRET (custom auth in handler).
+[functions.msg91-voice-dispatch]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

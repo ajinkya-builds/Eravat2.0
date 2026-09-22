@@ -1,9 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, Smartphone, Map, Languages, Download, Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
+import {
+    ArrowLeft, Moon, Sun, Smartphone, Map, Languages, Download, Loader2,
+    RefreshCw, CheckCircle2, Radio, MapPin,
+} from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../supabase';
+import {
+    RadiusSlider, RadiusPreview, SaveIndicator,
+    clamp, DEFAULT_ALERT_RADIUS_BOUNDS, type AlertRadiusBounds, type SaveState,
+} from '../../components/shared/RadiusSlider';
+import { fetchAlertRadiusBounds, fetchCanConfigureAlertRadius } from '../../lib/rbac';
 import { PAGE_STICKY_HEADER } from '../../lib/layout';
 import { AppUpdate } from '../../plugins/AppUpdate';
 import {
@@ -17,11 +27,88 @@ import {
 } from '../../services/appUpdateService';
 import { APP_VERSION, formatAppVersionLabel } from '../../lib/appVersion';
 
+const RADIUS_DEBOUNCE_MS = 800;
+
 export default function AppSettings() {
     const { t, language: globalLanguage, setLanguage: setGlobalLanguage } = useLanguage();
     const { theme, setTheme } = useTheme();
+    const { user, profile, refreshProfile } = useAuth();
     const navigate = useNavigate();
     const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+
+    const [canConfigureRadius, setCanConfigureRadius] = useState(false);
+    const [bounds, setBounds] = useState<AlertRadiusBounds>(DEFAULT_ALERT_RADIUS_BOUNDS);
+    const [radius, setRadius] = useState<number>(
+        clamp(profile?.notification_radius_km ?? DEFAULT_ALERT_RADIUS_BOUNDS.minKm),
+    );
+    const [radiusSaveState, setRadiusSaveState] = useState<SaveState>('idle');
+    const radiusHydrated = useRef(false);
+    const allowRadiusPersist = useRef(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        void (async () => {
+            const [allowed, nextBounds] = await Promise.all([
+                fetchCanConfigureAlertRadius(() => supabase.rpc('can_configure_alert_radius')),
+                fetchAlertRadiusBounds(() => supabase.rpc('get_alert_radius_bounds')),
+            ]);
+            if (cancelled) return;
+            setCanConfigureRadius(allowed);
+            setBounds(nextBounds);
+            setRadius((prev) => clamp(prev, nextBounds.minKm, nextBounds.maxKm));
+        })();
+        return () => { cancelled = true; };
+    }, [profile?.role]);
+
+    useEffect(() => {
+        const r = profile?.notification_radius_km;
+        if (typeof r === 'number') {
+            setRadius(clamp(r, bounds.minKm, bounds.maxKm));
+            radiusHydrated.current = false;
+            allowRadiusPersist.current = false;
+        }
+    }, [profile?.notification_radius_km, bounds.minKm, bounds.maxKm]);
+
+    const persistRadius = useCallback(async (newRadius: number) => {
+        if (!user?.id) return;
+        setRadiusSaveState('saving');
+        const { error } = await supabase
+            .from('profiles')
+            .update({ notification_radius_km: newRadius })
+            .eq('id', user.id);
+        setRadiusSaveState(error ? 'error' : 'saved');
+        if (!error) void refreshProfile();
+        setTimeout(() => setRadiusSaveState('idle'), 2500);
+    }, [user?.id, refreshProfile]);
+
+    useEffect(() => {
+        if (!canConfigureRadius) return;
+        if (!radiusHydrated.current) {
+            radiusHydrated.current = true;
+            return;
+        }
+        if (!allowRadiusPersist.current) return;
+        const timer = setTimeout(() => void persistRadius(radius), RADIUS_DEBOUNCE_MS);
+        return () => clearTimeout(timer);
+    }, [radius, persistRadius, canConfigureRadius]);
+
+    const handleRadiusChange = (v: number) => {
+        if (radiusHydrated.current) allowRadiusPersist.current = true;
+        setRadius(clamp(v, bounds.minKm, bounds.maxKm));
+        setRadiusSaveState('idle');
+    };
+
+    const handleRadiusInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const parsed = parseInt(e.target.value, 10);
+        if (!isNaN(parsed)) handleRadiusChange(parsed);
+    };
+
+    const hasProfileGps =
+        typeof profile?.latitude === 'number' && typeof profile?.longitude === 'number';
+
+    const radiusRangeHint = t('radius_range_hint')
+        .replace('{min}', String(bounds.minKm))
+        .replace('{max}', String(bounds.maxKm));
 
     // Load from local storage synchronously
     const getInitialState = () => {
@@ -264,6 +351,78 @@ export default function AppSettings() {
                         </div>
                     </div>
                 </div>
+
+                {/* Proximity alert radius — region-agnostic roles only (DB-gated) */}
+                {canConfigureRadius && (
+                    <div className="space-y-3 animate-fade-in" style={{ animationDelay: '120ms', animationFillMode: 'both' }}>
+                        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">
+                            {t('user_notifications')}
+                        </h2>
+                        <div className="glass-card rounded-2xl p-4 space-y-5">
+                            <div className="flex items-start gap-3">
+                                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                                    <Radio size={18} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-medium">{t('proximity_alert_radius')}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {t('radius_profile_gps_note')}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <RadiusPreview km={radius} max={bounds.maxKm} />
+
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <label htmlFor="radius-slider" className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                        <Radio size={15} className="text-primary" />
+                                        {t('user_alert_radius')}
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                        <SaveIndicator state={radiusSaveState} />
+                                        <div className="flex items-center gap-1 bg-primary/10 rounded-xl px-3 py-1">
+                                            <input
+                                                type="number"
+                                                id="radius-input"
+                                                min={bounds.minKm}
+                                                max={bounds.maxKm}
+                                                value={radius}
+                                                onChange={handleRadiusInput}
+                                                className="w-12 bg-transparent text-center text-sm font-bold text-primary focus:outline-none"
+                                                aria-label="Alert radius value"
+                                            />
+                                            <span className="text-xs font-semibold text-primary/70">{t('km')}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <RadiusSlider
+                                    value={radius}
+                                    onChange={handleRadiusChange}
+                                    min={bounds.minKm}
+                                    max={bounds.maxKm}
+                                />
+                            </div>
+
+                            <p className="text-xs text-muted-foreground leading-relaxed bg-muted/50 rounded-2xl px-4 py-3 border border-border/50">
+                                {t('radius_note')}{' '}
+                                <span className="font-semibold text-foreground">{radius} {t('km')}</span>{' '}
+                                {t('radius_note_suffix_user')} {radiusRangeHint}
+                            </p>
+
+                            {!hasProfileGps && (
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/profile/edit')}
+                                    className="w-full flex items-start gap-2 text-left text-xs text-amber-800 bg-amber-500/10 rounded-xl px-3 py-2"
+                                >
+                                    <MapPin size={14} className="mt-0.5 shrink-0" />
+                                    <span>{t('radius_missing_profile_gps')}</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* App update */}
                 <div className="space-y-3 animate-fade-in" style={{ animationDelay: '150ms', animationFillMode: 'both' }}>

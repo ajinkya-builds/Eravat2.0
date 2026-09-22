@@ -10,7 +10,7 @@ const E2E_PHOTO =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAFElEQVR42mP8z8BQz0AEYBxVSF+FAP5IDva59Tn2AAAAAElFTkSuQmCC';
 
 export function PhotoStep() {
-    const { formData, updateFormData, gpsLoading, gpsError } = useActivityForm();
+    const { formData, updateFormData, gpsLoading, gpsError, pendingCellFix } = useActivityForm();
     const { takePhoto, pickFromGallery, isCapturing: loading, error } = useCamera();
     const { t } = useLanguage();
     const isE2E =
@@ -41,15 +41,20 @@ export function PhotoStep() {
             </div>
 
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                {gpsLoading ? (
+                {gpsReady ? (
+                    <>
+                        <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="text-emerald-700">{t('ps_location_ready')}</span>
+                    </>
+                ) : gpsLoading ? (
                     <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
                         {t('ps_location_prefetching')}
                     </>
-                ) : gpsReady ? (
+                ) : pendingCellFix ? (
                     <>
-                        <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="text-emerald-700">{t('ps_location_ready')}</span>
+                        <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="text-amber-700">{t('ps_location_cell_pending')}</span>
                     </>
                 ) : (
                     <>

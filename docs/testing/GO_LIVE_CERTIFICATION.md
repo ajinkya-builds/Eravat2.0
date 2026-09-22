@@ -105,11 +105,18 @@ Use this when automation passes but you need human sign-off (especially APK on d
 ### E. Map, nearby, history
 
 - [ ] Map loads pins (direct / indirect / loss colors)
-- [ ] Radius slider 1–500 km
+- [ ] Map radius filter 1–500 km (map view only)
 - [ ] Terrain / satellite toggle
 - [ ] Nearby: GPS, list, share/copy, maps link
 - [ ] History: territory vs radius badges, expand, share/download
 - [ ] RLS: user only sees permitted territory data
+
+### E2. App Settings – alert radius (region-agnostic)
+
+- [ ] **Admin** sees proximity alert radius slider in App Settings (1–1000 km, from `alert_radius_bounds`)
+- [ ] DFO / Range Officer / Beat Guard do **not** see the radius slider
+- [ ] Radius saves to own `profiles.notification_radius_km`
+- [ ] Copy clarifies distance uses **saved profile GPS**, not live location
 
 ### F. Hathi Mitra (villagers)
 
@@ -131,7 +138,7 @@ After a **real submitted report** in your beat:
 
 - [ ] **Beat guard** on same beat receives chain notification
 - [ ] **DFO / RRT** on division receives chain notification
-- [ ] **Proximity:** user within `notification_radius_km` gets proximity alert (unless chain already sent)
+- [ ] **Proximity (admin):** report within admin’s `notification_radius_km` of their **saved profile GPS** creates a proximity alert
 - [ ] Bell drawer: unread count, mark read, tap navigates
 - [ ] Push (if FCM configured on device): notification appears
 
@@ -139,7 +146,9 @@ After a **real submitted report** in your beat:
 
 Live SMS/voice is **not** sent on staging. Verify **queue records only**:
 
-- [ ] After report with GPS near opted-in villager (&lt; 2 km, same division): row in `villager_alert_events` with `channel = sms_queued`
+- [ ] After report with GPS near opted-in villager (&lt; 5 km, same division): row in `villager_alert_events` with `channel = sms_queued`
+- [ ] Same report also creates `villager_call_events` with `call_status = queued` (MSG91 dialing not configured)
+- [ ] Admin → Observations → **Calls** shows villager name / village / phone / status for that report
 - [ ] Report without GPS: **no** villager queue rows
 - [ ] Admin → Notifications log shows activity (compose remains disabled)
 - [ ] Voice / SMS credits UI shows locked/deferred state
@@ -163,7 +172,7 @@ Run automation: `node scripts/staging-notification-alerts-e2e.mjs`
 - [ ] Divisions: tree, officer assignment
 - [ ] Observations: paginate, edit, delete, bulk delete, CSV export
 - [ ] Map: admin pins
-- [ ] Settings: system `notification_radius_km` updates all profiles
+- [ ] Settings: alert radius policy note (per-user in App Settings; bounds in `alert_radius_bounds`)
 - [ ] Deferred nav items show locked (voice, comm hub, KML, credits, etc.)
 
 ### K. Settings & profile
@@ -172,6 +181,7 @@ Run automation: `node scripts/staging-notification-alerts-e2e.mjs`
 - [ ] Language: EN / HI / MR (spot-check Hindi on report + home)
 - [ ] Privacy: analytics opt-in toggle
 - [ ] Help: force sync, FAQ, privacy policy links
+- [ ] Admin App Settings: alert radius slider 1–1000 km (from `alert_radius_bounds`)
 
 ### L. Performance & stress (staging)
 

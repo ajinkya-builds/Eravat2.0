@@ -7,9 +7,16 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import androidx.activity.ComponentActivity;
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
@@ -34,6 +41,8 @@ public class LocationSettingsPlugin extends Plugin {
     private ActivityResultLauncher<IntentSenderRequest> locationSettingsLauncher;
     private PluginCall pendingEnsureCall;
     private BroadcastReceiver providerReceiver;
+    private final List<LocationListener> freshFixListeners = new ArrayList<>();
+    private Handler freshFixHandler;
 
     @Override
     public void load() {
@@ -50,6 +59,8 @@ public class LocationSettingsPlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
+        LocationManager manager = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+        if (manager != null) stopFreshFixUpdates(manager);
         if (providerReceiver != null) {
             try {
                 getContext().unregisterReceiver(providerReceiver);
@@ -122,15 +133,100 @@ public class LocationSettingsPlugin extends Plugin {
 
     @PluginMethod
     public void getLastKnown(PluginCall call) {
-        Location best = readBestLastKnown();
-        JSObject ret = new JSObject();
-        if (best != null) {
-            ret.put("latitude", best.getLatitude());
-            ret.put("longitude", best.getLongitude());
-            ret.put("accuracy", best.hasAccuracy() ? best.getAccuracy() : 0d);
-            ret.put("timestamp", best.getTime());
+        call.resolve(locationToJs(readBestLastKnown()));
+    }
+
+    /**
+     * Ask LocationManager for a live GPS fix. Network/cell is collected in
+     * parallel but is only returned after the GPS wait expires (or immediately
+     * if the GPS provider is off). Never returns getLastKnown.
+     */
+    @PluginMethod
+    public void requestFreshFix(PluginCall call) {
+        if (!hasLocationPermission()) {
+            call.resolve(new JSObject());
+            return;
         }
-        call.resolve(ret);
+        LocationManager manager = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+        if (manager == null) {
+            call.resolve(new JSObject());
+            return;
+        }
+
+        Integer timeout = call.getInt("timeoutMs", 15_000);
+        int timeoutMs = timeout != null ? timeout : 15_000;
+        call.setKeepAlive(true);
+        stopFreshFixUpdates(manager);
+
+        AtomicBoolean done = new AtomicBoolean(false);
+        if (freshFixHandler == null) {
+            freshFixHandler = new Handler(Looper.getMainLooper());
+        }
+
+        AtomicReference<Location> liveCell = new AtomicReference<>();
+
+        LocationListener listener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                if (location == null) return;
+                // Satellite GPS only auto-wins. Cell/network is held until the GPS wait expires.
+                if (LocationManager.GPS_PROVIDER.equals(location.getProvider())) {
+                    if (!done.compareAndSet(false, true)) return;
+                    if (freshFixHandler != null) freshFixHandler.removeCallbacksAndMessages(null);
+                    stopFreshFixUpdates(manager);
+                    call.resolve(locationToJs(location));
+                    return;
+                }
+                Location previous = liveCell.get();
+                if (previous == null
+                    || (location.hasAccuracy()
+                        && (!previous.hasAccuracy() || location.getAccuracy() < previous.getAccuracy()))) {
+                    liveCell.set(location);
+                }
+            }
+        };
+        freshFixListeners.add(listener);
+
+        boolean registered = false;
+        String[] providers = new String[] {
+            LocationManager.GPS_PROVIDER,
+            LocationManager.NETWORK_PROVIDER
+        };
+        for (String provider : providers) {
+            try {
+                if (!manager.isProviderEnabled(provider)) continue;
+                // Live updates only — getCurrentLocation/getLastKnown can return a stale cache.
+                manager.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper());
+                registered = true;
+            } catch (SecurityException ignored) {
+                // permission revoked mid-request
+            } catch (IllegalArgumentException ignored) {
+                // provider missing on this device
+            }
+        }
+
+        if (!registered) {
+            done.set(true);
+            call.resolve(new JSObject());
+            return;
+        }
+
+        boolean gpsEnabled = false;
+        try {
+            gpsEnabled = manager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        } catch (Exception ignored) {
+            // treat as GPS unavailable
+        }
+        int waitMs = gpsEnabled
+            ? Math.max(3_000, timeoutMs)
+            : Math.min(8_000, Math.max(3_000, timeoutMs)); // GPS off: cell only after a short wait
+
+        freshFixHandler.postDelayed(() -> {
+            if (!done.compareAndSet(false, true)) return;
+            stopFreshFixUpdates(manager);
+            Location cell = liveCell.get();
+            call.resolve(cell != null ? locationToJs(cell) : new JSObject());
+        }, waitMs);
     }
 
     @ActivityCallback
@@ -154,6 +250,40 @@ public class LocationSettingsPlugin extends Plugin {
             pendingEnsureCall = null;
         }
         emitLocationState();
+    }
+
+    private boolean hasLocationPermission() {
+        return ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+            || ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private JSObject locationToJs(Location location) {
+        JSObject ret = new JSObject();
+        if (location == null) return ret;
+        ret.put("latitude", location.getLatitude());
+        ret.put("longitude", location.getLongitude());
+        ret.put("accuracy", location.hasAccuracy() ? location.getAccuracy() : 0d);
+        ret.put("timestamp", location.getTime());
+        if (location.getProvider() != null) {
+            ret.put("provider", location.getProvider());
+        }
+        return ret;
+    }
+
+    private void stopFreshFixUpdates(LocationManager manager) {
+        if (freshFixHandler != null) {
+            freshFixHandler.removeCallbacksAndMessages(null);
+        }
+        for (LocationListener listener : freshFixListeners) {
+            try {
+                manager.removeUpdates(listener);
+            } catch (Exception ignored) {
+                // already removed
+            }
+        }
+        freshFixListeners.clear();
     }
 
     private boolean isLocationEnabled() {

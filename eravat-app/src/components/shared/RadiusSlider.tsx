@@ -1,14 +1,23 @@
 import { motion } from 'framer-motion';
 import { MapPin, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─── Defaults (overridden by alert_radius_bounds via get_alert_radius_bounds) ─
 
+/** Fallback min when DB bounds are unavailable. Prefer fetched bounds in UI. */
 export const MIN_KM = 1;
-export const MAX_KM = 500;
+/** Fallback max when DB bounds are unavailable. Prefer fetched bounds in UI. */
+export const MAX_KM = 1000;
 
 export function clamp(v: number, min = MIN_KM, max = MAX_KM) {
     return Math.min(max, Math.max(min, v));
 }
+
+export type AlertRadiusBounds = { minKm: number; maxKm: number };
+
+export const DEFAULT_ALERT_RADIUS_BOUNDS: AlertRadiusBounds = {
+    minKm: MIN_KM,
+    maxKm: MAX_KM,
+};
 
 // ─── SaveIndicator ───────────────────────────────────────────────────────────
 

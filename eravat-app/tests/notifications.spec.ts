@@ -1,9 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { ensureOnPage } from './fixtures/auth.fixture';
+import { ADMIN } from './fixtures/test-constants';
 
 test.describe('Notification Settings – Radius Slider', () => {
   test.beforeEach(async ({ page }) => {
-    await ensureOnPage(page, '/settings');
+    // Radius UI is DB-gated to region-agnostic roles (admin enabled first).
+    await ensureOnPage(page, '/settings', ADMIN);
   });
 
   test('Settings page renders the proximity alert radius slider', async ({ page }) => {

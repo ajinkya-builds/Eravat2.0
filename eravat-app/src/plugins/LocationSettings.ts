@@ -9,12 +9,14 @@ export type NativeLastKnown = {
   longitude?: number;
   accuracy?: number | null;
   timestamp?: number;
+  provider?: string;
 };
 
 export interface LocationSettingsPlugin {
   isEnabled(): Promise<LocationState>;
   ensureEnabled(): Promise<LocationState>;
   getLastKnown(): Promise<NativeLastKnown>;
+  requestFreshFix(options?: { timeoutMs?: number }): Promise<NativeLastKnown>;
   addListener(
     eventName: 'locationStateChange',
     listenerFunc: (state: LocationState) => void,
@@ -29,6 +31,9 @@ const webStub: LocationSettingsPlugin = {
     return { enabled: true };
   },
   async getLastKnown() {
+    return {};
+  },
+  async requestFreshFix() {
     return {};
   },
   async addListener() {

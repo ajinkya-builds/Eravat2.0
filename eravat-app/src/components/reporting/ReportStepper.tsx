@@ -9,6 +9,7 @@ import { DamageStep } from './steps/DamageStep';
 import { PhotoStep } from './steps/PhotoStep';
 import { ReviewStep } from './steps/ReviewStep';
 import { UnsavedChangesModal } from './UnsavedChangesModal';
+import { CellLocationConfirm } from './CellLocationConfirm';
 import { useCamera } from '../../hooks/useCamera';
 import { db } from '../../db';
 import { cn } from '../../lib/utils';
@@ -24,7 +25,7 @@ import { readCachedGeoFromPoint } from '../../lib/geoLookup';
 import { PAGE_STICKY_TOP } from '../../lib/layout';
 
 function StepperContent() {
-    const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm, activeSteps, updateFormData, elephantTotal } = useActivityForm();
+    const { formData, currentStep, currentStepIndex, goToNextStep, goToPreviousStep, isStepValid, isLastStep, resetForm, activeSteps, updateFormData, elephantTotal, pendingCellFix, acceptCellLocation, retryGpsAfterCell } = useActivityForm();
     const { profile } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
@@ -247,6 +248,11 @@ function StepperContent() {
                 isOpen={showExitWarning}
                 onConfirm={handleConfirmExit}
                 onCancel={() => setShowExitWarning(false)}
+            />
+            <CellLocationConfirm
+                position={pendingCellFix}
+                onAccept={acceptCellLocation}
+                onRetryGps={() => { void retryGpsAfterCell(); }}
             />
 
             <header className={`sticky z-50 px-4 py-4 flex items-center justify-between bg-background/80 backdrop-blur-xl border-b border-border/50 ${PAGE_STICKY_TOP}`}>

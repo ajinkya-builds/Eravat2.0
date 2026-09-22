@@ -119,6 +119,28 @@ async function main() {
     const { data: alerts } = await bgSb.from('villager_alert_events').select('id, channel, distance_m').eq('report_id', reportId);
     record(`${label} villager sms_queued readable`, Array.isArray(alerts), `${alerts?.length ?? 0} events`);
 
+    const { data: calls } = await bgSb
+      .from('villager_call_events')
+      .select('id, call_status, phone_e164, distance_m')
+      .eq('report_id', reportId);
+    const callOk =
+      Array.isArray(calls) &&
+      (calls.length === 0 || calls.every((c) => c.call_status === 'queued'));
+    record(
+      `${label} villager call_events queued`,
+      callOk,
+      `${calls?.length ?? 0} events`,
+    );
+
+    const { data: rpcCalls, error: rpcErr } = await dfoSb.rpc('get_report_villager_calls', {
+      p_report_id: reportId,
+    });
+    record(
+      `${label} get_report_villager_calls RPC`,
+      !rpcErr && Array.isArray(rpcCalls),
+      rpcErr?.message ?? `${rpcCalls?.length ?? 0} rows`,
+    );
+
     await volSb.from('reports').delete().eq('id', reportId);
   }
 

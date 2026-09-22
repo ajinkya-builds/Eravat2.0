@@ -19,6 +19,9 @@ export const ROLE_HIERARCHY: Record<string, string[]> = {
 
 export const GEOGRAPHIC_ROLES = ['dfo', 'rrt', 'range_officer', 'beat_guard'] as const;
 
+/** Region-agnostic roles that may later receive profile-GPS proximity alerts. */
+export const REGION_AGNOSTIC_ROLES = ['admin', 'ccf', 'biologist', 'veterinarian'] as const;
+
 export function canManageRole(callerRole?: string, targetRole?: string): boolean {
   if (!callerRole || !targetRole) return false;
   if (!VALID_ROLES.includes(targetRole as UserRole)) return false;
@@ -59,4 +62,37 @@ export function canEditVillagerRecord(
   if (!canOnboardVillagers(role)) return false;
   if (canLeadVillagers(role)) return true;
   return Boolean(viewerId && createdBy && viewerId === createdBy);
+}
+
+/**
+ * Whether the current session may configure personal alert radius.
+ * Source of truth: `role_alert_radius_config` via RPC (admin enabled first).
+ */
+export async function fetchCanConfigureAlertRadius(
+  callRpc: () => PromiseLike<{ data: boolean | null; error: unknown }>,
+): Promise<boolean> {
+  const { data, error } = await callRpc();
+  if (error) return false;
+  return Boolean(data);
+}
+
+export type AlertRadiusBoundsResult = { minKm: number; maxKm: number };
+
+/**
+ * Fetch configurable min/max km for alert radius (DB: alert_radius_bounds).
+ */
+export async function fetchAlertRadiusBounds(
+  callRpc: () => PromiseLike<{
+    data: { min_km: number; max_km: number }[] | { min_km: number; max_km: number } | null;
+    error: unknown;
+  }>,
+  fallback: AlertRadiusBoundsResult = { minKm: 1, maxKm: 1000 },
+): Promise<AlertRadiusBoundsResult> {
+  const { data, error } = await callRpc();
+  if (error || data == null) return fallback;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row.min_km !== 'number' || typeof row.max_km !== 'number') {
+    return fallback;
+  }
+  return { minKm: row.min_km, maxKm: row.max_km };
 }

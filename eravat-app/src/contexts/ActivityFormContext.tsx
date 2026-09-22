@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useMemo, useEffect, u
 import type { ObservationType } from '../types/activity-report';
 import { useGeolocation, GEOLOCATION_TIMEOUT_MS } from '../hooks/useGeolocation';
 import { captureDeviceDateTime } from '../lib/captureDeviceDateTime';
-import { LOCATION_ENABLED_EVENT } from '../lib/deviceLocation';
+import { LOCATION_ENABLED_EVENT, type AcquiredPosition } from '../lib/deviceLocation';
 import { track } from '../lib/analytics';
 import { logger } from '../lib/logger';
 
@@ -62,7 +62,10 @@ interface ActivityFormContextValue {
     elephantTotal: number;
     gpsLoading: boolean;
     gpsError: string | null;
+    pendingCellFix: AcquiredPosition | null;
     refreshLocation: (source?: LocationPrefetchSource) => Promise<void>;
+    acceptCellLocation: () => void;
+    retryGpsAfterCell: () => Promise<void>;
 }
 
 const DEFAULT_FORM: ActivityFormData = {
@@ -127,10 +130,10 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
         loading: gpsLoading,
         error: gpsError,
         lastErrorCode,
-        getLastKnownLocation,
     } = useGeolocation();
     const prefetchStartedRef = useRef(false);
     const locationRequestIdRef = useRef(0);
+    const [pendingCellFix, setPendingCellFix] = useState<AcquiredPosition | null>(null);
 
     const updateFormData = useCallback((updates: Partial<ActivityFormData>) => {
         setFormData(prev => ({ ...prev, ...updates }));
@@ -149,7 +152,13 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
         const { date, time } = captureDeviceDateTime();
         const datetimeMs = Math.round(performance.now() - datetimeStarted);
         if (requestId !== locationRequestIdRef.current) return;
-        updateFormData({ activity_date: date, activity_time: time });
+        setPendingCellFix(null);
+        updateFormData({
+            activity_date: date,
+            activity_time: time,
+            latitude: null,
+            longitude: null,
+        });
         track('report.datetime_captured', { duration_ms: datetimeMs, source });
         logger.info('ReportLocation', 'datetime captured', { duration_ms: datetimeMs, source });
 
@@ -161,39 +170,45 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
         const gpsMs = Math.round(performance.now() - gpsStarted);
         if (pos) {
             const accuracyM = pos.coords.accuracy != null ? Math.round(pos.coords.accuracy) : undefined;
+            if (pos.source === 'cell') {
+                setPendingCellFix(pos);
+                track('report.cell_fix_offered', {
+                    duration_ms: gpsMs,
+                    accuracy_m: accuracyM,
+                    source,
+                });
+                logger.info('ReportLocation', 'cell fix offered', { duration_ms: gpsMs, accuracy_m: accuracyM, source });
+                return;
+            }
             updateFormData({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
             track('report.gps_acquired', {
                 duration_ms: gpsMs,
                 accuracy_m: accuracyM,
                 source,
+                location_source: pos.source,
             });
             logger.info('ReportLocation', 'gps acquired', { duration_ms: gpsMs, accuracy_m: accuracyM, source });
         } else {
-            const fallback = getLastKnownLocation();
-            if (fallback) {
-                updateFormData({
-                    latitude: fallback.coords.latitude,
-                    longitude: fallback.coords.longitude,
-                });
-                const errorCode = lastErrorCode() ?? 'LOCATION_FAILED';
-                track('report.gps_fallback_used', {
-                    duration_ms: gpsMs,
-                    error_code: errorCode,
-                    source,
-                    cache_age_ms: Date.now() - fallback.timestamp,
-                });
-                logger.warn('ReportLocation', 'gps fallback to last known fix', {
-                    duration_ms: gpsMs,
-                    error_code: errorCode,
-                    source,
-                });
-            } else {
-                const errorCode = lastErrorCode() ?? 'LOCATION_FAILED';
-                track('report.gps_failed', { duration_ms: gpsMs, error_code: errorCode, source });
-                logger.warn('ReportLocation', 'gps failed', { duration_ms: gpsMs, error_code: errorCode, source });
-            }
+            const errorCode = lastErrorCode() ?? 'LOCATION_FAILED';
+            track('report.gps_failed', { duration_ms: gpsMs, error_code: errorCode, source });
+            logger.warn('ReportLocation', 'gps failed', { duration_ms: gpsMs, error_code: errorCode, source });
         }
-    }, [fetchLocation, getLastKnownLocation, lastErrorCode, updateFormData]);
+    }, [fetchLocation, lastErrorCode, updateFormData]);
+
+    const acceptCellLocation = useCallback(() => {
+        if (!pendingCellFix) return;
+        const pos = pendingCellFix;
+        const accuracyM = pos.coords.accuracy != null ? Math.round(pos.coords.accuracy) : undefined;
+        setPendingCellFix(null);
+        updateFormData({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        track('report.cell_fix_accepted', { accuracy_m: accuracyM });
+        logger.info('ReportLocation', 'cell fix accepted', { accuracy_m: accuracyM });
+    }, [pendingCellFix, updateFormData]);
+
+    const retryGpsAfterCell = useCallback(async () => {
+        setPendingCellFix(null);
+        await refreshLocation('retry');
+    }, [refreshLocation]);
 
     useEffect(() => {
         if (prefetchStartedRef.current) return;
@@ -264,6 +279,7 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
 
     const resetForm = useCallback(() => {
         locationRequestIdRef.current += 1;
+        setPendingCellFix(null);
         setFormData(DEFAULT_FORM);
         setStepIndex(0);
         prefetchStartedRef.current = false;
@@ -284,7 +300,10 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
             elephantTotal,
             gpsLoading,
             gpsError,
+            pendingCellFix,
             refreshLocation,
+            acceptCellLocation,
+            retryGpsAfterCell,
         }}>
             {children}
         </ActivityFormContext.Provider>

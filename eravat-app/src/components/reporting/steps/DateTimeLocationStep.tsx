@@ -9,7 +9,7 @@ import { geoErrorTranslationKey } from '../../../lib/deviceLocation';
 import { TerritorySelect } from '../../shared/TerritorySelect';
 
 export function DateTimeLocationStep() {
-    const { formData, updateFormData, gpsLoading, gpsError, refreshLocation } = useActivityForm();
+    const { formData, updateFormData, gpsLoading, gpsError, refreshLocation, pendingCellFix } = useActivityForm();
     const { t } = useLanguage();
     const { profile } = useAuth();
 
@@ -50,6 +50,12 @@ export function DateTimeLocationStep() {
                     {t('dtl_get_location')}
                 </button>
             </div>
+
+            {pendingCellFix && (
+                <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-200">
+                    {t('cell_fix_body')}
+                </div>
+            )}
 
             {locationBlocked && (
                 <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">

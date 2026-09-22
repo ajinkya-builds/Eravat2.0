@@ -24,7 +24,8 @@ export const DEFERRED_CAPABILITIES: DeferredCapability[] = [
     {
         id: 'voice_call_alerts',
         labelKey: 'admin.deferred.voiceCalls',
-        reason: 'No voice dispatch pipeline or call_log table yet.',
+        reason:
+            'villager_call_events + MSG91 webhook/dispatch stubs are live; dialing awaits MSG91_AUTHKEY.',
     },
     {
         id: 'communication_hub',
@@ -74,7 +75,8 @@ export const DEFERRED_CAPABILITIES: DeferredCapability[] = [
     {
         id: 'affected_villagers',
         labelKey: 'admin.deferred.affectedVillagers',
-        reason: 'Geo match queues villager_alert_events (sms_queued). Live SMS/voice send is still off on staging.',
+        reason:
+            'Geo match queues villager_alert_events (sms_queued) and villager_call_events (queued). Live MSG91 dialing still off.',
     },
     {
         id: 'kml_overlays',

@@ -4,9 +4,15 @@ export const LAST_GPS_KEY = 'eravat_last_gps_fix_v1';
 export const DEFAULT_LAST_GPS_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 export const FRESH_FIX_MAX_AGE_MS = 45_000;
 export const GEOLOCATION_TIMEOUT_MS = 12_000;
-export const GEOLOCATION_WATCH_TIMEOUT_MS = 20_000;
+export const GEOLOCATION_WATCH_TIMEOUT_MS = 30_000;
 export const GEOLOCATION_TIMEOUT_OFFLINE_MS = 18_000;
+export const GEOLOCATION_GPS_WAIT_MS = 30_000;
+export const GEOLOCATION_CELL_ONLY_WAIT_MS = 8_000;
+export const CELL_ACCURACY_THRESHOLD_M = 80;
 export const LOCATION_ENABLED_EVENT = 'eravat-location-state';
+
+export type LocationSource = 'gps' | 'cell';
+export type AcquiredPosition = Position & { source: LocationSource };
 
 export type LastGpsFix = {
     latitude: number;
@@ -33,6 +39,17 @@ export type LocationAdapters = {
     clearWatch: (id: string) => Promise<void>;
     getNativeLastKnown: () => Promise<Position | null>;
     ensureLocationEnabled: () => Promise<boolean>;
+    requestFreshFix?: (timeoutMs: number) => Promise<AcquiredPosition | null>;
+};
+
+export type AcquirePositionOptions = {
+    promptIfDisabled?: boolean;
+    offline?: boolean;
+    now?: number;
+    onFix?: (position: AcquiredPosition) => void;
+    getCurrentTimeoutMs?: number;
+    watchTimeoutMs?: number;
+    nativeTimeoutMs?: number;
 };
 
 export function persistLastGpsFix(position: Position): void {
@@ -80,6 +97,32 @@ export function nativeFixToPosition(fix: {
         },
         timestamp: fix.timestamp,
     };
+}
+
+export function sourceFromProvider(provider?: string | null): LocationSource {
+    const value = (provider || '').toLowerCase();
+    if (value.includes('network') || value === 'passive') return 'cell';
+    return 'gps';
+}
+
+export function withLocationSource(position: Position, source: LocationSource): AcquiredPosition {
+    return { ...position, source };
+}
+
+export function asAcquiredPosition(position: Position | AcquiredPosition): AcquiredPosition {
+    if ('source' in position && (position.source === 'gps' || position.source === 'cell')) {
+        return position;
+    }
+    return withLocationSource(position, inferLocationSource(position));
+}
+
+export function inferLocationSource(position: Position, provider?: string | null): LocationSource {
+    if (provider) return sourceFromProvider(provider);
+    const accuracy = position.coords.accuracy;
+    if (typeof accuracy === 'number' && Number.isFinite(accuracy) && accuracy > CELL_ACCURACY_THRESHOLD_M) {
+        return 'cell';
+    }
+    return 'gps';
 }
 
 export function isFixFresh(position: Position | null, maxAgeMs: number, now = Date.now()): boolean {
@@ -160,25 +203,37 @@ export function geoErrorTranslationKey(code: string | null | undefined): string 
     }
 }
 
-function liveOptions(timeoutMs: number, maximumAgeMs: number): PositionOptionsLike {
+function liveOptions(timeoutMs: number, maximumAgeMs: number, highAccuracy = true): PositionOptionsLike {
     return {
-        enableHighAccuracy: true,
+        enableHighAccuracy: highAccuracy,
         timeout: timeoutMs,
         maximumAge: maximumAgeMs,
         enableLocationFallback: true,
-        interval: 2000,
-        minimumUpdateInterval: 1000,
+        interval: 1000,
+        minimumUpdateInterval: 500,
     };
 }
 
-async function waitForWatchFix(
+function startWatchFix(
     adapters: LocationAdapters,
     timeoutMs: number,
-): Promise<Position> {
+): { promise: Promise<Position>; cancel: () => void } {
     let watchId: string | null = null;
     let settled = false;
-    return new Promise<Position>((resolve, reject) => {
-        const timer = setTimeout(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let rejectPromise: ((err: Error) => void) | undefined;
+
+    const cancel = () => {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        if (watchId) void adapters.clearWatch(watchId);
+        rejectPromise?.(new Error('LOCATION_CANCELLED'));
+    };
+
+    const promise = new Promise<Position>((resolve, reject) => {
+        rejectPromise = reject;
+        timer = setTimeout(() => {
             if (settled) return;
             settled = true;
             if (watchId) void adapters.clearWatch(watchId);
@@ -189,16 +244,19 @@ async function waitForWatchFix(
             if (settled) return;
             if (position) {
                 settled = true;
-                clearTimeout(timer);
+                if (timer) clearTimeout(timer);
                 if (watchId) void adapters.clearWatch(watchId);
                 resolve(position);
                 return;
             }
             if (err) {
-                settled = true;
-                clearTimeout(timer);
-                if (watchId) void adapters.clearWatch(watchId);
-                reject(err);
+                const code = classifyGeolocationError(err);
+                if (code === 'LOCATION_PERMISSION_DENIED' || code === 'LOCATION_DISABLED') {
+                    settled = true;
+                    if (timer) clearTimeout(timer);
+                    if (watchId) void adapters.clearWatch(watchId);
+                    reject(err instanceof Error ? err : new Error(code));
+                }
             }
         }).then((id) => {
             watchId = id;
@@ -206,61 +264,137 @@ async function waitForWatchFix(
         }).catch((err) => {
             if (settled) return;
             settled = true;
-            clearTimeout(timer);
+            if (timer) clearTimeout(timer);
             reject(err);
+        });
+    });
+
+    return { promise, cancel };
+}
+
+async function raceLivePosition(
+    adapters: LocationAdapters,
+    opts: { getCurrentTimeoutMs: number; watchTimeoutMs: number; nativeTimeoutMs: number },
+): Promise<AcquiredPosition> {
+    const watch = startWatchFix(adapters, opts.watchTimeoutMs);
+
+    return new Promise<AcquiredPosition>((resolve, reject) => {
+        let settled = false;
+        let cellFallback: AcquiredPosition | null = null;
+
+        const finishGps = (position: AcquiredPosition) => {
+            if (settled) return;
+            settled = true;
+            watch.cancel();
+            resolve(position);
+        };
+
+        const holdOrFinish = (position: Position | AcquiredPosition) => {
+            if (settled) return;
+            const acquired = asAcquiredPosition(position);
+            if (acquired.source === 'gps') {
+                finishGps(acquired);
+                return;
+            }
+            cellFallback = acquired;
+        };
+
+        const failHard = (err: unknown) => {
+            if (settled) return;
+            const code = classifyGeolocationError(err);
+            if (code === 'LOCATION_PERMISSION_DENIED' || code === 'LOCATION_DISABLED') {
+                settled = true;
+                watch.cancel();
+                reject(err);
+            }
+        };
+
+        const pending: Array<Promise<unknown>> = [
+            watch.promise
+                .then((position) => holdOrFinish(withLocationSource(position, inferLocationSource(position))))
+                .catch(failHard),
+        ];
+        // Fused getCurrentPosition can return a cached or cell fix. Use it only
+        // to detect location-off / permission errors, never as the GPS winner.
+        void adapters.getCurrentPosition(liveOptions(opts.getCurrentTimeoutMs, 0))
+            .then(() => undefined)
+            .catch(failHard);
+        if (adapters.requestFreshFix) {
+            pending.push(
+                adapters.requestFreshFix(opts.nativeTimeoutMs)
+                    .then((position) => {
+                        if (!position) return;
+                        const acquired = asAcquiredPosition(position);
+                        if (acquired.source === 'gps') {
+                            holdOrFinish(acquired);
+                            return;
+                        }
+                        // Native already waited for GPS. Cell is the worst-case result.
+                        cellFallback = acquired;
+                        if (settled) return;
+                        settled = true;
+                        watch.cancel();
+                        resolve(acquired);
+                    })
+                    .catch(() => undefined),
+            );
+        }
+
+        void Promise.allSettled(pending).then(() => {
+            if (settled) return;
+            if (cellFallback) {
+                settled = true;
+                watch.cancel();
+                resolve(cellFallback);
+                return;
+            }
+            reject(new Error('LOCATION_TIMEOUT'));
         });
     });
 }
 
-async function getLivePosition(adapters: LocationAdapters, offline: boolean): Promise<Position> {
-    const timeoutMs = offline ? GEOLOCATION_TIMEOUT_OFFLINE_MS : GEOLOCATION_TIMEOUT_MS;
-    try {
-        return await adapters.getCurrentPosition(liveOptions(timeoutMs, FRESH_FIX_MAX_AGE_MS));
-    } catch (err) {
-        const code = classifyGeolocationError(err);
-        if (code === 'LOCATION_PERMISSION_DENIED' || code === 'LOCATION_DISABLED') {
-            throw err;
-        }
-        return waitForWatchFix(adapters, GEOLOCATION_WATCH_TIMEOUT_MS);
-    }
-}
-
 export async function acquireDevicePosition(
     adapters: LocationAdapters,
-    opts?: { promptIfDisabled?: boolean; offline?: boolean; now?: number },
-): Promise<Position> {
-    const now = opts?.now ?? Date.now();
+    opts?: AcquirePositionOptions,
+): Promise<AcquiredPosition> {
     const offline = opts?.offline ?? false;
     const promptIfDisabled = opts?.promptIfDisabled ?? false;
+    const getCurrentTimeoutMs = opts?.getCurrentTimeoutMs
+        ?? (offline ? 8_000 : GEOLOCATION_TIMEOUT_MS);
+    const watchTimeoutMs = opts?.watchTimeoutMs ?? GEOLOCATION_WATCH_TIMEOUT_MS;
+    const nativeTimeoutMs = opts?.nativeTimeoutMs ?? GEOLOCATION_GPS_WAIT_MS;
+
+    const emit = (position: AcquiredPosition) => {
+        if (position.source !== 'cell') persistLastGpsFix(position);
+        opts?.onFix?.(position);
+    };
 
     if (promptIfDisabled) {
         await adapters.ensureLocationEnabled();
     }
 
     try {
-        const live = await getLivePosition(adapters, offline);
-        persistLastGpsFix(live);
+        const live = await raceLivePosition(adapters, {
+            getCurrentTimeoutMs,
+            watchTimeoutMs,
+            nativeTimeoutMs,
+        });
+        emit(live);
         return live;
     } catch (err) {
         const code = classifyGeolocationError(err);
         if (isLocationOffError(code) && !promptIfDisabled) {
             const enabled = await adapters.ensureLocationEnabled();
             if (enabled) {
-                const live = await getLivePosition(adapters, offline);
-                persistLastGpsFix(live);
+                const live = await raceLivePosition(adapters, {
+                    getCurrentTimeoutMs,
+                    watchTimeoutMs,
+                    nativeTimeoutMs,
+                });
+                emit(live);
                 return live;
             }
         }
-
-        const native = await adapters.getNativeLastKnown();
-        if (native && isFixFresh(native, DEFAULT_LAST_GPS_MAX_AGE_MS, now)) {
-            persistLastGpsFix(native);
-            return native;
-        }
-
-        const cached = readLastGpsFix(DEFAULT_LAST_GPS_MAX_AGE_MS, now);
-        if (cached) return cached;
-
         throw err;
     }
 }
