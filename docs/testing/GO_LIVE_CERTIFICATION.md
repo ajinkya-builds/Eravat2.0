@@ -32,19 +32,83 @@ npm run test:android:certify       # emulator only
 
 | Suite | Script | What it proves |
 |-------|--------|----------------|
-| UAT OTP auth | `verify-uat-otp-login.mjs` | All 5 roles can log in with test OTP |
-| Notification + SMS queue | `staging-notification-alerts-e2e.mjs` | Chain-of-command, conflict alerts, `sms_queued` villager events, RLS |
+| UAT OTP auth | `verify-uat-otp-login.mjs` | Core UAT roles can log in with test OTP |
+| Notification + SMS/call queue | `staging-notification-alerts-e2e.mjs` | Chain-of-command, 5 km villager `sms_queued` + `villager_call_events` queued, no-GPS skip, RPC |
+| Alert radius proximity | `staging-alert-radius-proximity-e2e.mjs` | Admin proximity in/out/boundary, bounds 1–1000 km, geo-role isolation |
 | Data pipeline | `prod-readiness-pipeline.mjs` | Volunteer report → DFO/BG notifications |
-| Core UI E2E | `staging-e2e-playwright.mjs` | Login, field routes, admin pages, session |
-| Role matrix | `staging-role-matrix-e2e.mjs` | Every role × field/admin route access |
+| Core UI E2E | `staging-e2e-playwright.mjs` | Login, field routes, admin pages (incl. Observations **Calls** modal), session |
+| Role matrix | `staging-role-matrix-e2e.mjs` | admin, ccf, dfo, range_officer, beat_guard, volunteer, rrt, biologist, veterinarian × field/admin routes |
 | Deep journeys | `staging-deep-journeys-e2e.mjs` | Full report submit, offline queue, damage wizard, villager onboard |
 | Android emulator | `emulator-certification.mjs` | APK install, CDP WebView E2E, offline via adb |
+| Emulator alert radius | `emulator-alert-radius-e2e.mjs` | WebView bell UI for proximity radius (with `--emulator`) |
 | Android offline/GPS | `emulator-offline-location.mjs` | Offline cold start timing, first-try GPS, location-off banner |
 | Review feedback | `review-feedback-e2e.mjs` | PDF review checklist items |
-| Performance | `staging-perf-full-smoke.mjs` | TTI, page loads, API latency |
+| Performance | `staging-perf-full-smoke.mjs` | TTI, page loads (incl. `/admin/observations`, `/admin/support`), API latency |
 | Load | `staging-load-50.mjs` | 50 concurrent REST sessions |
+| Report trigger stress | `staging-report-trigger-stress.mjs` | Bounded parallel report inserts → trigger fan-out within budget |
 
 Playwright specs (`npm run test:e2e`) run against dev server with password-seeded users — use for PR CI; staging certification uses OTP UAT manifest above.
+
+Extended roles (`ccf`, `rrt`, `biologist`, `veterinarian`) are exercised in the role matrix by temporarily reassigning spare UAT beat_guard phones (OTP already enrolled), then restoring profiles.
+
+### Android emulator stability (required for APK cert)
+
+API 36 + Capacitor WebView + Maestro will thrash a **2 GB** AVD (system_server / Activity Manager dies, blank WebView, CDP empty replies).
+
+| Setting | Minimum |
+|---------|---------|
+| AVD RAM (`hw.ramSize`) | **4096** |
+| VM heap (`vm.heapSize`) | **512** |
+| GPU | `-gpu auto` (avoid `swiftshader_indirect` for long suites) |
+| Boot | cold boot after RAM changes (`-no-snapshot-load`) |
+
+Fallback AVD name: `Medium_Phone_API_36.0` when `Eravat_E2E` is missing. Do **not** `adb kill-server` mid-suite — it leaves the emulator without an Activity Manager.
+
+**Maestro /report notes:** Bottom nav is hidden on `/report` — exit via `Close and go back` then `Discard & Exit`. WebView a11y often concatenates title+description (match `.*Nearby Sightings.*`, `.*Onboard Villager.*`). Do not assert home with bare `Add Sighting` (it also appears as the report header). Role-matrix temp swaps must not leave Jamudi `7415740750` as `ccf`.
+
+### Older API compat + perf (no FunTouch device)
+
+Stock Google AVDs cannot recreate Vivo FunTouch. Until a USB Vivo is available, use the emulator matrix.
+
+**WebView gate:** Capacitor `minWebViewVersion` is **69** (matches Vite modern target). Older AVD System WebViews that cannot run ESM must show `outdated-webview.html` — that is a **PASS** for gate coverage. Full login/report CDP only on APIs whose WebView is new enough (typically **31+** / API 36 baseline).
+
+```bash
+cd eravat-app
+npm run test:android-compat:avds   # install images + create Eravat_API24/27/28/31/33/35
+npm run test:android-compat        # cold-start + WebView gate → generated/android-compat/results.json
+# API 36 baseline, then perf on API 31 (+ 35 if present):
+node scripts/emulator-perf-smoke.mjs --avd Medium_Phone_API_36.0 --write-baseline
+node scripts/emulator-perf-smoke.mjs --avd Eravat_API31
+```
+
+| AVD | API | Expected |
+|-----|-----|----------|
+| Eravat_API24 | 24 | Outdated-WebView gate (or skip if image missing) |
+| Eravat_API27 | 27 | Outdated-WebView gate (8.1 / UAT Vivo 1820 proxy) |
+| Eravat_API28 | 28 | Gate or full UI if WebView ≥ 69 |
+| Eravat_API31 | 31 | Full cold-start + optional CDP perf |
+| Eravat_API35 | 35 | Full cold-start |
+| Medium_Phone_API_36.0 | 36 | Full Maestro/CDP cert baseline |
+
+Cold-start budgets (`am start` → process + usable screencap): API ≤28 ≤12s, API ≥31 ≤8s, API 36 ≤6s. CDP perf absolute caps: login 25s, report-open 15s; ≤2× API 36 baseline when provided.
+
+**Host RAM note:** Full API 36 CDP (19) + alert-radius + Maestro in one sitting is heavy on ≤16 GB Macs (AVD ~4 GB + WebView). Prefer: (1) compat matrix + API 31/35 CDP perf, (2) Maestro suite alone on API 36, (3) defer full `emulator-e2e-playwright.mjs` when the host is under memory pressure. WebView 69 only changes the outdated gate — modern WebView behavior is covered by API 31/35 perf + Maestro.
+
+### FunTouch / Vivo field checklist (Layer 3 — deferred)
+
+UAT sheet models include Vivo T3 / T4x / Y400 / V70 (FunTouch). **Skipped this round** (no FunTouch/Vivo USB device available). Stock Google AVD PASS does **not** replace a later FunTouch pass when a phone is available.
+
+When a Vivo is available:
+
+- [ ] Install staging APK via USB (`adb install -r`)
+- [ ] Cold start to login / restored home feels acceptable (note ms if scrcpy timed)
+- [ ] OTP keyboard + Verify on FunTouch IME
+- [ ] Location / camera / notification permission prompts (OEM wording)
+- [ ] Report camera capture (not “Use test photo”)
+- [ ] FCM shade notification when secrets configured
+- [ ] Airplane offline queue → online sync
+- [ ] System Back / gesture exits report without trapping (Close → Discard if dirty)
+- [ ] No blank WebView after overnight background
 
 ---
 
@@ -187,7 +251,12 @@ Run automation: `node scripts/staging-notification-alerts-e2e.mjs`
 
 - [ ] `staging-perf-full-smoke.mjs` — all PASS
 - [ ] `staging-load-50.mjs` — no error spike
+- [ ] `staging-report-trigger-stress.mjs` — report insert → trigger fan-out within budget; cleanup OK
+- [ ] `staging-alert-radius-proximity-e2e.mjs` — proximity matrix PASS
 - [ ] APK cold start acceptable on target devices (T3/T4/A15 from UAT sheet)
+- [ ] `npm run test:android-compat` — Eravat_API* cold-start budgets PASS
+- [ ] `npm run test:android-perf` — API 27 + 31 login/report timings within caps (and ≤2× API 36 baseline)
+- [ ] FunTouch Layer 3 checklist (GO_LIVE § Older API / FunTouch) when a Vivo is USB-available
 - [ ] Offline cold start with a saved session reaches home in a few seconds (does not wait on Auth refresh)
 - [ ] `node scripts/emulator-offline-location.mjs` — offline open + GPS on emulator
 

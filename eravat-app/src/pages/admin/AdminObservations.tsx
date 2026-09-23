@@ -315,6 +315,7 @@ export default function AdminObservations() {
                                                 <div className="flex items-center gap-1">
                                                     <button
                                                         type="button"
+                                                        data-testid="admin-obs-view-calls"
                                                         onClick={() => void openCallsForReport(obs)}
                                                         title={t('admin.obs.viewCalls')}
                                                         className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border border-border hover:bg-muted text-muted-foreground"

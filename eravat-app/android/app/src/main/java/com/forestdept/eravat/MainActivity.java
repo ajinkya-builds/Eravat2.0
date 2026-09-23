@@ -20,6 +20,8 @@ public class MainActivity extends BridgeActivity {
     private static final String PREFS = "eravat_native_prefs";
     private static final String KEY_LAST_VERSION_CODE = "last_version_code";
 
+    private static boolean pinCleanupRanThisProcess = false;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AppUpdatePlugin.class);
@@ -34,7 +36,12 @@ public class MainActivity extends BridgeActivity {
     public void onStart() {
         super.onStart();
         configureWebView();
-        injectLegacyPinCleanup();
+        // Once per process only — running SW/cache wipes on every onStart races WebView
+        // load and shows blank/slow screens under emulator memory pressure.
+        if (!pinCleanupRanThisProcess) {
+            pinCleanupRanThisProcess = true;
+            injectLegacyPinCleanup();
+        }
     }
 
     @Override
@@ -109,6 +116,8 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void configureWebView() {
+        // Required for emulator CDP E2E (Chrome DevTools Protocol against WebView)
+        WebView.setWebContentsDebuggingEnabled(true);
         if (getBridge() == null) {
             return;
         }

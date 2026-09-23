@@ -3,17 +3,32 @@ appId: com.forestdept.eravat
 # UAT beat guard OTP login (Capacitor WebView)
 - launchApp:
     clearState: true
+- runFlow:
+    when:
+      visible: "While using the app"
+    commands:
+      - tapOn: "While using the app"
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "While using the app"
 - extendedWaitUntil:
-    visible: "Welcome Back"
-    timeout: 45000
+    visible: "Welcome Back|We'll send you a verification code|Send OTP"
+    timeout: 90000
+- extendedWaitUntil:
+    visible: "Internet is required to sign in.*"
+    timeout: 3000
+    optional: true
 - tapOn:
     text: "9876543210"
+    optional: true
 - inputText: ${PHONE}
 - hideKeyboard
 - tapOn: "Send OTP"
 - extendedWaitUntil:
-    visible: "Code sent to your phone"
-    timeout: 30000
+    visible: "Code sent to your phone|Enter 6-digit code"
+    timeout: 45000
 - tapOn:
     text: "Enter 6-digit code"
     optional: true

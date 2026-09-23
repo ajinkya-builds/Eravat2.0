@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { FIELD_STAFF , appPath } from './fixtures/test-constants';
 import { ensureOnPage } from './fixtures/auth.fixture';
 
 test.describe('Help & Support Module', () => {
@@ -39,5 +38,15 @@ test.describe('Help & Support Module', () => {
             await backBtn.click();
             await expect(page).not.toHaveURL(/.*\/help/);
         }
+    });
+
+    test('HELP-006: Field user can file a support note', async ({ page }) => {
+        await page.getByTestId('help-report-issue').click();
+        await expect(page.getByTestId('report-issue-form')).toBeVisible({ timeout: 5_000 });
+        await page.getByTestId('report-issue-notes').fill('E2E cert: OTP screen felt slow on staging run');
+        await page.getByTestId('report-issue-submit').click();
+        await expect(
+            page.getByText(/Thanks|received your note|queued|saved/i).first(),
+        ).toBeVisible({ timeout: 15_000 });
     });
 });

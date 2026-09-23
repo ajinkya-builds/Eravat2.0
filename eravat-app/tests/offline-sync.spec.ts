@@ -9,7 +9,6 @@ test.describe('Offline & Sync Module', () => {
     });
 
     test('SYNC-001: App loads after login', async ({ page }) => {
-        // Verify dashboard loaded — basic online connectivity
         await expect(page.locator('text=Add Sighting')).toBeVisible();
     });
 
@@ -29,44 +28,96 @@ test.describe('Offline & Sync Module', () => {
         await page.route('**/rest/v1/**', route => route.abort());
         await page.goto(appPath('/'));
 
-        // Dashboard should show cached data or graceful empty state
         await page.waitForTimeout(2_000);
-        // Page should not crash
         const bodyText = await page.locator('body').textContent();
         expect(bodyText?.length).toBeGreaterThan(0);
     });
 
     test('SYNC-005: History page shows cached data offline', async ({ page }) => {
-        // First load history online to cache
         await page.goto(appPath('/history'));
         await page.waitForLoadState('domcontentloaded');
 
-        // Go offline
         await page.route('**/rest/v1/**', route => route.abort());
         await page.reload();
 
-        // Should show cached data or graceful empty state
         await page.waitForTimeout(2_000);
         const bodyText = await page.locator('body').textContent();
         expect(bodyText?.length).toBeGreaterThan(0);
     });
 
     test('SYNC-006: Re-sync when coming back online', async ({ page }) => {
-        // Block API
         await page.route('**/rest/v1/**', route => route.abort());
         await page.goto(appPath('/'));
         await page.waitForTimeout(1_000);
 
-        // Unblock API (come back online)
         await page.unroute('**/rest/v1/**');
         await page.reload();
         await page.waitForLoadState('domcontentloaded');
 
-        // Dashboard should load with fresh data
         await expect(page.locator('text=Add Sighting')).toBeVisible();
     });
 
-    test.skip('SYNC-007: Camera + offline combo', () => {
+    test('SYNC-007: Offline queue writes a pending Dexie report row', async ({ page }) => {
+        await ensureOnPage(page, '/');
+        // Use the app's EravatDB (opened by the running bundle) via IndexedDB.
+        const queued = await page.evaluate(async () => {
+            const id = `e2e-offline-${Date.now()}`;
+            return new Promise((resolve) => {
+                const open = indexedDB.open('EravatDB');
+                open.onerror = () => resolve({ ok: false, reason: 'open failed' });
+                open.onsuccess = () => {
+                    const idb = open.result;
+                    if (![...idb.objectStoreNames].includes('reports')) {
+                        resolve({ ok: false, reason: 'no reports store' });
+                        return;
+                    }
+                    const tx = idb.transaction('reports', 'readwrite');
+                    const store = tx.objectStore('reports');
+                    store.put({
+                        id,
+                        sync_status: 'pending',
+                        device_timestamp: new Date().toISOString(),
+                        notes: 'e2e offline queue probe',
+                        status: 'pending',
+                        user_id: null,
+                        latitude: 23.75,
+                        longitude: 80.93,
+                        observation_type: 'direct',
+                        male_count: 1,
+                        female_count: 0,
+                        calf_count: 0,
+                        unknown_count: 0,
+                        total_elephants: 1,
+                        indirect_sign_details: [],
+                        conflict_loss_details: [],
+                        loss_type: [],
+                        photo_url: null,
+                        obs_id: null,
+                        beat_id: null,
+                        division_id: null,
+                        range_id: null,
+                        activity_date: '2026-09-22',
+                        activity_time: '10:00',
+                        compass_bearing: null,
+                    });
+                    tx.oncomplete = () => {
+                        const tx2 = idb.transaction('reports', 'readwrite');
+                        const getReq = tx2.objectStore('reports').get(id);
+                        getReq.onsuccess = () => {
+                            const row = getReq.result;
+                            tx2.objectStore('reports').delete(id);
+                            resolve({ ok: !!row && row.sync_status === 'pending', id });
+                        };
+                        getReq.onerror = () => resolve({ ok: false, reason: 'get failed' });
+                    };
+                    tx.onerror = () => resolve({ ok: false, reason: 'put failed' });
+                };
+            });
+        });
+        expect(queued.ok, JSON.stringify(queued)).toBeTruthy();
+    });
+
+    test.skip('SYNC-008: Camera + offline combo', () => {
         // Requires Capacitor Camera API + offline simulation
     });
 });

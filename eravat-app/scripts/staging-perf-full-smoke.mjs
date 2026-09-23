@@ -279,6 +279,26 @@ await check('Admin villagers tracker', async () => {
   await shot(adminPage, '16b-admin-villagers');
 });
 
+await check('Admin observations page', async () => {
+  const t0 = Date.now();
+  await adminPage.goto(`${BASE}/admin/observations`, { waitUntil: 'domcontentloaded' });
+  await adminPage.waitForTimeout(4000);
+  const body = await adminPage.content();
+  if (!/observation|report|sighting/i.test(body)) throw new Error('Admin observations missing');
+  mark('admin_observations_ms', Date.now() - t0);
+  await shot(adminPage, '16c-admin-observations');
+});
+
+await check('Admin support inbox', async () => {
+  const t0 = Date.now();
+  await adminPage.goto(`${BASE}/admin/support`, { waitUntil: 'domcontentloaded' });
+  await adminPage.waitForTimeout(4000);
+  const body = await adminPage.content();
+  if (!/support|inbox|issue|note/i.test(body)) throw new Error('Admin support missing');
+  mark('admin_support_ms', Date.now() - t0);
+  await shot(adminPage, '16d-admin-support');
+});
+
 await check('Admin map (Leaflet)', async () => {
   await adminPage.goto(`${BASE}/admin/map`, { waitUntil: 'domcontentloaded' });
   await adminPage.locator('.leaflet-container').waitFor({ timeout: 30000 });

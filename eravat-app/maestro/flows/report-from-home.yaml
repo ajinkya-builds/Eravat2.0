@@ -1,0 +1,32 @@
+appId: com.forestdept.eravat
+---
+# Assumes already logged in (used by suite-certification after login-beat-guard)
+# WebView a11y concatenates title+desc (e.g. "Nearby Sightings Sightings within…")
+- extendedWaitUntil:
+    visible: ".*Nearby Sightings.*|.*What would you like.*"
+    timeout: 30000
+- tapOn: ".*Add Sighting.*"
+- extendedWaitUntil:
+    visible: "Use test photo"
+    timeout: 20000
+- tapOn: "Use test photo"
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Continue|Back|Add Sighting"
+    timeout: 20000
+- tapOn:
+    point: "50%,38%"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 10000
+- takeScreenshot: report-observation-selected
+# /report hides bottom nav — exit via header X (aria-label), then discard modal
+- tapOn: "Close and go back"
+- extendedWaitUntil:
+    visible: "Discard & Exit|Unsaved Changes|Keep Editing"
+    timeout: 12000
+- tapOn: "Discard & Exit"
+- extendedWaitUntil:
+    visible: ".*Nearby Sightings.*|.*Onboard Villager.*"
+    timeout: 25000

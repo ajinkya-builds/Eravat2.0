@@ -85,7 +85,10 @@ export function AdminReportCallsModal({
     if (!open || !reportId) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            data-testid="admin-report-calls-modal"
+        >
             <div className="bg-card border border-border rounded-2xl w-full max-w-3xl max-h-[85vh] shadow-2xl flex flex-col overflow-hidden">
                 <div className="flex items-start justify-between gap-3 p-5 border-b border-border">
                     <div className="flex items-start gap-3 min-w-0">

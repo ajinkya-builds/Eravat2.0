@@ -28,6 +28,7 @@ const withEmulator = args.has('--emulator');
 const SUITES_FULL = [
   { id: 'verify-uat-otp', script: 'verify-uat-otp-login.mjs', needsPreview: false },
   { id: 'notification-alerts', script: 'staging-notification-alerts-e2e.mjs', needsPreview: false },
+  { id: 'alert-radius-proximity', script: 'staging-alert-radius-proximity-e2e.mjs', needsPreview: false },
   { id: 'prod-readiness-pipeline', script: 'prod-readiness-pipeline.mjs', needsPreview: false },
   { id: 'staging-e2e', script: 'staging-e2e-playwright.mjs', needsPreview: true },
   { id: 'role-matrix', script: 'staging-role-matrix-e2e.mjs', needsPreview: true },
@@ -36,10 +37,18 @@ const SUITES_FULL = [
   { id: 'review-feedback', script: 'review-feedback-e2e.mjs', needsPreview: true },
   { id: 'perf-smoke', script: 'staging-perf-full-smoke.mjs', needsPreview: true },
   { id: 'load-50', script: 'staging-load-50.mjs', needsPreview: false },
+  { id: 'report-trigger-stress', script: 'staging-report-trigger-stress.mjs', needsPreview: false },
 ];
 
 const SUITES_QUICK = SUITES_FULL.filter((s) =>
-  ['verify-uat-otp', 'notification-alerts', 'prod-readiness-pipeline', 'staging-e2e', 'role-matrix'].includes(s.id),
+  [
+    'verify-uat-otp',
+    'notification-alerts',
+    'alert-radius-proximity',
+    'prod-readiness-pipeline',
+    'staging-e2e',
+    'role-matrix',
+  ].includes(s.id),
 );
 
 const suites = quick ? SUITES_QUICK : SUITES_FULL;
@@ -89,6 +98,7 @@ function readSuiteResults(id) {
   const paths = {
     'verify-uat-otp': null,
     'notification-alerts': join(OUT, '../notification-alerts-e2e/results.json'),
+    'alert-radius-proximity': join(OUT, '../alert-radius-proximity-e2e/results.json'),
     'prod-readiness-pipeline': join(OUT, '../prod-readiness-e2e/pipeline.json'),
     'staging-e2e': join(OUT, '../e2e-playwright/results.json'),
     'role-matrix': join(OUT, '../e2e-role-matrix/results.json'),
@@ -97,7 +107,9 @@ function readSuiteResults(id) {
     'review-feedback': join(OUT, '../review-feedback-e2e/results.json'),
     'perf-smoke': join(OUT, '../e2e-perf-full/results.json'),
     'load-50': join(OUT, '../load-50/results.json'),
+    'report-trigger-stress': join(OUT, '../report-trigger-stress/results.json'),
     'emulator-certification': join(OUT, '../emulator-certification/results.json'),
+    'emulator-alert-radius': join(OUT, '../emulator-alert-radius-e2e/results.json'),
     'maestro-certification': join(OUT, '../maestro-certification/results.json'),
   };
   const p = paths[id];
@@ -146,8 +158,56 @@ async function main() {
   const suiteResults = [];
 
   for (const suite of suites) {
+    if (suite.needsPreview) {
+      try {
+        await waitForUrl(PREVIEW_URL, 5000);
+      } catch {
+        console.log(`Preview down — restarting on ${PREVIEW_URL}…`);
+        if (previewProc) {
+          try {
+            previewProc.kill();
+          } catch {
+            /* ignore */
+          }
+          previewProc = null;
+        }
+        previewProc = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort', '--host', '127.0.0.1'], {
+          cwd: ROOT,
+          env: { ...process.env, VITE_BASE_PATH: '/' },
+          stdio: 'ignore',
+          detached: false,
+        });
+        await waitForUrl(PREVIEW_URL);
+        // Give vite a beat to stabilize after listen
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
     console.log(`\n--- ${suite.id} ---`);
-    const run = await runNode(suite.script);
+    let run = await runNode(suite.script);
+    // One retry for preview suites when the server died mid-run
+    if (run.code !== 0 && suite.needsPreview) {
+      console.log(`Retrying ${suite.id} after preview health check…`);
+      try {
+        await waitForUrl(PREVIEW_URL, 3000);
+      } catch {
+        if (previewProc) {
+          try {
+            previewProc.kill();
+          } catch {
+            /* ignore */
+          }
+        }
+        previewProc = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort', '--host', '127.0.0.1'], {
+          cwd: ROOT,
+          env: { ...process.env, VITE_BASE_PATH: '/' },
+          stdio: 'ignore',
+          detached: false,
+        });
+        await waitForUrl(PREVIEW_URL);
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      run = await runNode(suite.script);
+    }
     const artifact = readSuiteResults(suite.id);
     suiteResults.push({
       id: suite.id,
@@ -165,6 +225,14 @@ async function main() {
       exitCode: run.code,
       ok: run.code === 0,
       artifact: readSuiteResults('emulator-certification'),
+    });
+    console.log('\n--- emulator-alert-radius ---');
+    const alertRadius = await runNode('emulator-alert-radius-e2e.mjs');
+    suiteResults.push({
+      id: 'emulator-alert-radius',
+      exitCode: alertRadius.code,
+      ok: alertRadius.code === 0,
+      artifact: readSuiteResults('emulator-alert-radius'),
     });
     console.log('\n--- maestro-certification ---');
     const maestro = await runNode('maestro-certification.mjs');

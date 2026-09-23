@@ -39,6 +39,9 @@ const E2E_FIELD = {
 
 const E2E_ADMIN = {
   phone: '9988775566',
+  first_name: 'E2E',
+  last_name: 'Admin',
+  role: 'admin',
 };
 
 async function getGeoIds() {
@@ -126,13 +129,35 @@ async function upsertBeatGuard(geo) {
   console.log('[field] Created and verified OK');
 }
 
-async function syncAdminProfile() {
-  const user = await findUserByPhone(E2E_ADMIN.phone);
-  if (!user) throw new Error('[admin] No profile found for E2E admin phone');
+async function upsertAdmin() {
   const phoneE164 = `+91${E2E_ADMIN.phone}`;
+  const phoneGoTrue = `91${E2E_ADMIN.phone}`;
+  let user = await findUserByPhone(E2E_ADMIN.phone);
+
+  if (user) {
+    console.log(`[admin] Existing user ${user.id} (profile sync)`);
+  } else {
+    const { data, error } = await admin.auth.admin.createUser({
+      phone: phoneGoTrue,
+      phone_confirm: true,
+      user_metadata: {
+        first_name: E2E_ADMIN.first_name,
+        last_name: E2E_ADMIN.last_name,
+        role: E2E_ADMIN.role,
+        latitude: 22.9734,
+        longitude: 78.6568,
+      },
+    });
+    if (error) throw error;
+    user = data.user;
+    console.log(`[admin] Created user ${user.id}`);
+  }
+
   const { error } = await admin.from('profiles').upsert({
     id: user.id,
-    role: 'admin',
+    role: E2E_ADMIN.role,
+    first_name: E2E_ADMIN.first_name,
+    last_name: E2E_ADMIN.last_name,
     phone: phoneE164,
     is_active: true,
     latitude: 22.9734,
@@ -145,7 +170,7 @@ async function syncAdminProfile() {
 }
 
 async function verifyAdmin() {
-  await syncAdminProfile();
+  await upsertAdmin();
   const user = await findUserByPhone(E2E_ADMIN.phone);
   if (!user) throw new Error('[admin] E2E admin user record missing in auth.users');
   console.log('[admin] Admin verified OK');
@@ -157,6 +182,9 @@ async function main() {
   await upsertBeatGuard(geo);
   await verifyAdmin();
   console.log('E2E seed complete.');
+  console.log('Ensure Dashboard → Auth → Phone → Test OTP includes:');
+  console.log(`  91${E2E_FIELD.phone} = 123456`);
+  console.log(`  91${E2E_ADMIN.phone} = 123456`);
 }
 
 main().catch((e) => {

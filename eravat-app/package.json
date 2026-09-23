@@ -1,7 +1,7 @@
 {
   "name": "eravat-app",
   "private": true,
-  "version": "2.1.8",
+  "version": "2.1.9",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,8 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:android-compat": "bash scripts/android-compat-smoke.sh",
+    "test:android-compat:avds": "bash scripts/create-android-compat-avds.sh",
+    "test:android-perf": "node scripts/emulator-perf-smoke.mjs",
     "build:android:staging": "node scripts/sync-version.mjs && node scripts/build-android-staging.mjs",
     "test:e2e": "npx playwright test",
     "test:notifications": "node scripts/test-notifications-integration.mjs",
@@ -28,6 +30,8 @@
     "test:push-pipeline": "node scripts/staging-push-pipeline-e2e.mjs",
     "test:certify:quick": "node scripts/go-live-certification.mjs --quick",
     "test:staging:notifications": "node scripts/staging-notification-alerts-e2e.mjs",
+    "test:staging:stress": "node scripts/staging-report-trigger-stress.mjs",
+    "test:staging:alert-radius": "node scripts/staging-alert-radius-proximity-e2e.mjs",
     "publish:staging-apk": "node scripts/publish-staging-apk.mjs",
     "version:sync": "node scripts/sync-version.mjs",
     "version:bump": "node scripts/bump-version.mjs",

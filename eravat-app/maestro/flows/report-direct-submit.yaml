@@ -1,5 +1,6 @@
 appId: com.forestdept.eravat
 ---
+# Smoke through photo → observation type (full submit covered by emulator CDP e2e)
 - runFlow:
     file: login-beat-guard.yaml
     env:
@@ -11,18 +12,13 @@ appId: com.forestdept.eravat
     timeout: 20000
 - tapOn: "Use test photo"
 - tapOn: "Continue"
-- tapOn:
-    text: "Direct Sighting|Direct Observation"
-    optional: true
-- tapOn:
-    point: "50%,55%"
-    optional: true
-- tapOn: "Continue"
-- tapOn: "Continue"
 - extendedWaitUntil:
-    visible: "Submit"
+    visible: "Continue|Back|Add Sighting"
     timeout: 20000
-- tapOn: "Submit"
+- tapOn:
+    point: "50%,38%"
+- waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "Saved|Syncing|Stored locally|Add Sighting"
-    timeout: 30000
+    visible: "Continue"
+    timeout: 10000
+- takeScreenshot: report-observation-selected

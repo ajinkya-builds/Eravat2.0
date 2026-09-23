@@ -5,7 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Eravat',
   webDir: 'dist',
   android: {
-    minWebViewVersion: 55,
+    // Chrome 61+ for native ESM; match Vite modernTargets (chrome >= 69).
+    minWebViewVersion: 69,
     useLegacyBridge: true,
     backgroundColor: '#ffffff',
   },

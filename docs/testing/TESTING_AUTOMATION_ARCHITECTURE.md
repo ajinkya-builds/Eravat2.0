@@ -52,22 +52,24 @@ npm run test:android:certify
 npm run test:certify:emulator
 
 # Layer 2 — all API levels (compat smoke)
+npm run test:android-compat:avds   # create Eravat_API* if missing
 npm run test:android-compat
+npm run test:android-perf          # CDP login+report timings on API 27 + 31
 ```
 
 **Prerequisites**
 
 - UAT seed: `node scripts/seed-uat-testers-from-sheet.mjs`
-- Android SDK + AVDs: `Eravat_E2E`, `Eravat_API24`…`API35` (already on this machine)
+- Android SDK + cmdline-tools (`sdkmanager`). Create compat AVDs with `npm run test:android-compat:avds` (API **24 / 27 / 28 / 31 / 33 / 35**). They are **not** pre-installed; primary cert AVD is `Medium_Phone_API_36.0` (or `Eravat_E2E` when present).
 - Staging test photo: `VITE_APP_ENV=staging` shows **Use test photo** on report step (no camera needed)
 
 ## What each layer catches
 
 **Layer 1** validates business logic, RBAC, Command Center, notifications, report wizard, Dexie offline queue (simulated), and villager RPCs against live staging Supabase.
 
-**Layer 2** validates Capacitor WebView, APK install, cold start, session restore, adb network toggles, and staging bundle embedded in the APK. Uses Chrome DevTools Protocol on the WebView (`emulator-e2e-playwright.mjs`).
+**Layer 2** validates Capacitor WebView, APK install, cold start, session restore, adb network toggles, and staging bundle embedded in the APK. Uses Chrome DevTools Protocol on the WebView (`emulator-e2e-playwright.mjs`). Compat smoke + `emulator-perf-smoke.mjs` cover older APIs; full Maestro stays on API 36. Capacitor `minWebViewVersion` is **69** — older System WebViews must show `outdated-webview.html` (compat treats that as PASS).
 
-**Layer 3** is still required for: real camera, FCM delivery, Twilio OTP in prod, and field UX on Vivo T3/T4/Samsung A15 from the UAT sheet.
+**Layer 3** is still required for: real camera, FCM delivery, Twilio OTP in prod, and field UX on **Vivo FunTouch** (T3/T4/Y400/V70) and Samsung A15 from the UAT sheet. Stock Google AVDs do not emulate FunTouch OEM skins.
 
 ## Tooling installer
 

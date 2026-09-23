@@ -1,0 +1,26 @@
+appId: com.forestdept.eravat
+---
+# Assumes already logged in and on field home
+# WebView a11y: "Onboard Villager Alert recipient, no login"
+- extendedWaitUntil:
+    visible: ".*Nearby Sightings.*|.*Onboard Villager.*"
+    timeout: 30000
+- scrollUntilVisible:
+    element: ".*Onboard Villager.*"
+    direction: DOWN
+    timeout: 20000
+    visibilityPercentage: 40
+    centerElement: true
+- tapOn: ".*Onboard Villager.*"
+- extendedWaitUntil:
+    visible: "Register|Full name|Name|Village|9876543210|Onboard|Division|Range|Alert recipient"
+    timeout: 30000
+- takeScreenshot: villager-onboard-form
+# Bottom nav Home (leftmost tab)
+- tapOn:
+    point: "12%,95%"
+    optional: true
+- extendedWaitUntil:
+    visible: ".*Nearby Sightings.*|.*Add Sighting.*"
+    timeout: 20000
+    optional: true

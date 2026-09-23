@@ -85,15 +85,48 @@ async function apiSession(phone, otp) {
       auth: { persistSession: false },
     }),
     userId: data.session.user.id,
+    session: data.session,
   };
 }
 
 function adb(...args) {
-  return execSync(['adb', ...args].join(' '), { encoding: 'utf8' }).trim();
+  try {
+    return execSync(['adb', ...args].join(' '), { encoding: 'utf8' }).trim();
+  } catch (e) {
+    if (args.includes('pidof')) return '';
+    throw e;
+  }
 }
 
 function sleep(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function ensureNetworkAndPermissions() {
+  for (const args of [
+    ['shell', 'cmd', 'connectivity', 'airplane-mode', 'disable'],
+    ['shell', 'settings', 'put', 'global', 'airplane_mode_on', '0'],
+    ['shell', 'svc', 'wifi', 'enable'],
+    ['shell', 'svc', 'data', 'enable'],
+  ]) {
+    try {
+      adb(...args);
+    } catch {
+      /* best effort */
+    }
+  }
+  for (const perm of [
+    'android.permission.ACCESS_FINE_LOCATION',
+    'android.permission.ACCESS_COARSE_LOCATION',
+    'android.permission.POST_NOTIFICATIONS',
+    'android.permission.CAMERA',
+  ]) {
+    try {
+      adb('shell', 'pm', 'grant', PKG, perm);
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 const results = [];
@@ -109,32 +142,50 @@ async function check(name, fn) {
 }
 
 function launchApp() {
-  adb('shell', 'am', 'force-stop', PKG);
-  sleep(800);
   try {
-    adb('shell', 'pm', 'grant', PKG, 'android.permission.ACCESS_FINE_LOCATION');
-    adb('shell', 'pm', 'grant', PKG, 'android.permission.ACCESS_COARSE_LOCATION');
+    adb('shell', 'am', 'force-stop', PKG);
   } catch {
     /* ignore */
   }
+  sleep(800);
+  ensureNetworkAndPermissions();
   adb('shell', 'am', 'start', '-n', `${PKG}/.MainActivity`);
-  sleep(4000);
+  sleep(8000);
 }
 
-function forwardDevtools() {
-  const pid = adb('shell', 'pidof', PKG).replace(/\r/g, '');
-  if (!pid) throw new Error('Eravat process not running');
-  try {
-    adb('forward', '--remove-all');
-  } catch {
-    /* ignore */
+function forwardDevtools(retries = 8) {
+  let lastErr;
+  for (let i = 0; i < retries; i++) {
+    try {
+      let pid = adb('shell', 'pidof', PKG).replace(/\r/g, '');
+      if (!pid) {
+        launchApp();
+        pid = adb('shell', 'pidof', PKG).replace(/\r/g, '');
+      }
+      if (!pid) throw new Error('Eravat process not running');
+      try {
+        adb('forward', '--remove-all');
+      } catch {
+        /* ignore */
+      }
+      adb('forward', 'tcp:9222', `localabstract:webview_devtools_remote_${pid}`);
+      sleep(2500);
+      const raw = execSync('curl -sS --max-time 5 http://127.0.0.1:9222/json/list', { encoding: 'utf8' });
+      if (!raw || !raw.trim()) throw new Error('Empty CDP json/list reply');
+      const list = JSON.parse(raw);
+      const target =
+        list.find((t) => t.type === 'page' && (t.url.includes('localhost') || t.url.includes('index'))) ||
+        list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
+      if (!target?.webSocketDebuggerUrl) throw new Error('No WebView page target found');
+      return target.webSocketDebuggerUrl;
+    } catch (e) {
+      lastErr = e;
+      console.log(`CDP forward attempt ${i + 1}/${retries} failed: ${e.message}`);
+      sleep(2000);
+      if (i === 2 || i === 5) launchApp();
+    }
   }
-  adb('forward', 'tcp:9222', `localabstract:webview_devtools_remote_${pid}`);
-  sleep(600);
-  const list = JSON.parse(execSync('curl -s http://127.0.0.1:9222/json/list', { encoding: 'utf8' }));
-  const target = list.find((t) => t.type === 'page' && (t.url.includes('localhost') || t.url.includes('index')));
-  if (!target?.webSocketDebuggerUrl) throw new Error('No WebView page target found');
-  return target.webSocketDebuggerUrl;
+  throw lastErr || new Error('CDP forward failed');
 }
 
 async function loginAs(page, phone, otp) {
@@ -186,6 +237,32 @@ async function loginAs(page, phone, otp) {
   await page.sleep(2000);
 }
 
+async function injectSession(page, session) {
+  const projectRef = new URL(url).hostname.split('.')[0];
+  const storageKey = `sb-${projectRef}-auth-token`;
+  await page.evaluate(
+    (key, sess) => {
+      for (const k of Object.keys(localStorage)) {
+        if (k.startsWith('sb-') || k.startsWith('eravat_') || k.includes('supabase')) {
+          localStorage.removeItem(k);
+        }
+      }
+      localStorage.setItem(key, JSON.stringify(sess));
+    },
+    storageKey,
+    session,
+  );
+  // Hard reload so AuthContext picks up the injected Supabase session
+  await page.goto('https://localhost/');
+  await page.evaluate(() => location.reload());
+  await page.sleep(2500);
+  await page.waitFor(
+    '!!(document.body && !/Loading\\.\\.\\./.test(document.body.innerText || "") && !location.pathname.includes("/login"))',
+    45000,
+  );
+  await page.sleep(1500);
+}
+
 mkdirSync(OUT, { recursive: true });
 
 const devices = adb('devices').split('\n').filter((l) => l.includes('device') && !l.includes('List'));
@@ -211,7 +288,10 @@ const ORIGIN = { lat: 23.7215773, lng: 81.0169492 };
 const BEAT = '452e9fe2-cae6-4dfa-8455-d65edf0198ad';
 const reportIds = [];
 
-const { client: adminSb, userId: adminId } = await apiSession(adminUat.phone_app, adminUat.otp);
+const { client: adminSb, userId: adminId, session: adminSession } = await apiSession(
+  adminUat.phone_app,
+  adminUat.otp,
+);
 const { client: reporterSb, userId: reporterId } = await apiSession(reporterUat.phone_app, reporterUat.otp);
 
 const { data: prevAdmin } = await adminSb
@@ -225,17 +305,25 @@ await adminSb
   .update({ latitude: ORIGIN.lat, longitude: ORIGIN.lng, notification_radius_km: 110 })
   .eq('id', adminId);
 
+ensureNetworkAndPermissions();
 launchApp();
 let page = await CdpPage.connect(forwardDevtools());
 
 await check('Admin login', async () => {
-  await loginAs(page, adminUat.phone_app, adminUat.otp);
+  // Inject API session — avoids burning a second OTP after apiSession above
+  await injectSession(page, adminSession);
   await page.screenshot(join(OUT, '01-home.png'));
+  const onApp = await page.evaluate(() => !location.pathname.includes('/login'));
+  if (!onApp) throw new Error('Admin session inject did not leave login');
 });
 
 await check('Settings shows alert radius slider', async () => {
   await page.goto('https://localhost/settings');
-  await page.sleep(2500);
+  await page.waitFor(
+    '!!(document.querySelector("#radius-slider") || /Alert radius|notification radius|km/i.test(document.body?.innerText || ""))',
+    30000,
+  );
+  await page.sleep(1500);
   await page.screenshot(join(OUT, '02-settings.png'));
   const hasSlider = await page.evaluate(() => !!document.querySelector('#radius-slider'));
   if (!hasSlider) {

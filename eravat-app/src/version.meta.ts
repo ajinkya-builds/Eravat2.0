@@ -1,13 +1,13 @@
 /** AUTO-GENERATED from ../version.json — run `npm run version:bump` or `npm run version:sync`. Do not edit by hand. */
 export const APP_VERSION_META = {
-  versionName: "2.1.8",
-  versionCode: 20108,
+  versionName: "2.1.9",
+  versionCode: 20109,
   channel: "staging",
-  releasedAt: "2026-09-21",
+  releasedAt: "2026-09-23",
   changes: [
-    "Open the app offline without the long Loading wait",
-    "GPS fills on first try instead of 2–3 refreshes",
-    "Ask to turn on location when the app starts",
-    "Retry GPS automatically after location is turned on"
+    "Require Android System WebView Chrome 69+ (clear update screen)",
+    "Older Android compat matrix and CDP perf smoke tooling",
+    "Maestro single-session certification suite",
+    "Expanded staging cert: alerts, roles, stress, Admin Calls"
   ],
 } as const;

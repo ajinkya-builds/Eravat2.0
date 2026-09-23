@@ -7,6 +7,14 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.9] — 2026-09-23 (versionCode 20109)
+
+- Require Android System WebView Chrome 69+ (clear update screen)
+- Older Android compat matrix and CDP perf smoke tooling
+- Maestro single-session certification suite
+- Expanded staging cert: alerts, roles, stress, Admin Calls
+
+---
 ## [2.1.8] — 2026-09-21 (versionCode 20108)
 
 - Open the app offline without the long Loading wait

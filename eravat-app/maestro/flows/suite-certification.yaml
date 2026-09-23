@@ -1,0 +1,14 @@
+appId: com.forestdept.eravat
+---
+# Single-session suite: one login, then home-based smokes (avoids clearState flake)
+- runFlow:
+    file: login-beat-guard.yaml
+    env:
+      PHONE: ${PHONE}
+      OTP: ${OTP}
+- runFlow:
+    file: report-from-home.yaml
+- runFlow:
+    file: villager-from-home.yaml
+- runFlow:
+    file: offline-from-home.yaml

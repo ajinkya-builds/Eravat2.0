@@ -82,11 +82,11 @@ define(['./workbox-5a5d9309'], (function (workbox) { 'use strict';
     "revision": "42ecf2ee9860d748455191013e160249"
   }, {
     "url": "index.html",
-    "revision": "0.gqb7pe5fm7g"
+    "revision": "0.kj2gf9hh9s"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
-    allowlist: [/^\/$/]
+    allowlist: [/^\/$/, /^\/index\.html$/, /^\/Eravat2\.0\//]
   }));
 
 }));

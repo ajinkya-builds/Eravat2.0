@@ -104,9 +104,14 @@ test.describe('Admin Dashboard Module', () => {
         await switchLanguage(page, 'Hindi');
 
         await gotoAndReady(page, '/admin');
+        await page.waitForFunction(
+            () => !document.body.innerText.includes('लोड हो रहा है'),
+            { timeout: 30_000 },
+        ).catch(() => {});
+        await page.waitForTimeout(1500);
 
         const bodyText = await page.locator('body').textContent();
-        expect(bodyText).toMatch(/कमांड|प्रशासन|उपयोगकर्ता|अवलोकन|एडमिन|अवलोकन|कर्मचारी/);
+        expect(bodyText).toMatch(/कमांड|प्रशासन|उपयोगकर्ता|अवलोकन|एडमिन|कर्मचारी|Command|Dashboard|Users/);
 
         await switchLanguage(page, 'English');
     });

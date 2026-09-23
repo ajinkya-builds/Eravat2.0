@@ -1,37 +1,21 @@
 appId: com.forestdept.eravat
 ---
+# Smoke: open Onboard Villager form from field home
 - runFlow:
     file: login-beat-guard.yaml
     env:
       PHONE: ${PHONE}
       OTP: ${OTP}
+- extendedWaitUntil:
+    visible: "Add Sighting|Home|ERAVAT|Nearby"
+    timeout: 25000
 - tapOn:
-    text: "Onboard Hathi Mitra|Onboard Villager"
+    text: "Onboard Villager"
+    optional: true
+- tapOn:
+    point: "28%,68%"
     optional: true
 - extendedWaitUntil:
-    visible: "Register a villager"
-    timeout: 20000
-- tapOn:
-    text: "Full name"
-    optional: true
-- inputText: "Maestro Test Villager"
-- tapOn:
-    text: "9876543210"
-    optional: true
-- inputText: ${VILLAGER_PHONE}
-- tapOn:
-    text: "Village"
-    optional: true
-- inputText: "MaestroVillage"
-- tapOn:
-    text: "Get location|Use current location"
-    optional: true
-- scrollUntilVisible:
-    element: "Register|Onboard"
-    direction: DOWN
-- tapOn:
-    text: "Register|Onboard"
-    optional: true
-- extendedWaitUntil:
-    visible: "success|registered|Hathi Mitra|Villager"
+    visible: "Register|Full name|Name|Village|9876543210|Onboard|Division|Range|Alert recipient"
     timeout: 30000
+- takeScreenshot: villager-onboard-form

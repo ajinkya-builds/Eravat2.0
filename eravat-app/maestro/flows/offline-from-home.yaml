@@ -1,14 +1,12 @@
 appId: com.forestdept.eravat
 ---
-# Offline smoke: airplane → report photo available (full offline path covered by CDP)
-- runFlow:
-    file: login-beat-guard.yaml
-    env:
-      PHONE: ${PHONE}
-      OTP: ${OTP}
+# Assumes already logged in on field home; toggles airplane for offline smoke
+- extendedWaitUntil:
+    visible: ".*Nearby Sightings.*|.*Add Sighting.*"
+    timeout: 20000
 - toggleAirplaneMode
 - extendedWaitUntil:
-    visible: "Add Sighting|Home|ERAVAT"
+    visible: ".*Add Sighting.*|.*Nearby.*|Offline|Online"
     timeout: 20000
 - tapOn: ".*Add Sighting.*"
 - extendedWaitUntil:
@@ -21,8 +19,15 @@ appId: com.forestdept.eravat
     visible: "Continue|Use test photo|Add Sighting"
     timeout: 15000
 - takeScreenshot: offline-report-photo
+# Exit report before restoring network (bottom nav hidden on /report)
+- tapOn:
+    text: "Close and go back"
+    optional: true
+- tapOn:
+    text: "Discard & Exit"
+    optional: true
 - toggleAirplaneMode
 - extendedWaitUntil:
-    visible: "Online|Add Sighting|Home|ERAVAT"
+    visible: "Online|.*Nearby Sightings.*|.*Add Sighting.*"
     timeout: 20000
     optional: true

@@ -228,6 +228,26 @@ await check('Admin observations', async () => {
   await shot(adminPage, '14-admin-observations');
 });
 
+await check('Admin observations Calls modal', async () => {
+  await adminPage.goto(`${BASE}/admin/observations`);
+  await adminPage.waitForTimeout(4000);
+  const callsBtn = adminPage.getByTestId('admin-obs-view-calls').first();
+  if ((await callsBtn.count()) === 0) {
+    // Empty table is acceptable — still prove the page is interactive
+    const body = await adminPage.content();
+    if (!/observation|report|sighting/i.test(body)) throw new Error('No observations and page broken');
+    return;
+  }
+  await callsBtn.click();
+  await adminPage.getByTestId('admin-report-calls-modal').waitFor({ timeout: 15000 });
+  const modalText = await adminPage.getByTestId('admin-report-calls-modal').innerText();
+  if (!/Call|Queued|Villager|No call|phone/i.test(modalText)) {
+    throw new Error(`Calls modal unexpected: ${modalText.slice(0, 200)}`);
+  }
+  await shot(adminPage, '14b-admin-calls-modal');
+  await adminPage.getByRole('button', { name: /Cancel|Close|रद्द/i }).first().click().catch(() => {});
+});
+
 await check('Admin map', async () => {
   await adminPage.goto(`${BASE}/admin/map`);
    await adminPage.locator('.leaflet-container').waitFor({ timeout: 25000 });
