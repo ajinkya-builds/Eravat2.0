@@ -1,12 +1,9 @@
 {
-  "versionName": "2.1.9",
-  "versionCode": 20109,
+  "versionName": "2.1.10",
+  "versionCode": 20110,
   "channel": "staging",
-  "releasedAt": "2026-09-23",
+  "releasedAt": "2026-09-24",
   "changes": [
-    "Require Android System WebView Chrome 69+ (clear update screen)",
-    "Older Android compat matrix and CDP perf smoke tooling",
-    "Maestro single-session certification suite",
-    "Expanded staging cert: alerts, roles, stress, Admin Calls"
+    "Export every villager in one CSV, past the 1,000-row limit"
   ]
 }

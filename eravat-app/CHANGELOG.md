@@ -7,6 +7,11 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.10] — 2026-09-24 (versionCode 20110)
+
+- Export every villager in one CSV, past the 1,000-row limit
+
+---
 ## [2.1.9] — 2026-09-23 (versionCode 20109)
 
 - Require Android System WebView Chrome 69+ (clear update screen)
