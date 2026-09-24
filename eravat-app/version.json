@@ -1,9 +1,11 @@
 {
-  "versionName": "2.1.10",
-  "versionCode": 20110,
+  "versionName": "2.1.11",
+  "versionCode": 20111,
   "channel": "staging",
   "releasedAt": "2026-09-24",
   "changes": [
-    "Export every villager in one CSV, past the 1,000-row limit"
+    "Call logs show triggered, received, and failed counts",
+    "Export the call list as CSV",
+    "Queue a call for every villager within 5 km"
   ]
 }
