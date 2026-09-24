@@ -35,6 +35,8 @@ import {
 } from '../../lib/villagerRegistry';
 
 const PAGE_SIZE = 25;
+/** PostgREST `max_rows` (supabase/config.toml and hosted API). One request cannot return more. */
+const EXPORT_PAGE_SIZE = 1000;
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 type AlertFilter = 'all' | 'on' | 'off';
@@ -90,6 +92,7 @@ export default function AdminVillagers() {
   const [editing, setEditing] = useState<VillagerRecord | null>(null);
   const [form, setForm] = useState<VillagerFormValues>(emptyVillagerForm());
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<VillagerRecord | null>(null);
 
   const filterOpts = useMemo(
@@ -291,22 +294,38 @@ export default function AdminVillagers() {
   };
 
   const handleExport = async () => {
-    let q = supabase.from('villagers').select(VILLAGER_ADMIN_SELECT).order('name').limit(10000);
-    q = applyFilters(q, filterOpts);
-    const { data, error: exportErr } = await q;
-    if (exportErr || !data) {
-      setError(exportErr?.message ?? t('hathiMitra.listFailed'));
-      return;
+    setExporting(true);
+    setError(null);
+    try {
+      const collected: VillagerRecord[] = [];
+      for (let from = 0; ; from += EXPORT_PAGE_SIZE) {
+        let q = supabase
+          .from('villagers')
+          .select(VILLAGER_ADMIN_SELECT)
+          .order('name')
+          .order('id')
+          .range(from, from + EXPORT_PAGE_SIZE - 1);
+        q = applyFilters(q, filterOpts);
+        const { data, error: exportErr } = await q;
+        if (exportErr) throw exportErr;
+        const chunk = (data as unknown as VillagerRecord[]) ?? [];
+        collected.push(...chunk);
+        if (chunk.length < EXPORT_PAGE_SIZE) break;
+      }
+      const withNames = await attachOnboarders(collected);
+      const csv = [VILLAGER_CSV_HEADER, ...withNames.map(villagerToCsvRow)].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `villagers-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('hathiMitra.listFailed'));
+    } finally {
+      setExporting(false);
     }
-    const withNames = await attachOnboarders(data as unknown as VillagerRecord[]);
-    const csv = [VILLAGER_CSV_HEADER, ...withNames.map(villagerToCsvRow)].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `villagers-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -322,10 +341,13 @@ export default function AdminVillagers() {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            data-testid="admin-villagers-export"
             onClick={() => void handleExport()}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl glass-card border border-border text-sm font-medium hover:bg-muted transition-colors"
+            disabled={exporting}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl glass-card border border-border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-60"
           >
-            <Download size={16} /> {t('admin.villagers.exportCSV')}
+            {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}{' '}
+            {t('admin.villagers.exportCSV')}
           </button>
           <button
             type="button"
