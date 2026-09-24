@@ -241,7 +241,7 @@ await check('Admin observations Calls modal', async () => {
   await callsBtn.click();
   await adminPage.getByTestId('admin-report-calls-modal').waitFor({ timeout: 15000 });
   const modalText = await adminPage.getByTestId('admin-report-calls-modal').innerText();
-  if (!/Call|Queued|Villager|No call|phone/i.test(modalText)) {
+  if (!/Call logs|Queued|Villager|No call|phone/i.test(modalText)) {
     throw new Error(`Calls modal unexpected: ${modalText.slice(0, 200)}`);
   }
   await shot(adminPage, '14b-admin-calls-modal');
