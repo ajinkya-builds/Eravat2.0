@@ -210,11 +210,13 @@ describe('acquireDevicePosition', () => {
     it('keeps watching after an early cell fix and prefers later GPS', async () => {
         const cell = acquired(21.1, 80.1, Date.now(), 650, 'cell');
         const gps = acquired(23.72, 81.01, Date.now(), 9, 'gps');
-        let watchCb: ((position: Position | null, err?: unknown) => void) | null = null;
+        const watch = {
+            cb: null as null | ((position: Position | null, err?: unknown) => void),
+        };
         const deps = adapters({
             getCurrentPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
             watchPosition: vi.fn().mockImplementation((_opts, cb) => {
-                watchCb = cb;
+                watch.cb = cb;
                 cb(cell);
                 return Promise.resolve('watch-cell');
             }),
@@ -228,7 +230,7 @@ describe('acquireDevicePosition', () => {
             nativeTimeoutMs: 50,
         });
         await new Promise((r) => setTimeout(r, 20));
-        watchCb?.(gps);
+        watch.cb?.(gps);
         const result = await resultPromise;
         expect(result.coords.latitude).toBe(23.72);
         expect(result.source).toBe('gps');
@@ -362,11 +364,13 @@ describe('acquireDevicePosition', () => {
     it('briefly refines a coarse GPS fix before accepting', async () => {
         const coarse = pos(23.7, 81.0, Date.now(), 180);
         const tighter = pos(23.701, 81.002, Date.now() + 1, 35);
-        let watchCb: ((position: Position | null, err?: unknown) => void) | null = null;
+        const watch = {
+            cb: null as null | ((position: Position | null, err?: unknown) => void),
+        };
         const deps = adapters({
             getCurrentPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
             watchPosition: vi.fn().mockImplementation((_opts, cb) => {
-                watchCb = cb;
+                watch.cb = cb;
                 cb(coarse);
                 return Promise.resolve('watch-refine');
             }),
@@ -377,7 +381,7 @@ describe('acquireDevicePosition', () => {
             nativeTimeoutMs: GPS_REFINE_MS + 200,
         });
         await new Promise((r) => setTimeout(r, 30));
-        watchCb?.(tighter);
+        watch.cb?.(tighter);
         const result = await resultPromise;
         expect(result.source).toBe('gps');
         expect(result.coords.accuracy).toBe(35);
