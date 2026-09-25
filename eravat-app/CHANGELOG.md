@@ -7,6 +7,13 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.12] — 2026-09-25 (versionCode 20112)
+
+- GPS-first location: cell only after full GPS budget
+- Call logs show and export villager latitude/longitude
+- Ask for precise location before starting a GPS fix
+
+---
 ## [2.1.11] — 2026-09-24 (versionCode 20111)
 
 - Call logs show triggered, received, and failed counts

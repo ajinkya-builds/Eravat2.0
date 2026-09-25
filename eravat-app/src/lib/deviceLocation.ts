@@ -3,12 +3,29 @@ import type { Position } from '@capacitor/geolocation';
 export const LAST_GPS_KEY = 'eravat_last_gps_fix_v1';
 export const DEFAULT_LAST_GPS_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 export const FRESH_FIX_MAX_AGE_MS = 45_000;
-export const GEOLOCATION_TIMEOUT_MS = 12_000;
-export const GEOLOCATION_WATCH_TIMEOUT_MS = 30_000;
-export const GEOLOCATION_TIMEOUT_OFFLINE_MS = 18_000;
-export const GEOLOCATION_GPS_WAIT_MS = 30_000;
+/** Fast probe for fused getCurrentPosition (outdoors often wins here). */
+export const GEOLOCATION_TIMEOUT_MS = 8_000;
+/**
+ * One continuous GPS budget before cell is allowed.
+ * Continuous listen (no restarts) so indoor GNSS lock can accumulate.
+ */
+export const GEOLOCATION_GPS_BUDGET_MS = 90_000;
+/** @deprecated Prefer GEOLOCATION_GPS_BUDGET_MS — kept as alias for callers. */
+export const GEOLOCATION_GPS_WAIT_MS = GEOLOCATION_GPS_BUDGET_MS;
+/** Single continuous native listen; extra attempts only restart GNSS and hurt lock. */
+export const GEOLOCATION_GPS_ATTEMPTS = 1;
+export const GEOLOCATION_WATCH_TIMEOUT_MS = GEOLOCATION_GPS_BUDGET_MS;
+export const GEOLOCATION_TIMEOUT_OFFLINE_MS = 12_000;
 export const GEOLOCATION_CELL_ONLY_WAIT_MS = 8_000;
-export const CELL_ACCURACY_THRESHOLD_M = 80;
+/**
+ * When provider is unknown (fused), only treat very coarse accuracy as cell.
+ * Indoor GPS often reports 100–300 m and must still count as GPS.
+ */
+export const CELL_ACCURACY_THRESHOLD_M = 500;
+/** Accept immediately when GPS accuracy is this good or better. */
+export const GPS_GOOD_ACCURACY_M = 50;
+/** If first GPS is coarse, wait this long for a tighter fix before accepting. */
+export const GPS_REFINE_MS = 4_000;
 export const LOCATION_ENABLED_EVENT = 'eravat-location-state';
 
 export type LocationSource = 'gps' | 'cell';
@@ -40,6 +57,7 @@ export type LocationAdapters = {
     getNativeLastKnown: () => Promise<Position | null>;
     ensureLocationEnabled: () => Promise<boolean>;
     requestFreshFix?: (timeoutMs: number) => Promise<AcquiredPosition | null>;
+    cancelFreshFix?: () => Promise<void>;
 };
 
 export type AcquirePositionOptions = {
@@ -50,6 +68,10 @@ export type AcquirePositionOptions = {
     getCurrentTimeoutMs?: number;
     watchTimeoutMs?: number;
     nativeTimeoutMs?: number;
+    /** Dedicated GPS attempts via requestFreshFix before cell is allowed. */
+    gpsAttempts?: number;
+    /** When false, never return cell — timeout if GPS never locks. Default true. */
+    allowCellFallback?: boolean;
 };
 
 export function persistLastGpsFix(position: Position): void {
@@ -208,16 +230,42 @@ function liveOptions(timeoutMs: number, maximumAgeMs: number, highAccuracy = tru
         enableHighAccuracy: highAccuracy,
         timeout: timeoutMs,
         maximumAge: maximumAgeMs,
+        // Fused is faster outdoors; we still only settle on GPS-classified fixes.
         enableLocationFallback: true,
         interval: 1000,
         minimumUpdateInterval: 500,
     };
 }
 
+function accuracyMeters(position: AcquiredPosition): number {
+    const accuracy = position.coords.accuracy;
+    return typeof accuracy === 'number' && Number.isFinite(accuracy)
+        ? accuracy
+        : Number.POSITIVE_INFINITY;
+}
+
+function preferBetterFix(
+    current: AcquiredPosition | null,
+    next: AcquiredPosition,
+): AcquiredPosition {
+    if (!current) return next;
+    return accuracyMeters(next) < accuracyMeters(current) ? next : current;
+}
+
+function isGoodGps(position: AcquiredPosition): boolean {
+    return position.source === 'gps' && accuracyMeters(position) <= GPS_GOOD_ACCURACY_M;
+}
+
+/**
+ * Watch for a GPS fix. Cell/network updates are reported via onCell and never
+ * settle the watch. Coarse GPS is reported via onGps so the race can refine briefly.
+ */
 function startWatchFix(
     adapters: LocationAdapters,
     timeoutMs: number,
-): { promise: Promise<Position>; cancel: () => void } {
+    onGps: (position: AcquiredPosition) => void,
+    onCell?: (position: AcquiredPosition) => void,
+): { promise: Promise<AcquiredPosition>; cancel: () => void } {
     let watchId: string | null = null;
     let settled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -231,7 +279,7 @@ function startWatchFix(
         rejectPromise?.(new Error('LOCATION_CANCELLED'));
     };
 
-    const promise = new Promise<Position>((resolve, reject) => {
+    const promise = new Promise<AcquiredPosition>((resolve, reject) => {
         rejectPromise = reject;
         timer = setTimeout(() => {
             if (settled) return;
@@ -243,10 +291,20 @@ function startWatchFix(
         void adapters.watchPosition(liveOptions(timeoutMs, 0), (position, err) => {
             if (settled) return;
             if (position) {
-                settled = true;
-                if (timer) clearTimeout(timer);
-                if (watchId) void adapters.clearWatch(watchId);
-                resolve(position);
+                const acquired = withLocationSource(position, inferLocationSource(position));
+                if (acquired.source === 'gps') {
+                    onGps(acquired);
+                    // Watch promise resolves when race accepts GPS (or times out).
+                    // Good fixes are finished by the race; keep watching while refining.
+                    if (isGoodGps(acquired)) {
+                        settled = true;
+                        if (timer) clearTimeout(timer);
+                        if (watchId) void adapters.clearWatch(watchId);
+                        resolve(acquired);
+                    }
+                    return;
+                }
+                onCell?.(acquired);
                 return;
             }
             if (err) {
@@ -272,31 +330,84 @@ function startWatchFix(
     return { promise, cancel };
 }
 
+async function runNativeGpsListen(
+    adapters: LocationAdapters,
+    opts: {
+        budgetMs: number;
+        isSettled: () => boolean;
+        onGps: (position: AcquiredPosition) => void;
+        onCell: (position: AcquiredPosition) => void;
+    },
+): Promise<void> {
+    if (!adapters.requestFreshFix) return;
+    if (opts.isSettled()) return;
+    try {
+        // One continuous listen — restarting clears GNSS lock progress indoors.
+        const position = await adapters.requestFreshFix(opts.budgetMs);
+        if (opts.isSettled()) return;
+        if (!position) return;
+        const acquired = asAcquiredPosition(position);
+        if (acquired.source === 'gps') {
+            opts.onGps(acquired);
+            return;
+        }
+        opts.onCell(acquired);
+    } catch {
+        // Watch / other paths may still succeed.
+    }
+}
+
 async function raceLivePosition(
     adapters: LocationAdapters,
-    opts: { getCurrentTimeoutMs: number; watchTimeoutMs: number; nativeTimeoutMs: number },
+    opts: {
+        getCurrentTimeoutMs: number;
+        watchTimeoutMs: number;
+        nativeTimeoutMs: number;
+        allowCellFallback: boolean;
+    },
 ): Promise<AcquiredPosition> {
-    const watch = startWatchFix(adapters, opts.watchTimeoutMs);
-
     return new Promise<AcquiredPosition>((resolve, reject) => {
         let settled = false;
         let cellFallback: AcquiredPosition | null = null;
+        let bestGps: AcquiredPosition | null = null;
+        let refineTimer: ReturnType<typeof setTimeout> | undefined;
+        let watchCancel: (() => void) | null = null;
+
+        const clearRefine = () => {
+            if (refineTimer) {
+                clearTimeout(refineTimer);
+                refineTimer = undefined;
+            }
+        };
 
         const finishGps = (position: AcquiredPosition) => {
             if (settled) return;
             settled = true;
-            watch.cancel();
+            clearRefine();
+            watchCancel?.();
+            void adapters.cancelFreshFix?.();
             resolve(position);
         };
 
-        const holdOrFinish = (position: Position | AcquiredPosition) => {
-            if (settled) return;
-            const acquired = asAcquiredPosition(position);
-            if (acquired.source === 'gps') {
-                finishGps(acquired);
+        const considerGps = (position: AcquiredPosition) => {
+            if (settled || position.source !== 'gps') return;
+            bestGps = preferBetterFix(bestGps, position);
+            if (!bestGps) return;
+            if (isGoodGps(bestGps)) {
+                finishGps(bestGps);
                 return;
             }
-            cellFallback = acquired;
+            // Coarse GPS (typical indoors early on): brief refine, then accept best GPS.
+            if (!refineTimer) {
+                refineTimer = setTimeout(() => {
+                    if (!settled && bestGps) finishGps(bestGps);
+                }, GPS_REFINE_MS);
+            }
+        };
+
+        const holdCell = (position: AcquiredPosition) => {
+            if (settled) return;
+            cellFallback = preferBetterFix(cellFallback, position);
         };
 
         const failHard = (err: unknown) => {
@@ -304,50 +415,60 @@ async function raceLivePosition(
             const code = classifyGeolocationError(err);
             if (code === 'LOCATION_PERMISSION_DENIED' || code === 'LOCATION_DISABLED') {
                 settled = true;
-                watch.cancel();
+                clearRefine();
+                watchCancel?.();
+                void adapters.cancelFreshFix?.();
                 reject(err);
             }
         };
 
+        const watch = startWatchFix(adapters, opts.watchTimeoutMs, considerGps, holdCell);
+        watchCancel = watch.cancel;
+
+        // Fast path: fused getCurrent often returns a good GPS fix outdoors in seconds.
+        void adapters.getCurrentPosition(liveOptions(opts.getCurrentTimeoutMs, 0))
+            .then((position) => {
+                if (settled) return;
+                const acquired = withLocationSource(position, inferLocationSource(position));
+                if (acquired.source === 'gps') {
+                    considerGps(acquired);
+                    return;
+                }
+                holdCell(acquired);
+            })
+            .catch(failHard);
+
+        const nativeListen = runNativeGpsListen(adapters, {
+            budgetMs: opts.nativeTimeoutMs,
+            isSettled: () => settled,
+            onGps: considerGps,
+            onCell: holdCell,
+        });
+
         const pending: Array<Promise<unknown>> = [
             watch.promise
-                .then((position) => holdOrFinish(withLocationSource(position, inferLocationSource(position))))
+                .then((position) => considerGps(position))
                 .catch(failHard),
+            nativeListen,
         ];
-        // Fused getCurrentPosition can return a cached or cell fix. Use it only
-        // to detect location-off / permission errors, never as the GPS winner.
-        void adapters.getCurrentPosition(liveOptions(opts.getCurrentTimeoutMs, 0))
-            .then(() => undefined)
-            .catch(failHard);
-        if (adapters.requestFreshFix) {
-            pending.push(
-                adapters.requestFreshFix(opts.nativeTimeoutMs)
-                    .then((position) => {
-                        if (!position) return;
-                        const acquired = asAcquiredPosition(position);
-                        if (acquired.source === 'gps') {
-                            holdOrFinish(acquired);
-                            return;
-                        }
-                        // Native already waited for GPS. Cell is the worst-case result.
-                        cellFallback = acquired;
-                        if (settled) return;
-                        settled = true;
-                        watch.cancel();
-                        resolve(acquired);
-                    })
-                    .catch(() => undefined),
-            );
-        }
 
         void Promise.allSettled(pending).then(() => {
             if (settled) return;
-            if (cellFallback) {
+            clearRefine();
+            // Prefer any GPS we held during refine over cell.
+            if (bestGps) {
+                finishGps(bestGps);
+                return;
+            }
+            // Absolute last resort: only after the full continuous GPS budget.
+            if (opts.allowCellFallback && cellFallback) {
                 settled = true;
-                watch.cancel();
+                watchCancel?.();
+                void adapters.cancelFreshFix?.();
                 resolve(cellFallback);
                 return;
             }
+            void adapters.cancelFreshFix?.();
             reject(new Error('LOCATION_TIMEOUT'));
         });
     });
@@ -360,9 +481,10 @@ export async function acquireDevicePosition(
     const offline = opts?.offline ?? false;
     const promptIfDisabled = opts?.promptIfDisabled ?? false;
     const getCurrentTimeoutMs = opts?.getCurrentTimeoutMs
-        ?? (offline ? 8_000 : GEOLOCATION_TIMEOUT_MS);
-    const watchTimeoutMs = opts?.watchTimeoutMs ?? GEOLOCATION_WATCH_TIMEOUT_MS;
-    const nativeTimeoutMs = opts?.nativeTimeoutMs ?? GEOLOCATION_GPS_WAIT_MS;
+        ?? (offline ? 6_000 : GEOLOCATION_TIMEOUT_MS);
+    const nativeTimeoutMs = opts?.nativeTimeoutMs ?? GEOLOCATION_GPS_BUDGET_MS;
+    const watchTimeoutMs = opts?.watchTimeoutMs ?? Math.max(GEOLOCATION_WATCH_TIMEOUT_MS, nativeTimeoutMs);
+    const allowCellFallback = opts?.allowCellFallback ?? true;
 
     const emit = (position: AcquiredPosition) => {
         if (position.source !== 'cell') persistLastGpsFix(position);
@@ -378,6 +500,7 @@ export async function acquireDevicePosition(
             getCurrentTimeoutMs,
             watchTimeoutMs,
             nativeTimeoutMs,
+            allowCellFallback,
         });
         emit(live);
         return live;
@@ -390,6 +513,7 @@ export async function acquireDevicePosition(
                     getCurrentTimeoutMs,
                     watchTimeoutMs,
                     nativeTimeoutMs,
+                    allowCellFallback,
                 });
                 emit(live);
                 return live;

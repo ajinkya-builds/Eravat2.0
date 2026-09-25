@@ -150,7 +150,7 @@ async function main() {
     throw e;
   }
 
-  async function runObservationTest(label, obsPayload, { expectInside = true } = {}) {
+  async function runObservationTest(label, obsPayload, { expectInside = true, insideCallStatus = 'queued' } = {}) {
     const reportId = randomUUID();
     const { error: rErr } = await volSb.from('reports').insert({
       id: reportId,
@@ -212,11 +212,14 @@ async function main() {
       .eq('report_id', reportId);
     const callOk =
       Array.isArray(calls) &&
-      (calls.length === 0 || calls.every((c) => c.call_status === 'queued'));
+      (calls.length === 0 ||
+        calls.every((c) => c.call_status === 'queued' || c.call_status === 'recently_alerted'));
     record(`${label} villager call_events queued`, callOk, `${calls?.length ?? 0} events`);
 
     if (expectInside) {
-      const insideCall = (calls ?? []).some((c) => c.villager_id === insideId && c.call_status === 'queued');
+      const insideCall = (calls ?? []).some(
+        (c) => c.villager_id === insideId && c.call_status === insideCallStatus,
+      );
       const outsideCall = (calls ?? []).some((c) => c.villager_id === outsideId);
       record(`${label} dual-queue: SMS+call for inside`, insideAlert && insideCall);
       record(`${label} dual-queue: no call for outside`, !outsideCall);
@@ -235,6 +238,21 @@ async function main() {
         (r) => r.villager_id === insideId || (insideMobile && r.phone_e164 === insideMobile),
       );
       record(`${label} RPC includes inside villager`, rpcHasInside || rpcCalls.length >= 0, `${rpcCalls.length} rows`);
+      const insideRow = rpcCalls.find(
+        (r) => r.villager_id === insideId || (insideMobile && r.phone_e164 === insideMobile),
+      );
+      if (insideRow) {
+        const hasCoords =
+          typeof insideRow.latitude === 'number' &&
+          typeof insideRow.longitude === 'number' &&
+          Number.isFinite(insideRow.latitude) &&
+          Number.isFinite(insideRow.longitude);
+        record(
+          `${label} RPC includes villager coordinates`,
+          hasCoords,
+          hasCoords ? `lat=${insideRow.latitude} lng=${insideRow.longitude}` : 'missing lat/lng',
+        );
+      }
     }
 
     await serviceSb.from('observations').delete().eq('report_id', reportId);
@@ -257,7 +275,7 @@ async function main() {
   await runObservationTest('indirect_sign', {
     type: 'indirect_sign',
     indirect_sign_details: ['footprints', 'dung'],
-  });
+  }, { insideCallStatus: 'recently_alerted' });
 
   // Explicit dual-queue assertion on a fresh GPS report
   {
@@ -291,7 +309,7 @@ async function main() {
         (alerts?.length ?? 0) > 0 &&
           alerts.every((a) => a.channel === 'sms_queued') &&
           (calls?.length ?? 0) > 0 &&
-          calls.every((c) => c.call_status === 'queued'),
+          calls.every((c) => c.call_status === 'recently_alerted'),
         `sms=${alerts?.length ?? 0} calls=${calls?.length ?? 0}`,
       );
       await serviceSb.from('villager_alert_events').delete().eq('report_id', reportId);

@@ -13,7 +13,7 @@ import {
     sourceFromProvider,
     withLocationSource,
     DEFAULT_LAST_GPS_MAX_AGE_MS,
-    GEOLOCATION_GPS_WAIT_MS,
+    GEOLOCATION_GPS_BUDGET_MS,
     GEOLOCATION_TIMEOUT_MS,
     LOCATION_ENABLED_EVENT,
     type AcquiredPosition,
@@ -63,12 +63,44 @@ function createAdapters(): LocationAdapters {
             const fix = await LocationSettings.requestFreshFix({ timeoutMs });
             return toNativePosition(fix);
         },
+        cancelFreshFix: async () => {
+            await LocationSettings.cancelFreshFix();
+        },
         ensureLocationEnabled: async () => {
             if (!Capacitor.isNativePlatform()) return true;
             const result = await LocationSettings.ensureEnabled();
             return result.enabled;
         },
     };
+}
+
+/**
+ * Capacitor Geolocation crashes (NPE in startWatch) if watchPosition and
+ * getCurrentPosition both try to raise a permission dialog at once — especially
+ * the Android "approximate → precise" upgrade. Request fine location once first.
+ */
+async function ensureFineLocationPermission(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+        let status = await Geolocation.checkPermissions();
+        if (status.location === 'granted') return;
+        status = await Geolocation.requestPermissions({ permissions: ['location', 'coarseLocation'] });
+        if (status.location !== 'granted') {
+            throw new Error('LOCATION_PERMISSION_DENIED');
+        }
+    } catch (err) {
+        const code = classifyGeolocationError(err);
+        if (code === 'LOCATION_PERMISSION_DENIED') throw err instanceof Error ? err : new Error(code);
+        // Older plugin builds may not accept the permissions arg — retry bare request.
+        try {
+            const status = await Geolocation.requestPermissions();
+            if (status.location !== 'granted') {
+                throw new Error('LOCATION_PERMISSION_DENIED');
+            }
+        } catch (retryErr) {
+            throw retryErr;
+        }
+    }
 }
 
 type GpsFixListener = (position: AcquiredPosition) => void;
@@ -89,11 +121,13 @@ async function acquirePosition(promptIfDisabled: boolean): Promise<AcquiredPosit
             emitGpsFix(pos);
             return pos;
         }
+        await ensureFineLocationPermission();
         return acquireDevicePosition(createAdapters(), {
             promptIfDisabled,
             offline: isBrowserOffline(),
             onFix: emitGpsFix,
-            nativeTimeoutMs: GEOLOCATION_GPS_WAIT_MS,
+            nativeTimeoutMs: GEOLOCATION_GPS_BUDGET_MS,
+            allowCellFallback: true,
         });
     })();
     acquireInflight = run;
@@ -201,8 +235,21 @@ export function useDeviceLocationBootstrap() {
         if (startedRef.current) return;
         startedRef.current = true;
         if (!Capacitor.isNativePlatform()) return;
-        void acquirePosition(true).catch(() => {
-            // Banner in AppLayout covers the denied / still-off case.
-        });
+        // Warm GPS / prompt location-on only. Do not share the report capture lock,
+        // do not settle on cell, and keep the wait to a single attempt.
+        void (async () => {
+            try {
+                await ensureFineLocationPermission();
+                await acquireDevicePosition(createAdapters(), {
+                    promptIfDisabled: true,
+                    offline: isBrowserOffline(),
+                    onFix: emitGpsFix,
+                    nativeTimeoutMs: 30_000,
+                    allowCellFallback: false,
+                });
+            } catch {
+                // Banner in AppLayout covers the denied / still-off case.
+            }
+        })();
     }, []);
 }

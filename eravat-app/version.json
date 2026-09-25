@@ -1,11 +1,11 @@
 {
-  "versionName": "2.1.11",
-  "versionCode": 20111,
+  "versionName": "2.1.12",
+  "versionCode": 20112,
   "channel": "staging",
-  "releasedAt": "2026-09-24",
+  "releasedAt": "2026-09-25",
   "changes": [
-    "Call logs show triggered, received, and failed counts",
-    "Export the call list as CSV",
-    "Queue a call for every villager within 5 km"
+    "GPS-first location: cell only after full GPS budget",
+    "Call logs show and export villager latitude/longitude",
+    "Ask for precise location before starting a GPS fix"
   ]
 }

@@ -17,6 +17,7 @@ export interface LocationSettingsPlugin {
   ensureEnabled(): Promise<LocationState>;
   getLastKnown(): Promise<NativeLastKnown>;
   requestFreshFix(options?: { timeoutMs?: number }): Promise<NativeLastKnown>;
+  cancelFreshFix(): Promise<void>;
   addListener(
     eventName: 'locationStateChange',
     listenerFunc: (state: LocationState) => void,
@@ -35,6 +36,9 @@ const webStub: LocationSettingsPlugin = {
   },
   async requestFreshFix() {
     return {};
+  },
+  async cancelFreshFix() {
+    return undefined;
   },
   async addListener() {
     return { remove: async () => undefined };

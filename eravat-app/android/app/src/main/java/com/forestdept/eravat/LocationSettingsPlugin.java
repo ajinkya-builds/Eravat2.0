@@ -30,7 +30,10 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.google.android.gms.common.api.ResolvableApiException;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.Priority;
@@ -43,10 +46,17 @@ public class LocationSettingsPlugin extends Plugin {
     private BroadcastReceiver providerReceiver;
     private final List<LocationListener> freshFixListeners = new ArrayList<>();
     private Handler freshFixHandler;
+    private FusedLocationProviderClient fusedClient;
+    private LocationCallback fusedCallback;
+    private PluginCall pendingFreshFixCall;
+    private AtomicBoolean freshFixDone;
+    /** Matches JS CELL_ACCURACY_THRESHOLD_M — coarse fused/network held as cell. */
+    private static final float CELL_ACCURACY_THRESHOLD_M = 500f;
 
     @Override
     public void load() {
         super.load();
+        fusedClient = LocationServices.getFusedLocationProviderClient(getContext());
         Activity rawActivity = getActivity();
         if (rawActivity instanceof ComponentActivity) {
             locationSettingsLauncher = ((ComponentActivity) rawActivity).registerForActivityResult(
@@ -137,9 +147,10 @@ public class LocationSettingsPlugin extends Plugin {
     }
 
     /**
-     * Ask LocationManager for a live GPS fix. Network/cell is collected in
-     * parallel but is only returned after the GPS wait expires (or immediately
-     * if the GPS provider is off). Never returns getLastKnown.
+     * Continuous high-accuracy listen (GPS + fused). Network/cell is held and
+     * only returned after the full GPS budget expires (or sooner if GPS is off).
+     * Never returns getLastKnown. Do not call repeatedly in a short loop —
+     * restarting clears GNSS lock progress.
      */
     @PluginMethod
     public void requestFreshFix(PluginCall call) {
@@ -153,36 +164,36 @@ public class LocationSettingsPlugin extends Plugin {
             return;
         }
 
-        Integer timeout = call.getInt("timeoutMs", 15_000);
-        int timeoutMs = timeout != null ? timeout : 15_000;
+        Integer timeout = call.getInt("timeoutMs", 90_000);
+        int timeoutMs = timeout != null ? timeout : 90_000;
         call.setKeepAlive(true);
-        stopFreshFixUpdates(manager);
+        // Cancel any prior listen so we never leave a hung PluginCall.
+        resolvePendingFreshFixEmpty(manager);
 
         AtomicBoolean done = new AtomicBoolean(false);
+        freshFixDone = done;
+        pendingFreshFixCall = call;
         if (freshFixHandler == null) {
             freshFixHandler = new Handler(Looper.getMainLooper());
         }
 
         AtomicReference<Location> liveCell = new AtomicReference<>();
 
+        final Runnable finishWithCell = () -> {
+            if (!done.compareAndSet(false, true)) return;
+            Location cell = liveCell.get();
+            PluginCall pending = pendingFreshFixCall;
+            pendingFreshFixCall = null;
+            stopFreshFixUpdates(manager);
+            if (pending != null) {
+                pending.resolve(cell != null ? locationToJs(cell) : new JSObject());
+            }
+        };
+
         LocationListener listener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
-                if (location == null) return;
-                // Satellite GPS only auto-wins. Cell/network is held until the GPS wait expires.
-                if (LocationManager.GPS_PROVIDER.equals(location.getProvider())) {
-                    if (!done.compareAndSet(false, true)) return;
-                    if (freshFixHandler != null) freshFixHandler.removeCallbacksAndMessages(null);
-                    stopFreshFixUpdates(manager);
-                    call.resolve(locationToJs(location));
-                    return;
-                }
-                Location previous = liveCell.get();
-                if (previous == null
-                    || (location.hasAccuracy()
-                        && (!previous.hasAccuracy() || location.getAccuracy() < previous.getAccuracy()))) {
-                    liveCell.set(location);
-                }
+                handleFreshFixLocation(location, done, liveCell, manager);
             }
         };
         freshFixListeners.add(listener);
@@ -195,7 +206,6 @@ public class LocationSettingsPlugin extends Plugin {
         for (String provider : providers) {
             try {
                 if (!manager.isProviderEnabled(provider)) continue;
-                // Live updates only — getCurrentLocation/getLastKnown can return a stale cache.
                 manager.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper());
                 registered = true;
             } catch (SecurityException ignored) {
@@ -205,8 +215,34 @@ public class LocationSettingsPlugin extends Plugin {
             }
         }
 
+        // Fused high-accuracy is typically much faster outdoors than raw GPS alone.
+        if (fusedClient != null) {
+            try {
+                LocationRequest fusedRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
+                    .setMinUpdateIntervalMillis(500L)
+                    .build();
+                fusedCallback = new LocationCallback() {
+                    @Override
+                    public void onLocationResult(LocationResult result) {
+                        if (result == null) return;
+                        Location best = result.getLastLocation();
+                        if (best != null) {
+                            handleFreshFixLocation(best, done, liveCell, manager);
+                        }
+                    }
+                };
+                fusedClient.requestLocationUpdates(fusedRequest, fusedCallback, Looper.getMainLooper());
+                registered = true;
+            } catch (SecurityException ignored) {
+                fusedCallback = null;
+            } catch (Exception ignored) {
+                fusedCallback = null;
+            }
+        }
+
         if (!registered) {
             done.set(true);
+            pendingFreshFixCall = null;
             call.resolve(new JSObject());
             return;
         }
@@ -221,12 +257,76 @@ public class LocationSettingsPlugin extends Plugin {
             ? Math.max(3_000, timeoutMs)
             : Math.min(8_000, Math.max(3_000, timeoutMs)); // GPS off: cell only after a short wait
 
-        freshFixHandler.postDelayed(() -> {
+        freshFixHandler.postDelayed(finishWithCell, waitMs);
+    }
+
+    @PluginMethod
+    public void cancelFreshFix(PluginCall call) {
+        LocationManager manager = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+        if (manager != null) {
+            resolvePendingFreshFixEmpty(manager);
+        }
+        call.resolve();
+    }
+
+    private void handleFreshFixLocation(
+        Location location,
+        AtomicBoolean done,
+        AtomicReference<Location> liveCell,
+        LocationManager manager
+    ) {
+        if (location == null || done.get()) return;
+        if (isGpsQualityFix(location)) {
             if (!done.compareAndSet(false, true)) return;
+            if (freshFixHandler != null) freshFixHandler.removeCallbacksAndMessages(null);
+            PluginCall pending = pendingFreshFixCall;
+            pendingFreshFixCall = null;
             stopFreshFixUpdates(manager);
-            Location cell = liveCell.get();
-            call.resolve(cell != null ? locationToJs(cell) : new JSObject());
-        }, waitMs);
+            if (pending != null) {
+                pending.resolve(locationToJs(location));
+            }
+            return;
+        }
+        Location previous = liveCell.get();
+        if (previous == null
+            || (location.hasAccuracy()
+                && (!previous.hasAccuracy() || location.getAccuracy() < previous.getAccuracy()))) {
+            liveCell.set(location);
+        }
+    }
+
+    private void resolvePendingFreshFixEmpty(LocationManager manager) {
+        AtomicBoolean done = freshFixDone;
+        if (done != null && !done.compareAndSet(false, true)) {
+            stopFreshFixUpdates(manager);
+            return;
+        }
+        if (done == null && pendingFreshFixCall == null) {
+            stopFreshFixUpdates(manager);
+            return;
+        }
+        PluginCall pending = pendingFreshFixCall;
+        pendingFreshFixCall = null;
+        stopFreshFixUpdates(manager);
+        if (pending != null) {
+            pending.resolve(new JSObject());
+        }
+    }
+
+    /** Satellite GPS always wins; fused/unknown wins when accuracy is GPS-like. */
+    private boolean isGpsQualityFix(Location location) {
+        String provider = location.getProvider() != null ? location.getProvider() : "";
+        if (LocationManager.NETWORK_PROVIDER.equals(provider) || "passive".equalsIgnoreCase(provider)) {
+            return false;
+        }
+        if (LocationManager.GPS_PROVIDER.equals(provider)) {
+            return true;
+        }
+        // fused / unknown — accept only when not cell-coarse
+        if (location.hasAccuracy() && location.getAccuracy() > CELL_ACCURACY_THRESHOLD_M) {
+            return false;
+        }
+        return true;
     }
 
     @ActivityCallback
@@ -284,6 +384,14 @@ public class LocationSettingsPlugin extends Plugin {
             }
         }
         freshFixListeners.clear();
+        if (fusedClient != null && fusedCallback != null) {
+            try {
+                fusedClient.removeLocationUpdates(fusedCallback);
+            } catch (Exception ignored) {
+                // already removed
+            }
+            fusedCallback = null;
+        }
     }
 
     private boolean isLocationEnabled() {

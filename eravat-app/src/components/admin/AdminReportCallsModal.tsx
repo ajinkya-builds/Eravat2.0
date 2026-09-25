@@ -10,7 +10,8 @@ export type VillagerCallStatus =
     | 'busy'
     | 'cancelled'
     | 'failed'
-    | 'skipped';
+    | 'skipped'
+    | 'recently_alerted';
 
 export interface VillagerCallRow {
     id: string;
@@ -19,6 +20,8 @@ export interface VillagerCallRow {
     village_name: string;
     phone_e164: string;
     distance_m: number | null;
+    latitude: number | null;
+    longitude: number | null;
     call_status: VillagerCallStatus | string;
     failure_reason: string | null;
     provider_status_raw: string | null;
@@ -40,6 +43,7 @@ const STATUS_CLASS: Record<string, string> = {
     cancelled: 'bg-muted text-muted-foreground',
     failed: 'bg-destructive/15 text-destructive',
     skipped: 'bg-muted text-muted-foreground',
+    recently_alerted: 'bg-amber-500/15 text-amber-800',
 };
 
 export function callStatusLabelKey(status: string): string {
@@ -53,6 +57,7 @@ export function callStatusLabelKey(status: string): string {
         cancelled: 'admin.obs.callStatusCancelled',
         failed: 'admin.obs.callStatusFailed',
         skipped: 'admin.obs.callStatusSkipped',
+        recently_alerted: 'admin.obs.callStatusRecentlyAlerted',
     };
     return known[status] ?? 'admin.obs.callStatusUnknown';
 }
@@ -71,6 +76,7 @@ const KNOWN_STATUSES = new Set([
     'cancelled',
     'failed',
     'skipped',
+    'recently_alerted',
 ]);
 
 export interface CallLogMetrics {
@@ -84,13 +90,14 @@ export interface CallLogMetrics {
     dialed: number;
     cancelled: number;
     skipped: number;
+    recentlyAlerted: number;
     unknown: number;
 }
 
 export function summarizeCallLogs(rows: Pick<VillagerCallRow, 'call_status'>[]): CallLogMetrics {
     const count = (status: string) => rows.filter((row) => row.call_status === status).length;
     return {
-        triggered: rows.length,
+        triggered: rows.filter((row) => row.call_status !== 'recently_alerted').length,
         received: count('completed'),
         failed: count('failed'),
         noAnswer: count('no_answer'),
@@ -100,6 +107,7 @@ export function summarizeCallLogs(rows: Pick<VillagerCallRow, 'call_status'>[]):
         dialed: count('triggered'),
         cancelled: count('cancelled'),
         skipped: count('skipped'),
+        recentlyAlerted: count('recently_alerted'),
         unknown: rows.filter((row) => !KNOWN_STATUSES.has(row.call_status)).length,
     };
 }
@@ -110,12 +118,20 @@ function csvCell(value: string | number | null | undefined): string {
     return text;
 }
 
+/** Display villager lat/lng (same source as CSV export). */
+export function formatCallCoordinate(value: number | null | undefined): string {
+    if (value == null || !Number.isFinite(value)) return '—';
+    return value.toFixed(6);
+}
+
 export function callLogsToCsv(rows: VillagerCallRow[], t: (key: string) => string): string {
     const headers = [
         t('admin.obs.callVillager'),
         t('admin.obs.callVillage'),
         t('admin.obs.callPhone'),
         t('admin.obs.callDistance'),
+        t('admin.obs.callLatitude'),
+        t('admin.obs.callLongitude'),
         t('admin.obs.callStatus'),
         t('admin.obs.callFailure'),
         t('admin.obs.callDuration'),
@@ -126,6 +142,8 @@ export function callLogsToCsv(rows: VillagerCallRow[], t: (key: string) => strin
             row.village_name,
             row.phone_e164,
             row.distance_m == null ? '' : Math.round(row.distance_m),
+            row.latitude,
+            row.longitude,
             t(callStatusLabelKey(row.call_status)),
             row.failure_reason,
             row.duration_seconds,
@@ -172,6 +190,7 @@ export function AdminReportCallsModal({
     const metrics = summarizeCallLogs(rows);
     const metricItems: { key: string; label: string; value: number; tone: string }[] = [
         { key: 'triggered', label: t('admin.obs.callMetricTriggered'), value: metrics.triggered, tone: 'text-foreground' },
+        { key: 'recentlyAlerted', label: t('admin.obs.callMetricRecentlyAlerted'), value: metrics.recentlyAlerted, tone: 'text-amber-800' },
         { key: 'received', label: t('admin.obs.callMetricReceived'), value: metrics.received, tone: 'text-emerald-700' },
         { key: 'failed', label: t('admin.obs.callMetricFailed'), value: metrics.failed, tone: 'text-destructive' },
         { key: 'noAnswer', label: t('admin.obs.callMetricNoAnswer'), value: metrics.noAnswer, tone: 'text-amber-700' },
@@ -255,6 +274,8 @@ export function AdminReportCallsModal({
                                             t('admin.obs.callVillage'),
                                             t('admin.obs.callPhone'),
                                             t('admin.obs.callDistance'),
+                                            t('admin.obs.callLatitude'),
+                                            t('admin.obs.callLongitude'),
                                             t('admin.obs.callStatus'),
                                         ].map((h) => (
                                             <th
@@ -278,6 +299,18 @@ export function AdminReportCallsModal({
                                                     : row.distance_m < 1000
                                                       ? `${Math.round(row.distance_m)} m`
                                                       : `${(row.distance_m / 1000).toFixed(1)} km`}
+                                            </td>
+                                            <td
+                                                className="p-3 font-mono text-xs whitespace-nowrap text-muted-foreground"
+                                                data-testid="admin-report-call-latitude"
+                                            >
+                                                {formatCallCoordinate(row.latitude)}
+                                            </td>
+                                            <td
+                                                className="p-3 font-mono text-xs whitespace-nowrap text-muted-foreground"
+                                                data-testid="admin-report-call-longitude"
+                                            >
+                                                {formatCallCoordinate(row.longitude)}
                                             </td>
                                             <td className="p-3">
                                                 <div className="space-y-1">
