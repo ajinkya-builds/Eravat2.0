@@ -22,6 +22,13 @@ export const GEOLOCATION_CELL_ONLY_WAIT_MS = 8_000;
  * Indoor GPS often reports 100–300 m and must still count as GPS.
  */
 export const CELL_ACCURACY_THRESHOLD_M = 500;
+/**
+ * Wi-Fi / indoor fused fixes are typically well inside this.
+ * A concrete room often never gets a satellite lock; these fixes must fill
+ * coordinates instead of waiting until the user reaches a door.
+ * Coarser than this stays a cell-tower last resort.
+ */
+export const INDOOR_USABLE_ACCURACY_M = 300;
 /** Accept immediately when GPS accuracy is this good or better. */
 export const GPS_GOOD_ACCURACY_M = 50;
 /** If first GPS is coarse, wait this long for a tighter fix before accepting. */
@@ -56,7 +63,8 @@ export type LocationAdapters = {
     clearWatch: (id: string) => Promise<void>;
     getNativeLastKnown: () => Promise<Position | null>;
     ensureLocationEnabled: () => Promise<boolean>;
-    requestFreshFix?: (timeoutMs: number) => Promise<AcquiredPosition | null>;
+    /** Second arg, when set, waits for a fix strictly more accurate than that many metres. */
+    requestFreshFix?: (timeoutMs: number, improveBelowM?: number) => Promise<AcquiredPosition | null>;
     cancelFreshFix?: () => Promise<void>;
 };
 
@@ -127,19 +135,40 @@ export function sourceFromProvider(provider?: string | null): LocationSource {
     return 'gps';
 }
 
+/** Network/Wi-Fi with room-level accuracy is a usable fix, not a cell-tower fallback. */
+export function sourceFromAccuracy(provider?: string | null, accuracy?: number | null): LocationSource {
+    const value = (provider || '').toLowerCase();
+    const network = value.includes('network') || value === 'passive';
+    const meters = typeof accuracy === 'number' && Number.isFinite(accuracy) ? accuracy : null;
+    if (network) {
+        if (meters != null && meters > 0 && meters <= INDOOR_USABLE_ACCURACY_M) return 'gps';
+        return 'cell';
+    }
+    if (meters != null && meters > CELL_ACCURACY_THRESHOLD_M) return 'cell';
+    return 'gps';
+}
+
 export function withLocationSource(position: Position, source: LocationSource): AcquiredPosition {
     return { ...position, source };
 }
 
 export function asAcquiredPosition(position: Position | AcquiredPosition): AcquiredPosition {
+    const accuracy = position.coords.accuracy;
+    const indoorUsable = typeof accuracy === 'number'
+        && Number.isFinite(accuracy)
+        && accuracy > 0
+        && accuracy <= INDOOR_USABLE_ACCURACY_M;
     if ('source' in position && (position.source === 'gps' || position.source === 'cell')) {
+        if (position.source === 'cell' && indoorUsable) {
+            return { ...position, source: 'gps' };
+        }
         return position;
     }
     return withLocationSource(position, inferLocationSource(position));
 }
 
 export function inferLocationSource(position: Position, provider?: string | null): LocationSource {
-    if (provider) return sourceFromProvider(provider);
+    if (provider) return sourceFromAccuracy(provider, position.coords.accuracy);
     const accuracy = position.coords.accuracy;
     if (typeof accuracy === 'number' && Number.isFinite(accuracy) && accuracy > CELL_ACCURACY_THRESHOLD_M) {
         return 'cell';
@@ -254,6 +283,11 @@ function preferBetterFix(
 
 function isGoodGps(position: AcquiredPosition): boolean {
     return position.source === 'gps' && accuracyMeters(position) <= GPS_GOOD_ACCURACY_M;
+}
+
+function isRecentFix(position: AcquiredPosition, now = Date.now()): boolean {
+    if (!position.timestamp) return true;
+    return now - position.timestamp <= 2 * 60 * 1000;
 }
 
 /**
@@ -385,15 +419,23 @@ async function raceLivePosition(
             settled = true;
             clearRefine();
             watchCancel?.();
-            void adapters.cancelFreshFix?.();
-            resolve(position);
+            void (async () => {
+                try {
+                    await adapters.cancelFreshFix?.();
+                } catch {
+                    // listen already stopped
+                }
+                resolve(position);
+            })();
         };
 
-        const considerGps = (position: AcquiredPosition) => {
-            if (settled || position.source !== 'gps') return;
+        const considerGps = (position: AcquiredPosition, alreadyRefined = false) => {
+            if (settled || position.source !== 'gps' || !isRecentFix(position)) return;
             bestGps = preferBetterFix(bestGps, position);
             if (!bestGps) return;
-            if (isGoodGps(bestGps)) {
+            const indoorReady = accuracyMeters(bestGps) <= INDOOR_USABLE_ACCURACY_M;
+            // Native listen already held the best indoor fix across its refine window.
+            if (isGoodGps(bestGps) || (alreadyRefined && indoorReady)) {
                 finishGps(bestGps);
                 return;
             }
@@ -406,7 +448,7 @@ async function raceLivePosition(
         };
 
         const holdCell = (position: AcquiredPosition) => {
-            if (settled) return;
+            if (settled || !isRecentFix(position)) return;
             cellFallback = preferBetterFix(cellFallback, position);
         };
 
@@ -425,23 +467,31 @@ async function raceLivePosition(
         const watch = startWatchFix(adapters, opts.watchTimeoutMs, considerGps, holdCell);
         watchCancel = watch.cancel;
 
-        // Fast path: fused getCurrent often returns a good GPS fix outdoors in seconds.
-        void adapters.getCurrentPosition(liveOptions(opts.getCurrentTimeoutMs, 0))
-            .then((position) => {
-                if (settled) return;
-                const acquired = withLocationSource(position, inferLocationSource(position));
-                if (acquired.source === 'gps') {
-                    considerGps(acquired);
-                    return;
-                }
-                holdCell(acquired);
-            })
+        const acceptReading = (position: Position) => {
+            if (settled) return;
+            const acquired = asAcquiredPosition(
+                withLocationSource(position, inferLocationSource(position)),
+            );
+            if (acquired.source === 'gps') {
+                considerGps(acquired);
+                return;
+            }
+            holdCell(acquired);
+        };
+
+        // High accuracy is fast outdoors. Balanced power returns Wi-Fi/network indoors,
+        // where a satellite lock often never arrives until the user reaches a door.
+        void adapters.getCurrentPosition(liveOptions(opts.getCurrentTimeoutMs, 0, true))
+            .then(acceptReading)
+            .catch(failHard);
+        void adapters.getCurrentPosition(liveOptions(opts.getCurrentTimeoutMs, 0, false))
+            .then(acceptReading)
             .catch(failHard);
 
         const nativeListen = runNativeGpsListen(adapters, {
             budgetMs: opts.nativeTimeoutMs,
             isSettled: () => settled,
-            onGps: considerGps,
+            onGps: (position) => considerGps(position, true),
             onCell: holdCell,
         });
 
@@ -474,6 +524,32 @@ async function raceLivePosition(
     });
 }
 
+/**
+ * After an indoor/coarse fix is shown, keep listening so a doorway GPS lock
+ * can replace it. The first result must not be the last one.
+ */
+function scheduleGpsUpgrade(
+    adapters: LocationAdapters,
+    current: AcquiredPosition,
+    emit: (position: AcquiredPosition) => void,
+    budgetMs: number,
+): void {
+    if (!adapters.requestFreshFix) return;
+    if (current.source !== 'gps') return;
+    if (accuracyMeters(current) <= GPS_GOOD_ACCURACY_M) return;
+    void (async () => {
+        try {
+            const next = await adapters.requestFreshFix!(budgetMs, accuracyMeters(current));
+            if (!next) return;
+            const acquired = asAcquiredPosition(next);
+            if (acquired.source !== 'gps' || !isRecentFix(acquired)) return;
+            if (accuracyMeters(acquired) < accuracyMeters(current)) emit(acquired);
+        } catch {
+            // The report form can ask again.
+        }
+    })();
+}
+
 export async function acquireDevicePosition(
     adapters: LocationAdapters,
     opts?: AcquirePositionOptions,
@@ -503,6 +579,7 @@ export async function acquireDevicePosition(
             allowCellFallback,
         });
         emit(live);
+        scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs);
         return live;
     } catch (err) {
         const code = classifyGeolocationError(err);
@@ -516,6 +593,7 @@ export async function acquireDevicePosition(
                     allowCellFallback,
                 });
                 emit(live);
+                scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs);
                 return live;
             }
         }

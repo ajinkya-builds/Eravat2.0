@@ -10,7 +10,7 @@ import {
     nativeFixToPosition,
     persistLastGpsFix,
     readLastGpsFix,
-    sourceFromProvider,
+    sourceFromAccuracy,
     withLocationSource,
     DEFAULT_LAST_GPS_MAX_AGE_MS,
     GEOLOCATION_GPS_BUDGET_MS,
@@ -46,7 +46,7 @@ function toNativePosition(fix: {
             accuracy: fix.accuracy,
             timestamp: fix.timestamp,
         }),
-        sourceFromProvider(fix.provider),
+        sourceFromAccuracy(fix.provider, fix.accuracy),
     );
 }
 
@@ -59,18 +59,14 @@ function createAdapters(): LocationAdapters {
             const position = toNativePosition(fix);
             return position;
         }).catch(() => null),
-        requestFreshFix: async (timeoutMs) => {
-            const fix = await LocationSettings.requestFreshFix({ timeoutMs });
+        requestFreshFix: async (timeoutMs, improveBelowM) => {
+            const fix = await LocationSettings.requestFreshFix({ timeoutMs, improveBelowM });
             return toNativePosition(fix);
         },
         cancelFreshFix: async () => {
             await LocationSettings.cancelFreshFix();
         },
-        ensureLocationEnabled: async () => {
-            if (!Capacitor.isNativePlatform()) return true;
-            const result = await LocationSettings.ensureEnabled();
-            return result.enabled;
-        },
+        ensureLocationEnabled: () => ensureDeviceLocationOn(),
     };
 }
 
@@ -112,6 +108,21 @@ function emitGpsFix(position: AcquiredPosition) {
 }
 
 let acquireInflight: Promise<AcquiredPosition> | null = null;
+let ensureInflight: Promise<boolean> | null = null;
+
+/** One system "Turn on location" dialog at a time. */
+function ensureDeviceLocationOn(): Promise<boolean> {
+    if (!Capacitor.isNativePlatform()) return Promise.resolve(true);
+    if (!ensureInflight) {
+        ensureInflight = LocationSettings.ensureEnabled()
+            .then((result) => Boolean(result.enabled))
+            .catch(() => false)
+            .finally(() => {
+                ensureInflight = null;
+            });
+    }
+    return ensureInflight;
+}
 
 async function acquirePosition(promptIfDisabled: boolean): Promise<AcquiredPosition> {
     if (acquireInflight) return acquireInflight;
@@ -217,6 +228,7 @@ export function useGeolocation() {
         latitude: position?.coords.latitude,
         longitude: position?.coords.longitude,
         accuracy: position?.coords.accuracy,
+        locationSource: position?.source ?? null,
         error,
         lastErrorCode,
         getLastKnownLocation,
@@ -239,6 +251,11 @@ export function useDeviceLocationBootstrap() {
         // do not settle on cell, and keep the wait to a single attempt.
         void (async () => {
             try {
+                // Activity is resumed before the system location dialog can show.
+                // Ask to turn location on before the permission sheet, and do not
+                // let a permission failure skip that dialog.
+                await new Promise((resolve) => setTimeout(resolve, 400));
+                await ensureDeviceLocationOn();
                 await ensureFineLocationPermission();
                 await acquireDevicePosition(createAdapters(), {
                     promptIfDisabled: true,

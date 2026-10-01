@@ -72,6 +72,25 @@ export function AppLayout() {
             else void refresh();
         };
         window.addEventListener(LOCATION_ENABLED_EVENT, onState);
+
+        // If location is still off after bootstrap, show the system dialog once.
+        // Banner alone is easy to miss before Add Sighting.
+        void (async () => {
+            await new Promise((r) => setTimeout(r, 800));
+            if (cancelled) return;
+            try {
+                const { enabled } = await LocationSettings.isEnabled();
+                if (cancelled) return;
+                setLocationOff(!enabled);
+                if (!enabled) {
+                    const result = await LocationSettings.ensureEnabled();
+                    if (!cancelled) setLocationOff(!result.enabled);
+                }
+            } catch {
+                // Banner / report step still cover this.
+            }
+        })();
+
         return () => {
             cancelled = true;
             window.removeEventListener(LOCATION_ENABLED_EVENT, onState);

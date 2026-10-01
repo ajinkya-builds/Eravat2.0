@@ -8,6 +8,7 @@ import {
     inferLocationSource,
     persistLastGpsFix,
     readLastGpsFix,
+    sourceFromAccuracy,
     sourceFromProvider,
     LAST_GPS_KEY,
     GPS_REFINE_MS,
@@ -84,6 +85,16 @@ describe('location source', () => {
         expect(sourceFromProvider('fused')).toBe('gps');
         expect(sourceFromProvider('network')).toBe('cell');
         expect(sourceFromProvider('passive')).toBe('cell');
+    });
+
+    it('treats a room-level network fix as usable and a coarse tower fix as cell', () => {
+        expect(sourceFromAccuracy('network', 40)).toBe('gps');
+        expect(sourceFromAccuracy('network', 180)).toBe('gps');
+        expect(sourceFromAccuracy('passive', 900)).toBe('cell');
+        expect(sourceFromAccuracy('fused', 120)).toBe('gps');
+        expect(sourceFromAccuracy('gps', 15)).toBe('gps');
+        expect(asAcquiredPosition(acquired(23, 81, Date.now(), 40, 'cell')).source).toBe('gps');
+        expect(asAcquiredPosition(acquired(23, 81, Date.now(), 900, 'cell')).source).toBe('cell');
     });
 
     it('infers cell only from very coarse accuracy when provider is unknown', () => {
@@ -342,6 +353,116 @@ describe('acquireDevicePosition', () => {
         });
         expect(result.coords.latitude).toBe(23.72);
         expect(result.source).toBe('gps');
+    });
+
+
+    it('prompts up front when promptIfDisabled is true', async () => {
+        const live = pos(23.1, 80.2, Date.now(), 12);
+        const deps = adapters({
+            getCurrentPosition: vi.fn().mockResolvedValue(live),
+            watchPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+            requestFreshFix: vi.fn().mockImplementation(() => new Promise(() => {})),
+            ensureLocationEnabled: vi.fn().mockResolvedValue(true),
+        });
+        await acquireDevicePosition(deps, {
+            promptIfDisabled: true,
+            watchTimeoutMs: 200,
+            getCurrentTimeoutMs: 200,
+            nativeTimeoutMs: 200,
+        });
+        expect(deps.ensureLocationEnabled).toHaveBeenCalledTimes(1);
+        expect(deps.getCurrentPosition).toHaveBeenCalled();
+    });
+
+    it('accepts a balanced-power indoor network reading from getCurrentPosition', async () => {
+        const indoorNetwork = pos(23.7, 81.0, Date.now(), 55);
+        const deps = adapters({
+            getCurrentPosition: vi.fn().mockImplementation((opts) => {
+                if (opts?.enableHighAccuracy === false) {
+                    return Promise.resolve(indoorNetwork);
+                }
+                return new Promise(() => {});
+            }),
+            watchPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+            requestFreshFix: vi.fn().mockImplementation(() => new Promise(() => {})),
+        });
+        const started = Date.now();
+        const result = await acquireDevicePosition(deps, {
+            watchTimeoutMs: 30_000,
+            getCurrentTimeoutMs: 5_000,
+            nativeTimeoutMs: 30_000,
+        });
+        expect(result.source).toBe('gps');
+        expect(result.coords.latitude).toBe(23.7);
+        expect(result.coords.accuracy).toBe(55);
+        // Balanced indoor readings refine briefly (GPS_REFINE_MS), not the 90s GPS budget.
+        expect(Date.now() - started).toBeLessThan(GPS_REFINE_MS + 1_500);
+        expect(Date.now() - started).toBeGreaterThan(GPS_REFINE_MS - 500);
+        expect(deps.getCurrentPosition).toHaveBeenCalledWith(
+            expect.objectContaining({ enableHighAccuracy: false }),
+        );
+    });
+
+    it('schedules a GPS upgrade after accepting a coarse indoor fix', async () => {
+        const indoor = acquired(23.7, 81.0, Date.now(), 120, 'gps');
+        const tighter = acquired(23.701, 81.002, Date.now() + 1, 18, 'gps');
+        const onFix = vi.fn();
+        const deps = adapters({
+            getCurrentPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+            watchPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+            requestFreshFix: vi.fn()
+                .mockResolvedValueOnce(indoor)
+                .mockResolvedValueOnce(tighter),
+        });
+        const result = await acquireDevicePosition(deps, {
+            watchTimeoutMs: 30_000,
+            getCurrentTimeoutMs: 30_000,
+            nativeTimeoutMs: 30_000,
+            onFix,
+        });
+        expect(result.coords.accuracy).toBe(120);
+        await new Promise((r) => setTimeout(r, 30));
+        expect(deps.requestFreshFix).toHaveBeenCalledTimes(2);
+        expect(deps.requestFreshFix).toHaveBeenLastCalledWith(30_000, 120);
+        expect(onFix).toHaveBeenCalled();
+        const upgraded = onFix.mock.calls.map((c) => c[0]).find((p) => p.coords.accuracy === 18);
+        expect(upgraded?.coords.latitude).toBe(23.701);
+    });
+
+    it('accepts an indoor network fix without waiting out the GPS budget', async () => {
+        const indoor = acquired(23.7, 81.0, Date.now(), 42, 'cell');
+        const deps = adapters({
+            getCurrentPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+            watchPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+            requestFreshFix: vi.fn().mockResolvedValue(indoor),
+        });
+        const started = Date.now();
+        const result = await acquireDevicePosition(deps, {
+            watchTimeoutMs: 30_000,
+            getCurrentTimeoutMs: 30_000,
+            nativeTimeoutMs: 30_000,
+        });
+        expect(result.source).toBe('gps');
+        expect(result.coords.latitude).toBe(23.7);
+        expect(Date.now() - started).toBeLessThan(1_000);
+    });
+
+    it('accepts a room-level native fix without adding another refine wait', async () => {
+        const indoor = acquired(23.7, 81.0, Date.now(), 120, 'gps');
+        const deps = adapters({
+            getCurrentPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+            watchPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+            requestFreshFix: vi.fn().mockResolvedValue(indoor),
+        });
+        const started = Date.now();
+        const result = await acquireDevicePosition(deps, {
+            watchTimeoutMs: 30_000,
+            getCurrentTimeoutMs: 30_000,
+            nativeTimeoutMs: 30_000,
+        });
+        expect(result.source).toBe('gps');
+        expect(result.coords.accuracy).toBe(120);
+        expect(Date.now() - started).toBeLessThan(1_000);
     });
 
     it('accepts indoor-accuracy GPS without treating it as cell', async () => {

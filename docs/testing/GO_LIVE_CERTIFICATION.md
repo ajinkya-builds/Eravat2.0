@@ -266,6 +266,7 @@ Run automation: `node scripts/staging-notification-alerts-e2e.mjs`
 - [ ] OTP login on cellular network
 - [ ] Camera capture in report wizard
 - [ ] App asks to **turn on location** at startup (system dialog), not only on the report form
+- [ ] Indoors (concrete room): coordinates appear within a few seconds via Wi-Fi/network; opening a door may refine GPS further
 - [ ] With location already on, GPS fills on the first attempt (no 2–3 refreshes)
 - [ ] If location is turned on later, GPS retriees automatically (banner + watch)
 - [ ] Offline GPS still returns a fix (or last known) without several refresh taps

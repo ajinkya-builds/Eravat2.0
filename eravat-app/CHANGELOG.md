@@ -7,6 +7,13 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.13] — 2026-10-01 (versionCode 20113)
+
+- Fill GPS indoors via Wi-Fi/network within seconds
+- Show Turn on location system dialog when the app opens
+- Upgrade indoor fix to tighter GPS when outdoors
+
+---
 ## [2.1.12] — 2026-09-25 (versionCode 20112)
 
 - GPS-first location: cell only after full GPS budget

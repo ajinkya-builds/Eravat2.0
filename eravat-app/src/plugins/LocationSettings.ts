@@ -16,7 +16,7 @@ export interface LocationSettingsPlugin {
   isEnabled(): Promise<LocationState>;
   ensureEnabled(): Promise<LocationState>;
   getLastKnown(): Promise<NativeLastKnown>;
-  requestFreshFix(options?: { timeoutMs?: number }): Promise<NativeLastKnown>;
+  requestFreshFix(options?: { timeoutMs?: number; improveBelowM?: number }): Promise<NativeLastKnown>;
   cancelFreshFix(): Promise<void>;
   addListener(
     eventName: 'locationStateChange',
