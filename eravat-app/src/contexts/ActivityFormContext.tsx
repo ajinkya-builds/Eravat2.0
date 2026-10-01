@@ -130,9 +130,15 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
         loading: gpsLoading,
         error: gpsError,
         lastErrorCode,
+        latitude: liveLatitude,
+        longitude: liveLongitude,
+        accuracy: liveAccuracy,
+        locationSource,
     } = useGeolocation();
     const prefetchStartedRef = useRef(false);
     const locationRequestIdRef = useRef(0);
+    const autoFixRef = useRef<{ lat: number; lng: number; acc: number } | null>(null);
+    const sawGpsLoadingRef = useRef(false);
     const [pendingCellFix, setPendingCellFix] = useState<AcquiredPosition | null>(null);
 
     const updateFormData = useCallback((updates: Partial<ActivityFormData>) => {
@@ -148,6 +154,7 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
 
     const refreshLocation = useCallback(async (source: LocationPrefetchSource = 'retry') => {
         const requestId = ++locationRequestIdRef.current;
+        autoFixRef.current = null;
         const datetimeStarted = performance.now();
         const { date, time } = captureDeviceDateTime();
         const datetimeMs = Math.round(performance.now() - datetimeStarted);
@@ -165,7 +172,7 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
         const gpsStarted = performance.now();
         track('report.gps_prefetch_started', { source, timeout_ms: GEOLOCATION_TIMEOUT_MS });
         logger.info('ReportLocation', 'gps prefetch started', { source, timeout_ms: GEOLOCATION_TIMEOUT_MS });
-        const pos = await fetchLocation();
+        const pos = await fetchLocation({ promptIfDisabled: true });
         if (requestId !== locationRequestIdRef.current) return;
         const gpsMs = Math.round(performance.now() - gpsStarted);
         if (pos) {
@@ -180,6 +187,14 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
                 logger.info('ReportLocation', 'cell fix offered', { duration_ms: gpsMs, accuracy_m: accuracyM, source });
                 return;
             }
+            const acc = pos.coords.accuracy != null && Number.isFinite(pos.coords.accuracy)
+                ? pos.coords.accuracy
+                : Number.POSITIVE_INFINITY;
+            autoFixRef.current = {
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                acc,
+            };
             updateFormData({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
             track('report.gps_acquired', {
                 duration_ms: gpsMs,
@@ -195,11 +210,48 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
         }
     }, [fetchLocation, lastErrorCode, updateFormData]);
 
+    // A doorway GPS lock can arrive after the indoor fix is already on the form.
+    useEffect(() => {
+        if (gpsLoading) {
+            sawGpsLoadingRef.current = true;
+            return;
+        }
+        if (!sawGpsLoadingRef.current) return;
+        if (locationSource === 'cell') return;
+        if (liveLatitude == null || liveLongitude == null) return;
+        const acc = typeof liveAccuracy === 'number' && Number.isFinite(liveAccuracy)
+            ? liveAccuracy
+            : Number.POSITIVE_INFINITY;
+        const stamp = autoFixRef.current;
+        const formLat = formData.latitude;
+        const formLng = formData.longitude;
+        const userEdited = formLat != null && formLng != null && (
+            !stamp || stamp.lat !== formLat || stamp.lng !== formLng
+        );
+        if (userEdited) return;
+        if (stamp && acc >= stamp.acc) return;
+        autoFixRef.current = { lat: liveLatitude, lng: liveLongitude, acc };
+        updateFormData({ latitude: liveLatitude, longitude: liveLongitude });
+    }, [
+        gpsLoading,
+        locationSource,
+        liveLatitude,
+        liveLongitude,
+        liveAccuracy,
+        formData.latitude,
+        formData.longitude,
+        updateFormData,
+    ]);
+
     const acceptCellLocation = useCallback(() => {
         if (!pendingCellFix) return;
         const pos = pendingCellFix;
         const accuracyM = pos.coords.accuracy != null ? Math.round(pos.coords.accuracy) : undefined;
         setPendingCellFix(null);
+        const acc = pos.coords.accuracy != null && Number.isFinite(pos.coords.accuracy)
+            ? pos.coords.accuracy
+            : Number.POSITIVE_INFINITY;
+        autoFixRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc };
         updateFormData({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
         track('report.cell_fix_accepted', { accuracy_m: accuracyM });
         logger.info('ReportLocation', 'cell fix accepted', { accuracy_m: accuracyM });
@@ -279,6 +331,8 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
 
     const resetForm = useCallback(() => {
         locationRequestIdRef.current += 1;
+        autoFixRef.current = null;
+        sawGpsLoadingRef.current = false;
         setPendingCellFix(null);
         setFormData(DEFAULT_FORM);
         setStepIndex(0);

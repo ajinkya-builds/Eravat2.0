@@ -50,8 +50,18 @@ public class LocationSettingsPlugin extends Plugin {
     private LocationCallback fusedCallback;
     private PluginCall pendingFreshFixCall;
     private AtomicBoolean freshFixDone;
-    /** Matches JS CELL_ACCURACY_THRESHOLD_M — coarse fused/network held as cell. */
-    private static final float CELL_ACCURACY_THRESHOLD_M = 500f;
+    /** Matches JS GPS_GOOD_ACCURACY_M. */
+    private static final float GOOD_ACCURACY_M = 50f;
+    /**
+     * Matches JS INDOOR_USABLE_ACCURACY_M.
+     * High-accuracy fused waits for a satellite lock by default, so a concrete room
+     * never delivers a callback until the user reaches a door. Room-level Wi-Fi/network
+     * fixes must be returned on their own.
+     */
+    private static final float INDOOR_USABLE_ACCURACY_M = 300f;
+    private static final long INDOOR_REFINE_MS = 4000L;
+    /** When set, only a strictly tighter fix may end the listen early. */
+    private float freshFixImproveBelowM = Float.NaN;
 
     @Override
     public void load() {
@@ -166,6 +176,8 @@ public class LocationSettingsPlugin extends Plugin {
 
         Integer timeout = call.getInt("timeoutMs", 90_000);
         int timeoutMs = timeout != null ? timeout : 90_000;
+        Double improveBelow = call.getDouble("improveBelowM");
+        freshFixImproveBelowM = improveBelow != null ? improveBelow.floatValue() : Float.NaN;
         call.setKeepAlive(true);
         // Cancel any prior listen so we never leave a hung PluginCall.
         resolvePendingFreshFixEmpty(manager);
@@ -178,22 +190,44 @@ public class LocationSettingsPlugin extends Plugin {
         }
 
         AtomicReference<Location> liveCell = new AtomicReference<>();
+        AtomicReference<Location> liveIndoor = new AtomicReference<>();
+        AtomicBoolean indoorArmed = new AtomicBoolean(false);
 
         final Runnable finishWithCell = () -> {
             if (!done.compareAndSet(false, true)) return;
             Location cell = liveCell.get();
+            Location indoor = liveIndoor.get();
+            PluginCall pending = pendingFreshFixCall;
+            pendingFreshFixCall = null;
+            stopFreshFixUpdates(manager);
+            if (pending == null) return;
+            if (!Float.isNaN(freshFixImproveBelowM)) {
+                if (isImprovement(indoor)) {
+                    pending.resolve(locationToJs(indoor));
+                } else {
+                    pending.resolve(new JSObject());
+                }
+                return;
+            }
+            Location chosen = indoor != null ? indoor : cell;
+            pending.resolve(chosen != null ? locationToJs(chosen) : new JSObject());
+        };
+
+        final Runnable finishWithIndoor = () -> {
+            if (!done.compareAndSet(false, true)) return;
+            Location indoor = liveIndoor.get();
             PluginCall pending = pendingFreshFixCall;
             pendingFreshFixCall = null;
             stopFreshFixUpdates(manager);
             if (pending != null) {
-                pending.resolve(cell != null ? locationToJs(cell) : new JSObject());
+                pending.resolve(indoor != null ? locationToJs(indoor) : new JSObject());
             }
         };
 
         LocationListener listener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
-                handleFreshFixLocation(location, done, liveCell, manager);
+                handleFreshFixLocation(location, done, liveCell, liveIndoor, indoorArmed, finishWithIndoor, manager);
             }
         };
         freshFixListeners.add(listener);
@@ -218,8 +252,16 @@ public class LocationSettingsPlugin extends Plugin {
         // Fused high-accuracy is typically much faster outdoors than raw GPS alone.
         if (fusedClient != null) {
             try {
-                LocationRequest fusedRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
+                // waitForAccurateLocation defaults to true for high accuracy, so indoors the
+                // callback never fires until a satellite lock — which is exactly "no GPS in
+                // the room, instant at the door". Deliver the first Wi-Fi/network fix too.
+                LocationRequest highAccuracy = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
                     .setMinUpdateIntervalMillis(500L)
+                    .setWaitForAccurateLocation(false)
+                    .build();
+                LocationRequest balanced = new LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 1000L)
+                    .setMinUpdateIntervalMillis(500L)
+                    .setWaitForAccurateLocation(false)
                     .build();
                 fusedCallback = new LocationCallback() {
                     @Override
@@ -227,11 +269,12 @@ public class LocationSettingsPlugin extends Plugin {
                         if (result == null) return;
                         Location best = result.getLastLocation();
                         if (best != null) {
-                            handleFreshFixLocation(best, done, liveCell, manager);
+                            handleFreshFixLocation(best, done, liveCell, liveIndoor, indoorArmed, finishWithIndoor, manager);
                         }
                     }
                 };
-                fusedClient.requestLocationUpdates(fusedRequest, fusedCallback, Looper.getMainLooper());
+                fusedClient.requestLocationUpdates(highAccuracy, fusedCallback, Looper.getMainLooper());
+                fusedClient.requestLocationUpdates(balanced, fusedCallback, Looper.getMainLooper());
                 registered = true;
             } catch (SecurityException ignored) {
                 fusedCallback = null;
@@ -273,10 +316,17 @@ public class LocationSettingsPlugin extends Plugin {
         Location location,
         AtomicBoolean done,
         AtomicReference<Location> liveCell,
+        AtomicReference<Location> liveIndoor,
+        AtomicBoolean indoorArmed,
+        Runnable finishWithIndoor,
         LocationManager manager
     ) {
         if (location == null || done.get()) return;
-        if (isGpsQualityFix(location)) {
+        boolean improving = !Float.isNaN(freshFixImproveBelowM);
+        if (improving && !isImprovement(location)) {
+            return;
+        }
+        if (isGoodAccuracy(location)) {
             if (!done.compareAndSet(false, true)) return;
             if (freshFixHandler != null) freshFixHandler.removeCallbacksAndMessages(null);
             PluginCall pending = pendingFreshFixCall;
@@ -287,12 +337,52 @@ public class LocationSettingsPlugin extends Plugin {
             }
             return;
         }
-        Location previous = liveCell.get();
-        if (previous == null
-            || (location.hasAccuracy()
-                && (!previous.hasAccuracy() || location.getAccuracy() < previous.getAccuracy()))) {
+        if (isIndoorUsable(location)) {
+            if (isBetterFix(location, liveIndoor.get())) {
+                liveIndoor.set(location);
+            }
+            if (indoorArmed.compareAndSet(false, true) && freshFixHandler != null) {
+                freshFixHandler.postDelayed(finishWithIndoor, INDOOR_REFINE_MS);
+            }
+            return;
+        }
+        if (improving) return;
+        if (isBetterFix(location, liveCell.get())) {
             liveCell.set(location);
         }
+    }
+
+    private boolean isGoodAccuracy(Location location) {
+        return location.hasAccuracy()
+            && location.getAccuracy() > 0f
+            && location.getAccuracy() <= GOOD_ACCURACY_M;
+    }
+
+    /** Real GNSS, or a room-level Wi-Fi/fused fix. Coarse cell towers are excluded. */
+    private boolean isIndoorUsable(Location location) {
+        String provider = location.getProvider() != null ? location.getProvider() : "";
+        if (LocationManager.GPS_PROVIDER.equals(provider)) return true;
+        return location.hasAccuracy()
+            && location.getAccuracy() > 0f
+            && location.getAccuracy() <= INDOOR_USABLE_ACCURACY_M;
+    }
+
+    private boolean isImprovement(Location location) {
+        if (Float.isNaN(freshFixImproveBelowM)) return true;
+        return location != null
+            && location.hasAccuracy()
+            && location.getAccuracy() > 0f
+            && location.getAccuracy() < freshFixImproveBelowM;
+    }
+
+    private boolean isBetterFix(Location next, Location previous) {
+        if (next == null) return false;
+        if (previous == null) return true;
+        if (next.hasAccuracy() && previous.hasAccuracy()) {
+            return next.getAccuracy() < previous.getAccuracy();
+        }
+        if (next.hasAccuracy() && !previous.hasAccuracy()) return true;
+        return next.getTime() >= previous.getTime();
     }
 
     private void resolvePendingFreshFixEmpty(LocationManager manager) {
@@ -311,22 +401,6 @@ public class LocationSettingsPlugin extends Plugin {
         if (pending != null) {
             pending.resolve(new JSObject());
         }
-    }
-
-    /** Satellite GPS always wins; fused/unknown wins when accuracy is GPS-like. */
-    private boolean isGpsQualityFix(Location location) {
-        String provider = location.getProvider() != null ? location.getProvider() : "";
-        if (LocationManager.NETWORK_PROVIDER.equals(provider) || "passive".equalsIgnoreCase(provider)) {
-            return false;
-        }
-        if (LocationManager.GPS_PROVIDER.equals(provider)) {
-            return true;
-        }
-        // fused / unknown — accept only when not cell-coarse
-        if (location.hasAccuracy() && location.getAccuracy() > CELL_ACCURACY_THRESHOLD_M) {
-            return false;
-        }
-        return true;
     }
 
     @ActivityCallback
