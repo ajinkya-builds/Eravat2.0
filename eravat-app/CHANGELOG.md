@@ -7,6 +7,12 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.15] — 2026-10-03 (versionCode 20115)
+
+- Never use last-known for reports — only live indoor or GPS fixes
+- Keep OnePlus hang fix from 2.1.14
+
+---
 ## [2.1.14] — 2026-10-03 (versionCode 20114)
 
 - Fix OnePlus GPS hang after cancelFreshFix

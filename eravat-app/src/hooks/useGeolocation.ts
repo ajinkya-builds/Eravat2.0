@@ -127,9 +127,7 @@ function ensureDeviceLocationOn(): Promise<boolean> {
 async function acquirePosition(promptIfDisabled: boolean): Promise<AcquiredPosition> {
     if (acquireInflight) return acquireInflight;
     const offline = isBrowserOffline();
-    const nativeBudget = offline
-        ? Math.min(GEOLOCATION_GPS_BUDGET_MS, 25_000)
-        : GEOLOCATION_GPS_BUDGET_MS;
+    const nativeBudget = GEOLOCATION_GPS_BUDGET_MS;
     // Hard ceiling so a hung native cancel/plugin call cannot pin the report form forever.
     const hardDeadlineMs = nativeBudget + 15_000;
     const run = (async () => {

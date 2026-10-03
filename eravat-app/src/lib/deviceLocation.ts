@@ -549,40 +549,18 @@ function scheduleGpsUpgrade(
     })();
 }
 
-async function readCachedOrNativeLastKnown(
-    adapters: LocationAdapters,
-    now = Date.now(),
-): Promise<AcquiredPosition | null> {
-    const cached = readLastGpsFix(DEFAULT_LAST_GPS_MAX_AGE_MS, now);
-    if (cached) {
-        return withLocationSource(cached, inferLocationSource(cached));
-    }
-    try {
-        const native = await adapters.getNativeLastKnown();
-        if (!native) return null;
-        if (!isFixFresh(native, DEFAULT_LAST_GPS_MAX_AGE_MS, now)) return null;
-        return withLocationSource(native, inferLocationSource(native));
-    } catch {
-        return null;
-    }
-}
-
 export async function acquireDevicePosition(
     adapters: LocationAdapters,
     opts?: AcquirePositionOptions,
 ): Promise<AcquiredPosition> {
     const offline = opts?.offline ?? false;
     const promptIfDisabled = opts?.promptIfDisabled ?? false;
-    // Offline: AGPS/Wi-Fi fused often never arrives. Keep the live budget shorter and
-    // fall back to last-known instead of spinning for the full outdoor GPS wait.
+    // Never fill reports from last-known — that can be outdoors / another beat.
+    // Always wait for a live fix (Wi-Fi/network indoor or GNSS outdoors).
     const getCurrentTimeoutMs = opts?.getCurrentTimeoutMs
         ?? (offline ? 6_000 : GEOLOCATION_TIMEOUT_MS);
-    const nativeTimeoutMs = opts?.nativeTimeoutMs
-        ?? (offline ? Math.min(GEOLOCATION_GPS_BUDGET_MS, 25_000) : GEOLOCATION_GPS_BUDGET_MS);
-    const watchTimeoutMs = opts?.watchTimeoutMs ?? Math.max(
-        offline ? nativeTimeoutMs : GEOLOCATION_WATCH_TIMEOUT_MS,
-        nativeTimeoutMs,
-    );
+    const nativeTimeoutMs = opts?.nativeTimeoutMs ?? GEOLOCATION_GPS_BUDGET_MS;
+    const watchTimeoutMs = opts?.watchTimeoutMs ?? Math.max(GEOLOCATION_WATCH_TIMEOUT_MS, nativeTimeoutMs);
     const allowCellFallback = opts?.allowCellFallback ?? true;
 
     const emit = (position: AcquiredPosition) => {
@@ -604,28 +582,18 @@ export async function acquireDevicePosition(
     try {
         const live = await raceOnce();
         emit(live);
-        if (!offline) scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs);
+        scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs);
         return live;
     } catch (err) {
         const code = classifyGeolocationError(err);
         if (isLocationOffError(code) && !promptIfDisabled) {
             const enabled = await adapters.ensureLocationEnabled();
             if (enabled) {
-                try {
-                    const live = await raceOnce();
-                    emit(live);
-                    if (!offline) scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs);
-                    return live;
-                } catch (retryErr) {
-                    err = retryErr;
-                }
+                const live = await raceOnce();
+                emit(live);
+                scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs);
+                return live;
             }
-        }
-        // Offline / cold GNSS: prefer a recent last-known over a hard failure.
-        const fallback = await readCachedOrNativeLastKnown(adapters, opts?.now ?? Date.now());
-        if (fallback) {
-            emit(fallback);
-            return fallback;
         }
         throw err;
     }
