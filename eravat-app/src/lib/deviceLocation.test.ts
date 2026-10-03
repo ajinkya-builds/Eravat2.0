@@ -12,6 +12,11 @@ import {
     sourceFromProvider,
     LAST_GPS_KEY,
     GPS_REFINE_MS,
+    GEOLOCATION_TIMEOUT_MS,
+    GEOLOCATION_TIMEOUT_OFFLINE_MS,
+    GEOLOCATION_GPS_BUDGET_MS,
+    GEOLOCATION_GPS_BUDGET_OFFLINE_MS,
+    LOCATION_SETTINGS_SETTLE_MS,
     type AcquiredPosition,
     type LocationAdapters,
 } from './deviceLocation';
@@ -418,6 +423,111 @@ describe('acquireDevicePosition', () => {
         expect(deps.getNativeLastKnown).not.toHaveBeenCalled();
     });
 
+    it('uses a longer default getCurrent timeout offline than online', async () => {
+        expect(GEOLOCATION_TIMEOUT_OFFLINE_MS).toBeGreaterThan(GEOLOCATION_TIMEOUT_MS);
+        expect(GEOLOCATION_GPS_BUDGET_OFFLINE_MS).toBeGreaterThan(GEOLOCATION_GPS_BUDGET_MS);
+
+        const onlineLive = pos(23.1, 80.1, Date.now(), 12);
+        const onlineDeps = adapters({
+            getCurrentPosition: vi.fn().mockResolvedValue(onlineLive),
+            watchPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+        });
+        await acquireDevicePosition(onlineDeps, {
+            watchTimeoutMs: 200,
+            nativeTimeoutMs: 200,
+        });
+        expect(onlineDeps.getCurrentPosition).toHaveBeenCalledWith(
+            expect.objectContaining({ timeout: GEOLOCATION_TIMEOUT_MS, maximumAge: 0 }),
+        );
+
+        const offlineLive = pos(23.2, 80.2, Date.now(), 18);
+        const offlineDeps = adapters({
+            getCurrentPosition: vi.fn().mockResolvedValue(offlineLive),
+            watchPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+        });
+        await acquireDevicePosition(offlineDeps, {
+            offline: true,
+            watchTimeoutMs: 200,
+            nativeTimeoutMs: 200,
+        });
+        expect(offlineDeps.getCurrentPosition).toHaveBeenCalledWith(
+            expect.objectContaining({ timeout: GEOLOCATION_TIMEOUT_OFFLINE_MS, maximumAge: 0 }),
+        );
+    });
+
+    it('settles after ensure before starting the live race (first-grant)', async () => {
+        const live = pos(23.3, 80.3, Date.now(), 14);
+        const order: string[] = [];
+        const deps = adapters({
+            ensureLocationEnabled: vi.fn().mockImplementation(async () => {
+                order.push('ensure');
+                // Simulate user dismissing Location Accuracy (slow ensure).
+                await new Promise((r) => setTimeout(r, 300));
+                return true;
+            }),
+            getCurrentPosition: vi.fn().mockImplementation(async () => {
+                order.push('getCurrent');
+                return live;
+            }),
+            watchPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+            requestFreshFix: vi.fn().mockImplementation(() => new Promise(() => {})),
+        });
+        const started = Date.now();
+        await acquireDevicePosition(deps, {
+            promptIfDisabled: true,
+            watchTimeoutMs: 200,
+            getCurrentTimeoutMs: 200,
+            nativeTimeoutMs: 200,
+        });
+        expect(order.indexOf('ensure')).toBeLessThan(order.indexOf('getCurrent'));
+        expect(Date.now() - started).toBeGreaterThanOrEqual(LOCATION_SETTINGS_SETTLE_MS + 250 - 50);
+        expect(deps.ensureLocationEnabled).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries once after an early timeout when location was just enabled', async () => {
+        const live = pos(23.4, 80.4, Date.now(), 16);
+        let getCurrentCalls = 0;
+        const deps = adapters({
+            ensureLocationEnabled: vi.fn().mockImplementation(async () => {
+                await new Promise((r) => setTimeout(r, 300));
+                return true;
+            }),
+            getCurrentPosition: vi.fn().mockImplementation(() => {
+                getCurrentCalls += 1;
+                if (getCurrentCalls === 1) return new Promise(() => {});
+                return Promise.resolve(live);
+            }),
+            watchPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+            requestFreshFix: vi.fn().mockResolvedValue(null),
+        });
+        const result = await acquireDevicePosition(deps, {
+            promptIfDisabled: true,
+            watchTimeoutMs: 40,
+            getCurrentTimeoutMs: 40,
+            nativeTimeoutMs: 30,
+        });
+        expect(result.coords.latitude).toBe(23.4);
+        expect(result.source).toBe('gps');
+        expect(getCurrentCalls).toBeGreaterThanOrEqual(2);
+        expect(deps.ensureLocationEnabled).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not probe-retry when location was already enabled (online path)', async () => {
+        const live = pos(23.5, 80.5, Date.now(), 11);
+        const deps = adapters({
+            ensureLocationEnabled: vi.fn().mockResolvedValue(true), // instant = already on
+            getCurrentPosition: vi.fn().mockResolvedValue(live),
+            watchPosition: vi.fn().mockImplementation(() => new Promise(() => {})),
+            requestFreshFix: vi.fn().mockImplementation(() => new Promise(() => {})),
+        });
+        await acquireDevicePosition(deps, {
+            promptIfDisabled: true,
+            watchTimeoutMs: 200,
+            getCurrentTimeoutMs: 200,
+            nativeTimeoutMs: 200,
+        });
+        expect(deps.getCurrentPosition).toHaveBeenCalledTimes(1);
+    });
     it('schedules a GPS upgrade after accepting a coarse indoor fix', async () => {
         const indoor = acquired(23.7, 81.0, Date.now(), 120, 'gps');
         const tighter = acquired(23.701, 81.002, Date.now() + 1, 18, 'gps');

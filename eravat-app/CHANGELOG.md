@@ -7,6 +7,13 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.17] — 2026-10-03 (versionCode 20117)
+
+- Fix first-grant Location Accuracy race with report GPS
+- Longer offline GNSS budgets using Capacitor Network offline signal
+- Richer PostHog geo props for UAT diagnosis
+
+---
 ## [2.1.16] — 2026-10-03 (versionCode 20116)
 
 - Extremely detailed PostHog GPS telemetry for field debugging

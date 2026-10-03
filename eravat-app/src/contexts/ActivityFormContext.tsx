@@ -4,7 +4,7 @@ import { useGeolocation, GEOLOCATION_TIMEOUT_MS } from '../hooks/useGeolocation'
 import { captureDeviceDateTime } from '../lib/captureDeviceDateTime';
 import { LOCATION_ENABLED_EVENT, type AcquiredPosition } from '../lib/deviceLocation';
 import { track } from '../lib/analytics';
-import { accuracyBucket, geoBaseProps, roundCoord } from '../lib/geoTelemetry';
+import { accuracyBucket, geoBaseProps, roundCoord, trackGeo } from '../lib/geoTelemetry';
 import { logger } from '../lib/logger';
 
 export type FormStep =
@@ -301,6 +301,18 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
     }, [refreshLocation]);
 
     useEffect(() => {
+        return () => {
+            // Leaving /report (X / back) — ignore late GPS writes and mark for PostHog.
+            locationRequestIdRef.current += 1;
+            trackGeo('geo.acquire_superseded', {
+                reason: 'report_unmount',
+                had_coords: formData.latitude != null && formData.longitude != null,
+            });
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount only
+    }, []);
+
+    useEffect(() => {
         const onLocationState = (event: Event) => {
             const enabled = Boolean((event as CustomEvent<{ enabled?: boolean }>).detail?.enabled);
             if (!enabled) return;
@@ -363,6 +375,10 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
 
     const resetForm = useCallback(() => {
         locationRequestIdRef.current += 1;
+        trackGeo('geo.acquire_superseded', {
+            reason: 'report_reset',
+            had_coords: false,
+        });
         autoFixRef.current = null;
         sawGpsLoadingRef.current = false;
         setPendingCellFix(null);

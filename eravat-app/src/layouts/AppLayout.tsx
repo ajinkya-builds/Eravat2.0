@@ -6,7 +6,8 @@ import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { LocationSettings } from '../plugins/LocationSettings';
 import { LOCATION_ENABLED_EVENT } from '../lib/deviceLocation';
-import { trackGeo } from '../lib/geoTelemetry';
+import { ensureDeviceLocationOn } from '../hooks/useGeolocation';
+import { trackGeo, trackGeoDialog } from '../lib/geoTelemetry';
 
 import { cn } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -85,35 +86,13 @@ export function AppLayout() {
         };
         window.addEventListener(LOCATION_ENABLED_EVENT, onState);
 
-        // If location is still off after bootstrap, show the system dialog once.
-        // Banner alone is easy to miss before Add Sighting.
+        // Bootstrap owns the first Location Accuracy / ensure dialog.
+        // Do not launch a second ensureEnabled here — concurrent dialogs + cancelFreshFix
+        // were racing first-grant acquires (UAT). Banner still lets the user tap.
         void (async () => {
-            await new Promise((r) => setTimeout(r, 800));
+            await new Promise((r) => setTimeout(r, 1200));
             if (cancelled) return;
-            try {
-                const { enabled } = await LocationSettings.isEnabled();
-                if (cancelled) return;
-                setLocationOff(!enabled);
-                trackGeo('geo.location_service_state', {
-                    enabled,
-                    source: 'layout_bootstrap_check',
-                });
-                if (!enabled) {
-                    trackGeo('geo.location_prompt_shown', { source: 'layout_bootstrap' });
-                    const result = await LocationSettings.ensureEnabled();
-                    trackGeo('geo.location_prompt_result', {
-                        source: 'layout_bootstrap',
-                        enabled: result.enabled,
-                    });
-                    if (!cancelled) setLocationOff(!result.enabled);
-                }
-            } catch (err) {
-                trackGeo('geo.location_prompt_result', {
-                    source: 'layout_bootstrap',
-                    enabled: false,
-                    error: String(err instanceof Error ? err.message : err).slice(0, 80),
-                });
-            }
+            await refresh();
         })();
 
         return () => {
@@ -184,18 +163,29 @@ export function AppLayout() {
                             disabled={enablingLocation}
                             onClick={async () => {
                                 setEnablingLocation(true);
-                                trackGeo('geo.location_prompt_shown', { source: 'banner_tap' });
+                                const ensureStarted = Date.now();
+                                trackGeoDialog({
+                                    phase: 'shown',
+                                    dialog_kind: 'location_accuracy',
+                                    source: 'banner_tap',
+                                });
                                 try {
-                                    const { enabled } = await LocationSettings.ensureEnabled();
-                                    trackGeo('geo.location_prompt_result', {
+                                    const enabled = await ensureDeviceLocationOn();
+                                    trackGeoDialog({
+                                        phase: 'result',
+                                        dialog_kind: 'location_accuracy',
                                         source: 'banner_tap',
                                         enabled,
+                                        ensure_elapsed_ms: Date.now() - ensureStarted,
                                     });
                                     setLocationOff(!enabled);
                                 } catch (err) {
-                                    trackGeo('geo.location_prompt_result', {
+                                    trackGeoDialog({
+                                        phase: 'result',
+                                        dialog_kind: 'location_accuracy',
                                         source: 'banner_tap',
                                         enabled: false,
+                                        ensure_elapsed_ms: Date.now() - ensureStarted,
                                         error: String(err instanceof Error ? err.message : err).slice(0, 80),
                                     });
                                 } finally {

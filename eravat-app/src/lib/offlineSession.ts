@@ -53,3 +53,37 @@ export function readPersistedSupabaseSession(): Session | null {
 export function isBrowserOffline(): boolean {
     return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
+
+export type ConnectivitySnapshot = {
+    /** navigator.onLine (WebView) */
+    navigatorOnline: boolean;
+    /** Capacitor Network plugin — matches Offline badge when available */
+    networkConnected: boolean | null;
+    /**
+     * True when either signal says offline. Used for geo budgets so Offline (Local Save)
+     * sessions get the longer cold-GNSS window even if navigator.onLine is still true.
+     */
+    offlineForGeo: boolean;
+};
+
+/**
+ * Prefer Capacitor Network (same source as the Offline badge) when on native;
+ * always include navigator.onLine for PostHog comparison.
+ */
+export async function getConnectivitySnapshot(): Promise<ConnectivitySnapshot> {
+    const navigatorOnline = typeof navigator === 'undefined' || navigator.onLine !== false;
+    let networkConnected: boolean | null = null;
+    try {
+        const { Capacitor } = await import('@capacitor/core');
+        if (Capacitor.isNativePlatform()) {
+            const { Network } = await import('@capacitor/network');
+            const status = await Network.getStatus();
+            networkConnected = Boolean(status.connected);
+        }
+    } catch {
+        networkConnected = null;
+    }
+    const offlineForGeo =
+        !navigatorOnline || (networkConnected === false);
+    return { navigatorOnline, networkConnected, offlineForGeo };
+}

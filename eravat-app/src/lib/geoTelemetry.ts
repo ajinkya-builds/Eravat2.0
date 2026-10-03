@@ -1,6 +1,10 @@
 import { Capacitor } from '@capacitor/core';
 import { track, type AnalyticsProps } from './analytics';
 import { APP_VERSION_META } from '../version.meta';
+import {
+    getConnectivitySnapshot,
+    type ConnectivitySnapshot,
+} from './offlineSession';
 
 /**
  * Extremely detailed GPS / location telemetry for field debugging.
@@ -10,7 +14,16 @@ import { APP_VERSION_META } from '../version.meta';
 
 export type GeoPath = 'get_current' | 'watch' | 'native' | 'unknown';
 
+export type GeoDialogKind =
+    | 'location_accuracy'
+    | 'permission'
+    | 'provider_settings'
+    | 'banner'
+    | 'unknown';
+
 let acquireSeq = 0;
+let cachedConnectivity: ConnectivitySnapshot | null = null;
+let connectivityFetchedAt = 0;
 
 export function newGeoAcquireId(prefix = 'acq'): string {
     acquireSeq += 1;
@@ -37,6 +50,26 @@ function inferDeviceFamily(ua: string): string {
     return 'unknown';
 }
 
+/** Refresh Capacitor Network + navigator snapshot for geo events (≤2s cache). */
+export async function refreshGeoConnectivity(): Promise<ConnectivitySnapshot> {
+    cachedConnectivity = await getConnectivitySnapshot();
+    connectivityFetchedAt = Date.now();
+    return cachedConnectivity;
+}
+
+function connectivityProps(): AnalyticsProps {
+    const snap = cachedConnectivity;
+    const navigatorOnline = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
+    return {
+        // Legacy field — keep for existing PostHog insights.
+        online: snap ? !snap.offlineForGeo : navigatorOnline,
+        navigator_online: snap?.navigatorOnline ?? navigatorOnline,
+        network_connected: snap?.networkConnected,
+        offline_for_geo: snap?.offlineForGeo ?? !navigatorOnline,
+        connectivity_age_ms: snap ? Date.now() - connectivityFetchedAt : undefined,
+    };
+}
+
 export function geoBaseProps(extra?: AnalyticsProps): AnalyticsProps {
     const ua = uaSnippet();
     return {
@@ -46,7 +79,7 @@ export function geoBaseProps(extra?: AnalyticsProps): AnalyticsProps {
         is_native: Capacitor.isNativePlatform(),
         device_family: inferDeviceFamily(ua),
         ua_snippet: ua,
-        online: typeof navigator !== 'undefined' ? navigator.onLine !== false : true,
+        ...connectivityProps(),
         ...extra,
     };
 }
@@ -84,6 +117,7 @@ export type GeoReadingProps = {
     reason?: string;
     offline?: boolean;
     reading_n?: number;
+    path_elapsed_ms?: number;
 };
 
 export function trackGeoReading(props: GeoReadingProps): void {
@@ -102,5 +136,23 @@ export function trackGeoReading(props: GeoReadingProps): void {
         reason: props.reason,
         offline: props.offline,
         reading_n: props.reading_n,
+        path_elapsed_ms: props.path_elapsed_ms,
+    });
+}
+
+export function trackGeoDialog(props: {
+    phase: 'shown' | 'result';
+    dialog_kind: GeoDialogKind;
+    source: string;
+    enabled?: boolean;
+    ensure_elapsed_ms?: number;
+    error?: string;
+}): void {
+    trackGeo(props.phase === 'shown' ? 'geo.location_prompt_shown' : 'geo.location_prompt_result', {
+        dialog_kind: props.dialog_kind,
+        source: props.source,
+        enabled: props.enabled,
+        ensure_elapsed_ms: props.ensure_elapsed_ms,
+        error: props.error,
     });
 }

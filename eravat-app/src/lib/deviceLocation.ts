@@ -23,7 +23,15 @@ export const GEOLOCATION_GPS_WAIT_MS = GEOLOCATION_GPS_BUDGET_MS;
 /** Single continuous native listen; extra attempts only restart GNSS and hurt lock. */
 export const GEOLOCATION_GPS_ATTEMPTS = 1;
 export const GEOLOCATION_WATCH_TIMEOUT_MS = GEOLOCATION_GPS_BUDGET_MS;
-export const GEOLOCATION_TIMEOUT_OFFLINE_MS = 12_000;
+/**
+ * Offline getCurrent must not be shorter than online — cold GNSS / OEM fused
+ * needs more time when Wi‑Fi/network assist is unavailable.
+ */
+export const GEOLOCATION_TIMEOUT_OFFLINE_MS = 15_000;
+/** Extra continuous budget offline for cold outdoor GNSS (online indoor unchanged). */
+export const GEOLOCATION_GPS_BUDGET_OFFLINE_MS = 120_000;
+/** After Location Accuracy / permission dialogs, Play Services needs a brief settle. */
+export const LOCATION_SETTINGS_SETTLE_MS = 600;
 export const GEOLOCATION_CELL_ONLY_WAIT_MS = 8_000;
 /**
  * When provider is unknown (fused), only treat very coarse accuracy as cell.
@@ -78,6 +86,11 @@ export type LocationAdapters = {
 
 export type AcquirePositionOptions = {
     promptIfDisabled?: boolean;
+    /**
+     * Caller already showed Location Accuracy / permission dialogs and settled.
+     * Enables one early first-grant retry without a second ensure dialog.
+     */
+    recentlyEnabled?: boolean;
     offline?: boolean;
     now?: number;
     onFix?: (position: AcquiredPosition) => void;
@@ -423,12 +436,22 @@ async function raceLivePosition(
         let watchCancel: (() => void) | null = null;
         let readingN = 0;
         const raceStarted = Date.now();
+        const firstPathMs: Partial<Record<GeoPath, number>> = {};
+        const markPathFirst = (path: GeoPath) => {
+            if (firstPathMs[path] == null) firstPathMs[path] = Date.now() - raceStarted;
+        };
+        const pathTimingProps = () => ({
+            get_current_ms: firstPathMs.get_current,
+            watch_first_ms: firstPathMs.watch,
+            native_first_ms: firstPathMs.native,
+        });
         const logReading = (
             path: GeoPath,
             position: AcquiredPosition,
             extra?: { accepted?: boolean; reason?: string },
         ) => {
             readingN += 1;
+            markPathFirst(path);
             const acc = position.coords.accuracy;
             trackGeoReading({
                 acquire_id: opts.acquireId,
@@ -442,6 +465,7 @@ async function raceLivePosition(
                 reason: extra?.reason,
                 offline: opts.offline,
                 reading_n: readingN,
+                path_elapsed_ms: Date.now() - raceStarted,
             });
         };
         trackGeo('geo.race_started', {
@@ -496,6 +520,7 @@ async function raceLivePosition(
                 offline: opts.offline,
                 elapsed_ms: Date.now() - raceStarted,
                 reading_n: readingN,
+                ...pathTimingProps(),
             });
             stopListeners(`accepted:${reason}`);
             resolve(position);
@@ -553,12 +578,14 @@ async function raceLivePosition(
 
         const failHard = (err: unknown, path: GeoPath = 'unknown') => {
             if (settled) return;
+            markPathFirst(path);
             const code = classifyGeolocationError(err);
             trackGeo('geo.path_error', {
                 acquire_id: opts.acquireId,
                 path,
                 error_code: code,
                 elapsed_ms: Date.now() - raceStarted,
+                ...pathTimingProps(),
             });
             if (code === 'LOCATION_PERMISSION_DENIED' || code === 'LOCATION_DISABLED') {
                 settled = true;
@@ -569,6 +596,7 @@ async function raceLivePosition(
                     error_code: code,
                     offline: opts.offline,
                     elapsed_ms: Date.now() - raceStarted,
+                    ...pathTimingProps(),
                 });
                 stopListeners(`fail:${code}`);
                 reject(err);
@@ -655,6 +683,7 @@ async function raceLivePosition(
                 reading_n: readingN,
                 had_best_gps: false,
                 had_cell: Boolean(cellFallback),
+                ...pathTimingProps(),
             });
             stopListeners('timeout');
             reject(new Error('LOCATION_TIMEOUT'));
@@ -716,22 +745,34 @@ function scheduleGpsUpgrade(
     })();
 }
 
+function sleepMs(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function acquireDevicePosition(
     adapters: LocationAdapters,
     opts?: AcquirePositionOptions,
 ): Promise<AcquiredPosition> {
     const offline = opts?.offline ?? false;
     const promptIfDisabled = opts?.promptIfDisabled ?? false;
+    const recentlyEnabled = opts?.recentlyEnabled ?? false;
     const acquireId = opts?.acquireId ?? newGeoAcquireId();
     const caller = opts?.caller ?? 'unknown';
     // Never fill reports from last-known — that can be outdoors / another beat.
     // Always wait for a live fix (Wi-Fi/network indoor or GNSS outdoors).
+    // Online indoor budgets stay on GEOLOCATION_TIMEOUT_MS / GEOLOCATION_GPS_BUDGET_MS.
     const getCurrentTimeoutMs = opts?.getCurrentTimeoutMs
-        ?? (offline ? 6_000 : GEOLOCATION_TIMEOUT_MS);
-    const nativeTimeoutMs = opts?.nativeTimeoutMs ?? GEOLOCATION_GPS_BUDGET_MS;
-    const watchTimeoutMs = opts?.watchTimeoutMs ?? Math.max(GEOLOCATION_WATCH_TIMEOUT_MS, nativeTimeoutMs);
+        ?? (offline ? GEOLOCATION_TIMEOUT_OFFLINE_MS : GEOLOCATION_TIMEOUT_MS);
+    const nativeTimeoutMs = opts?.nativeTimeoutMs
+        ?? (offline ? GEOLOCATION_GPS_BUDGET_OFFLINE_MS : GEOLOCATION_GPS_BUDGET_MS);
+    const watchTimeoutMs = opts?.watchTimeoutMs
+        ?? Math.max(
+            offline ? GEOLOCATION_GPS_BUDGET_OFFLINE_MS : GEOLOCATION_WATCH_TIMEOUT_MS,
+            nativeTimeoutMs,
+        );
     const allowCellFallback = opts?.allowCellFallback ?? true;
     const started = Date.now();
+    let didEnsurePrompt = false;
 
     const emit = (position: AcquiredPosition) => {
         if (position.source !== 'cell') persistLastGpsFix(position);
@@ -751,27 +792,45 @@ export async function acquireDevicePosition(
 
     if (promptIfDisabled) {
         trackGeo('geo.ensure_location_started', { acquire_id: acquireId, caller });
+        const ensureStarted = Date.now();
         const enabled = await adapters.ensureLocationEnabled();
+        // Instant resolve ⇒ already on. Slow resolve ⇒ user just dismissed Location Accuracy.
+        didEnsurePrompt = enabled && (Date.now() - ensureStarted >= 250);
         trackGeo('geo.ensure_location_result', {
             acquire_id: acquireId,
             caller,
             enabled,
             elapsed_ms: Date.now() - started,
+            dialog_likely: didEnsurePrompt,
         });
+        // Location Accuracy / provider dialog just closed — let Play Services settle
+        // before fused getCurrent/watch (first-grant failures look like timeouts).
+        if (enabled && didEnsurePrompt) {
+            trackGeo('geo.settings_settle', {
+                acquire_id: acquireId,
+                caller,
+                settle_ms: LOCATION_SETTINGS_SETTLE_MS,
+                reason: 'after_ensure',
+            });
+            await sleepMs(LOCATION_SETTINGS_SETTLE_MS);
+        }
     }
 
-    const raceOnce = () => raceLivePosition(adapters, {
-        getCurrentTimeoutMs,
-        watchTimeoutMs,
-        nativeTimeoutMs,
+    const raceOnce = (
+        getMs = getCurrentTimeoutMs,
+        watchMs = watchTimeoutMs,
+        nativeMs = nativeTimeoutMs,
+    ) => raceLivePosition(adapters, {
+        getCurrentTimeoutMs: getMs,
+        watchTimeoutMs: watchMs,
+        nativeTimeoutMs: nativeMs,
         allowCellFallback,
         acquireId,
         offline,
         caller,
     });
 
-    try {
-        const live = await raceOnce();
+    const succeed = (live: AcquiredPosition, extra?: Record<string, string | number | boolean | undefined>) => {
         emit(live);
         scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs, acquireId);
         trackGeo('geo.acquire_succeeded', {
@@ -784,8 +843,45 @@ export async function acquireDevicePosition(
             lng_r4: roundCoord(live.coords.longitude),
             offline,
             elapsed_ms: Date.now() - started,
+            ...extra,
         });
         return live;
+    };
+
+    const runWithOptionalFirstGrantProbe = async () => {
+        const needsFirstGrantCare = didEnsurePrompt || recentlyEnabled;
+        if (!needsFirstGrantCare) {
+            return succeed(await raceOnce());
+        }
+        // Short probe so a not-yet-ready fused stack fails fast, then one full race.
+        // Online indoor Wi‑Fi usually wins the probe; cold offline GNSS uses the full budget next.
+        const probeNativeMs = Math.min(nativeTimeoutMs, 12_000);
+        const probeWatchMs = Math.min(watchTimeoutMs, 12_000);
+        const probeGetMs = Math.min(getCurrentTimeoutMs, GEOLOCATION_TIMEOUT_MS);
+        try {
+            return succeed(
+                await raceOnce(probeGetMs, probeWatchMs, probeNativeMs),
+                { first_grant_probe: true },
+            );
+        } catch (probeErr) {
+            const probeCode = classifyGeolocationError(probeErr);
+            if (probeCode === 'LOCATION_PERMISSION_DENIED' || probeCode === 'LOCATION_DISABLED') {
+                throw probeErr;
+            }
+            trackGeo('geo.first_grant_retry', {
+                acquire_id: acquireId,
+                caller,
+                error_code: probeCode,
+                elapsed_ms: Date.now() - started,
+                probe_native_ms: probeNativeMs,
+            });
+            await sleepMs(LOCATION_SETTINGS_SETTLE_MS);
+            return succeed(await raceOnce(), { after_first_grant_retry: true });
+        }
+    };
+
+    try {
+        return await runWithOptionalFirstGrantProbe();
     } catch (err) {
         const code = classifyGeolocationError(err);
         if (isLocationOffError(code) && !promptIfDisabled) {
@@ -802,22 +898,14 @@ export async function acquireDevicePosition(
                 reason: 'location_off_retry',
             });
             if (enabled) {
-                const live = await raceOnce();
-                emit(live);
-                scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs, acquireId);
-                trackGeo('geo.acquire_succeeded', {
+                trackGeo('geo.settings_settle', {
                     acquire_id: acquireId,
                     caller,
-                    location_source: live.source,
-                    accuracy_m: Math.round(accuracyMeters(live)),
-                    accuracy_bucket: accuracyBucket(accuracyMeters(live)),
-                    lat_r4: roundCoord(live.coords.latitude),
-                    lng_r4: roundCoord(live.coords.longitude),
-                    offline,
-                    elapsed_ms: Date.now() - started,
-                    after_location_on_retry: true,
+                    settle_ms: LOCATION_SETTINGS_SETTLE_MS,
+                    reason: 'location_off_retry',
                 });
-                return live;
+                await sleepMs(LOCATION_SETTINGS_SETTLE_MS);
+                return succeed(await raceOnce(), { after_location_on_retry: true });
             }
         }
         trackGeo('geo.acquire_failed', {

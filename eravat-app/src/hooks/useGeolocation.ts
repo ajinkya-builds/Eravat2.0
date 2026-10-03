@@ -14,13 +14,21 @@ import {
     withLocationSource,
     DEFAULT_LAST_GPS_MAX_AGE_MS,
     GEOLOCATION_GPS_BUDGET_MS,
+    GEOLOCATION_GPS_BUDGET_OFFLINE_MS,
     GEOLOCATION_TIMEOUT_MS,
     LOCATION_ENABLED_EVENT,
+    LOCATION_SETTINGS_SETTLE_MS,
     type AcquiredPosition,
     type LocationAdapters,
 } from '../lib/deviceLocation';
 import { isBrowserOffline } from '../lib/offlineSession';
-import { newGeoAcquireId, trackGeo, accuracyBucket, roundCoord } from '../lib/geoTelemetry';
+import {
+    newGeoAcquireId,
+    trackGeo,
+    accuracyBucket,
+    roundCoord,
+    refreshGeoConnectivity,
+} from '../lib/geoTelemetry';
 
 export {
     classifyGeolocationError,
@@ -76,15 +84,34 @@ function createAdapters(): LocationAdapters {
  * getCurrentPosition both try to raise a permission dialog at once — especially
  * the Android "approximate → precise" upgrade. Request fine location once first.
  */
-async function ensureFineLocationPermission(): Promise<void> {
-    if (!Capacitor.isNativePlatform()) return;
+async function ensureFineLocationPermission(): Promise<{
+    justGranted: boolean;
+    permission_fine: boolean;
+    permission_coarse: boolean;
+}> {
+    if (!Capacitor.isNativePlatform()) {
+        return { justGranted: false, permission_fine: true, permission_coarse: true };
+    }
+    const readStatus = async () => {
+        const status = await Geolocation.checkPermissions();
+        // Capacitor may expose coarseLocation on newer builds; fall back to location.
+        const coarse = (status as { coarseLocation?: string }).coarseLocation ?? status.location;
+        return {
+            permission_fine: status.location === 'granted',
+            permission_coarse: coarse === 'granted' || status.location === 'granted',
+        };
+    };
     try {
-        let status = await Geolocation.checkPermissions();
-        if (status.location === 'granted') return;
-        status = await Geolocation.requestPermissions({ permissions: ['location', 'coarseLocation'] });
+        const before = await readStatus();
+        if (before.permission_fine) {
+            return { justGranted: false, ...before };
+        }
+        let status = await Geolocation.requestPermissions({ permissions: ['location', 'coarseLocation'] });
         if (status.location !== 'granted') {
             throw new Error('LOCATION_PERMISSION_DENIED');
         }
+        const after = await readStatus();
+        return { justGranted: true, ...after };
     } catch (err) {
         const code = classifyGeolocationError(err);
         if (code === 'LOCATION_PERMISSION_DENIED') throw err instanceof Error ? err : new Error(code);
@@ -94,6 +121,11 @@ async function ensureFineLocationPermission(): Promise<void> {
             if (status.location !== 'granted') {
                 throw new Error('LOCATION_PERMISSION_DENIED');
             }
+            return {
+                justGranted: true,
+                permission_fine: true,
+                permission_coarse: true,
+            };
         } catch (retryErr) {
             throw retryErr;
         }
@@ -111,8 +143,8 @@ function emitGpsFix(position: AcquiredPosition) {
 let acquireInflight: Promise<AcquiredPosition> | null = null;
 let ensureInflight: Promise<boolean> | null = null;
 
-/** One system "Turn on location" dialog at a time. */
-function ensureDeviceLocationOn(): Promise<boolean> {
+/** One system "Turn on location" / Location Accuracy dialog at a time. */
+export function ensureDeviceLocationOn(): Promise<boolean> {
     if (!Capacitor.isNativePlatform()) return Promise.resolve(true);
     if (!ensureInflight) {
         ensureInflight = LocationSettings.ensureEnabled()
@@ -133,8 +165,12 @@ async function acquirePosition(
         trackGeo('geo.acquire_joined_inflight', { caller, prompt_if_disabled: promptIfDisabled });
         return acquireInflight;
     }
-    const offline = isBrowserOffline();
-    const nativeBudget = GEOLOCATION_GPS_BUDGET_MS;
+    // Prefer Capacitor Network (Offline badge) over navigator alone — UAT showed
+    // Offline (Local Save) while geo still logged online:true via navigator.onLine.
+    const connectivity = await refreshGeoConnectivity();
+    const offline = connectivity.offlineForGeo || isBrowserOffline();
+    // Online indoor stays on the normal budget; offline gets a longer cold-GNSS window.
+    const nativeBudget = offline ? GEOLOCATION_GPS_BUDGET_OFFLINE_MS : GEOLOCATION_GPS_BUDGET_MS;
     // Hard ceiling so a hung native cancel/plugin call cannot pin the report form forever.
     const hardDeadlineMs = nativeBudget + 15_000;
     const acquireId = newGeoAcquireId(caller === 'bootstrap' ? 'boot' : 'acq');
@@ -145,21 +181,73 @@ async function acquirePosition(
             emitGpsFix(pos);
             return pos;
         }
-        trackGeo('geo.permission_check_started', { acquire_id: acquireId, caller });
+        // Location Accuracy / provider dialog before the permission sheet so the
+        // activity can show the Play Services resolution (UAT first-grant path).
+        let locationDialogLikely = false;
+        if (promptIfDisabled) {
+            trackGeo('geo.ensure_location_started', {
+                acquire_id: acquireId,
+                caller,
+                phase: 'pre_permission',
+                dialog_kind: 'location_accuracy',
+            });
+            const ensureStarted = Date.now();
+            const enabled = await ensureDeviceLocationOn();
+            const ensureElapsed = Date.now() - ensureStarted;
+            locationDialogLikely = enabled && ensureElapsed >= 250;
+            trackGeo('geo.ensure_location_result', {
+                acquire_id: acquireId,
+                caller,
+                enabled,
+                phase: 'pre_permission',
+                dialog_kind: 'location_accuracy',
+                dialog_likely: locationDialogLikely,
+                ensure_elapsed_ms: ensureElapsed,
+            });
+        }
+        trackGeo('geo.permission_check_started', {
+            acquire_id: acquireId,
+            caller,
+            dialog_kind: 'permission',
+        });
+        let justGrantedPermission = false;
         try {
-            await ensureFineLocationPermission();
-            trackGeo('geo.permission_check_ok', { acquire_id: acquireId, caller });
+            const permission = await ensureFineLocationPermission();
+            justGrantedPermission = permission.justGranted;
+            trackGeo('geo.permission_check_ok', {
+                acquire_id: acquireId,
+                caller,
+                just_granted: justGrantedPermission,
+                permission_fine: permission.permission_fine,
+                permission_coarse: permission.permission_coarse,
+                dialog_kind: 'permission',
+            });
         } catch (err) {
             trackGeo('geo.permission_check_failed', {
                 acquire_id: acquireId,
                 caller,
                 error_code: classifyGeolocationError(err),
+                dialog_kind: 'permission',
             });
             throw err;
         }
+        if (justGrantedPermission || locationDialogLikely) {
+            trackGeo('geo.settings_settle', {
+                acquire_id: acquireId,
+                caller,
+                settle_ms: LOCATION_SETTINGS_SETTLE_MS,
+                reason: justGrantedPermission ? 'after_permission' : 'after_location_accuracy',
+                dialog_kind: justGrantedPermission ? 'permission' : 'location_accuracy',
+            });
+            await new Promise((resolve) => setTimeout(resolve, LOCATION_SETTINGS_SETTLE_MS));
+        }
         const adapters = createAdapters();
+        // ensure already handled above when promptIfDisabled — avoid a second dialog.
+        // recentlyEnabled only after a real permission/accuracy dialog so everyday
+        // reports keep a single full race (online indoor path unchanged).
         const acquire = acquireDevicePosition(adapters, {
-            promptIfDisabled,
+            promptIfDisabled: false,
+            recentlyEnabled: justGrantedPermission || locationDialogLikely,
             offline,
             onFix: emitGpsFix,
             nativeTimeoutMs: nativeBudget,
@@ -327,34 +415,16 @@ export function useDeviceLocationBootstrap() {
         if (startedRef.current) return;
         startedRef.current = true;
         if (!Capacitor.isNativePlatform()) return;
-        // Warm GPS / prompt location-on only. Do not share the report capture lock,
-        // do not settle on cell, and keep the wait to a single attempt.
+        // Share the report acquire lock so bootstrap cannot cancelFreshFix mid-report
+        // (first-grant race with concurrent native listens).
         void (async () => {
             const acquireId = newGeoAcquireId('boot');
             const started = Date.now();
             trackGeo('geo.bootstrap_started', { acquire_id: acquireId });
             try {
-                // Activity is resumed before the system location dialog can show.
-                // Ask to turn location on before the permission sheet, and do not
-                // let a permission failure skip that dialog.
+                // Activity must be resumed before the Location Accuracy dialog can show.
                 await new Promise((resolve) => setTimeout(resolve, 400));
-                const enabled = await ensureDeviceLocationOn();
-                trackGeo('geo.bootstrap_ensure_enabled', {
-                    acquire_id: acquireId,
-                    enabled,
-                    elapsed_ms: Date.now() - started,
-                });
-                await ensureFineLocationPermission();
-                trackGeo('geo.bootstrap_permission_ok', { acquire_id: acquireId });
-                const pos = await acquireDevicePosition(createAdapters(), {
-                    promptIfDisabled: true,
-                    offline: isBrowserOffline(),
-                    onFix: emitGpsFix,
-                    nativeTimeoutMs: 30_000,
-                    allowCellFallback: false,
-                    acquireId,
-                    caller: 'bootstrap',
-                });
+                const pos = await acquirePosition(true, 'bootstrap');
                 trackGeo('geo.bootstrap_succeeded', {
                     acquire_id: acquireId,
                     location_source: pos.source,

@@ -260,7 +260,16 @@ Keep a **single event catalog** in this doc (below). Engineers must not invent o
 
 #### GPS / location diagnostics (`geo.*`) — field debugging
 
-All `geo.*` events include base props from `geoTelemetry.ts`: `app_version`, `app_version_code`, `capacitor_platform`, `is_native`, `device_family` (oneplus/samsung/…), `ua_snippet`, `online`, plus `app_env` / `platform` from analytics.
+All `geo.*` events include base props from `geoTelemetry.ts`: `app_version`, `app_version_code`, `capacitor_platform`, `is_native`, `device_family` (oneplus/samsung/…), `ua_snippet`, plus connectivity:
+
+| Prop | Meaning |
+| ---- | ------- |
+| `navigator_online` | `navigator.onLine` (WebView) |
+| `network_connected` | Capacitor Network (same source as Offline badge) |
+| `offline_for_geo` | true if either signal is offline — drives longer cold-GNSS budgets |
+| `online` | legacy = `!offline_for_geo` |
+
+Also common: `dialog_kind` (`location_accuracy` / `permission` / …), `ensure_elapsed_ms`, `permission_fine` / `permission_coarse`, per-path `get_current_ms` / `watch_first_ms` / `native_first_ms`, and `geo.acquire_superseded` when leaving `/report`.
 
 Correlate a single attempt with **`acquire_id`** (filter PostHog by that id). Coords are rounded to 4 decimals (~11 m) as `lat_r4` / `lng_r4` — never raw high-precision dumps.
 
