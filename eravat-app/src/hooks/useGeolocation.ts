@@ -20,6 +20,7 @@ import {
     type LocationAdapters,
 } from '../lib/deviceLocation';
 import { isBrowserOffline } from '../lib/offlineSession';
+import { newGeoAcquireId, trackGeo, accuracyBucket, roundCoord } from '../lib/geoTelemetry';
 
 export {
     classifyGeolocationError,
@@ -124,19 +125,38 @@ function ensureDeviceLocationOn(): Promise<boolean> {
     return ensureInflight;
 }
 
-async function acquirePosition(promptIfDisabled: boolean): Promise<AcquiredPosition> {
-    if (acquireInflight) return acquireInflight;
+async function acquirePosition(
+    promptIfDisabled: boolean,
+    caller = 'hook',
+): Promise<AcquiredPosition> {
+    if (acquireInflight) {
+        trackGeo('geo.acquire_joined_inflight', { caller, prompt_if_disabled: promptIfDisabled });
+        return acquireInflight;
+    }
     const offline = isBrowserOffline();
     const nativeBudget = GEOLOCATION_GPS_BUDGET_MS;
     // Hard ceiling so a hung native cancel/plugin call cannot pin the report form forever.
     const hardDeadlineMs = nativeBudget + 15_000;
+    const acquireId = newGeoAcquireId(caller === 'bootstrap' ? 'boot' : 'acq');
     const run = (async () => {
         if (!Capacitor.isNativePlatform()) {
+            trackGeo('geo.web_path', { acquire_id: acquireId, caller });
             const pos = await requestWebPosition();
             emitGpsFix(pos);
             return pos;
         }
-        await ensureFineLocationPermission();
+        trackGeo('geo.permission_check_started', { acquire_id: acquireId, caller });
+        try {
+            await ensureFineLocationPermission();
+            trackGeo('geo.permission_check_ok', { acquire_id: acquireId, caller });
+        } catch (err) {
+            trackGeo('geo.permission_check_failed', {
+                acquire_id: acquireId,
+                caller,
+                error_code: classifyGeolocationError(err),
+            });
+            throw err;
+        }
         const adapters = createAdapters();
         const acquire = acquireDevicePosition(adapters, {
             promptIfDisabled,
@@ -144,17 +164,35 @@ async function acquirePosition(promptIfDisabled: boolean): Promise<AcquiredPosit
             onFix: emitGpsFix,
             nativeTimeoutMs: nativeBudget,
             allowCellFallback: true,
+            acquireId,
+            caller,
         });
         let timer: ReturnType<typeof setTimeout> | undefined;
+        let hitHardDeadline = false;
         try {
             return await Promise.race([
                 acquire,
                 new Promise<AcquiredPosition>((_, reject) => {
-                    timer = setTimeout(() => reject(new Error('LOCATION_TIMEOUT')), hardDeadlineMs);
+                    timer = setTimeout(() => {
+                        hitHardDeadline = true;
+                        trackGeo('geo.hard_deadline', {
+                            acquire_id: acquireId,
+                            caller,
+                            hard_deadline_ms: hardDeadlineMs,
+                            offline,
+                        });
+                        reject(new Error('LOCATION_TIMEOUT'));
+                    }, hardDeadlineMs);
                 }),
             ]);
         } finally {
             if (timer) clearTimeout(timer);
+            trackGeo('geo.cancel_invoked', {
+                acquire_id: acquireId,
+                caller,
+                reason: hitHardDeadline ? 'hard_deadline' : 'acquire_finished',
+                fire_and_forget: true,
+            });
             try {
                 void adapters.cancelFreshFix?.();
             } catch {
@@ -207,19 +245,40 @@ export function useGeolocation() {
         return readLastGpsFix(maxAgeMs);
     }, []);
 
-    const requestLocation = useCallback(async (opts?: { promptIfDisabled?: boolean }): Promise<AcquiredPosition | null> => {
+    const requestLocation = useCallback(async (opts?: {
+        promptIfDisabled?: boolean;
+        caller?: string;
+    }): Promise<AcquiredPosition | null> => {
         setIsLoading(true);
         setError(null);
         lastErrorRef.current = null;
+        const caller = opts?.caller ?? 'hook';
+        const started = Date.now();
         try {
-            const coordinates = await acquirePosition(opts?.promptIfDisabled ?? false);
+            const coordinates = await acquirePosition(opts?.promptIfDisabled ?? false, caller);
             setPosition(coordinates);
             if (coordinates.source !== 'cell') persistLastGpsFix(coordinates);
+            trackGeo('geo.hook_succeeded', {
+                caller,
+                location_source: coordinates.source,
+                accuracy_m: coordinates.coords.accuracy != null
+                    ? Math.round(coordinates.coords.accuracy)
+                    : undefined,
+                accuracy_bucket: accuracyBucket(coordinates.coords.accuracy),
+                lat_r4: roundCoord(coordinates.coords.latitude),
+                lng_r4: roundCoord(coordinates.coords.longitude),
+                elapsed_ms: Date.now() - started,
+            });
             return coordinates;
         } catch (err: unknown) {
             const code = classifyGeolocationError(err);
             lastErrorRef.current = code;
             setError(code);
+            trackGeo('geo.hook_failed', {
+                caller,
+                error_code: code,
+                elapsed_ms: Date.now() - started,
+            });
             return null;
         } finally {
             setIsLoading(false);
@@ -271,21 +330,46 @@ export function useDeviceLocationBootstrap() {
         // Warm GPS / prompt location-on only. Do not share the report capture lock,
         // do not settle on cell, and keep the wait to a single attempt.
         void (async () => {
+            const acquireId = newGeoAcquireId('boot');
+            const started = Date.now();
+            trackGeo('geo.bootstrap_started', { acquire_id: acquireId });
             try {
                 // Activity is resumed before the system location dialog can show.
                 // Ask to turn location on before the permission sheet, and do not
                 // let a permission failure skip that dialog.
                 await new Promise((resolve) => setTimeout(resolve, 400));
-                await ensureDeviceLocationOn();
+                const enabled = await ensureDeviceLocationOn();
+                trackGeo('geo.bootstrap_ensure_enabled', {
+                    acquire_id: acquireId,
+                    enabled,
+                    elapsed_ms: Date.now() - started,
+                });
                 await ensureFineLocationPermission();
-                await acquireDevicePosition(createAdapters(), {
+                trackGeo('geo.bootstrap_permission_ok', { acquire_id: acquireId });
+                const pos = await acquireDevicePosition(createAdapters(), {
                     promptIfDisabled: true,
                     offline: isBrowserOffline(),
                     onFix: emitGpsFix,
                     nativeTimeoutMs: 30_000,
                     allowCellFallback: false,
+                    acquireId,
+                    caller: 'bootstrap',
                 });
-            } catch {
+                trackGeo('geo.bootstrap_succeeded', {
+                    acquire_id: acquireId,
+                    location_source: pos.source,
+                    accuracy_m: pos.coords.accuracy != null ? Math.round(pos.coords.accuracy) : undefined,
+                    accuracy_bucket: accuracyBucket(pos.coords.accuracy),
+                    lat_r4: roundCoord(pos.coords.latitude),
+                    lng_r4: roundCoord(pos.coords.longitude),
+                    elapsed_ms: Date.now() - started,
+                });
+            } catch (err) {
+                trackGeo('geo.bootstrap_failed', {
+                    acquire_id: acquireId,
+                    error_code: classifyGeolocationError(err),
+                    elapsed_ms: Date.now() - started,
+                });
                 // Banner in AppLayout covers the denied / still-off case.
             }
         })();

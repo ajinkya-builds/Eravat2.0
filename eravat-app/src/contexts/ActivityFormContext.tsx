@@ -4,6 +4,7 @@ import { useGeolocation, GEOLOCATION_TIMEOUT_MS } from '../hooks/useGeolocation'
 import { captureDeviceDateTime } from '../lib/captureDeviceDateTime';
 import { LOCATION_ENABLED_EVENT, type AcquiredPosition } from '../lib/deviceLocation';
 import { track } from '../lib/analytics';
+import { accuracyBucket, geoBaseProps, roundCoord } from '../lib/geoTelemetry';
 import { logger } from '../lib/logger';
 
 export type FormStep =
@@ -166,24 +167,32 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
             latitude: null,
             longitude: null,
         });
-        track('report.datetime_captured', { duration_ms: datetimeMs, source });
+        track('report.datetime_captured', geoBaseProps({ duration_ms: datetimeMs, source }));
         logger.info('ReportLocation', 'datetime captured', { duration_ms: datetimeMs, source });
 
         const gpsStarted = performance.now();
-        track('report.gps_prefetch_started', { source, timeout_ms: GEOLOCATION_TIMEOUT_MS });
+        track('report.gps_prefetch_started', geoBaseProps({
+            source,
+            timeout_ms: GEOLOCATION_TIMEOUT_MS,
+            caller: `report.${source}`,
+        }));
         logger.info('ReportLocation', 'gps prefetch started', { source, timeout_ms: GEOLOCATION_TIMEOUT_MS });
-        const pos = await fetchLocation({ promptIfDisabled: true });
+        const pos = await fetchLocation({ promptIfDisabled: true, caller: `report.${source}` });
         if (requestId !== locationRequestIdRef.current) return;
         const gpsMs = Math.round(performance.now() - gpsStarted);
         if (pos) {
             const accuracyM = pos.coords.accuracy != null ? Math.round(pos.coords.accuracy) : undefined;
             if (pos.source === 'cell') {
                 setPendingCellFix(pos);
-                track('report.cell_fix_offered', {
+                track('report.cell_fix_offered', geoBaseProps({
                     duration_ms: gpsMs,
                     accuracy_m: accuracyM,
+                    accuracy_bucket: accuracyBucket(pos.coords.accuracy),
                     source,
-                });
+                    location_source: 'cell',
+                    lat_r4: roundCoord(pos.coords.latitude),
+                    lng_r4: roundCoord(pos.coords.longitude),
+                }));
                 logger.info('ReportLocation', 'cell fix offered', { duration_ms: gpsMs, accuracy_m: accuracyM, source });
                 return;
             }
@@ -196,16 +205,24 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
                 acc,
             };
             updateFormData({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-            track('report.gps_acquired', {
+            track('report.gps_acquired', geoBaseProps({
                 duration_ms: gpsMs,
                 accuracy_m: accuracyM,
+                accuracy_bucket: accuracyBucket(pos.coords.accuracy),
                 source,
                 location_source: pos.source,
-            });
+                lat_r4: roundCoord(pos.coords.latitude),
+                lng_r4: roundCoord(pos.coords.longitude),
+            }));
             logger.info('ReportLocation', 'gps acquired', { duration_ms: gpsMs, accuracy_m: accuracyM, source });
         } else {
             const errorCode = lastErrorCode() ?? 'LOCATION_FAILED';
-            track('report.gps_failed', { duration_ms: gpsMs, error_code: errorCode, source });
+            track('report.gps_failed', geoBaseProps({
+                duration_ms: gpsMs,
+                error_code: errorCode,
+                source,
+                caller: `report.${source}`,
+            }));
             logger.warn('ReportLocation', 'gps failed', { duration_ms: gpsMs, error_code: errorCode, source });
         }
     }, [fetchLocation, lastErrorCode, updateFormData]);
@@ -231,6 +248,14 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
         if (userEdited) return;
         if (stamp && acc >= stamp.acc) return;
         autoFixRef.current = { lat: liveLatitude, lng: liveLongitude, acc };
+        track('geo.report_upgrade_applied', geoBaseProps({
+            accuracy_m: Number.isFinite(acc) ? Math.round(acc) : undefined,
+            accuracy_bucket: accuracyBucket(Number.isFinite(acc) ? acc : null),
+            previous_accuracy_m: stamp && Number.isFinite(stamp.acc) ? Math.round(stamp.acc) : undefined,
+            lat_r4: roundCoord(liveLatitude),
+            lng_r4: roundCoord(liveLongitude),
+            location_source: locationSource ?? undefined,
+        }));
         updateFormData({ latitude: liveLatitude, longitude: liveLongitude });
     }, [
         gpsLoading,
@@ -253,11 +278,18 @@ export function ActivityFormProvider({ children }: { children: ReactNode }) {
             : Number.POSITIVE_INFINITY;
         autoFixRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc };
         updateFormData({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-        track('report.cell_fix_accepted', { accuracy_m: accuracyM });
+        track('report.cell_fix_accepted', geoBaseProps({
+            accuracy_m: accuracyM,
+            accuracy_bucket: accuracyBucket(pos.coords.accuracy),
+            lat_r4: roundCoord(pos.coords.latitude),
+            lng_r4: roundCoord(pos.coords.longitude),
+            location_source: 'cell',
+        }));
         logger.info('ReportLocation', 'cell fix accepted', { accuracy_m: accuracyM });
     }, [pendingCellFix, updateFormData]);
 
     const retryGpsAfterCell = useCallback(async () => {
+        track('report.cell_fix_retry', geoBaseProps({ location_source: 'cell' }));
         setPendingCellFix(null);
         await refreshLocation('retry');
     }, [refreshLocation]);

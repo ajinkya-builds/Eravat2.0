@@ -251,10 +251,51 @@ Keep a **single event catalog** in this doc (below). Engineers must not invent o
 | `report.wizard_opened` | `/report` opened | `online` |
 | `report.step_viewed` | Stepper step shown | `step` |
 | `report.datetime_captured` | Device date/time applied | `duration_ms`, `source` (`prefetch` / `retry`) |
-| `report.gps_prefetch_started` | GPS request began | `source`, `timeout_ms` |
-| `report.gps_acquired` | GPS fix received | `duration_ms`, `accuracy_m`, `source` |
-| `report.gps_failed` | GPS request failed | `duration_ms`, `error_code`, `source` |
-| `report.save_started` | Save tapped | `has_media`, `online` |
+| `report.gps_prefetch_started` | GPS request began | `source`, `timeout_ms`, `caller`, device props |
+| `report.gps_acquired` | GPS fix applied to form | `duration_ms`, `accuracy_m`, `accuracy_bucket`, `location_source`, `lat_r4`, `lng_r4`, `source` |
+| `report.gps_failed` | GPS request failed | `duration_ms`, `error_code`, `source`, `caller` |
+| `report.cell_fix_offered` | Coarse cell fix offered to user | `accuracy_m`, `accuracy_bucket`, `duration_ms` |
+| `report.cell_fix_accepted` | User accepted cell fix | `accuracy_m`, `accuracy_bucket` |
+| `report.cell_fix_retry` | User chose retry after cell offer | |
+
+#### GPS / location diagnostics (`geo.*`) — field debugging
+
+All `geo.*` events include base props from `geoTelemetry.ts`: `app_version`, `app_version_code`, `capacitor_platform`, `is_native`, `device_family` (oneplus/samsung/…), `ua_snippet`, `online`, plus `app_env` / `platform` from analytics.
+
+Correlate a single attempt with **`acquire_id`** (filter PostHog by that id). Coords are rounded to 4 decimals (~11 m) as `lat_r4` / `lng_r4` — never raw high-precision dumps.
+
+| Event | When | Key properties |
+| ----- | ---- | -------------- |
+| `geo.bootstrap_started` | App boot location warm | `acquire_id` |
+| `geo.bootstrap_ensure_enabled` | System location-on dialog result | `enabled`, `elapsed_ms` |
+| `geo.bootstrap_permission_ok` | Fine location permission granted | |
+| `geo.bootstrap_succeeded` / `geo.bootstrap_failed` | Boot warm outcome | `location_source`, `accuracy_*`, `error_code` |
+| `geo.location_service_state` | Location services on/off observed | `enabled`, `source` |
+| `geo.location_prompt_shown` / `geo.location_prompt_result` | Banner or layout ensure dialog | `source`, `enabled` |
+| `geo.acquire_joined_inflight` | Second caller joined in-flight acquire | `caller` |
+| `geo.web_path` | Browser geolocation path | `acquire_id`, `caller` |
+| `geo.permission_check_started` / `_ok` / `_failed` | Capacitor permission gate | `error_code` |
+| `geo.acquire_started` | Core acquire begins | timeouts, `offline`, `prompt_if_disabled`, `caller` |
+| `geo.ensure_location_started` / `_result` | `ensureEnabled` around acquire | `enabled`, `reason` |
+| `geo.race_started` | Live race (getCurrent + watch + native) | timeout budgets |
+| `geo.path_started` | One race path began | `path` = `get_current` \| `watch` \| `native` |
+| `geo.reading` | Every live reading considered | `path`, `location_source`, `accuracy_*`, `age_ms`, `accepted`, `reason`, `reading_n` |
+| `geo.refine_started` | Indoor refine window opened | `refine_ms`, `accuracy_m` |
+| `geo.stale_reading_ignored` | Fix older than freshness window | `age_ms` |
+| `geo.cell_held` | Cell candidate held as fallback | `accuracy_*` |
+| `geo.path_error` | Path threw (permission/disabled/etc.) | `path`, `error_code` |
+| `geo.accepted` | Race accepted a fix | `reason` (e.g. `good_gps`, `refine_timeout`, `indoor_live_refined`, `cell_fallback_after_budget`), `elapsed_ms` |
+| `geo.failed` | Race failed hard | `error_code`, `had_cell`, `reading_n` |
+| `geo.cancel_invoked` | Fire-and-forget `cancelFreshFix` | `reason`, `fire_and_forget` |
+| `geo.hard_deadline` | Hook hard ceiling hit (hang guard) | `hard_deadline_ms` |
+| `geo.upgrade_started` / `_succeeded` / `_noop` | Post-accept GPS tighten | `improve_below_m`, `reason` |
+| `geo.acquire_succeeded` / `geo.acquire_failed` | Outer acquire outcome | `elapsed_ms`, `error_code`, `after_location_on_retry` |
+| `geo.hook_succeeded` / `geo.hook_failed` | `useGeolocation` surface | `caller`, `elapsed_ms` |
+| `geo.report_upgrade_applied` | Form coords replaced by tighter live fix | `previous_accuracy_m` |
+
+**How to debug a tester hang in PostHog:** filter `device_family = oneplus` (or UA), then sequence `geo.acquire_started` → `geo.race_started` → `geo.reading*` → `geo.accepted` / `geo.hard_deadline` / `geo.acquire_failed` for the same `acquire_id`.
+
+#### Core field loop (continued)
 | `report.save_succeeded` | Local +/or remote save OK | `report_type`, `queued` |
 | `report.save_failed` | Save error | `error_code`, `online` |
 | `map.opened` | Map page | |

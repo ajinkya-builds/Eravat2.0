@@ -1,4 +1,12 @@
 import type { Position } from '@capacitor/geolocation';
+import {
+    accuracyBucket,
+    newGeoAcquireId,
+    roundCoord,
+    trackGeo,
+    trackGeoReading,
+    type GeoPath,
+} from './geoTelemetry';
 
 export const LAST_GPS_KEY = 'eravat_last_gps_fix_v1';
 export const DEFAULT_LAST_GPS_MAX_AGE_MS = 6 * 60 * 60 * 1000;
@@ -80,6 +88,10 @@ export type AcquirePositionOptions = {
     gpsAttempts?: number;
     /** When false, never return cell — timeout if GPS never locks. Default true. */
     allowCellFallback?: boolean;
+    /** Correlation id for PostHog (generated if omitted). */
+    acquireId?: string;
+    /** Call site label for PostHog (report / bootstrap / nearby / etc.). */
+    caller?: string;
 };
 
 export function persistLastGpsFix(position: Position): void {
@@ -398,6 +410,9 @@ async function raceLivePosition(
         watchTimeoutMs: number;
         nativeTimeoutMs: number;
         allowCellFallback: boolean;
+        acquireId: string;
+        offline: boolean;
+        caller: string;
     },
 ): Promise<AcquiredPosition> {
     return new Promise<AcquiredPosition>((resolve, reject) => {
@@ -406,6 +421,38 @@ async function raceLivePosition(
         let bestGps: AcquiredPosition | null = null;
         let refineTimer: ReturnType<typeof setTimeout> | undefined;
         let watchCancel: (() => void) | null = null;
+        let readingN = 0;
+        const raceStarted = Date.now();
+        const logReading = (
+            path: GeoPath,
+            position: AcquiredPosition,
+            extra?: { accepted?: boolean; reason?: string },
+        ) => {
+            readingN += 1;
+            const acc = position.coords.accuracy;
+            trackGeoReading({
+                acquire_id: opts.acquireId,
+                path,
+                source: position.source,
+                accuracy_m: typeof acc === 'number' ? acc : null,
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                age_ms: position.timestamp ? Date.now() - position.timestamp : null,
+                accepted: extra?.accepted,
+                reason: extra?.reason,
+                offline: opts.offline,
+                reading_n: readingN,
+            });
+        };
+        trackGeo('geo.race_started', {
+            acquire_id: opts.acquireId,
+            caller: opts.caller,
+            offline: opts.offline,
+            get_current_timeout_ms: opts.getCurrentTimeoutMs,
+            watch_timeout_ms: opts.watchTimeoutMs,
+            native_timeout_ms: opts.nativeTimeoutMs,
+            allow_cell_fallback: opts.allowCellFallback,
+        });
 
         const clearRefine = () => {
             if (refineTimer) {
@@ -414,10 +461,16 @@ async function raceLivePosition(
             }
         };
 
-        const stopListeners = () => {
+        const stopListeners = (reason: string) => {
             watchCancel?.();
             // Never await cancel — OnePlus/OxygenOS has hung the Capacitor bridge
             // on cancelFreshFix, which previously blocked delivering a good fix.
+            trackGeo('geo.cancel_invoked', {
+                acquire_id: opts.acquireId,
+                reason,
+                fire_and_forget: true,
+                elapsed_ms: Date.now() - raceStarted,
+            });
             try {
                 void adapters.cancelFreshFix?.();
             } catch {
@@ -425,49 +478,110 @@ async function raceLivePosition(
             }
         };
 
-        const finishGps = (position: AcquiredPosition) => {
+        const finishGps = (position: AcquiredPosition, reason: string, path: GeoPath = 'unknown') => {
             if (settled) return;
             settled = true;
             clearRefine();
-            stopListeners();
+            const acc = accuracyMeters(position);
+            trackGeo('geo.accepted', {
+                acquire_id: opts.acquireId,
+                caller: opts.caller,
+                reason,
+                path,
+                location_source: position.source,
+                accuracy_m: Number.isFinite(acc) ? Math.round(acc) : undefined,
+                accuracy_bucket: accuracyBucket(acc),
+                lat_r4: roundCoord(position.coords.latitude),
+                lng_r4: roundCoord(position.coords.longitude),
+                offline: opts.offline,
+                elapsed_ms: Date.now() - raceStarted,
+                reading_n: readingN,
+            });
+            stopListeners(`accepted:${reason}`);
             resolve(position);
         };
 
-        const considerGps = (position: AcquiredPosition, alreadyRefined = false) => {
-            if (settled || position.source !== 'gps' || !isRecentFix(position)) return;
+        const considerGps = (position: AcquiredPosition, alreadyRefined = false, path: GeoPath = 'unknown') => {
+            if (settled || position.source !== 'gps' || !isRecentFix(position)) {
+                if (!settled && position.source === 'gps' && !isRecentFix(position)) {
+                    trackGeo('geo.stale_reading_ignored', {
+                        acquire_id: opts.acquireId,
+                        path,
+                        age_ms: position.timestamp ? Date.now() - position.timestamp : undefined,
+                    });
+                }
+                return;
+            }
+            logReading(path, position);
             bestGps = preferBetterFix(bestGps, position);
             if (!bestGps) return;
             const indoorReady = accuracyMeters(bestGps) <= INDOOR_USABLE_ACCURACY_M;
             // Native listen already held the best indoor fix across its refine window.
-            if (isGoodGps(bestGps) || (alreadyRefined && indoorReady)) {
-                finishGps(bestGps);
+            if (isGoodGps(bestGps)) {
+                finishGps(bestGps, 'good_gps', path);
+                return;
+            }
+            if (alreadyRefined && indoorReady) {
+                finishGps(bestGps, 'indoor_live_refined', path);
                 return;
             }
             // Coarse GPS (typical indoors early on): brief refine, then accept best GPS.
             if (!refineTimer) {
+                trackGeo('geo.refine_started', {
+                    acquire_id: opts.acquireId,
+                    path,
+                    accuracy_m: Math.round(accuracyMeters(bestGps)),
+                    refine_ms: GPS_REFINE_MS,
+                });
                 refineTimer = setTimeout(() => {
-                    if (!settled && bestGps) finishGps(bestGps);
+                    if (!settled && bestGps) finishGps(bestGps, 'refine_timeout', path);
                 }, GPS_REFINE_MS);
             }
         };
 
-        const holdCell = (position: AcquiredPosition) => {
+        const holdCell = (position: AcquiredPosition, path: GeoPath = 'unknown') => {
             if (settled || !isRecentFix(position)) return;
+            logReading(path, position);
             cellFallback = preferBetterFix(cellFallback, position);
+            trackGeo('geo.cell_held', {
+                acquire_id: opts.acquireId,
+                path,
+                accuracy_m: Math.round(accuracyMeters(position)),
+                accuracy_bucket: accuracyBucket(accuracyMeters(position)),
+            });
         };
 
-        const failHard = (err: unknown) => {
+        const failHard = (err: unknown, path: GeoPath = 'unknown') => {
             if (settled) return;
             const code = classifyGeolocationError(err);
+            trackGeo('geo.path_error', {
+                acquire_id: opts.acquireId,
+                path,
+                error_code: code,
+                elapsed_ms: Date.now() - raceStarted,
+            });
             if (code === 'LOCATION_PERMISSION_DENIED' || code === 'LOCATION_DISABLED') {
                 settled = true;
                 clearRefine();
-                stopListeners();
+                trackGeo('geo.failed', {
+                    acquire_id: opts.acquireId,
+                    caller: opts.caller,
+                    error_code: code,
+                    offline: opts.offline,
+                    elapsed_ms: Date.now() - raceStarted,
+                });
+                stopListeners(`fail:${code}`);
                 reject(err);
             }
         };
 
-        const watch = startWatchFix(adapters, opts.watchTimeoutMs, considerGps, holdCell);
+        trackGeo('geo.path_started', { acquire_id: opts.acquireId, path: 'watch' });
+        const watch = startWatchFix(
+            adapters,
+            opts.watchTimeoutMs,
+            (p) => considerGps(p, false, 'watch'),
+            (p) => holdCell(p, 'watch'),
+        );
         watchCancel = watch.cancel;
 
         const acceptReading = (position: Position) => {
@@ -476,29 +590,31 @@ async function raceLivePosition(
                 withLocationSource(position, inferLocationSource(position)),
             );
             if (acquired.source === 'gps') {
-                considerGps(acquired);
+                considerGps(acquired, false, 'get_current');
                 return;
             }
-            holdCell(acquired);
+            holdCell(acquired, 'get_current');
         };
 
         // One Capacitor getCurrent only — dual concurrent getCurrent+watch hangs on
         // some OxygenOS/OnePlus builds. Native requestFreshFix covers indoor Wi-Fi.
+        trackGeo('geo.path_started', { acquire_id: opts.acquireId, path: 'get_current' });
         void adapters.getCurrentPosition(liveOptions(opts.getCurrentTimeoutMs, 0, true))
             .then(acceptReading)
-            .catch(failHard);
+            .catch((err) => failHard(err, 'get_current'));
 
+        trackGeo('geo.path_started', { acquire_id: opts.acquireId, path: 'native' });
         const nativeListen = runNativeGpsListen(adapters, {
             budgetMs: opts.nativeTimeoutMs,
             isSettled: () => settled,
-            onGps: (position) => considerGps(position, true),
-            onCell: holdCell,
+            onGps: (position) => considerGps(position, true, 'native'),
+            onCell: (position) => holdCell(position, 'native'),
         });
 
         const pending: Array<Promise<unknown>> = [
             watch.promise
-                .then((position) => considerGps(position))
-                .catch(failHard),
+                .then((position) => considerGps(position, false, 'watch'))
+                .catch((err) => failHard(err, 'watch')),
             nativeListen,
         ];
 
@@ -507,17 +623,40 @@ async function raceLivePosition(
             clearRefine();
             // Prefer any GPS we held during refine over cell.
             if (bestGps) {
-                finishGps(bestGps);
+                finishGps(bestGps, 'budget_best_gps', 'unknown');
                 return;
             }
             // Absolute last resort: only after the full continuous GPS budget.
             if (opts.allowCellFallback && cellFallback) {
                 settled = true;
-                stopListeners();
+                trackGeo('geo.accepted', {
+                    acquire_id: opts.acquireId,
+                    caller: opts.caller,
+                    reason: 'cell_fallback_after_budget',
+                    path: 'unknown',
+                    location_source: 'cell',
+                    accuracy_m: Math.round(accuracyMeters(cellFallback)),
+                    accuracy_bucket: accuracyBucket(accuracyMeters(cellFallback)),
+                    lat_r4: roundCoord(cellFallback.coords.latitude),
+                    lng_r4: roundCoord(cellFallback.coords.longitude),
+                    offline: opts.offline,
+                    elapsed_ms: Date.now() - raceStarted,
+                });
+                stopListeners('accepted:cell_fallback');
                 resolve(cellFallback);
                 return;
             }
-            stopListeners();
+            trackGeo('geo.failed', {
+                acquire_id: opts.acquireId,
+                caller: opts.caller,
+                error_code: 'LOCATION_TIMEOUT',
+                offline: opts.offline,
+                elapsed_ms: Date.now() - raceStarted,
+                reading_n: readingN,
+                had_best_gps: false,
+                had_cell: Boolean(cellFallback),
+            });
+            stopListeners('timeout');
             reject(new Error('LOCATION_TIMEOUT'));
         });
     });
@@ -532,19 +671,47 @@ function scheduleGpsUpgrade(
     current: AcquiredPosition,
     emit: (position: AcquiredPosition) => void,
     budgetMs: number,
+    acquireId: string,
 ): void {
     if (!adapters.requestFreshFix) return;
     if (current.source !== 'gps') return;
     if (accuracyMeters(current) <= GPS_GOOD_ACCURACY_M) return;
+    const below = accuracyMeters(current);
+    trackGeo('geo.upgrade_started', {
+        acquire_id: acquireId,
+        improve_below_m: Math.round(below),
+        budget_ms: budgetMs,
+    });
     void (async () => {
         try {
-            const next = await adapters.requestFreshFix!(budgetMs, accuracyMeters(current));
-            if (!next) return;
+            const next = await adapters.requestFreshFix!(budgetMs, below);
+            if (!next) {
+                trackGeo('geo.upgrade_noop', { acquire_id: acquireId, reason: 'empty' });
+                return;
+            }
             const acquired = asAcquiredPosition(next);
-            if (acquired.source !== 'gps' || !isRecentFix(acquired)) return;
-            if (accuracyMeters(acquired) < accuracyMeters(current)) emit(acquired);
-        } catch {
-            // The report form can ask again.
+            if (acquired.source !== 'gps' || !isRecentFix(acquired)) {
+                trackGeo('geo.upgrade_noop', { acquire_id: acquireId, reason: 'not_fresh_gps' });
+                return;
+            }
+            if (accuracyMeters(acquired) < below) {
+                trackGeo('geo.upgrade_succeeded', {
+                    acquire_id: acquireId,
+                    accuracy_m: Math.round(accuracyMeters(acquired)),
+                    previous_accuracy_m: Math.round(below),
+                    lat_r4: roundCoord(acquired.coords.latitude),
+                    lng_r4: roundCoord(acquired.coords.longitude),
+                });
+                emit(acquired);
+                return;
+            }
+            trackGeo('geo.upgrade_noop', { acquire_id: acquireId, reason: 'not_tighter' });
+        } catch (err) {
+            trackGeo('geo.upgrade_noop', {
+                acquire_id: acquireId,
+                reason: 'error',
+                error_code: classifyGeolocationError(err),
+            });
         }
     })();
 }
@@ -555,6 +722,8 @@ export async function acquireDevicePosition(
 ): Promise<AcquiredPosition> {
     const offline = opts?.offline ?? false;
     const promptIfDisabled = opts?.promptIfDisabled ?? false;
+    const acquireId = opts?.acquireId ?? newGeoAcquireId();
+    const caller = opts?.caller ?? 'unknown';
     // Never fill reports from last-known — that can be outdoors / another beat.
     // Always wait for a live fix (Wi-Fi/network indoor or GNSS outdoors).
     const getCurrentTimeoutMs = opts?.getCurrentTimeoutMs
@@ -562,14 +731,33 @@ export async function acquireDevicePosition(
     const nativeTimeoutMs = opts?.nativeTimeoutMs ?? GEOLOCATION_GPS_BUDGET_MS;
     const watchTimeoutMs = opts?.watchTimeoutMs ?? Math.max(GEOLOCATION_WATCH_TIMEOUT_MS, nativeTimeoutMs);
     const allowCellFallback = opts?.allowCellFallback ?? true;
+    const started = Date.now();
 
     const emit = (position: AcquiredPosition) => {
         if (position.source !== 'cell') persistLastGpsFix(position);
         opts?.onFix?.(position);
     };
 
+    trackGeo('geo.acquire_started', {
+        acquire_id: acquireId,
+        caller,
+        offline,
+        prompt_if_disabled: promptIfDisabled,
+        get_current_timeout_ms: getCurrentTimeoutMs,
+        watch_timeout_ms: watchTimeoutMs,
+        native_timeout_ms: nativeTimeoutMs,
+        allow_cell_fallback: allowCellFallback,
+    });
+
     if (promptIfDisabled) {
-        await adapters.ensureLocationEnabled();
+        trackGeo('geo.ensure_location_started', { acquire_id: acquireId, caller });
+        const enabled = await adapters.ensureLocationEnabled();
+        trackGeo('geo.ensure_location_result', {
+            acquire_id: acquireId,
+            caller,
+            enabled,
+            elapsed_ms: Date.now() - started,
+        });
     }
 
     const raceOnce = () => raceLivePosition(adapters, {
@@ -577,24 +765,68 @@ export async function acquireDevicePosition(
         watchTimeoutMs,
         nativeTimeoutMs,
         allowCellFallback,
+        acquireId,
+        offline,
+        caller,
     });
 
     try {
         const live = await raceOnce();
         emit(live);
-        scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs);
+        scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs, acquireId);
+        trackGeo('geo.acquire_succeeded', {
+            acquire_id: acquireId,
+            caller,
+            location_source: live.source,
+            accuracy_m: Math.round(accuracyMeters(live)),
+            accuracy_bucket: accuracyBucket(accuracyMeters(live)),
+            lat_r4: roundCoord(live.coords.latitude),
+            lng_r4: roundCoord(live.coords.longitude),
+            offline,
+            elapsed_ms: Date.now() - started,
+        });
         return live;
     } catch (err) {
         const code = classifyGeolocationError(err);
         if (isLocationOffError(code) && !promptIfDisabled) {
+            trackGeo('geo.ensure_location_started', {
+                acquire_id: acquireId,
+                caller,
+                reason: 'location_off_retry',
+            });
             const enabled = await adapters.ensureLocationEnabled();
+            trackGeo('geo.ensure_location_result', {
+                acquire_id: acquireId,
+                caller,
+                enabled,
+                reason: 'location_off_retry',
+            });
             if (enabled) {
                 const live = await raceOnce();
                 emit(live);
-                scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs);
+                scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs, acquireId);
+                trackGeo('geo.acquire_succeeded', {
+                    acquire_id: acquireId,
+                    caller,
+                    location_source: live.source,
+                    accuracy_m: Math.round(accuracyMeters(live)),
+                    accuracy_bucket: accuracyBucket(accuracyMeters(live)),
+                    lat_r4: roundCoord(live.coords.latitude),
+                    lng_r4: roundCoord(live.coords.longitude),
+                    offline,
+                    elapsed_ms: Date.now() - started,
+                    after_location_on_retry: true,
+                });
                 return live;
             }
         }
+        trackGeo('geo.acquire_failed', {
+            acquire_id: acquireId,
+            caller,
+            error_code: code,
+            offline,
+            elapsed_ms: Date.now() - started,
+        });
         throw err;
     }
 }

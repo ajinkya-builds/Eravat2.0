@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { LocationSettings } from '../plugins/LocationSettings';
 import { LOCATION_ENABLED_EVENT } from '../lib/deviceLocation';
+import { trackGeo } from '../lib/geoTelemetry';
 
 import { cn } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -59,7 +60,13 @@ export function AppLayout() {
         const refresh = async () => {
             try {
                 const { enabled } = await LocationSettings.isEnabled();
-                if (!cancelled) setLocationOff(!enabled);
+                if (!cancelled) {
+                    setLocationOff(!enabled);
+                    trackGeo('geo.location_service_state', {
+                        enabled,
+                        source: 'layout_refresh',
+                    });
+                }
             } catch {
                 if (!cancelled) setLocationOff(false);
             }
@@ -68,8 +75,13 @@ export function AppLayout() {
 
         const onState = (event: Event) => {
             const enabled = (event as CustomEvent<{ enabled?: boolean }>).detail?.enabled;
-            if (typeof enabled === 'boolean') setLocationOff(!enabled);
-            else void refresh();
+            if (typeof enabled === 'boolean') {
+                setLocationOff(!enabled);
+                trackGeo('geo.location_service_state', {
+                    enabled,
+                    source: 'location_enabled_event',
+                });
+            } else void refresh();
         };
         window.addEventListener(LOCATION_ENABLED_EVENT, onState);
 
@@ -82,12 +94,25 @@ export function AppLayout() {
                 const { enabled } = await LocationSettings.isEnabled();
                 if (cancelled) return;
                 setLocationOff(!enabled);
+                trackGeo('geo.location_service_state', {
+                    enabled,
+                    source: 'layout_bootstrap_check',
+                });
                 if (!enabled) {
+                    trackGeo('geo.location_prompt_shown', { source: 'layout_bootstrap' });
                     const result = await LocationSettings.ensureEnabled();
+                    trackGeo('geo.location_prompt_result', {
+                        source: 'layout_bootstrap',
+                        enabled: result.enabled,
+                    });
                     if (!cancelled) setLocationOff(!result.enabled);
                 }
-            } catch {
-                // Banner / report step still cover this.
+            } catch (err) {
+                trackGeo('geo.location_prompt_result', {
+                    source: 'layout_bootstrap',
+                    enabled: false,
+                    error: String(err instanceof Error ? err.message : err).slice(0, 80),
+                });
             }
         })();
 
@@ -159,9 +184,20 @@ export function AppLayout() {
                             disabled={enablingLocation}
                             onClick={async () => {
                                 setEnablingLocation(true);
+                                trackGeo('geo.location_prompt_shown', { source: 'banner_tap' });
                                 try {
                                     const { enabled } = await LocationSettings.ensureEnabled();
+                                    trackGeo('geo.location_prompt_result', {
+                                        source: 'banner_tap',
+                                        enabled,
+                                    });
                                     setLocationOff(!enabled);
+                                } catch (err) {
+                                    trackGeo('geo.location_prompt_result', {
+                                        source: 'banner_tap',
+                                        enabled: false,
+                                        error: String(err instanceof Error ? err.message : err).slice(0, 80),
+                                    });
                                 } finally {
                                     setEnablingLocation(false);
                                 }

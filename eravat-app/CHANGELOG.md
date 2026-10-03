@@ -7,6 +7,13 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.16] — 2026-10-03 (versionCode 20116)
+
+- Extremely detailed PostHog GPS telemetry for field debugging
+- acquire_id correlation across race paths readings cancels upgrades
+- Location banner and report GPS events enriched with device_family
+
+---
 ## [2.1.15] — 2026-10-03 (versionCode 20115)
 
 - Never use last-known for reports — only live indoor or GPS fixes
