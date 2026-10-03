@@ -7,6 +7,13 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.14] — 2026-10-03 (versionCode 20114)
+
+- Fix OnePlus GPS hang after cancelFreshFix
+- Offline location falls back to last known faster
+- Stop dual concurrent location calls that stall OxygenOS
+
+---
 ## [2.1.13] — 2026-10-01 (versionCode 20113)
 
 - Fill GPS indoors via Wi-Fi/network within seconds

@@ -126,6 +126,12 @@ function ensureDeviceLocationOn(): Promise<boolean> {
 
 async function acquirePosition(promptIfDisabled: boolean): Promise<AcquiredPosition> {
     if (acquireInflight) return acquireInflight;
+    const offline = isBrowserOffline();
+    const nativeBudget = offline
+        ? Math.min(GEOLOCATION_GPS_BUDGET_MS, 25_000)
+        : GEOLOCATION_GPS_BUDGET_MS;
+    // Hard ceiling so a hung native cancel/plugin call cannot pin the report form forever.
+    const hardDeadlineMs = nativeBudget + 15_000;
     const run = (async () => {
         if (!Capacitor.isNativePlatform()) {
             const pos = await requestWebPosition();
@@ -133,19 +139,36 @@ async function acquirePosition(promptIfDisabled: boolean): Promise<AcquiredPosit
             return pos;
         }
         await ensureFineLocationPermission();
-        return acquireDevicePosition(createAdapters(), {
+        const adapters = createAdapters();
+        const acquire = acquireDevicePosition(adapters, {
             promptIfDisabled,
-            offline: isBrowserOffline(),
+            offline,
             onFix: emitGpsFix,
-            nativeTimeoutMs: GEOLOCATION_GPS_BUDGET_MS,
+            nativeTimeoutMs: nativeBudget,
             allowCellFallback: true,
         });
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+            return await Promise.race([
+                acquire,
+                new Promise<AcquiredPosition>((_, reject) => {
+                    timer = setTimeout(() => reject(new Error('LOCATION_TIMEOUT')), hardDeadlineMs);
+                }),
+            ]);
+        } finally {
+            if (timer) clearTimeout(timer);
+            try {
+                void adapters.cancelFreshFix?.();
+            } catch {
+                // ignore
+            }
+        }
     })();
     acquireInflight = run;
     try {
         return await run;
     } finally {
-        acquireInflight = null;
+        if (acquireInflight === run) acquireInflight = null;
     }
 }
 

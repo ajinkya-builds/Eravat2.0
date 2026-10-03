@@ -414,19 +414,23 @@ async function raceLivePosition(
             }
         };
 
+        const stopListeners = () => {
+            watchCancel?.();
+            // Never await cancel — OnePlus/OxygenOS has hung the Capacitor bridge
+            // on cancelFreshFix, which previously blocked delivering a good fix.
+            try {
+                void adapters.cancelFreshFix?.();
+            } catch {
+                // ignore
+            }
+        };
+
         const finishGps = (position: AcquiredPosition) => {
             if (settled) return;
             settled = true;
             clearRefine();
-            watchCancel?.();
-            void (async () => {
-                try {
-                    await adapters.cancelFreshFix?.();
-                } catch {
-                    // listen already stopped
-                }
-                resolve(position);
-            })();
+            stopListeners();
+            resolve(position);
         };
 
         const considerGps = (position: AcquiredPosition, alreadyRefined = false) => {
@@ -458,8 +462,7 @@ async function raceLivePosition(
             if (code === 'LOCATION_PERMISSION_DENIED' || code === 'LOCATION_DISABLED') {
                 settled = true;
                 clearRefine();
-                watchCancel?.();
-                void adapters.cancelFreshFix?.();
+                stopListeners();
                 reject(err);
             }
         };
@@ -479,12 +482,9 @@ async function raceLivePosition(
             holdCell(acquired);
         };
 
-        // High accuracy is fast outdoors. Balanced power returns Wi-Fi/network indoors,
-        // where a satellite lock often never arrives until the user reaches a door.
+        // One Capacitor getCurrent only — dual concurrent getCurrent+watch hangs on
+        // some OxygenOS/OnePlus builds. Native requestFreshFix covers indoor Wi-Fi.
         void adapters.getCurrentPosition(liveOptions(opts.getCurrentTimeoutMs, 0, true))
-            .then(acceptReading)
-            .catch(failHard);
-        void adapters.getCurrentPosition(liveOptions(opts.getCurrentTimeoutMs, 0, false))
             .then(acceptReading)
             .catch(failHard);
 
@@ -513,12 +513,11 @@ async function raceLivePosition(
             // Absolute last resort: only after the full continuous GPS budget.
             if (opts.allowCellFallback && cellFallback) {
                 settled = true;
-                watchCancel?.();
-                void adapters.cancelFreshFix?.();
+                stopListeners();
                 resolve(cellFallback);
                 return;
             }
-            void adapters.cancelFreshFix?.();
+            stopListeners();
             reject(new Error('LOCATION_TIMEOUT'));
         });
     });
@@ -550,16 +549,40 @@ function scheduleGpsUpgrade(
     })();
 }
 
+async function readCachedOrNativeLastKnown(
+    adapters: LocationAdapters,
+    now = Date.now(),
+): Promise<AcquiredPosition | null> {
+    const cached = readLastGpsFix(DEFAULT_LAST_GPS_MAX_AGE_MS, now);
+    if (cached) {
+        return withLocationSource(cached, inferLocationSource(cached));
+    }
+    try {
+        const native = await adapters.getNativeLastKnown();
+        if (!native) return null;
+        if (!isFixFresh(native, DEFAULT_LAST_GPS_MAX_AGE_MS, now)) return null;
+        return withLocationSource(native, inferLocationSource(native));
+    } catch {
+        return null;
+    }
+}
+
 export async function acquireDevicePosition(
     adapters: LocationAdapters,
     opts?: AcquirePositionOptions,
 ): Promise<AcquiredPosition> {
     const offline = opts?.offline ?? false;
     const promptIfDisabled = opts?.promptIfDisabled ?? false;
+    // Offline: AGPS/Wi-Fi fused often never arrives. Keep the live budget shorter and
+    // fall back to last-known instead of spinning for the full outdoor GPS wait.
     const getCurrentTimeoutMs = opts?.getCurrentTimeoutMs
         ?? (offline ? 6_000 : GEOLOCATION_TIMEOUT_MS);
-    const nativeTimeoutMs = opts?.nativeTimeoutMs ?? GEOLOCATION_GPS_BUDGET_MS;
-    const watchTimeoutMs = opts?.watchTimeoutMs ?? Math.max(GEOLOCATION_WATCH_TIMEOUT_MS, nativeTimeoutMs);
+    const nativeTimeoutMs = opts?.nativeTimeoutMs
+        ?? (offline ? Math.min(GEOLOCATION_GPS_BUDGET_MS, 25_000) : GEOLOCATION_GPS_BUDGET_MS);
+    const watchTimeoutMs = opts?.watchTimeoutMs ?? Math.max(
+        offline ? nativeTimeoutMs : GEOLOCATION_WATCH_TIMEOUT_MS,
+        nativeTimeoutMs,
+    );
     const allowCellFallback = opts?.allowCellFallback ?? true;
 
     const emit = (position: AcquiredPosition) => {
@@ -571,31 +594,38 @@ export async function acquireDevicePosition(
         await adapters.ensureLocationEnabled();
     }
 
+    const raceOnce = () => raceLivePosition(adapters, {
+        getCurrentTimeoutMs,
+        watchTimeoutMs,
+        nativeTimeoutMs,
+        allowCellFallback,
+    });
+
     try {
-        const live = await raceLivePosition(adapters, {
-            getCurrentTimeoutMs,
-            watchTimeoutMs,
-            nativeTimeoutMs,
-            allowCellFallback,
-        });
+        const live = await raceOnce();
         emit(live);
-        scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs);
+        if (!offline) scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs);
         return live;
     } catch (err) {
         const code = classifyGeolocationError(err);
         if (isLocationOffError(code) && !promptIfDisabled) {
             const enabled = await adapters.ensureLocationEnabled();
             if (enabled) {
-                const live = await raceLivePosition(adapters, {
-                    getCurrentTimeoutMs,
-                    watchTimeoutMs,
-                    nativeTimeoutMs,
-                    allowCellFallback,
-                });
-                emit(live);
-                scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs);
-                return live;
+                try {
+                    const live = await raceOnce();
+                    emit(live);
+                    if (!offline) scheduleGpsUpgrade(adapters, live, emit, nativeTimeoutMs);
+                    return live;
+                } catch (retryErr) {
+                    err = retryErr;
+                }
             }
+        }
+        // Offline / cold GNSS: prefer a recent last-known over a hard failure.
+        const fallback = await readCachedOrNativeLastKnown(adapters, opts?.now ?? Date.now());
+        if (fallback) {
+            emit(fallback);
+            return fallback;
         }
         throw err;
     }

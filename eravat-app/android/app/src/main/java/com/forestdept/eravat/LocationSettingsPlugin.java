@@ -286,6 +286,29 @@ public class LocationSettingsPlugin extends Plugin {
             return;
         }
 
+        // One-shot fused current (may be Wi-Fi/network). Helps rooms and offline when
+        // continuous updates are delayed by OEM power managers (e.g. OxygenOS).
+        if (fusedClient != null) {
+            try {
+                fusedClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
+                    .addOnSuccessListener(location -> {
+                        if (location != null) {
+                            handleFreshFixLocation(location, done, liveCell, liveIndoor, indoorArmed, finishWithIndoor, manager);
+                        }
+                    });
+                fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                    .addOnSuccessListener(location -> {
+                        if (location != null) {
+                            handleFreshFixLocation(location, done, liveCell, liveIndoor, indoorArmed, finishWithIndoor, manager);
+                        }
+                    });
+            } catch (SecurityException ignored) {
+                // permission revoked
+            } catch (Exception ignored) {
+                // Play Services unavailable
+            }
+        }
+
         boolean gpsEnabled = false;
         try {
             gpsEnabled = manager.isProviderEnabled(LocationManager.GPS_PROVIDER);
@@ -301,9 +324,13 @@ public class LocationSettingsPlugin extends Plugin {
 
     @PluginMethod
     public void cancelFreshFix(PluginCall call) {
-        LocationManager manager = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
-        if (manager != null) {
-            resolvePendingFreshFixEmpty(manager);
+        try {
+            LocationManager manager = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+            if (manager != null) {
+                resolvePendingFreshFixEmpty(manager);
+            }
+        } catch (Exception ignored) {
+            // Always resolve so JS never awaits forever on OEM bridges.
         }
         call.resolve();
     }
