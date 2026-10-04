@@ -2,11 +2,11 @@
 export const APP_VERSION_META = {
   versionName: "2.1.18",
   versionCode: 20118,
-  channel: "staging",
+  channel: "ui-feedback",
   releasedAt: "2026-10-04",
   changes: [
-    "Command Center phone cards/sheets (no horizontal scroll)",
-    "Shorter maps on phone; KPI snap strips",
-    "Feedback APK only — not published to staging update channel"
+    "PRIVATE experience-test build for 1 tester — not a staging ship",
+    "Command Center phone cards/sheets (layout only; same backend)",
+    "Not published to staging Settings → Update for other testers"
   ],
 } as const;

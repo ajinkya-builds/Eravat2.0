@@ -1,7 +1,9 @@
 # Screen coverage — UI feedback APK
 
 Branch: `experiment/mobile-ui-feedback-apk`  
-Backend / DB / translation strings: **unchanged**. Staging update channel: **not published**.
+Version **2.1.18 / 20118** = **private UI experience-test APK for 1 user only**  
+(not a staging ship; not from the Hathi Mitra feature work; channel `ui-feedback`)  
+Backend / DB / translation strings: **unchanged**. Staging Settings → Update: **not published**.
 
 | Route | UI change in this APK |
 |---|---|

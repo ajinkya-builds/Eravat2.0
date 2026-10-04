@@ -7,11 +7,15 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
-## [2.1.18] — 2026-10-04 (versionCode 20118)
+## [2.1.18] — 2026-10-04 (versionCode 20118) — PRIVATE UI FEEDBACK (not shipped)
+
+> Side-load APK for **one** experience tester only. Channel `ui-feedback`.
+> **Not** a staging release. **Not** published to Settings → Update.
+> Unrelated to any Hathi Mitra feature ship. Same staging backend; UI layout only.
 
 - Command Center phone cards/sheets (no horizontal scroll)
 - Shorter maps on phone; KPI snap strips
-- Feedback APK only — not published to staging update channel
+- Not published to staging update channel
 
 ---
 ## [2.1.17] — 2026-10-03 (versionCode 20117)
