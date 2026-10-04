@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { ShieldCheck, History, Activity, CloudOff, RefreshCw, ChevronRight, UserPlus, Users, Navigation } from 'lucide-react';
-import { canOnboardVolunteers, canOnboardVillagers, canReadVillagers } from '../lib/rbac';
+import { canBrowseVillagersReadOnly, showOwnRecordsTile } from '../lib/rbac';
+import { useOnboardingPermissions } from '../hooks/useOnboardingPermissions';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { syncData } from '../services/syncService';
@@ -22,6 +23,8 @@ export default function Dashboard() {
     const { t } = useLanguage();
     const [isOnline, setIsOnline] = useState(true);
     const [myVillagerCount, setMyVillagerCount] = useState<number | null>(null);
+    const [myHathiMitraCount, setMyHathiMitraCount] = useState<number | null>(null);
+    const { canAddHathiMitra, canAddVillager } = useOnboardingPermissions();
 
     useEffect(() => {
         let isMounted = true;
@@ -97,24 +100,42 @@ export default function Dashboard() {
     };
 
     const hasAdminAccess = ['admin', 'ccf', 'dfo'].includes(profile?.role || '');
-    const canOnboardHathiMitra = canOnboardVolunteers(profile?.role);
-    const canOnboardVillager = canOnboardVillagers(profile?.role);
-    const canBrowseVillagers = canReadVillagers(profile?.role);
+    const showMyVillagers = showOwnRecordsTile(canAddVillager, myVillagerCount);
+    const showMyHathiMitra = showOwnRecordsTile(canAddHathiMitra, myHathiMitraCount);
+    const showVillagerBrowse = canBrowseVillagersReadOnly(profile?.role) && !canAddVillager && !showMyVillagers;
 
     useEffect(() => {
-        if (!canOnboardVillager || !profile?.id) return;
+        if (!profile?.id) return;
         let cancelled = false;
-        void supabase
-            .from('villagers')
-            .select('id', { count: 'exact', head: true })
-            .eq('created_by', profile.id)
-            .then(({ count }) => {
-                if (!cancelled) setMyVillagerCount(count ?? 0);
-            });
+        void (async () => {
+            try {
+                const { count, error } = await supabase
+                    .from('villagers')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('created_by', profile.id);
+                if (cancelled || error) return;
+                setMyVillagerCount(count ?? 0);
+            } catch {
+                /* leave null so the tile does not claim zero after a failed count */
+            }
+        })();
+        void (async () => {
+            try {
+                const { count, error } = await supabase
+                    .from('profiles')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('role', 'volunteer')
+                    .eq('created_by', profile.id);
+                if (cancelled || error) return;
+                setMyHathiMitraCount(count ?? 0);
+            } catch {
+                /* leave null so the tile does not claim zero after a failed count */
+            }
+        })();
         return () => {
             cancelled = true;
         };
-    }, [canOnboardVillager, profile?.id]);
+    }, [profile?.id]);
 
     return (
         <div className="relative min-h-screen w-full bg-background overflow-hidden flex flex-col pt-6 px-6 pb-24">
@@ -219,9 +240,9 @@ export default function Dashboard() {
                         <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                     </motion.button>
 
-                    {(canOnboardVillager || canOnboardHathiMitra) && (
+                    {(canAddVillager || canAddHathiMitra) && (
                         <div className="md:col-span-2 grid grid-cols-2 gap-4">
-                            {canOnboardVillager && (
+                            {canAddVillager && (
                                 <motion.button
                                     initial={{ y: 20, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
@@ -240,7 +261,7 @@ export default function Dashboard() {
                                     </div>
                                 </motion.button>
                             )}
-                            {canOnboardHathiMitra && (
+                            {canAddHathiMitra && (
                                 <motion.button
                                     initial={{ y: 20, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
@@ -262,7 +283,7 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    {canOnboardVillager && (
+                    {showMyVillagers && (
                         <motion.button
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
@@ -290,7 +311,35 @@ export default function Dashboard() {
                         </motion.button>
                     )}
 
-                    {!canOnboardVillager && canBrowseVillagers && (
+                    {showMyHathiMitra && (
+                        <motion.button
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.27 }}
+                            data-ph-action="dashboard.open_my_hathi_mitra"
+                            data-ph-screen="dashboard"
+                            data-testid="dashboard-my-hathi-mitra"
+                            onClick={() => navigate('/volunteers')}
+                            className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-emerald-500/20"
+                        >
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl">
+                                    <UserPlus size={28} />
+                                </div>
+                                <div className="text-left">
+                                    <h2 className="text-xl font-bold text-foreground">{t('volunteer.myListTitle')}</h2>
+                                    <p className="text-sm text-muted-foreground">
+                                        {myHathiMitraCount != null
+                                            ? t('volunteer.myListCount', { count: myHathiMitraCount })
+                                            : t('volunteer.myListDesc')}
+                                    </p>
+                                </div>
+                            </div>
+                            <ChevronRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        </motion.button>
+                    )}
+
+                    {showVillagerBrowse && (
                         <motion.button
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}

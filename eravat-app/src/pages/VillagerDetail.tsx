@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { VillagerForm } from '../components/villagers/VillagerForm';
 import { canEditVillagerRecord, canReadVillagers } from '../lib/rbac';
+import { useOnboardingPermissions } from '../hooks/useOnboardingPermissions';
 import { fromE164India } from '../lib/phone';
 import {
   emptyVillagerForm,
@@ -35,10 +36,10 @@ export default function VillagerDetail() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const canRead = canReadVillagers(profile?.role);
-  const canEdit = canEditVillagerRecord(profile?.role, profile?.id, row?.created_by);
+  const { canAddVillager, loading: permissionLoading } = useOnboardingPermissions();
+  const canEdit = canEditVillagerRecord(profile?.role, profile?.id, row?.created_by, canAddVillager);
 
   useEffect(() => {
-    if (!canRead) return;
     if (!isUuid(id)) {
       setRow(null);
       setLoading(false);
@@ -96,9 +97,9 @@ export default function VillagerDetail() {
     return () => {
       cancelled = true;
     };
-  }, [id, canRead, t]);
+  }, [id, t]);
 
-  if (!canRead) {
+  if (!permissionLoading && !loading && !canRead && !canAddVillager && !row) {
     return (
       <div className="min-h-screen p-6 max-w-lg mx-auto">
         <p className="text-destructive text-sm">{t('hathiMitra.onboardForbidden')}</p>
@@ -183,7 +184,7 @@ export default function VillagerDetail() {
       </div>
 
       <div className="p-6 max-w-lg mx-auto space-y-6">
-        {loading ? (
+        {loading || permissionLoading ? (
           <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground text-sm">
             <Loader2 size={16} className="animate-spin" /> {t('loading')}
           </div>

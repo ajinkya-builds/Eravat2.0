@@ -1,7 +1,12 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Smartphone, Bell, Database, Radio } from 'lucide-react';
+import { Shield, Smartphone, Bell, Database, Radio, Users } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../supabase';
+import { VALID_ROLES, type UserRole } from '../../lib/rbac';
 import { APP_VERSION, formatAppVersionLabel } from '../../lib/appVersion';
+import { track, trackFailed } from '../../lib/analytics';
 
 // ─── Toggle ──────────────────────────────────────────────────────────────────
 
@@ -24,8 +29,77 @@ function Toggle({ enabled, onToggle, disabled }: { enabled: boolean; onToggle: (
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
+type OnboardingRow = {
+    role: UserRole;
+    can_add_hathi_mitra: boolean;
+    can_add_villager: boolean;
+};
+
 export default function AdminSettings() {
     const { t } = useLanguage();
+    const { profile } = useAuth();
+    const isAdmin = profile?.role === 'admin';
+    const [onboardingRows, setOnboardingRows] = useState<OnboardingRow[]>([]);
+    const [onboardingError, setOnboardingError] = useState<string | null>(null);
+    const [savingKey, setSavingKey] = useState<string | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        void supabase
+            .from('role_onboarding_config')
+            .select('role, can_add_hathi_mitra, can_add_villager')
+            .then(({ data, error }) => {
+                if (cancelled) return;
+                if (error) {
+                    setOnboardingError(t('admin.settings.onboardingLoadFailed'));
+                    return;
+                }
+                const byRole = new Map((data ?? []).map((row) => [row.role as string, row]));
+                setOnboardingRows(VALID_ROLES.map((role) => ({
+                    role,
+                    can_add_hathi_mitra: Boolean(byRole.get(role)?.can_add_hathi_mitra),
+                    can_add_villager: Boolean(byRole.get(role)?.can_add_villager),
+                })));
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [t]);
+
+    const updateOnboarding = async (
+        role: UserRole,
+        field: 'can_add_hathi_mitra' | 'can_add_villager',
+        next: boolean,
+    ) => {
+        if (!isAdmin || savingKey) return;
+        const key = `${role}:${field}`;
+        const previous = onboardingRows;
+        setSavingKey(key);
+        setOnboardingError(null);
+        setOnboardingRows((current) => current.map((row) => (
+            row.role === role ? { ...row, [field]: next } : row
+        )));
+        const { data, error } = await supabase
+            .from('role_onboarding_config')
+            .update({ [field]: next })
+            .eq('role', role)
+            .select('role');
+        setSavingKey(null);
+        const current = previous.find((row) => row.role === role);
+        const canAddHathiMitra = field === 'can_add_hathi_mitra' ? next : Boolean(current?.can_add_hathi_mitra);
+        const canAddVillager = field === 'can_add_villager' ? next : Boolean(current?.can_add_villager);
+        if (error || !data?.length) {
+            setOnboardingRows(previous);
+            setOnboardingError(t('admin.settings.onboardingSaveFailed'));
+            trackFailed('admin.onboarding_permission_changed', error ? 'save_failed' : 'no_row', { role });
+            return;
+        }
+        track('admin.onboarding_permission_changed', {
+            role,
+            can_add_hathi_mitra: canAddHathiMitra,
+            can_add_villager: canAddVillager,
+        });
+    };
 
     return (
         <div className="space-y-6 max-w-4xl">
@@ -34,6 +108,49 @@ export default function AdminSettings() {
                 <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('admin.settings.title')}</h1>
                 <p className="text-muted-foreground mt-1 text-sm">{t('admin.settings.subtitle')}</p>
             </div>
+
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className="glass-card rounded-2xl p-6"
+            >
+                <h3 className="text-lg font-bold mb-1 border-b border-border pb-2 flex items-center gap-2">
+                    <Users size={18} className="text-primary" />
+                    {t('admin.settings.onboardingTitle')}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-3 mb-4">
+                    {isAdmin ? t('admin.settings.onboardingDesc') : t('admin.settings.onboardingReadOnly')}
+                </p>
+                {onboardingError && (
+                    <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-xl p-3 mb-4">
+                        {onboardingError}
+                    </p>
+                )}
+                <div className="space-y-4">
+                    {onboardingRows.map((row) => (
+                        <div key={row.role} className="rounded-xl border border-border/60 px-4 py-3 space-y-3">
+                            <p className="font-medium text-sm">{t(`role.${row.role}`)}</p>
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-xs text-muted-foreground">{t('admin.settings.canAddHathiMitra')}</p>
+                                <Toggle
+                                    enabled={row.can_add_hathi_mitra}
+                                    disabled={!isAdmin || savingKey !== null}
+                                    onToggle={() => updateOnboarding(row.role, 'can_add_hathi_mitra', !row.can_add_hathi_mitra)}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-xs text-muted-foreground">{t('admin.settings.canAddVillager')}</p>
+                                <Toggle
+                                    enabled={row.can_add_villager}
+                                    disabled={!isAdmin || savingKey !== null}
+                                    onToggle={() => updateOnboarding(row.role, 'can_add_villager', !row.can_add_villager)}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </motion.div>
 
             {/* ── Security ── */}
             <motion.div

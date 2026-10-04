@@ -31,21 +31,45 @@ export function canManageRole(callerRole?: string, targetRole?: string): boolean
   return allowed.includes(targetRole);
 }
 
+/**
+ * Roles seeded with can_add_hathi_mitra / can_add_villager = true.
+ * Runtime gates must use role_onboarding_config, not these helpers.
+ */
+export const SEEDED_ONBOARD_ROLES = ['admin', 'ccf', 'dfo', 'range_officer', 'beat_guard'] as const;
+
+/** Read-only villager browse. Not expanded when an onboard role loses add permission. */
+export const VILLAGER_BROWSE_ONLY_ROLES = ['rrt', 'biologist', 'veterinarian'] as const;
+
+export function seededCanAddHathiMitra(role?: string): boolean {
+  return !!role && (SEEDED_ONBOARD_ROLES as readonly string[]).includes(role);
+}
+
+export function seededCanAddVillager(role?: string): boolean {
+  return seededCanAddHathiMitra(role);
+}
+
+/** @deprecated Use role_onboarding_config via useOnboardingPermissions. Documents the seed only. */
 export function canOnboardVolunteers(role?: string): boolean {
-  return canManageRole(role, 'volunteer');
+  return seededCanAddHathiMitra(role);
 }
 
-/** Field staff who may register Hathi Mitra (villager alert recipients). */
+/** @deprecated Use role_onboarding_config via useOnboardingPermissions. Documents the seed only. */
 export function canOnboardVillagers(role?: string): boolean {
-  return !!role && ['admin', 'ccf', 'dfo', 'range_officer', 'beat_guard'].includes(role);
+  return seededCanAddVillager(role);
 }
 
-/** Staff who may search / list villagers for ops and future alerts. */
+/** Staff who may search / list villagers for ops. Independent of the add toggle. */
 export function canReadVillagers(role?: string): boolean {
-  return (
-    canOnboardVillagers(role) ||
-    !!role && ['rrt', 'biologist', 'veterinarian'].includes(role)
-  );
+  return seededCanAddVillager(role) || canBrowseVillagersReadOnly(role);
+}
+
+export function canBrowseVillagersReadOnly(role?: string): boolean {
+  return !!role && (VILLAGER_BROWSE_ONLY_ROLES as readonly string[]).includes(role);
+}
+
+/** Home tile for records the user added. Stays visible after add permission is revoked. */
+export function showOwnRecordsTile(canAdd: boolean, ownCount: number | null): boolean {
+  return canAdd || (ownCount ?? 0) > 0;
 }
 
 /** Command Center leadership — edit any villager, hard-delete. */
@@ -53,14 +77,18 @@ export function canLeadVillagers(role?: string): boolean {
   return !!role && ['admin', 'ccf', 'dfo'].includes(role);
 }
 
-/** Field onboarders edit their own rows; leadership may edit any. */
+/**
+ * Leadership may edit any villager. Other roles edit their own rows only while
+ * canAddVillager is true (same flag as insert, from role_onboarding_config).
+ */
 export function canEditVillagerRecord(
   role?: string,
   viewerId?: string | null,
   createdBy?: string | null,
+  canAddVillager = false,
 ): boolean {
-  if (!canOnboardVillagers(role)) return false;
   if (canLeadVillagers(role)) return true;
+  if (!canAddVillager) return false;
   return Boolean(viewerId && createdBy && viewerId === createdBy);
 }
 

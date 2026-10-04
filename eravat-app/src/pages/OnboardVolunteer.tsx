@@ -8,11 +8,23 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { Network } from '@capacitor/network';
 import { LocationFields } from '../components/profile/LocationFields';
 import { TerritorySelect, type TerritoryValue } from '../components/shared/TerritorySelect';
-import { canOnboardVolunteers } from '../lib/rbac';
+import { useOnboardingPermissions } from '../hooks/useOnboardingPermissions';
 import { track } from '../lib/analytics';
 import { digitsForMobileInput, toE164India } from '../lib/phone';
 import { queuePendingVolunteer } from '../services/registrationSyncService';
 import { PAGE_STICKY_HEADER } from '../lib/layout';
+
+function volunteerOnboardErrorCode(err: unknown): string {
+    const message = err instanceof Error ? err.message.toLowerCase() : '';
+    if (message.includes('not authenticated')) return 'not_authenticated';
+    if (message.includes('forbidden') || message.includes('insufficient')) return 'forbidden';
+    if (message.includes('already exists') || message.includes('already registered') || message.includes('duplicate')) {
+        return 'duplicate_phone';
+    }
+    if (message.includes('phone')) return 'invalid_phone';
+    if (message.includes('gps') || message.includes('location')) return 'location_required';
+    return 'create_failed';
+}
 
 function emptyVolunteerTerritory(): TerritoryValue {
   // Match villager onboard: do not seed beat; GPS/TerritorySelect fills DRB.
@@ -38,8 +50,17 @@ export default function OnboardVolunteer() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<{ name: string; queued?: boolean } | null>(null);
+    const { canAddHathiMitra, loading: permissionLoading } = useOnboardingPermissions();
 
-    if (!canOnboardVolunteers(profile?.role)) {
+    if (permissionLoading) {
+        return (
+            <div className="min-h-screen p-6 max-w-lg mx-auto flex items-center gap-2 text-muted-foreground text-sm">
+                <Loader2 size={16} className="animate-spin" /> {t('loading')}
+            </div>
+        );
+    }
+
+    if (!canAddHathiMitra) {
         return (
             <div className="min-h-screen p-6 max-w-lg mx-auto">
                 <p className="text-destructive text-sm">{t('volunteer.onboardForbidden')}</p>
@@ -110,7 +131,12 @@ export default function OnboardVolunteer() {
                 headers: { Authorization: `Bearer ${accessToken}` },
             });
 
-            if (fnErr) throw fnErr;
+            if (fnErr) {
+                const serverMessage = data && typeof data === 'object' && typeof data.error === 'string'
+                    ? data.error
+                    : fnErr.message;
+                throw new Error(serverMessage);
+            }
             if (data?.error) throw new Error(data.error);
 
             track('volunteer_onboarded', { role: 'volunteer' });
@@ -122,6 +148,10 @@ export default function OnboardVolunteer() {
             setLocation({ latitude: null, longitude: null });
             setTerritory(emptyVolunteerTerritory());
         } catch (err) {
+            track('volunteer.onboard_failed', {
+                role: 'volunteer',
+                error_code: volunteerOnboardErrorCode(err),
+            });
             setError(err instanceof Error ? err.message : t('volunteer.onboardFailed'));
         } finally {
             setIsSubmitting(false);

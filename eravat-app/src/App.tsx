@@ -30,6 +30,7 @@ const PrivacySecurity = lazy(() => import('./pages/profile/PrivacySecurity'));
 const HelpSupport = lazy(() => import('./pages/profile/HelpSupport'));
 const CompleteProfileLocation = lazy(() => import('./pages/profile/CompleteProfileLocation'));
 const OnboardVolunteer = lazy(() => import('./pages/OnboardVolunteer'));
+const VolunteersList = lazy(() => import('./pages/VolunteersList'));
 const OnboardVillager = lazy(() => import('./pages/OnboardVillager'));
 const VillagersList = lazy(() => import('./pages/VillagersList'));
 const VillagerDetail = lazy(() => import('./pages/VillagerDetail'));
@@ -135,6 +136,7 @@ function AppRoutes() {
                     <Route path="/faq" element={<FAQ />} />
                     <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                     <Route path="/volunteers/onboard" element={<OnboardVolunteer />} />
+                    <Route path="/volunteers" element={<VolunteersList />} />
                     <Route path="/villagers/onboard" element={<OnboardVillager />} />
                     <Route path="/villagers/:id" element={<VillagerDetail />} />
                     <Route path="/villagers" element={<VillagersList />} />

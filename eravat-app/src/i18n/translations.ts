@@ -1019,6 +1019,13 @@ const translations: Record<Language, Record<string, string>> = {
         "admin.settings.forceReauthDesc":
             "Require patrols to re-login every 24 hours",
         "admin.settings.saveChanges": "Save Changes",
+        "admin.settings.onboardingTitle": "Who can add people",
+        "admin.settings.onboardingDesc": "Choose which roles may add a Hathi Mitra or a villager. People keep the records they already added.",
+        "admin.settings.onboardingReadOnly": "Only an admin can change who may add a Hathi Mitra or a villager.",
+        "admin.settings.canAddHathiMitra": "Can add Hathi Mitra",
+        "admin.settings.canAddVillager": "Can add villager",
+        "admin.settings.onboardingLoadFailed": "Could not load onboarding permissions.",
+        "admin.settings.onboardingSaveFailed": "Could not save onboarding permissions.",
 
         // ── OTP Phone Authentication ──────────────────────────────────────
         "otp.title": "Phone Verification",
@@ -1073,6 +1080,16 @@ const translations: Record<Language, Record<string, string>> = {
         "volunteer.onboardGpsRequired": "GPS location is required.",
         "volunteer.onboardFailed": "Could not register Hathi Mitra.",
         "volunteer.onboardForbidden": "You do not have permission to onboard Hathi Mitra.",
+        "volunteer.myListTitle": "My Hathi Mitra",
+        "volunteer.myListDesc": "Hathi Mitra you registered. This list is view only.",
+        "volunteer.myListCount": "{count} registered",
+        "volunteer.searchPlaceholder": "Search by name or mobile…",
+        "volunteer.listEmpty": "No Hathi Mitras match your search.",
+        "volunteer.listEmptyMine": "You have not registered any Hathi Mitra yet.",
+        "volunteer.listFailed": "Could not load Hathi Mitra.",
+        "volunteer.showInactive": "Show inactive",
+        "volunteer.inactiveBadge": "Inactive",
+        "volunteer.unnamed": "Unnamed",
 
         "hathiMitra.onboardTitle": "Onboard Villager",
         "hathiMitra.onboardDesc": "Register a villager with name, phone, village, GPS, and Division/Range. No app login.",
@@ -2278,6 +2295,13 @@ const translations: Record<Language, Record<string, string>> = {
         "admin.settings.forceReauthDesc":
             "गश्तियों को हर 24 घंटे में पुनः लॉगिन करने की आवश्यकता",
         "admin.settings.saveChanges": "परिवर्तन सहेजें",
+        "admin.settings.onboardingTitle": "कौन जोड़ सकता है",
+        "admin.settings.onboardingDesc": "चुनें कि कौन सी भूमिका हाथी मित्र या ग्रामीण जोड़ सकती है। पहले जोड़े गए रिकॉर्ड उनके पास बने रहते हैं।",
+        "admin.settings.onboardingReadOnly": "केवल एडमिन बदल सकता है कि कौन हाथी मित्र या ग्रामीण जोड़ सकता है।",
+        "admin.settings.canAddHathiMitra": "हाथी मित्र जोड़ सकते हैं",
+        "admin.settings.canAddVillager": "ग्रामीण जोड़ सकते हैं",
+        "admin.settings.onboardingLoadFailed": "ऑनबोर्डिंग अनुमति लोड नहीं हो सकी।",
+        "admin.settings.onboardingSaveFailed": "ऑनबोर्डिंग अनुमति सहेजी नहीं जा सकी।",
 
         // ── OTP Phone Authentication ──────────────────────────────────────
         "otp.title": "फ़ोन सत्यापन",
@@ -2320,6 +2344,16 @@ const translations: Record<Language, Record<string, string>> = {
         "volunteer.onboardGpsRequired": "जीपीएस स्थान आवश्यक है।",
         "volunteer.onboardFailed": "हाथी मित्र पंजीकृत नहीं किया जा सका।",
         "volunteer.onboardForbidden": "आपके पास हाथी मित्र जोड़ने की अनुमति नहीं है।",
+        "volunteer.myListTitle": "मेरे हाथी मित्र",
+        "volunteer.myListDesc": "आपने जिन हाथी मित्र को जोड़ा। यह सूची केवल देखने के लिए है।",
+        "volunteer.myListCount": "{count} पंजीकृत",
+        "volunteer.searchPlaceholder": "नाम या मोबाइल से खोजें…",
+        "volunteer.listEmpty": "कोई हाथी मित्र मेल नहीं खाता।",
+        "volunteer.listEmptyMine": "आपने अभी कोई हाथी मित्र पंजीकृत नहीं किया है।",
+        "volunteer.listFailed": "हाथी मित्र लोड नहीं हो सके।",
+        "volunteer.showInactive": "निष्क्रिय दिखाएँ",
+        "volunteer.inactiveBadge": "निष्क्रिय",
+        "volunteer.unnamed": "बिना नाम",
 
         "hathiMitra.onboardTitle": "ग्रामीण जोड़ें",
         "hathiMitra.onboardDesc": "नाम, फ़ोन, गाँव, जीपीएस और वन मंडल/परिक्षेत्र के साथ ग्रामीण पंजीकृत करें। ऐप लॉगिन नहीं।",
@@ -3541,6 +3575,13 @@ const translations: Record<Language, Record<string, string>> = {
         "admin.settings.forceReauthDesc":
             "गस्तींना दर 24 तासांनी पुन्हा लॉगिन करणे आवश्यक",
         "admin.settings.saveChanges": "बदल जतन करा",
+        "admin.settings.onboardingTitle": "कोण जोडू शकते",
+        "admin.settings.onboardingDesc": "कोणती भूमिका हत्ती मित्र किंवा ग्रामीण जोडू शकते ते निवडा. आधी जोडलेले रेकॉर्ड त्यांच्याकडे राहतात.",
+        "admin.settings.onboardingReadOnly": "फक्त अॅडमिन बदलू शकतो की कोण हत्ती मित्र किंवा ग्रामीण जोडू शकतो.",
+        "admin.settings.canAddHathiMitra": "हत्ती मित्र जोडू शकतात",
+        "admin.settings.canAddVillager": "ग्रामीण जोडू शकतात",
+        "admin.settings.onboardingLoadFailed": "ऑनबोर्डिंग परवानगी लोड करता आली नाही.",
+        "admin.settings.onboardingSaveFailed": "ऑनबोर्डिंग परवानगी जतन करता आली नाही.",
 
         // ── OTP Phone Authentication ──────────────────────────────────────
         "otp.title": "फोन सत्यापन",
@@ -3583,6 +3624,16 @@ const translations: Record<Language, Record<string, string>> = {
         "volunteer.onboardGpsRequired": "जीपीएस स्थान आवश्यक आहे.",
         "volunteer.onboardFailed": "हत्ती मित्र नोंदवता आला नाही.",
         "volunteer.onboardForbidden": "तुम्हाला हत्ती मित्र जोडण्याची परवानगी नाही.",
+        "volunteer.myListTitle": "माझे हत्ती मित्र",
+        "volunteer.myListDesc": "तुम्ही नोंदवलेले हत्ती मित्र. ही यादी फक्त पाहण्यासाठी आहे.",
+        "volunteer.myListCount": "{count} नोंदणीकृत",
+        "volunteer.searchPlaceholder": "नाव किंवा मोबाइलने शोधा…",
+        "volunteer.listEmpty": "कोणताही हत्ती मित्र जुळत नाही.",
+        "volunteer.listEmptyMine": "तुम्ही अद्याप कोणताही हत्ती मित्र नोंदवला नाही.",
+        "volunteer.listFailed": "हत्ती मित्र लोड करता आले नाहीत.",
+        "volunteer.showInactive": "निष्क्रिय दाखवा",
+        "volunteer.inactiveBadge": "निष्क्रिय",
+        "volunteer.unnamed": "नाव नाही",
 
         "hathiMitra.onboardTitle": "ग्रामीण जोडा",
         "hathiMitra.onboardDesc": "नाव, फोन, गाव, जीपीएस आणि डिव्हिजन/रेंजसह ग्रामीण नोंदवा. अॅप लॉगिन नाही.",

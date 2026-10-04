@@ -1,27 +1,34 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, Loader2, Search, UserPlus } from 'lucide-react';
+import { ArrowLeft, Loader2, Search, UserPlus } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { canReadVillagers } from '../lib/rbac';
 import { useOnboardingPermissions } from '../hooks/useOnboardingPermissions';
-import { sanitiseIlikeTerm } from '../lib/ilike';
-import { villageNameOf, type VillagerRecord } from '../lib/villagerRegistry';
+import { sanitiseIlikeTerm, tokenOrFilters } from '../lib/ilike';
 
-export default function VillagersList() {
+type HathiMitraRow = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  is_active: boolean | null;
+};
+
+function displayName(row: HathiMitraRow): string {
+  return `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim();
+}
+
+export default function VolunteersList() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { t } = useLanguage();
+  const { canAddHathiMitra, loading: permissionLoading } = useOnboardingPermissions();
   const [query, setQuery] = useState('');
   const [showInactive, setShowInactive] = useState(false);
-  const [rows, setRows] = useState<VillagerRecord[]>([]);
+  const [rows, setRows] = useState<HathiMitraRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const canRead = canReadVillagers(profile?.role);
-  const { canAddVillager, loading: permissionLoading } = useOnboardingPermissions();
-  const canOnboard = canAddVillager;
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -32,25 +39,25 @@ export default function VillagersList() {
       setError(null);
       try {
         let q = supabase
-          .from('villagers')
-          .select('id, name, mobile, latitude, longitude, village_id, created_by, is_active, alert_opt_in, villages(name)')
-          .eq('created_by', profile?.id ?? '')
-          .order('name')
+          .from('profiles')
+          .select('id, first_name, last_name, phone, is_active')
+          .eq('role', 'volunteer')
+          .eq('created_by', profile.id)
+          .order('first_name')
           .limit(100);
 
         if (!showInactive) q = q.eq('is_active', true);
 
-        const trimmed = sanitiseIlikeTerm(query);
-        if (trimmed) {
-          q = q.or(`name.ilike.%${trimmed}%,mobile.ilike.%${trimmed}%`);
+        for (const filter of tokenOrFilters(['first_name', 'last_name', 'phone'], query)) {
+          q = q.or(filter);
         }
 
         const { data, error: fetchErr } = await q;
         if (fetchErr) throw fetchErr;
-        if (!cancelled) setRows((data as unknown as VillagerRecord[]) ?? []);
+        if (!cancelled) setRows((data as HathiMitraRow[]) ?? []);
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : t('hathiMitra.listFailed'));
+          setError(err instanceof Error ? err.message : t('volunteer.listFailed'));
           setRows([]);
         }
       } finally {
@@ -64,11 +71,10 @@ export default function VillagersList() {
     };
   }, [query, profile?.id, showInactive, t]);
 
-  const canOpen = canRead || canOnboard || rows.length > 0;
-  if (!permissionLoading && !loading && !canOpen) {
+  if (!permissionLoading && !loading && !canAddHathiMitra && rows.length === 0 && !error) {
     return (
       <div className="min-h-screen p-6 max-w-lg mx-auto">
-        <p className="text-destructive text-sm">{t('hathiMitra.onboardForbidden')}</p>
+        <p className="text-destructive text-sm">{t('volunteer.onboardForbidden')}</p>
         <button onClick={() => navigate('/')} className="mt-4 text-primary text-sm font-semibold">
           {t('profile.cancel')}
         </button>
@@ -77,8 +83,8 @@ export default function VillagersList() {
   }
 
   const emptyMessage = sanitiseIlikeTerm(query)
-    ? t('hathiMitra.listEmpty')
-    : t('hathiMitra.listEmptyMine');
+    ? t('volunteer.listEmpty')
+    : t('volunteer.listEmptyMine');
 
   return (
     <div className="bg-background pb-8">
@@ -90,13 +96,13 @@ export default function VillagersList() {
         >
           <ArrowLeft size={20} />
         </button>
-        <h1 className="text-lg font-bold flex-1">{t('hathiMitra.myListTitle')}</h1>
-        {canOnboard && (
+        <h1 className="text-lg font-bold flex-1">{t('volunteer.myListTitle')}</h1>
+        {canAddHathiMitra && (
           <button
             type="button"
-            onClick={() => navigate('/villagers/onboard')}
+            onClick={() => navigate('/volunteers/onboard')}
             className="p-2 rounded-xl bg-primary text-primary-foreground"
-            aria-label={t('hathiMitra.onboardTitle')}
+            aria-label={t('volunteer.onboardTitle')}
           >
             <UserPlus size={18} />
           </button>
@@ -104,13 +110,13 @@ export default function VillagersList() {
       </div>
 
       <div className="p-4 max-w-lg mx-auto space-y-3">
-        <p className="text-sm text-muted-foreground">{t('hathiMitra.myListDesc')}</p>
+        <p className="text-sm text-muted-foreground">{t('volunteer.myListDesc')}</p>
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('hathiMitra.searchPlaceholder')}
+            placeholder={t('volunteer.searchPlaceholder')}
             className="w-full pl-9 pr-3 py-3 rounded-xl bg-muted/50 border border-border text-sm"
           />
         </div>
@@ -122,7 +128,7 @@ export default function VillagersList() {
             onChange={(e) => setShowInactive(e.target.checked)}
             className="rounded border-border"
           />
-          {t('hathiMitra.showInactive')}
+          {t('volunteer.showInactive')}
         </label>
 
         {error && (
@@ -131,58 +137,36 @@ export default function VillagersList() {
           </p>
         )}
 
-        {loading ? (
+        {loading || permissionLoading ? (
           <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground text-sm">
             <Loader2 size={16} className="animate-spin" /> {t('loading')}
           </div>
         ) : rows.length === 0 ? (
           <div className="rounded-2xl border border-border/50 bg-muted/20 px-4 py-5 space-y-2">
             <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-            {canOnboard && !query.trim() && (
+            {canAddHathiMitra && !query.trim() && (
               <button
                 type="button"
-                onClick={() => navigate('/villagers/onboard')}
+                onClick={() => navigate('/volunteers/onboard')}
                 className="text-sm font-semibold text-primary"
               >
-                {t('hathiMitra.onboardTitle')}
+                {t('volunteer.onboardTitle')}
               </button>
             )}
           </div>
         ) : (
           <ul className="divide-y divide-border/40 rounded-2xl border border-border/50 overflow-hidden bg-card">
-            {rows.map((r) => (
-              <li key={r.id}>
-                <button
-                  type="button"
-                  data-testid="villager-row"
-                  onClick={() => navigate(`/villagers/${r.id}`)}
-                  className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-muted/40 transition-colors"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm text-foreground truncate">{r.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {r.mobile}
-                      {villageNameOf(r) ? ` · ${villageNameOf(r)}` : ''}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {!r.is_active && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-muted text-muted-foreground">
-                          {t('hathiMitra.inactiveBadge')}
-                        </span>
-                      )}
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        r.alert_opt_in && r.is_active
-                          ? 'bg-emerald-500/15 text-emerald-700'
-                          : 'bg-amber-500/15 text-amber-700'
-                      }`}>
-                        {r.alert_opt_in && r.is_active
-                          ? t('hathiMitra.optedInBadge')
-                          : t('hathiMitra.optedOutBadge')}
-                      </span>
-                    </div>
-                  </div>
-                  <ChevronRight size={16} className="text-muted-foreground shrink-0" />
-                </button>
+            {rows.map((row) => (
+              <li key={row.id} data-testid="hathi-mitra-row" className="px-4 py-3">
+                <p className="font-semibold text-sm text-foreground truncate">
+                  {displayName(row) || t('volunteer.unnamed')}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{row.phone}</p>
+                {!row.is_active && (
+                  <span className="mt-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-muted text-muted-foreground">
+                    {t('volunteer.inactiveBadge')}
+                  </span>
+                )}
               </li>
             ))}
           </ul>

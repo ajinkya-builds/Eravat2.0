@@ -127,7 +127,19 @@ serve(async (req) => {
       })
     }
 
-    if (!canManageRole(callerProfile.role, role)) {
+    if (role === 'volunteer') {
+      const { data: onboardConfig, error: onboardErr } = await adminClient
+        .from('role_onboarding_config')
+        .select('can_add_hathi_mitra')
+        .eq('role', callerProfile.role)
+        .maybeSingle()
+
+      if (onboardErr || !onboardConfig?.can_add_hathi_mitra) {
+        return new Response(JSON.stringify({ error: 'Forbidden: insufficient permissions to create user with this role' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    } else if (!canManageRole(callerProfile.role, role)) {
       return new Response(JSON.stringify({ error: 'Forbidden: insufficient permissions to create user with this role' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -292,6 +304,7 @@ serve(async (req) => {
         latitude: profileLat,
         longitude: profileLng,
         location_updated_at: new Date().toISOString(),
+        ...(role === 'volunteer' ? { created_by: callerUser.id } : {}),
       })
 
     if (profileUpsertErr) {

@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, List } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, List, Loader2 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Network } from '@capacitor/network';
 import { VillagerForm } from '../components/villagers/VillagerForm';
-import { canOnboardVillagers } from '../lib/rbac';
+import { useOnboardingPermissions } from '../hooks/useOnboardingPermissions';
 import {
   emptyVillagerForm,
   ensureVillageId,
@@ -28,8 +28,17 @@ export default function OnboardVillager() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [queuedOffline, setQueuedOffline] = useState(false);
+  const { canAddVillager, loading: permissionLoading } = useOnboardingPermissions();
 
-  if (!canOnboardVillagers(profile?.role)) {
+  if (permissionLoading) {
+    return (
+      <div className="min-h-screen p-6 max-w-lg mx-auto flex items-center gap-2 text-muted-foreground text-sm">
+        <Loader2 size={16} className="animate-spin" /> {t('loading')}
+      </div>
+    );
+  }
+
+  if (!canAddVillager) {
     return (
       <div className="min-h-screen p-6 max-w-lg mx-auto">
         <p className="text-destructive text-sm">{t('hathiMitra.onboardForbidden')}</p>

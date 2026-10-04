@@ -133,9 +133,9 @@ Use this when automation passes but you need human sign-off (especially APK on d
 
 ### C. Home dashboard (by role)
 
-- [ ] **Beat guard / RO / DFO:** Report, Map, History, Nearby, Hathi Mitra onboard, Gram Mitra onboard (if allowed)
-- [ ] **Volunteer:** Report, Map, History, Nearby — no villager/volunteer onboard
-- [ ] **RRT / biologist / vet:** Villager list read-only, no onboard tiles
+- [ ] **Beat guard / RO / DFO:** Report, Map, History, Nearby, villager onboard, Hathi Mitra onboard (if `role_onboarding_config` allows)
+- [ ] **Volunteer:** Report, Map, History, Nearby — no villager/Hathi Mitra onboard unless an admin enables that role
+- [ ] **RRT / biologist / vet:** Villager list read-only, no onboard tiles, unless an admin enables add for that role
 - [ ] **Admin / CCF / DFO:** Command Center tile visible
 - [ ] **Range officer:** Command Center tile **absent**; `/admin` redirects home
 - [ ] Pending sync banner when offline queue exists
@@ -186,15 +186,18 @@ Use this when automation passes but you need human sign-off (especially APK on d
 
 - [ ] Onboard: name, phone, village autocomplete, GPS, territory
 - [ ] Duplicate mobile rejected
-- [ ] Home **My Villagers** tile for onboard roles (beat guard / range officer / DFO / CCF / admin)
-- [ ] List: own villagers only, search by name/mobile, optional inactive
+- [ ] Home **My Villagers** tile for roles with `can_add_villager`, and still for anyone who already registered villagers after that flag is turned off
+- [ ] List: own villagers only (`created_by`), search by name/mobile, optional inactive
 - [ ] Edit: name, phone, village, GPS, territory, notes, active, alert opt-in
 - [ ] Command Center **Villager tracker** (`/admin/villagers`): search, filters, create, edit, deactivate, delete, CSV export
 
-### G. Gram Mitra (volunteers)
+### G. Hathi Mitra (volunteer logins)
 
-- [ ] Onboard by permitted role → new user can OTP login
-- [ ] Volunteer cannot onboard others
+- [ ] Onboard by a role with `can_add_hathi_mitra` → new user can OTP login, and `profiles.created_by` is the caller
+- [ ] Home **My Hathi Mitra** lists only volunteers that user added (view only: name, phone, inactive). Older accounts with null `created_by` do not appear
+- [ ] Tile stays after an admin turns off add, when that user already has rows. Add button follows the flag
+- [ ] Volunteer cannot onboard others unless an admin enables `volunteer` in Admin → Settings
+- [ ] Admin → Settings: only role `admin` can toggle who may add a Hathi Mitra or a villager. CCF/DFO see the toggles disabled. Seed matches previous roles (admin, ccf, dfo, range officer, beat guard)
 
 ### H. In-app notifications (staff)
 

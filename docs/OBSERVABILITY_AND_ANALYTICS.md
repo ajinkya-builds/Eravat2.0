@@ -329,6 +329,15 @@ Correlate a single attempt with **`acquire_id`** (filter PostHog by that id). Co
 | `admin.dashboard_opened` | Admin home | `role` |
 | `admin.users_opened` | User management | |
 | `admin.user_create_failed` | Edge fn error | `error_code` |
+| `admin.onboarding_permission_changed` | Admin saved a role onboarding toggle | `role`, `can_add_hathi_mitra`, `can_add_villager` |
+
+#### Hathi Mitra registration
+
+| Event | When | Key properties |
+| ----- | ---- | -------------- |
+| `ui.click` (`action=dashboard.open_my_hathi_mitra`) | Home tile opens My Hathi Mitra | `screen=dashboard` via `data-ph-action` |
+| `volunteer_onboarded` | Hathi Mitra saved online or queued offline | `role=volunteer`, `queued` when offline |
+| `volunteer.onboard_failed` | Onboard request or offline queue failed | `role`, `error_code` (no name or phone) |
 
 ### 7.3 Funnels to configure in PostHog (PM views)
 
