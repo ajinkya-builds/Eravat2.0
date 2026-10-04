@@ -7,6 +7,12 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.18] — 2026-10-04 (versionCode 20118)
+
+- My Hathi Mitra list of people you added
+- Admin can choose which roles add Hathi Mitra and villagers
+
+---
 ## [2.1.17] — 2026-10-03 (versionCode 20117)
 
 - Fix first-grant Location Accuracy race with report GPS
