@@ -688,88 +688,80 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const MAX_MARKERS = 250;
     const renderPins = visiblePins.slice(0, MAX_MARKERS);
 
-    return (
-        <div className="glass-card rounded-2xl p-4 md:p-6 flex flex-col gap-4 col-span-1 lg:col-span-3">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h3 className="text-lg font-bold flex items-center gap-2">
-                        <Layers className="text-primary" size={20} />
-                        {t('map.territoryOverview')}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        {t('map.filterHint')}
-                    </p>
-                </div>
+    const filterActiveCount =
+        (selectedDivision ? 1 : 0) +
+        (selectedRange ? 1 : 0) +
+        (selectedBeat ? 1 : 0) +
+        (pinFilter !== 'all' ? 1 : 0) +
+        (startDate || endDate ? 1 : 0) +
+        (radiusKm > 0 ? 1 : 0) +
+        (showHeatmap ? 1 : 0);
 
-                {/* Controls */}
-                <div className="flex flex-wrap gap-3 items-center">
-                    {/* Geo filters */}
-                    <select
-                        value={selectedDivision}
-                        onChange={(e) => {
-                            const v = e.target.value;
-                            setSelectedDivision(v);
-                            trackFilter('map.division', v ? 'set' : 'cleared', { screen: 'map' });
-                        }}
-                        className="input-field bg-background max-w-[160px] text-sm">
-                        <option value="">{t('map.allDivisions')}</option>
-                        {divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                    <select
-                        value={selectedRange}
-                        onChange={(e) => {
-                            const v = e.target.value;
-                            setSelectedRange(v);
-                            trackFilter('map.range', v ? 'set' : 'cleared', { screen: 'map' });
-                        }}
-                        disabled={!selectedDivision}
-                        className="input-field bg-background max-w-[160px] text-sm disabled:opacity-50">
-                        <option value="">{t('map.allRanges')}</option>
-                        {ranges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </select>
-                    <select
-                        value={selectedBeat}
-                        onChange={(e) => {
-                            const v = e.target.value;
-                            setSelectedBeat(v);
-                            trackFilter('map.beat', v ? 'set' : 'cleared', { screen: 'map' });
-                        }}
-                        disabled={!selectedRange}
-                        className="input-field bg-background max-w-[160px] text-sm disabled:opacity-50">
-                        <option value="">{t('map.allBeats')}</option>
-                        {beats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select>
+    const filterControls = (
+        <>
+            <div className="flex flex-wrap gap-3 items-center">
+                <select
+                    value={selectedDivision}
+                    onChange={(e) => {
+                        const v = e.target.value;
+                        setSelectedDivision(v);
+                        trackFilter('map.division', v ? 'set' : 'cleared', { screen: 'map' });
+                    }}
+                    className="input-field bg-background max-w-[160px] text-sm min-h-11">
+                    <option value="">{t('map.allDivisions')}</option>
+                    {divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+                <select
+                    value={selectedRange}
+                    onChange={(e) => {
+                        const v = e.target.value;
+                        setSelectedRange(v);
+                        trackFilter('map.range', v ? 'set' : 'cleared', { screen: 'map' });
+                    }}
+                    disabled={!selectedDivision}
+                    className="input-field bg-background max-w-[160px] text-sm disabled:opacity-50 min-h-11">
+                    <option value="">{t('map.allRanges')}</option>
+                    {ranges.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <select
+                    value={selectedBeat}
+                    onChange={(e) => {
+                        const v = e.target.value;
+                        setSelectedBeat(v);
+                        trackFilter('map.beat', v ? 'set' : 'cleared', { screen: 'map' });
+                    }}
+                    disabled={!selectedRange}
+                    className="input-field bg-background max-w-[160px] text-sm disabled:opacity-50 min-h-11">
+                    <option value="">{t('map.allBeats')}</option>
+                    {beats.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
 
-                    {/* Pin type filter */}
-                    <div className="flex gap-1.5 bg-muted/40 rounded-xl p-1 border border-border">
-                        {(['all', 'direct', 'indirect', 'loss'] as const).map(f => (
-                            <button key={f}
-                                type="button"
-                                data-ph-action={`map.filter_pin.${f}`}
-                                data-ph-screen="map"
-                                onClick={() => {
-                                    setPinFilter(f);
-                                    trackFilter('map.pin_type', f, { screen: 'map' });
-                                }}
-                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                                    pinFilter === f
-                                        ? f === 'loss' ? 'bg-destructive text-destructive-foreground'
-                                            : f === 'indirect' ? 'bg-amber-500 text-white'
-                                                : f === 'direct' ? 'bg-emerald-500 text-white'
-                                                    : 'bg-primary text-primary-foreground'
-                                        : 'text-muted-foreground hover:text-foreground'
-                                }`}>
-                                {t(`map.filter_${f}`)}
-                            </button>
-                        ))}
-                    </div>
+                <div className="flex gap-1.5 bg-muted/40 rounded-xl p-1 border border-border">
+                    {(['all', 'direct', 'indirect', 'loss'] as const).map(f => (
+                        <button key={f}
+                            type="button"
+                            data-ph-action={`map.filter_pin.${f}`}
+                            data-ph-screen="map"
+                            onClick={() => {
+                                setPinFilter(f);
+                                trackFilter('map.pin_type', f, { screen: 'map' });
+                            }}
+                            className={`px-3 py-2 min-h-9 rounded-lg text-xs font-semibold transition-all ${
+                                pinFilter === f
+                                    ? f === 'loss' ? 'bg-destructive text-destructive-foreground'
+                                        : f === 'indirect' ? 'bg-amber-500 text-white'
+                                            : f === 'direct' ? 'bg-emerald-500 text-white'
+                                                : 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}>
+                            {t(`map.filter_${f}`)}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {/* Date range + radius + heatmap row */}
-            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
-                <div className="flex items-center gap-2 bg-muted/40 rounded-xl p-1.5 px-3 border border-border">
+            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold mt-3">
+                <div className="flex items-center gap-2 bg-muted/40 rounded-xl p-1.5 px-3 border border-border min-h-11">
                     <span className="text-muted-foreground">{t('map.from')}</span>
                     <input type="date" value={startDate} max={endDate || undefined}
                         onChange={(e) => {
@@ -814,10 +806,10 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                     <RadiusSlider value={radiusKm} onChange={(v) => {
                         setRadiusKm(v);
                         trackFilter('map.radius_km', v, { screen: 'map' });
-                    }} min={0} max={RADIUS_MAX} />
+                    }} min={0} max={RADIUS_MAX} inputId="map-radius-slider" />
                 </div>
 
-                <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground bg-muted/40 rounded-xl p-1.5 px-3 border border-border">
+                <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground bg-muted/40 rounded-xl p-1.5 px-3 border border-border min-h-11">
                     <input type="checkbox" checked={showHeatmap}
                         onChange={(e) => {
                             setShowHeatmap(e.target.checked);
@@ -829,6 +821,31 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
 
                 {geoError && <span className="text-destructive">{t(geoErrorTranslationKey(geoError))}</span>}
             </div>
+        </>
+    );
+
+    return (
+        <div className="glass-card rounded-2xl p-4 md:p-6 flex flex-col gap-4 col-span-1 lg:col-span-3">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div>
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                        <Layers className="text-primary" size={20} />
+                        {t('map.territoryOverview')}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        {t('map.filterHint')}
+                    </p>
+                </div>
+            </div>
+
+            <details className="ui-disclosure md:hidden">
+                <summary>
+                    <span>{t('map_options')}</span>
+                    <span className="ui-count-pill">{filterActiveCount}</span>
+                </summary>
+                <div className="ui-disclosure-body">{filterControls}</div>
+            </details>
+            <div className="hidden md:block space-y-3">{filterControls}</div>
 
             {/* Legend — counts reflect active filters */}
             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">

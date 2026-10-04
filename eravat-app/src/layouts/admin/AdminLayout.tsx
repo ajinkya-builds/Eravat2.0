@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { NotificationBell } from '../../components/shared/NotificationBell';
-import { ELEPHANT_LOGO_URL } from '../../lib/publicAsset';
+import { BrandMark } from '../../components/shared/BrandMark';
 import { DEFERRED_CAPABILITIES } from '../../admin/deferredCapabilities';
 
 type NavItem = {
@@ -122,17 +122,23 @@ export function AdminLayout() {
             <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[100px] pointer-events-none z-0" />
             <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-[100px] pointer-events-none z-0" />
 
-            <div className="md:hidden pt-safe bg-card border-b border-border z-30 relative">
-                <div className="flex items-center justify-between p-4">
-                    <Link to="/" className="flex items-center gap-2 active:scale-95 transition-transform">
-                        <div className="w-10 h-10 relative flex items-center justify-center overflow-visible">
-                            <img src={ELEPHANT_LOGO_URL} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
-                        </div>
-                        <h1 aria-label="ERAVAT Admin" className="font-bold text-lg bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT Admin</h1>
+            <div className="md:hidden pt-safe bg-card/92 backdrop-blur-md border-b border-border z-30 relative">
+                <div className="flex items-center justify-between px-4 py-3">
+                    <Link to="/" className="flex items-center gap-2.5 active:scale-95 transition-transform">
+                        <BrandMark size="sm" />
+                        <h1 aria-label="ERAVAT Admin" className="font-extrabold text-[0.95rem] tracking-[0.04em] text-foreground">
+                          ERAVAT <span className="font-semibold text-muted-foreground">Admin</span>
+                        </h1>
                     </Link>
                     <div className="flex items-center gap-2">
-                        <NotificationBell />
-                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 bg-muted rounded-md text-foreground">
+                        <div className="min-h-10 min-w-10 rounded-xl border border-border bg-card grid place-items-center">
+                          <NotificationBell />
+                        </div>
+                        <button
+                          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                          className="min-h-10 min-w-10 rounded-xl border border-border bg-card grid place-items-center text-foreground"
+                          aria-label={isMobileMenuOpen ? t('dismiss') : t('admin.commandCenter')}
+                        >
                             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
                         </button>
                     </div>
@@ -145,12 +151,10 @@ export function AdminLayout() {
             )}>
                 <div className="p-6 hidden md:block border-b border-border/50">
                     <Link to="/" className="flex items-center gap-3 active:scale-95 transition-transform group">
-                        <motion.div className="p-1 bg-gradient-to-br from-primary/20 to-emerald-500/20 rounded-xl group-hover:shadow-md transition-all overflow-hidden relative w-12 h-12 flex items-center justify-center">
-                            <img src={ELEPHANT_LOGO_URL} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
-                        </motion.div>
+                        <BrandMark size="md" />
                         <div>
-                            <h1 aria-label="ERAVAT 2.0" className="text-xl font-bold leading-tight bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">
-                                ERAVAT <span className="text-primary font-light">2.0</span>
+                            <h1 aria-label="ERAVAT 2.0" className="text-xl font-extrabold leading-tight tracking-tight text-foreground">
+                                ERAVAT
                             </h1>
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{t('admin.commandCenter')}</p>
                         </div>

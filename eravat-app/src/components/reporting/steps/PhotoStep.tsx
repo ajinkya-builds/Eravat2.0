@@ -99,14 +99,12 @@ export function PhotoStep() {
                         type="button"
                         onClick={() => handleCapture('camera')}
                         disabled={loading}
-                        className="w-full glass-card rounded-3xl p-8 flex flex-col items-center gap-4 border-2 border-primary/40 bg-primary/8 hover:bg-primary/15 transition-all duration-300 active:scale-[0.98] cursor-pointer"
+                        className="ui-photo-slot w-full hover:bg-primary/10 transition-colors active:scale-[0.99] cursor-pointer"
                     >
-                        <div className="p-4 rounded-full bg-primary/10 shadow-sm border border-primary/20">
-                            <Camera className="w-10 h-10 text-primary" />
-                        </div>
-                        <div className="text-center space-y-1 w-full">
-                            <p className="text-lg font-bold text-foreground text-center">{t('ps_take_photo')}</p>
-                            <p className="text-sm text-muted-foreground text-center">{t('ps_take_photo_hint')}</p>
+                        <div className="flex flex-col items-center gap-2 px-4">
+                            <Camera className="w-9 h-9 text-primary" />
+                            <p className="text-base font-extrabold text-foreground">{t('ps_take_photo')}</p>
+                            <p className="text-xs font-medium text-muted-foreground">{t('ps_take_photo_hint')}</p>
                         </div>
                     </button>
 
@@ -115,7 +113,7 @@ export function PhotoStep() {
                         type="button"
                         onClick={() => handleCapture('gallery')}
                         disabled={loading}
-                        className="w-full rounded-2xl p-4 flex items-center gap-4 border border-border bg-muted/30 hover:bg-muted/50 transition-all duration-200 active:scale-[0.98] cursor-pointer"
+                        className="w-full min-h-12 rounded-2xl p-4 flex items-center gap-4 border border-border bg-muted/30 hover:bg-muted/50 transition-all duration-200 active:scale-[0.98] cursor-pointer"
                     >
                         <div className="p-2.5 rounded-xl bg-background shadow-sm border border-border/50 shrink-0">
                             <ImageIcon className="w-5 h-5 text-muted-foreground" />

@@ -255,52 +255,49 @@ function StepperContent() {
                 onRetryGps={() => { void retryGpsAfterCell(); }}
             />
 
-            <header className={`sticky z-50 px-4 py-4 flex items-center justify-between bg-background/80 backdrop-blur-xl border-b border-border/50 ${PAGE_STICKY_TOP}`}>
+            <header className={`sticky z-50 px-4 py-3 flex items-center gap-3 bg-background/92 backdrop-blur-md border-b border-border ${PAGE_STICKY_TOP}`}>
                 <button
                     onClick={handleExitClick}
-                    className="p-2 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    className="min-h-11 min-w-11 grid place-items-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
                     aria-label="Close and go back"
                 >
                     <X className="w-5 h-5" />
                 </button>
-                <h1 className="text-sm font-bold text-foreground">{t('dashboard.reportAction')}</h1>
-                <div className="w-10" />
+                <div className="flex-1 min-w-0">
+                    <p className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                        {t('dashboard.reportAction')}
+                    </p>
+                    <h1 className="text-base font-extrabold text-foreground truncate">
+                        {ALL_STEPS[currentStep]?.label}
+                    </h1>
+                </div>
             </header>
 
-            <div className="flex-1 space-y-6 pb-32 pt-6 max-w-2xl mx-auto w-full">
-                <div className="space-y-6 px-4">
-                    <div className="flex gap-2 max-w-md mx-auto">
+            <div className="flex-1 space-y-4 pb-32 pt-4 max-w-2xl mx-auto w-full">
+                <div className="space-y-3 px-4">
+                    <div className="ui-step-bar max-w-md mx-auto">
                         {activeSteps.map((stepType, i) => (
-                            <div key={stepType} className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                <motion.div
-                                    initial={false}
-                                    animate={{
-                                        width: i < currentStepIndex ? '100%' : i === currentStepIndex ? '100%' : '0%'
-                                    }}
-                                    transition={{ duration: 0.3, ease: 'easeInOut' }}
-                                    className={cn(
-                                        "h-full rounded-full",
-                                        i === currentStepIndex ? "bg-primary" : "bg-primary/50"
-                                    )}
-                                />
-                            </div>
+                            <div
+                                key={stepType}
+                                className={cn('seg', i <= currentStepIndex && 'on')}
+                            />
                         ))}
                     </div>
 
                     <div className="flex justify-start md:justify-center">
-                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-4 mask-linear-fade">
+                        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
                             {activeSteps.map((stepType, i) => {
                                 const stepMeta = ALL_STEPS[stepType];
                                 return (
                                     <div
                                         key={stepType}
                                         className={cn(
-                                            'flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] md:text-xs font-semibold whitespace-nowrap transition-all duration-300',
+                                            'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[0.7rem] font-bold whitespace-nowrap transition-all',
                                             i === currentStepIndex
-                                                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-100'
+                                                ? 'bg-primary/15 text-primary'
                                                 : i < currentStepIndex
-                                                    ? 'bg-primary/10 text-primary border border-primary/20 scale-95 opacity-80'
-                                                    : 'bg-muted text-muted-foreground border border-transparent scale-95 opacity-50'
+                                                    ? 'bg-primary/10 text-primary/80'
+                                                    : 'bg-muted text-muted-foreground'
                                         )}
                                     >
                                         {stepMeta.icon} {stepMeta.label}
@@ -344,15 +341,18 @@ function StepperContent() {
                 </div>
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6 pb-safe border-t border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
-                <div className="max-w-2xl mx-auto flex justify-between gap-4">
+            <div
+                className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card"
+                style={{ paddingBottom: 'max(0.4rem, env(safe-area-inset-bottom, 0px))' }}
+            >
+                <div className="max-w-2xl mx-auto grid grid-cols-[1fr_1.4fr] gap-2 px-4 py-3">
                     {currentStep === 'photo' && !formData.photo_url ? (
                         <>
                             <button
                                 type="button"
                                 onClick={goToPreviousStep}
                                 disabled={currentStepIndex === 0}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
+                                className="min-h-12 flex items-center justify-center gap-2 px-4 rounded-xl bg-muted text-sm font-bold text-foreground active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
                             >
                                 <ChevronLeft className="w-5 h-5" /> {t('back')}
                             </button>
@@ -360,7 +360,7 @@ function StepperContent() {
                                 type="button"
                                 onClick={handleBottomBarCapture}
                                 disabled={loadingCamera || isSubmitting}
-                                className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-primary text-primary-foreground text-sm font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                                className="min-h-12 flex items-center justify-center gap-2 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md shadow-primary/20 active:scale-[0.98] transition-all disabled:opacity-50"
                             >
                                 <Camera className="w-5 h-5" />
                                 {loadingCamera ? t('ps_opening_camera') : t('ps_take_photo')}
@@ -372,7 +372,7 @@ function StepperContent() {
                                 type="button"
                                 onClick={goToPreviousStep}
                                 disabled={currentStepIndex === 0}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl border-2 border-border/50 bg-muted/30 text-sm font-bold text-foreground hover:bg-muted/60 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
+                                className="min-h-12 flex items-center justify-center gap-2 px-4 rounded-xl bg-muted text-sm font-bold text-foreground active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
                             >
                                 <ChevronLeft className="w-5 h-5" /> {t('back')}
                             </button>
@@ -382,7 +382,7 @@ function StepperContent() {
                                     type="button"
                                     onClick={handleSubmit}
                                     disabled={isSubmitting || !isStepValid(currentStep)}
-                                    className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-emerald-500 text-white text-sm font-bold shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
+                                    className="min-h-12 flex items-center justify-center gap-2 px-4 rounded-xl bg-emerald-500 text-white text-sm font-bold shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
                                 >
                                     <CheckCircle2 className="w-5 h-5" />
                                     {isSubmitting
@@ -394,7 +394,7 @@ function StepperContent() {
                                     type="button"
                                     onClick={goToNextStep}
                                     disabled={!isStepValid(currentStep)}
-                                    className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-primary text-primary-foreground text-sm font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
+                                    className="min-h-12 flex items-center justify-center gap-2 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md shadow-primary/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
                                 >
                                     {t('continue_btn')} <ChevronLeft className="w-5 h-5 rotate-180" />
                                 </button>

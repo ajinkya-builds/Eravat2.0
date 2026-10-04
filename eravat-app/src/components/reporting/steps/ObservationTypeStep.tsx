@@ -32,16 +32,18 @@ function CounterInput({ label, field, value, onChange }: { label: string; field:
             <div className="flex items-center justify-between gap-3">
                 <button
                     type="button"
+                    data-testid={`elephant-count-minus-${field}`}
                     onClick={() => onChange(field, Math.max(0, (value || 0) - 1))}
                     className="p-3 rounded-xl bg-background border-2 border-border/50 text-foreground hover:bg-muted active:scale-95 transition-all w-12 h-12 flex items-center justify-center flex-shrink-0"
                 >
                     <Minus className="w-5 h-5" />
                 </button>
                 <div className="flex-1 text-center">
-                    <span className="text-2xl font-bold tabular-nums text-foreground">{value || 0}</span>
+                    <span className="text-2xl font-bold tabular-nums text-foreground" data-testid={`elephant-count-value-${field}`}>{value || 0}</span>
                 </div>
                 <button
                     type="button"
+                    data-testid={`elephant-count-plus-${field}`}
                     onClick={() => onChange(field, (value || 0) + 1)}
                     className="p-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all w-12 h-12 flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary/20"
                 >

@@ -335,7 +335,7 @@ try {
   await page.waitForTimeout(2500);
   await shot(page, '07-nearby');
   const nearby = await page.locator('body').innerText();
-  const slider = page.locator('#radius-slider');
+  const slider = page.locator('#nearby-radius-slider, #radius-slider').first();
   const sMin = await slider.getAttribute('min');
   const sMax = await slider.getAttribute('max');
   const sStep = await slider.getAttribute('step');
@@ -439,7 +439,7 @@ try {
   await page.waitForTimeout(2000);
   await shot(page, '09-map');
   const mapText = await page.locator('body').innerText();
-  const mapSlider = page.locator('#radius-slider');
+  const mapSlider = page.locator('#map-radius-slider, #radius-slider').first();
   const mMin = await mapSlider.getAttribute('min');
   const mMax = await mapSlider.getAttribute('max');
   record(

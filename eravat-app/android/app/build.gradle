@@ -10,7 +10,8 @@ android {
     namespace = "com.forestdept.eravat"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.forestdept.eravat"
+        // Side-by-side with staging fleet (com.forestdept.eravat). Namespace/Java package unchanged.
+        applicationId "com.forestdept.eravat.uifeedback"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode (project.hasProperty('versionCode') ? project.property('versionCode').toString().toInteger() : 20100)

@@ -231,7 +231,7 @@ await check('Admin observations', async () => {
 await check('Admin observations Calls modal', async () => {
   await adminPage.goto(`${BASE}/admin/observations`);
   await adminPage.waitForTimeout(4000);
-  const callsBtn = adminPage.getByTestId('admin-obs-view-calls').first();
+  const callsBtn = adminPage.getByTestId('admin-obs-view-calls').filter({ visible: true }).first();
   if ((await callsBtn.count()) === 0) {
     // Empty table is acceptable — still prove the page is interactive
     const body = await adminPage.content();

@@ -88,14 +88,16 @@ export function ReportIssueWidget() {
           setFeedback(null);
           track('support.report_opened', { page: location.pathname, source: 'fab' });
         }}
+        aria-label={t('support.reportIssue')}
+        title={t('support.reportIssue')}
         className={cn(
-          'fixed z-[60] right-3 flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 px-3.5 py-2.5 text-xs font-semibold',
-          raisedNav ? 'bottom-[5.75rem]' : 'bottom-6',
+          // Design pack fab-support: circular secondary mark above edge bottom nav
+          'fixed z-[60] right-4 h-12 w-12 grid place-items-center rounded-full bg-secondary text-secondary-foreground shadow-[0_8px_20px_rgba(15,23,42,0.2)]',
+          raisedNav ? 'bottom-[5.5rem]' : 'bottom-6',
         )}
         style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        <MessageCircleWarning size={15} />
-        {t('support.reportIssue')}
+        <MessageCircleWarning size={20} />
       </button>
 
       {open && (

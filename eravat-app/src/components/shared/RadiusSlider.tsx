@@ -53,23 +53,28 @@ export function RadiusSlider({
     onChange,
     min = MIN_KM,
     max = MAX_KM,
+    inputId,
 }: {
     value: number;
     onChange: (v: number) => void;
     min?: number;
     max?: number;
+    /** Unique id when multiple sliders can appear in the DOM */
+    inputId?: string;
 }) {
     const pct = ((value - min) / (max - min)) * 100;
+    const id = inputId || 'radius-slider';
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-3" role="group" aria-label="Alert radius in kilometres">
             <div className="relative h-2 rounded-full bg-muted overflow-visible">
                 <div
                     className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-emerald-400 transition-all duration-150"
                     style={{ width: `${pct}%` }}
                 />
                 <input
-                    id="radius-slider"
+                    id={id}
+                    data-testid={id}
                     type="range"
                     min={min}
                     max={max}

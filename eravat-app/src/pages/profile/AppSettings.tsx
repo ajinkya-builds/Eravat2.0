@@ -270,14 +270,14 @@ export default function AppSettings() {
                                 </div>
                                 <span className="font-medium">{t('choose_theme')}</span>
                             </div>
-                            <div className="flex bg-muted/50 p-1 rounded-xl">
+                            <div className="ui-segmented min-w-[10.5rem]">
                                 <button
                                     type="button"
                                     data-testid="theme-light"
                                     data-ph-action="settings.theme.light"
                                     data-ph-screen="settings"
                                     onClick={() => setTheme('light')}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'light' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+                                    className={theme === 'light' ? 'on' : undefined}
                                 >
                                     {t('light')}
                                 </button>
@@ -287,7 +287,7 @@ export default function AppSettings() {
                                     data-ph-action="settings.theme.dark"
                                     data-ph-screen="settings"
                                     onClick={() => setTheme('dark')}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'dark' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+                                    className={theme === 'dark' ? 'on' : undefined}
                                 >
                                     {t('dark')}
                                 </button>
@@ -297,7 +297,7 @@ export default function AppSettings() {
                                     data-ph-action="settings.theme.system"
                                     data-ph-screen="settings"
                                     onClick={() => setTheme('system')}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === 'system' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+                                    className={theme === 'system' ? 'on' : undefined}
                                 >
                                     {t('system')}
                                 </button>
@@ -401,6 +401,7 @@ export default function AppSettings() {
                                     onChange={handleRadiusChange}
                                     min={bounds.minKm}
                                     max={bounds.maxKm}
+                                    inputId="settings-radius-slider"
                                 />
                             </div>
 

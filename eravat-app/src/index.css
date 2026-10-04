@@ -244,4 +244,52 @@
   .toggle-checkbox {
     @apply right-6 transition-all duration-300;
   }
+
+  /* UI Lab — design pack patterns (docs/design/tokens.css) */
+  .ui-disclosure {
+    @apply rounded-2xl border border-border bg-card overflow-hidden mb-3;
+  }
+  .ui-disclosure > summary {
+    @apply list-none cursor-pointer px-4 py-3.5 font-bold text-sm flex items-center justify-between gap-2;
+  }
+  .ui-disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+  .ui-disclosure > .ui-disclosure-body {
+    @apply px-4 pb-4;
+  }
+  .ui-count-pill {
+    @apply text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary;
+  }
+  .ui-segmented {
+    @apply grid gap-1 bg-muted p-1 rounded-xl;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ui-segmented button {
+    @apply rounded-lg px-2 py-2.5 text-xs font-bold text-muted-foreground min-h-10 transition-colors;
+  }
+  .ui-segmented button.on {
+    @apply bg-card text-foreground shadow-sm;
+  }
+  .ui-menu-row {
+    @apply flex items-center justify-between gap-3 px-4 py-3.5 border-b border-border/80 text-[0.95rem] font-semibold w-full text-left;
+  }
+  .ui-menu-row:last-child {
+    @apply border-b-0;
+  }
+  .ui-step-bar {
+    @apply flex gap-1.5 mb-3;
+  }
+  .ui-step-bar .seg {
+    @apply flex-1 h-1 rounded-full bg-muted;
+  }
+  .ui-step-bar .seg.on {
+    @apply bg-primary;
+  }
+  .ui-photo-slot {
+    @apply aspect-[4/3] rounded-3xl border-2 border-dashed border-primary/40 bg-primary/5 grid place-items-center text-center text-sm font-semibold text-muted-foreground mb-3;
+  }
+  .ui-list-card {
+    @apply px-4 py-3.5 border-b border-border/80 last:border-b-0;
+  }
 }

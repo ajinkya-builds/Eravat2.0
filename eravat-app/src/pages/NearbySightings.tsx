@@ -368,7 +368,7 @@ export default function NearbySightings() {
                             <span className="text-muted-foreground">{t('nearby.radius')}</span>
                             <span className="font-semibold text-foreground">{radiusKm} {t('km')}</span>
                         </div>
-                        <RadiusSlider value={radiusKm} onChange={handleRadiusChange} min={0} max={100} />
+                        <RadiusSlider value={radiusKm} onChange={handleRadiusChange} min={0} max={100} inputId="nearby-radius-slider" />
                     </div>
                 </div>
 
