@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Divisions — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">Phase A · Reference</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>Divisions</h1>
+          </div>
+        </header>
+        <div class="admin-scroll">
+          <input class="field" style="margin-bottom:0.85rem;display:block;width:100%;border:1px solid var(--color-border);border-radius:0.75rem;padding:0.7rem 0.8rem;font:inherit;min-height:44px;background:var(--color-card)" placeholder="Search territory…" value="" />
+
+          <div class="glass-card" style="overflow:hidden;margin-bottom:0.75rem">
+            <div class="list-card">
+              <div class="row-top">
+                <div>
+                  <div class="title">Sindhudurg</div>
+                  <div class="meta">Division · 3 ranges</div>
+                </div>
+                <span class="badge badge-muted">Division</span>
+              </div>
+              <div class="field" style="margin:0.65rem 0 0">
+                <label>Assigned contact</label>
+                <select>
+                  <option>DFO — Mehta</option>
+                  <option>Unassigned</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%;margin-top:0.35rem">Save</button>
+            </div>
+          </div>
+
+          <div class="glass-card" style="overflow:hidden;margin-bottom:0.75rem">
+            <div class="list-card" style="padding-left:1.35rem">
+              <div class="row-top">
+                <div>
+                  <div class="title">Sawantwadi</div>
+                  <div class="meta">Range · under Sindhudurg</div>
+                </div>
+                <span class="badge badge-info">Range</span>
+              </div>
+              <div class="field" style="margin:0.65rem 0 0">
+                <label>Assigned contact</label>
+                <select>
+                  <option>RO — Kulkarni</option>
+                  <option>Unassigned</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%;margin-top:0.35rem">Save</button>
+            </div>
+          </div>
+
+          <div class="glass-card" style="overflow:hidden">
+            <div class="list-card" style="padding-left:1.85rem">
+              <div class="row-top">
+                <div>
+                  <div class="title">Amboli</div>
+                  <div class="meta">Beat · under Sawantwadi</div>
+                </div>
+                <span class="badge badge-ok">Beat</span>
+              </div>
+              <div class="field" style="margin:0.65rem 0 0">
+                <label>Assigned contact</label>
+                <select>
+                  <option>Beat officer — Naik</option>
+                  <option>Unassigned</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%;margin-top:0.35rem">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      Existing card variant kept; indent shows hierarchy without a wide table.
+      Inline Save stays in-card (no sheet needed for single-field assign).
+    </p>
+  </div>
+</body>
+</html>

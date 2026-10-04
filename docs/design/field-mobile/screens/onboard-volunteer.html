@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Onboard Hathi Mitra — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Field · Onboard HM</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="field-top">
+          <button class="btn-icon">‹</button>
+          <div style="flex:1"><div style="font-weight:800">Onboard Hathi Mitra</div></div>
+        </header>
+        <div class="field-scroll" style="padding-bottom:calc(var(--safe-bottom)+5rem)">
+          <div class="constraint">create-user / offline queue · beat required</div>
+          <div class="field"><label>Name</label><input placeholder="Full name" /></div>
+          <div class="field"><label>Mobile</label><input placeholder="10-digit mobile" /></div>
+          <button class="btn btn-ghost" style="width:100%;margin-bottom:0.75rem">📍 Capture GPS</button>
+          <div class="field"><label>Division</label><select><option>Select…</option></select></div>
+          <div class="field"><label>Range</label><select><option>Select…</option></select></div>
+          <div class="field"><label>Beat</label><select><option>Select…</option></select></div>
+          <p class="text-muted" style="font-size:0.75rem;line-height:1.4">Success still shows OTP hint; form clears for next entry.</p>
+        </div>
+        <div class="wizard-footer" style="grid-template-columns:1fr">
+          <button class="btn btn-primary">Submit</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">Same fields and submit path; layout only.</p>
+  </div>
+</body>
+</html>

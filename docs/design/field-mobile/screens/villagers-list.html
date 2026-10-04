@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>My villagers — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Field · Villagers</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="field-top">
+          <button class="btn-icon">‹</button>
+          <div style="flex:1"><div style="font-weight:800">My villagers</div></div>
+          <button class="btn-icon" style="background:var(--color-primary);color:#fff;border:none">+</button>
+        </header>
+        <div class="field-scroll" style="padding-bottom:calc(var(--safe-bottom)+1rem)">
+          <div class="constraint">Search · inactive toggle · tap → detail</div>
+          <input style="width:100%;border:1px solid var(--color-border);border-radius:0.75rem;padding:0.7rem 0.85rem;font:inherit;min-height:44px;margin-bottom:0.65rem;background:var(--color-card)" placeholder="Search name or phone" />
+          <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;font-weight:600;margin-bottom:0.75rem">
+            <input type="checkbox" /> Show inactive
+          </label>
+          <div class="glass-card" style="overflow:hidden">
+            <a class="list-card" href="villager-detail.html" style="display:block;text-decoration:none;color:inherit">
+              <div class="row-top">
+                <div class="title">Suresh Patil</div>
+                <span class="badge badge-ok">Alerts on</span>
+              </div>
+              <div class="meta">+91 98765 43210 · Amboli village</div>
+            </a>
+            <a class="list-card" href="villager-detail.html" style="display:block;text-decoration:none;color:inherit">
+              <div class="row-top">
+                <div class="title">Anita Desai</div>
+                <span class="badge badge-ok">Alerts on</span>
+              </div>
+              <div class="meta">+91 98220 11880 · Dodamarg</div>
+            </a>
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title">Ramesh Kamble</div>
+                <span class="badge badge-muted">Inactive</span>
+              </div>
+              <div class="meta">+91 90000 11223 · Kudal</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Same list → detail / add onboard. Clearer badges; no new actions.</p>
+  </div>
+</body>
+</html>

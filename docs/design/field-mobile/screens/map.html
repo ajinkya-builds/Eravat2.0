@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Map — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Field · Map</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="field-top">
+          <div class="logo"><span class="mark">E</span> ERAVAT</div>
+          <div style="display:flex;align-items:center;gap:0.4rem">
+            <span class="status">Online</span>
+            <div class="bell">🔔</div>
+          </div>
+        </header>
+        <div class="field-scroll">
+          <div class="constraint">All filters kept · collapsed chrome</div>
+          <h1 style="margin:0 0 0.25rem;font-size:1.25rem">Map</h1>
+          <p class="text-muted" style="margin:0 0 0.75rem;font-size:0.8rem">Territory sightings</p>
+          <details class="disclosure">
+            <summary><span>Filters <span class="count-pill">all · 5km</span></span><span class="text-muted">▾</span></summary>
+            <div class="body">
+              <div class="field"><label>Division</label><select><option>All</option><option selected>Sindhudurg</option></select></div>
+              <div class="field"><label>Range</label><select><option>All</option><option selected>Sawantwadi</option></select></div>
+              <div class="field"><label>Beat</label><select><option selected>All</option><option>Amboli</option></select></div>
+              <div class="chip-row" style="margin-bottom:0.75rem">
+                <span class="chip active">All</span>
+                <span class="chip">Direct</span>
+                <span class="chip">Indirect</span>
+                <span class="chip">Loss</span>
+              </div>
+              <div class="field-row">
+                <div class="field"><label>From</label><input type="date" /></div>
+                <div class="field"><label>To</label><input type="date" /></div>
+              </div>
+              <div class="field"><label>Radius km</label><input type="range" min="0" max="100" value="5" /></div>
+              <label style="display:flex;gap:0.5rem;align-items:center;font-size:0.85rem;font-weight:600;margin-bottom:0.75rem">
+                <input type="checkbox" /> Heatmap
+              </label>
+              <button class="btn btn-primary" style="width:100%">Apply</button>
+            </div>
+          </details>
+          <div class="map-placeholder">
+            <div class="pin" style="top:38%;left:48%"></div>
+            <div class="pin" style="top:52%;left:35%;background:var(--color-warning)"></div>
+            <div class="label">Locate · Streets/Satellite · Fullscreen · Legend counts — all still available</div>
+          </div>
+          <div style="display:flex;gap:0.4rem;margin-top:0.65rem;flex-wrap:wrap">
+            <button class="btn btn-ghost" style="min-height:40px;padding:0.4rem 0.7rem;font-size:0.75rem">◎ Locate</button>
+            <button class="btn btn-ghost" style="min-height:40px;padding:0.4rem 0.7rem;font-size:0.75rem">Satellite</button>
+            <button class="btn btn-ghost" style="min-height:40px;padding:0.4rem 0.7rem;font-size:0.75rem">Fullscreen</button>
+            <span class="badge badge-ok">Direct 12</span>
+            <span class="badge badge-warn">Indirect 5</span>
+            <span class="badge badge-danger">Loss 2</span>
+          </div>
+        </div>
+        <button class="fab-support">💬</button>
+        <nav class="bottom-nav">
+          <a href="dashboard.html"><span class="ico">⌂</span>Home</a>
+          <a class="active" href="#"><span class="ico">🗺</span>Map</a>
+          <a href="profile.html"><span class="ico">👤</span>Profile</a>
+          <a href="settings.html"><span class="ico">⚙</span>Settings</a>
+        </nav>
+      </div>
+    </div>
+    <p class="note">Same MapComponent capabilities; filters move into disclosure so the map isn’t buried.</p>
+  </div>
+</body>
+</html>

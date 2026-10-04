@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Support — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">CC · Support</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>Support inbox</h1>
+          </div>
+        </header>
+        <div class="admin-scroll">
+          <div class="constraint">Open/resolved chips · mark resolve/reopen</div>
+          <div class="kpi-grid" style="margin-bottom:0.85rem">
+            <div class="glass-card kpi"><div class="val" style="color:var(--color-warning)">3</div><div class="lbl">Open</div></div>
+            <div class="glass-card kpi"><div class="val">17</div><div class="lbl">Total</div></div>
+          </div>
+          <div class="chip-row" style="margin-bottom:0.85rem">
+            <span class="chip active">Open</span>
+            <span class="chip">Resolved</span>
+            <span class="chip">All</span>
+          </div>
+          <div class="glass-card" style="overflow:hidden">
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title">Sync stuck after offline</div>
+                <span class="badge badge-warn">Open</span>
+              </div>
+              <div class="meta">Sagar Naik · Beat officer · +91 88xxx</div>
+              <div class="meta" style="margin-top:0.25rem">Page: /report · 2h ago</div>
+              <div class="meta clamp-2" style="margin-top:0.35rem">Two reports pending; Sync button spins but count doesn’t drop.</div>
+              <div class="actions">
+                <button class="btn btn-primary" style="flex:1;min-height:40px">Mark resolved</button>
+              </div>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title">OTP not received</div>
+                <span class="badge badge-warn">Open</span>
+              </div>
+              <div class="meta">New HM · page /login · yesterday</div>
+              <div class="actions">
+                <button class="btn btn-primary" style="flex:1;min-height:40px">Mark resolved</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Already card-based in prod; cohesive density + always-visible resolve.</p>
+  </div>
+</body>
+</html>

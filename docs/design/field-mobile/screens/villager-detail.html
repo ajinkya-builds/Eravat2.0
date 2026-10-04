@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Villager detail — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Field · Detail</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="field-top">
+          <button class="btn-icon">‹</button>
+          <div style="flex:1"><div style="font-weight:800">Villager</div></div>
+        </header>
+        <div class="field-scroll" style="padding-bottom:calc(var(--safe-bottom)+5rem)">
+          <div class="constraint">Same VillagerForm fields · edit if permitted</div>
+          <div class="field"><label>Name</label><input value="Suresh Patil" /></div>
+          <div class="field"><label>Mobile</label><input value="9876543210" /></div>
+          <div class="field"><label>Village</label><input value="Amboli" /></div>
+          <button class="btn btn-ghost" style="width:100%;margin-bottom:0.75rem">📍 Capture GPS</button>
+          <div class="field-row">
+            <div class="field"><label>Lat</label><input value="15.96" readonly /></div>
+            <div class="field"><label>Lng</label><input value="74.00" readonly /></div>
+          </div>
+          <div class="field"><label>Division</label><select><option>Sindhudurg</option></select></div>
+          <div class="field"><label>Range</label><select><option>Sawantwadi</option></select></div>
+          <div class="field"><label>Notes</label><textarea rows="2">Near school road</textarea></div>
+          <label style="display:flex;justify-content:space-between;padding:0.85rem 0;font-weight:600;font-size:0.9rem">
+            Active <input type="checkbox" checked />
+          </label>
+          <label style="display:flex;justify-content:space-between;padding:0.85rem 0;font-weight:600;font-size:0.9rem">
+            Alert opt-in <input type="checkbox" checked />
+          </label>
+        </div>
+        <div class="wizard-footer" style="grid-template-columns:1fr">
+          <button class="btn btn-primary">Save</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">Read-only mode for non-editors still applies in prod; fields unchanged.</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Admin settings — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">CC · Settings</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>Settings</h1>
+          </div>
+        </header>
+        <div class="admin-scroll">
+          <div class="constraint">Role onboarding toggles · display-only prefs</div>
+          <p style="font-size:0.75rem;font-weight:700;color:var(--color-muted-foreground);text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.5rem">Who can onboard</p>
+          <div class="glass-card" style="overflow:hidden;margin-bottom:0.85rem">
+            <div class="list-card">
+              <div class="title" style="margin-bottom:0.5rem">Beat officer</div>
+              <label style="display:flex;justify-content:space-between;font-size:0.85rem;font-weight:600;margin-bottom:0.45rem">
+                Add villager <input type="checkbox" checked />
+              </label>
+              <label style="display:flex;justify-content:space-between;font-size:0.85rem;font-weight:600">
+                Add Hathi Mitra <input type="checkbox" checked />
+              </label>
+            </div>
+            <div class="list-card">
+              <div class="title" style="margin-bottom:0.5rem">Hathi Mitra</div>
+              <label style="display:flex;justify-content:space-between;font-size:0.85rem;font-weight:600;margin-bottom:0.45rem">
+                Add villager <input type="checkbox" checked />
+              </label>
+              <label style="display:flex;justify-content:space-between;font-size:0.85rem;font-weight:600">
+                Add Hathi Mitra <input type="checkbox" />
+              </label>
+            </div>
+          </div>
+          <p class="text-muted" style="font-size:0.75rem;margin:0 0 0.75rem">Admin can write; others read-only (same RBAC).</p>
+
+          <p style="font-size:0.75rem;font-weight:700;color:var(--color-muted-foreground);text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.5rem">Display / policy</p>
+          <div class="glass-card" style="overflow:hidden">
+            <div class="list-card">
+              <div class="row-top"><div class="title" style="font-size:0.9rem">Force reauth</div><span class="badge badge-muted">Off</span></div>
+              <div class="meta">Display-only in current app</div>
+            </div>
+            <div class="list-card">
+              <div class="row-top"><div class="title" style="font-size:0.9rem">Media quality</div><span class="badge badge-info">High</span></div>
+            </div>
+            <div class="list-card">
+              <div class="row-top"><div class="title" style="font-size:0.9rem">Proximity alerts</div><span class="badge badge-ok">On</span></div>
+              <div class="meta">Always on · radius policy copy unchanged</div>
+            </div>
+            <div class="list-card">
+              <div class="title" style="font-size:0.9rem">Versions</div>
+              <div class="meta">Web / Android / Supabase / PostGIS matrix</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">All existing toggles/display rows kept; clearer grouping on phone.</p>
+  </div>
+</body>
+</html>

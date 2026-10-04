@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Report · Observation — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Report · 2 Observation</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="field-top">
+          <button class="btn-icon">✕</button>
+          <div style="flex:1"><div style="font-weight:800;font-size:1rem">Observation</div></div>
+        </header>
+        <div class="field-scroll" style="padding-bottom:calc(5.5rem + var(--safe-bottom))">
+          <div class="step-bar"><div class="seg on"></div><div class="seg on"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div></div>
+          <div class="chip-row" style="margin-bottom:1rem">
+            <span class="chip active">Direct</span>
+            <span class="chip">Indirect</span>
+          </div>
+          <p style="font-size:0.8rem;font-weight:700;margin:0 0 0.5rem">Elephant counts</p>
+          <div class="counter-row" style="margin-bottom:1rem">
+            <div class="counter"><div class="n">2</div><div class="l">Male</div></div>
+            <div class="counter"><div class="n">1</div><div class="l">Female</div></div>
+            <div class="counter"><div class="n">0</div><div class="l">Calf</div></div>
+            <div class="counter"><div class="n">0</div><div class="l">Unknown</div></div>
+          </div>
+          <label style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;padding:0.85rem 1rem;border:1px solid var(--color-border);border-radius:1rem;margin-bottom:0.85rem;background:var(--color-card)">
+            <span style="font-size:0.9rem;font-weight:600">Also report damage / loss</span>
+            <input type="checkbox" checked style="width:20px;height:20px" />
+          </label>
+          <div class="field"><label>Description</label><textarea rows="3" placeholder="Optional notes">Herd near cane field edge</textarea></div>
+        </div>
+        <div class="wizard-footer">
+          <button class="btn btn-ghost">Back</button>
+          <button class="btn btn-primary">Continue</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">Direct/Indirect, counters, damage toggle — same fields. Indirect shows sign chips instead of counts.</p>
+  </div>
+</body>
+</html>

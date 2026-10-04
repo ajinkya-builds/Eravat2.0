@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ED Intelligence — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">Phase A · Cards</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>ED Intelligence</h1>
+          </div>
+        </header>
+        <div class="admin-scroll">
+          <p class="text-muted" style="font-size:0.8rem;margin:0 0 0.85rem;line-height:1.4">
+            90-day beat risk for field leadership. Phone uses cards; desktop keeps the table.
+          </p>
+
+          <div style="display:grid;gap:0.5rem;margin-bottom:1rem">
+            <div class="glass-card" style="padding:0.7rem 0.9rem;font-size:0.85rem;border-radius:1rem">
+              3 beats Critical · Amboli leads conflict events
+            </div>
+            <div class="glass-card" style="padding:0.7rem 0.9rem;font-size:0.85rem;border-radius:1rem">
+              Peak conflict hours 18:00–22:00 (42%)
+            </div>
+          </div>
+
+          <div class="glass-card" style="overflow:hidden">
+            <div class="list-card">
+              <div class="row-top">
+                <div>
+                  <div class="title">Amboli</div>
+                  <div class="meta">Sawantwadi · Sindhudurg</div>
+                </div>
+                <span class="badge badge-danger">Critical</span>
+              </div>
+              <div class="meta" style="margin-top:0.35rem">Events 12 / reports 28 · 1d / 2i</div>
+              <div class="meta clamp-2" style="margin-top:0.35rem" id="a1">
+                Prioritize night patrols near cane belt; notify 14 villagers within 1.5 km; coordinate with RO for crop buffer.
+              </div>
+              <button class="btn btn-ghost" style="margin-top:0.5rem;min-height:36px;padding:0.35rem 0.7rem;font-size:0.75rem" onclick="toggle('a1', this)">Expand</button>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div>
+                  <div class="title">Dodamarg</div>
+                  <div class="meta">Dodamarg · Sindhudurg</div>
+                </div>
+                <span class="badge badge-warn">High</span>
+              </div>
+              <div class="meta" style="margin-top:0.35rem">Events 7 / reports 19</div>
+              <div class="meta clamp-2" style="margin-top:0.35rem">
+                Increase Hathi Mitra check-ins; watch corridor to Tilari.
+              </div>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div>
+                  <div class="title">Kudal</div>
+                  <div class="meta">Kudal · Sindhudurg</div>
+                </div>
+                <span class="badge badge-info">Watch</span>
+              </div>
+              <div class="meta" style="margin-top:0.35rem">Events 3 / reports 11</div>
+              <div class="meta clamp-2" style="margin-top:0.35rem">
+                Maintain routine reporting cadence; no new hotspots.
+              </div>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div>
+                  <div class="title">Tilari</div>
+                  <div class="meta">Chandgad · Kolhapur</div>
+                </div>
+                <span class="badge badge-muted">Routine</span>
+              </div>
+              <div class="meta" style="margin-top:0.35rem">Events 1 / reports 6</div>
+              <div class="meta clamp-2" style="margin-top:0.35rem">No action beyond baseline monitoring.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      Drops horizontal table scroll. Trend stays desktop-only; action text uses 2-line clamp + Expand.
+    </p>
+  </div>
+  <script>
+    function toggle(id, btn) {
+      const el = document.getElementById(id);
+      const open = el.classList.toggle('clamp-2') === false;
+      // classList.toggle returns false when class was removed... actually returns bool of whether class is now present
+      const clamped = el.classList.contains('clamp-2');
+      btn.textContent = clamped ? 'Expand' : 'Collapse';
+    }
+  </script>
+</body>
+</html>

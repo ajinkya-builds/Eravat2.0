@@ -69,13 +69,13 @@ export default function AdminLiveDashboard() {
             <AdminFilterBar divisions={divisions} filters={filters} onChange={setFilters} onApply={reload} loading={loading} />
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <AdminKpiCard title={t('admin.live.warnings')} value={warnings} />
-                <AdminKpiCard title={t('admin.live.recipients')} value={recipients} />
-                <AdminKpiCard title={t('admin.conflict.cropDamage')} value={damages.crop} />
-                <AdminKpiCard title={t('admin.conflict.houseDamage')} value={damages.property} />
-                <AdminKpiCard title={t('admin.conflict.humanInjury')} value={damages.human_injury} tone="warning" />
-                <AdminKpiCard title={t('admin.conflict.humanDeath')} value={damages.human_death} tone="danger" />
+            <div className="flex lg:grid lg:grid-cols-6 gap-3 overflow-x-auto lg:overflow-visible snap-x snap-mandatory pb-1 lg:pb-0 -mx-1 px-1">
+                <div className="min-w-[42%] lg:min-w-0 snap-start shrink-0 lg:shrink"><AdminKpiCard title={t('admin.live.warnings')} value={warnings} /></div>
+                <div className="min-w-[42%] lg:min-w-0 snap-start shrink-0 lg:shrink"><AdminKpiCard title={t('admin.live.recipients')} value={recipients} /></div>
+                <div className="min-w-[42%] lg:min-w-0 snap-start shrink-0 lg:shrink"><AdminKpiCard title={t('admin.conflict.cropDamage')} value={damages.crop} /></div>
+                <div className="min-w-[42%] lg:min-w-0 snap-start shrink-0 lg:shrink"><AdminKpiCard title={t('admin.conflict.houseDamage')} value={damages.property} /></div>
+                <div className="min-w-[42%] lg:min-w-0 snap-start shrink-0 lg:shrink"><AdminKpiCard title={t('admin.conflict.humanInjury')} value={damages.human_injury} tone="warning" /></div>
+                <div className="min-w-[42%] lg:min-w-0 snap-start shrink-0 lg:shrink"><AdminKpiCard title={t('admin.conflict.humanDeath')} value={damages.human_death} tone="danger" /></div>
             </div>
 
             <div className="glass-card rounded-2xl p-4">

@@ -1,4 +1,5 @@
 import { Download, Phone } from 'lucide-react';
+import { AdminBottomSheet } from './AdminBottomSheet';
 
 /** MSG91-aligned villager call statuses (see map_msg91_voice_status). */
 export type VillagerCallStatus =
@@ -164,6 +165,11 @@ function downloadCsv(filename: string, csv: string) {
     URL.revokeObjectURL(url);
 }
 
+function formatDistance(m: number | null): string {
+    if (m == null) return '—';
+    return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
+}
+
 interface Props {
     open: boolean;
     reportId: string | null;
@@ -204,136 +210,167 @@ export function AdminReportCallsModal({
     ];
 
     return (
-        <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            data-testid="admin-report-calls-modal"
-        >
-            <div className="bg-card border border-border rounded-2xl w-full max-w-4xl max-h-[85vh] shadow-2xl flex flex-col overflow-hidden">
-                <div className="flex items-start justify-between gap-3 p-5 border-b border-border">
-                    <div className="flex items-start gap-3 min-w-0">
-                        <div className="p-2.5 rounded-xl bg-primary/10 shrink-0">
-                            <Phone className="text-primary" size={18} />
-                        </div>
-                        <div className="min-w-0">
-                            <h2 className="text-lg font-bold truncate">{t('admin.obs.viewCalls')}</h2>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                                {reportLabel || reportId}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground mt-1">
-                                {t('admin.obs.viewCallsHint')}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        <button
-                            type="button"
-                            data-testid="admin-report-calls-export"
-                            disabled={loading || rows.length === 0}
-                            onClick={() => downloadCsv(`call-logs-${reportId}.csv`, callLogsToCsv(rows, t))}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-border hover:bg-muted disabled:opacity-40"
-                        >
-                            <Download size={14} />
-                            {t('admin.obs.exportCSV')}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-3 py-1.5 rounded-lg text-sm border border-border hover:bg-muted"
-                        >
-                            {t('cancel')}
-                        </button>
-                    </div>
+        <AdminBottomSheet
+            open={open}
+            onClose={onClose}
+            title={t('admin.obs.viewCalls')}
+            subtitle={reportLabel || reportId}
+            testId="admin-report-calls-modal"
+            wide
+            footer={
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        type="button"
+                        data-testid="admin-report-calls-export"
+                        disabled={loading || rows.length === 0}
+                        onClick={() => downloadCsv(`call-logs-${reportId}.csv`, callLogsToCsv(rows, t))}
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm border border-border hover:bg-muted disabled:opacity-40 min-h-11"
+                    >
+                        <Download size={14} />
+                        {t('admin.obs.exportCSV')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex-1 px-3 py-2.5 rounded-xl text-sm border border-border hover:bg-muted min-h-11"
+                    >
+                        {t('cancel')}
+                    </button>
                 </div>
+            }
+        >
+            <div className="flex items-start gap-3 mb-3">
+                <div className="p-2.5 rounded-xl bg-primary/10 shrink-0">
+                    <Phone className="text-primary" size={18} />
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">{t('admin.obs.viewCallsHint')}</p>
+            </div>
 
-                {!loading && rows.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 px-5 py-3 border-b border-border bg-muted/20" data-testid="admin-report-calls-metrics">
-                        {metricItems.map((item) => (
-                            <div key={item.key} className="rounded-lg border border-border bg-card px-2.5 py-2">
-                                <p className={`text-base font-bold leading-none ${item.tone}`}>{item.value}</p>
-                                <p className="text-[10px] text-muted-foreground mt-1 leading-tight">{item.label}</p>
+            {!loading && rows.length > 0 && (
+                <div
+                    className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 mb-4"
+                    data-testid="admin-report-calls-metrics"
+                >
+                    {metricItems.map((item) => (
+                        <div key={item.key} className="rounded-lg border border-border bg-card px-2.5 py-2">
+                            <p className={`text-base font-bold leading-none ${item.tone}`}>{item.value}</p>
+                            <p className="text-[10px] text-muted-foreground mt-1 leading-tight">{item.label}</p>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {error && (
+                <div className="mb-3 p-3 rounded-xl bg-destructive/10 text-destructive text-sm">{error}</div>
+            )}
+            {loading ? (
+                <p className="text-sm text-muted-foreground py-10 text-center">{t('loading')}</p>
+            ) : rows.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-10 text-center">{t('admin.obs.noCalls')}</p>
+            ) : (
+                <>
+                    {/* Phone cards */}
+                    <div className="md:hidden divide-y divide-border/60 rounded-xl border border-border overflow-hidden">
+                        {rows.map((row) => (
+                            <div key={row.id} className="p-3 space-y-2">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                        <p className="font-medium text-sm">{row.villager_name}</p>
+                                        <p className="text-xs text-muted-foreground">{row.village_name || '—'}</p>
+                                    </div>
+                                    <span
+                                        className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold shrink-0 ${callStatusClass(row.call_status)}`}
+                                    >
+                                        {t(callStatusLabelKey(row.call_status))}
+                                    </span>
+                                </div>
+                                <p className="font-mono text-xs">{row.phone_e164}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {t('admin.obs.callDistance')}: {formatDistance(row.distance_m)}
+                                    {' · '}
+                                    <span data-testid="admin-report-call-latitude">{formatCallCoordinate(row.latitude)}</span>
+                                    {', '}
+                                    <span data-testid="admin-report-call-longitude">{formatCallCoordinate(row.longitude)}</span>
+                                </p>
+                                {row.failure_reason ? (
+                                    <p className="text-[11px] text-destructive line-clamp-2">{row.failure_reason}</p>
+                                ) : null}
+                                <a
+                                    href={`tel:${row.phone_e164}`}
+                                    className="inline-flex items-center justify-center gap-1.5 w-full min-h-11 rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
+                                >
+                                    <Phone size={14} />
+                                    {row.phone_e164}
+                                </a>
                             </div>
                         ))}
                     </div>
-                )}
 
-                <div className="flex-1 overflow-auto p-4">
-                    {error && (
-                        <div className="mb-3 p-3 rounded-xl bg-destructive/10 text-destructive text-sm">{error}</div>
-                    )}
-                    {loading ? (
-                        <p className="text-sm text-muted-foreground py-10 text-center">{t('loading')}</p>
-                    ) : rows.length === 0 ? (
-                        <p className="text-sm text-muted-foreground py-10 text-center">{t('admin.obs.noCalls')}</p>
-                    ) : (
-                        <div className="overflow-x-auto rounded-xl border border-border">
-                            <table className="w-full text-sm border-collapse">
-                                <thead>
-                                    <tr className="border-b border-border bg-muted/30">
-                                        {[
-                                            t('admin.obs.callVillager'),
-                                            t('admin.obs.callVillage'),
-                                            t('admin.obs.callPhone'),
-                                            t('admin.obs.callDistance'),
-                                            t('admin.obs.callLatitude'),
-                                            t('admin.obs.callLongitude'),
-                                            t('admin.obs.callStatus'),
-                                        ].map((h) => (
-                                            <th
-                                                key={h}
-                                                className="p-3 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider"
-                                            >
-                                                {h}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {rows.map((row) => (
-                                        <tr key={row.id} className="border-b border-border/50 last:border-0">
-                                            <td className="p-3 font-medium">{row.villager_name}</td>
-                                            <td className="p-3 text-muted-foreground">{row.village_name || '—'}</td>
-                                            <td className="p-3 font-mono text-xs whitespace-nowrap">{row.phone_e164}</td>
-                                            <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">
-                                                {row.distance_m == null
-                                                    ? '—'
-                                                    : row.distance_m < 1000
-                                                      ? `${Math.round(row.distance_m)} m`
-                                                      : `${(row.distance_m / 1000).toFixed(1)} km`}
-                                            </td>
-                                            <td
-                                                className="p-3 font-mono text-xs whitespace-nowrap text-muted-foreground"
-                                                data-testid="admin-report-call-latitude"
-                                            >
-                                                {formatCallCoordinate(row.latitude)}
-                                            </td>
-                                            <td
-                                                className="p-3 font-mono text-xs whitespace-nowrap text-muted-foreground"
-                                                data-testid="admin-report-call-longitude"
-                                            >
-                                                {formatCallCoordinate(row.longitude)}
-                                            </td>
-                                            <td className="p-3">
-                                                <div className="space-y-1">
-                                                    <span
-                                                        className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold ${callStatusClass(row.call_status)}`}
-                                                    >
-                                                        {t(callStatusLabelKey(row.call_status))}
-                                                    </span>
-                                                    {row.failure_reason ? (
-                                                        <p className="text-[11px] text-destructive max-w-[220px] truncate" title={row.failure_reason}>
-                                                            {row.failure_reason}
-                                                        </p>
-                                                    ) : null}
-                                                </div>
-                                            </td>
-                                        </tr>
+                    {/* Desktop table */}
+                    <div className="hidden md:block overflow-x-auto rounded-xl border border-border">
+                        <table className="w-full text-sm border-collapse">
+                            <thead>
+                                <tr className="border-b border-border bg-muted/30">
+                                    {[
+                                        t('admin.obs.callVillager'),
+                                        t('admin.obs.callVillage'),
+                                        t('admin.obs.callPhone'),
+                                        t('admin.obs.callDistance'),
+                                        t('admin.obs.callLatitude'),
+                                        t('admin.obs.callLongitude'),
+                                        t('admin.obs.callStatus'),
+                                    ].map((h) => (
+                                        <th
+                                            key={h}
+                                            className="p-3 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider"
+                                        >
+                                            {h}
+                                        </th>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.map((row) => (
+                                    <tr key={row.id} className="border-b border-border/50 last:border-0">
+                                        <td className="p-3 font-medium">{row.villager_name}</td>
+                                        <td className="p-3 text-muted-foreground">{row.village_name || '—'}</td>
+                                        <td className="p-3 font-mono text-xs whitespace-nowrap">{row.phone_e164}</td>
+                                        <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">
+                                            {formatDistance(row.distance_m)}
+                                        </td>
+                                        <td
+                                            className="p-3 font-mono text-xs whitespace-nowrap text-muted-foreground"
+                                            data-testid="admin-report-call-latitude"
+                                        >
+                                            {formatCallCoordinate(row.latitude)}
+                                        </td>
+                                        <td
+                                            className="p-3 font-mono text-xs whitespace-nowrap text-muted-foreground"
+                                            data-testid="admin-report-call-longitude"
+                                        >
+                                            {formatCallCoordinate(row.longitude)}
+                                        </td>
+                                        <td className="p-3">
+                                            <div className="space-y-1">
+                                                <span
+                                                    className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold ${callStatusClass(row.call_status)}`}
+                                                >
+                                                    {t(callStatusLabelKey(row.call_status))}
+                                                </span>
+                                                {row.failure_reason ? (
+                                                    <p className="text-[11px] text-destructive max-w-[220px] truncate" title={row.failure_reason}>
+                                                        {row.failure_reason}
+                                                    </p>
+                                                ) : null}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            )}
+        </AdminBottomSheet>
     );
 }

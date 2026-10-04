@@ -251,7 +251,7 @@ export function NotificationBell() {
                                                 <div className="shrink-0 flex items-center">
                                                     <button
                                                         onClick={(e) => handleMarkAsRead(notif.id, e)}
-                                                        className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                                                        className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
                                                         title="Mark as read"
                                                     >
                                                         <Check size={16} />

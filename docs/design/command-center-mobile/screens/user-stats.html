@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>User stats — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">CC · User stats</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>User stats</h1>
+          </div>
+        </header>
+        <div class="admin-scroll">
+          <div class="constraint">Search · division · KPIs · personnel table</div>
+          <input style="width:100%;border:1px solid var(--color-border);border-radius:0.75rem;padding:0.7rem;font:inherit;min-height:44px;margin-bottom:0.65rem;background:var(--color-card)" placeholder="Search name or phone" />
+          <div class="field"><label>Division</label><select><option>All divisions</option><option selected>Sindhudurg</option></select></div>
+          <div class="kpi-grid" style="margin-bottom:0.85rem">
+            <div class="glass-card kpi"><div class="val">42</div><div class="lbl">Total</div></div>
+            <div class="glass-card kpi"><div class="val" style="color:var(--color-primary)">38</div><div class="lbl">Active</div></div>
+            <div class="glass-card kpi"><div class="val">11</div><div class="lbl">Officials</div></div>
+            <div class="glass-card kpi"><div class="val">4</div><div class="lbl">Inactive</div></div>
+          </div>
+          <div class="glass-card" style="overflow:hidden">
+            <div class="list-card">
+              <div class="row-top"><div class="title">Priya Mehta</div><span class="badge badge-ok">Active</span></div>
+              <div class="meta">DFO · +91 98xxx · Sindhudurg</div>
+            </div>
+            <div class="list-card">
+              <div class="row-top"><div class="title">Amit Kulkarni</div><span class="badge badge-ok">Active</span></div>
+              <div class="meta">RO · +91 90xxx · Sawantwadi</div>
+            </div>
+            <div class="list-card">
+              <div class="row-top"><div class="title">Sagar Naik</div><span class="badge badge-muted">Inactive</span></div>
+              <div class="meta">Beat · +91 88xxx · Amboli</div>
+            </div>
+          </div>
+          <p class="text-muted" style="font-size:0.75rem;margin:0.75rem 0 0">Capped list (50) · deferred villager-accounts notice still shown in app</p>
+        </div>
+      </div>
+    </div>
+    <p class="note">Read-only stats screen — same filters/KPIs, card density for phone.</p>
+  </div>
+</body>
+</html>

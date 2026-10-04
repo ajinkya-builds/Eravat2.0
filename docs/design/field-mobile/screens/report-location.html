@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Report · Location — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Report · 4 Location</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="field-top">
+          <button class="btn-icon">✕</button>
+          <div style="flex:1"><div style="font-weight:800;font-size:1rem">Date &amp; location</div></div>
+        </header>
+        <div class="field-scroll" style="padding-bottom:calc(5.5rem + var(--safe-bottom))">
+          <div class="step-bar"><div class="seg on"></div><div class="seg on"></div><div class="seg on"></div><div class="seg on"></div><div class="seg"></div></div>
+          <div class="field-row">
+            <div class="field"><label>Date</label><input value="2026-10-04" readonly /></div>
+            <div class="field"><label>Time</label><input value="06:42" readonly /></div>
+          </div>
+          <button class="btn btn-primary" style="width:100%;margin-bottom:0.85rem">📍 Get location</button>
+          <div class="glass-card" style="padding:0.85rem;margin-bottom:0.85rem;font-size:0.8rem">
+            <div style="font-weight:700;margin-bottom:0.25rem">15°57′43″ N · 74°00′12″ E</div>
+            <div class="text-muted">GPS · ±8 m · cell-location confirm still shown when needed</div>
+          </div>
+          <div class="field"><label>Division</label><select><option>Sindhudurg</option></select></div>
+          <div class="field"><label>Range</label><select><option>Sawantwadi</option></select></div>
+          <div class="field"><label>Beat</label><select><option>Amboli</option></select></div>
+          <div class="field"><label>Compass / notes</label><input placeholder="Optional bearing notes" /></div>
+        </div>
+        <div class="wizard-footer">
+          <button class="btn btn-ghost">Back</button>
+          <button class="btn btn-primary">Continue</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">Locked date/time, GPS, TerritorySelect, cell confirm modal — behavior preserved.</p>
+  </div>
+</body>
+</html>

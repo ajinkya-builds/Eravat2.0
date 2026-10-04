@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Report · Photo — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Report · 1 Photo</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="field-top">
+          <button class="btn-icon">✕</button>
+          <div style="flex:1">
+            <div class="brand" style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--color-muted-foreground);font-weight:700">Report activity</div>
+            <div style="font-weight:800;font-size:1rem">Photo</div>
+          </div>
+        </header>
+        <div class="field-scroll no-bottom-nav" style="padding-bottom:calc(5.5rem + var(--safe-bottom))">
+          <div class="constraint">Step order unchanged · no bottom nav</div>
+          <div class="step-bar"><div class="seg on"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div></div>
+          <div class="step-chips">
+            <span class="sc on">Photo</span>
+            <span class="sc">Observation</span>
+            <span class="sc">Damage</span>
+            <span class="sc">Location</span>
+            <span class="sc">Review</span>
+          </div>
+          <div class="photo-slot">
+            <div>
+              <div style="font-size:1.75rem;margin-bottom:0.35rem">📷</div>
+              Take or choose photo<br />
+              <span style="font-size:0.75rem;font-weight:500">Required · GPS prefetch when available</span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+            <button class="btn btn-primary">Camera</button>
+            <button class="btn btn-ghost">Gallery</button>
+          </div>
+          <p class="text-muted" style="font-size:0.75rem;margin:0.75rem 0 0">GPS status: waiting for fix…</p>
+        </div>
+        <div class="wizard-footer">
+          <button class="btn btn-ghost" disabled>Back</button>
+          <button class="btn btn-primary" disabled>Continue</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">Flow: Photo → Observation → (Damage) → Date/Location → Review. Sticky footer; exit warns if dirty.</p>
+  </div>
+</body>
+</html>

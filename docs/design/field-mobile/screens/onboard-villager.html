@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Onboard villager — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Field · Onboard</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="field-top">
+          <button class="btn-icon">‹</button>
+          <div style="flex:1"><div style="font-weight:800">Onboard villager</div></div>
+          <button class="btn btn-ghost" style="min-height:36px;padding:0.35rem 0.6rem;font-size:0.75rem">List</button>
+        </header>
+        <div class="field-scroll" style="padding-bottom:calc(var(--safe-bottom)+5rem)">
+          <div class="constraint">Permission-gated · offline queue kept</div>
+          <div class="field"><label>Name</label><input placeholder="Full name" /></div>
+          <div class="field"><label>Mobile</label><input placeholder="10-digit mobile" /></div>
+          <div class="field"><label>Village</label><input placeholder="Search village…" /></div>
+          <div style="height:1px;background:var(--color-border);margin:0.5rem 0 0.85rem"></div>
+          <p style="font-size:0.8rem;font-weight:700;margin:0 0 0.5rem">Location</p>
+          <button class="btn btn-ghost" style="width:100%;margin-bottom:0.75rem">📍 Capture GPS</button>
+          <div class="field"><label>Division</label><select><option>Select…</option></select></div>
+          <div class="field"><label>Range</label><select><option>Select…</option></select></div>
+          <p class="text-muted" style="font-size:0.75rem">No beat on villager onboard (same as prod).</p>
+        </div>
+        <div class="wizard-footer" style="grid-template-columns:1fr">
+          <button class="btn btn-primary">Submit</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">Same form + online/offline submit; grouped GPS/territory for easier scan.</p>
+  </div>
+</body>
+</html>

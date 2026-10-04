@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Dashboard — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+  <style>
+    /* Light polish only — same composition as production Dashboard.tsx */
+    .home-hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 1.5rem;
+      padding: 1.35rem;
+      min-height: 11rem;
+      text-align: left;
+      border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+      background: linear-gradient(135deg, hsla(152, 60%, 46%, 0.1), hsla(152, 60%, 46%, 0.04));
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      width: 100%;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+    }
+    .home-hero .ico {
+      width: 48px; height: 48px;
+      border-radius: 1rem;
+      background: var(--color-primary);
+      color: #fff;
+      display: grid; place-items: center;
+      font-size: 1.25rem;
+      box-shadow: 0 6px 16px hsla(152, 60%, 46%, 0.3);
+    }
+    .home-hero h2 { margin: 0 0 0.2rem; font-size: 1.45rem; font-weight: 800; }
+    .home-hero p { margin: 0; font-size: 0.85rem; color: var(--color-muted-foreground); font-weight: 500; }
+    .home-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      border-radius: 1.5rem;
+      border: 1px solid var(--color-border);
+      background: var(--color-card);
+      text-align: left;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      min-height: 7rem;
+    }
+    .home-row .ico {
+      width: 56px; height: 56px;
+      border-radius: 1rem;
+      display: grid; place-items: center;
+      font-size: 1.35rem;
+      flex-shrink: 0;
+    }
+    .home-row h2 { margin: 0; font-size: 1.15rem; font-weight: 800; }
+    .home-row p { margin: 0.15rem 0 0; font-size: 0.85rem; color: var(--color-muted-foreground); }
+    .home-2up { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .home-tile {
+      border-radius: 1.5rem;
+      border: 1px solid var(--color-border);
+      background: var(--color-card);
+      padding: 1.1rem;
+      min-height: 9rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      text-align: left;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+    }
+    .home-tile .ico {
+      width: 40px; height: 40px;
+      border-radius: 0.75rem;
+      display: grid; place-items: center;
+      font-size: 1rem;
+    }
+    .home-tile h3 { margin: 0; font-size: 0.95rem; font-weight: 800; }
+    .home-tile p { margin: 0.2rem 0 0; font-size: 0.7rem; color: var(--color-muted-foreground); }
+    .key { font-size: 0.6rem; color: var(--color-muted-foreground); font-family: ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Field · Home (light polish)</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="field-top">
+          <div class="logo"><span class="mark">E</span> ERAVAT</div>
+          <div style="display:flex;align-items:center;gap:0.4rem">
+            <span class="status">Online</span>
+            <div class="bell">🔔</div>
+          </div>
+        </header>
+        <div class="field-scroll">
+          <div class="constraint">Light polish · same tiles · copy from i18n keys only</div>
+
+          <div style="text-align:center;margin:0.25rem 0 1.25rem">
+            <div style="width:56px;height:56px;border-radius:1rem;margin:0 auto 0.5rem;background:linear-gradient(135deg,hsl(152,60%,46%),hsl(152,50%,28%));display:grid;place-items:center;color:#fff;font-weight:800">E</div>
+            <h1 style="margin:0;font-size:1.35rem;font-weight:800;letter-spacing:-0.02em">Eravat</h1>
+            <div class="key">app_name</div>
+          </div>
+
+          <div class="glass-card" style="padding:1rem;margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;border-color:hsla(38,92%,50%,0.35);background:hsla(38,92%,50%,0.08)">
+            <div style="display:flex;gap:0.85rem;align-items:center">
+              <div style="width:40px;height:40px;border-radius:0.75rem;background:hsla(38,92%,50%,0.2);display:grid;place-items:center">☁</div>
+              <div>
+                <div style="font-weight:800;font-size:0.95rem">2 Pending Reports</div>
+                <div class="text-muted" style="font-size:0.7rem">Waiting for internet connection</div>
+                <div class="key">dashboard.pendingStatus · dashboard.waitingSync</div>
+              </div>
+            </div>
+            <button class="btn-icon" title="Sync">↻</button>
+          </div>
+
+          <button class="home-hero">
+            <div class="ico">◎</div>
+            <div>
+              <h2>Add Sighting</h2>
+              <p>Log sightings or conflicts ›</p>
+              <div class="key">dashboard.reportAction · dashboard.reportDesc</div>
+            </div>
+          </button>
+
+          <button class="home-row" style="border-color:hsla(199,90%,48%,0.25)">
+            <div style="display:flex;gap:1rem;align-items:center">
+              <div class="ico" style="background:hsla(199,90%,48%,0.12)">📍</div>
+              <div>
+                <h2>Nearby Sightings</h2>
+                <p>Sightings within 1–100 km</p>
+                <div class="key">dashboard.nearbyAction · dashboard.nearbyDesc</div>
+              </div>
+            </div>
+            <span class="text-muted">›</span>
+          </button>
+
+          <div class="home-2up">
+            <button class="home-tile" style="border-color:hsla(38,92%,50%,0.25)">
+              <div class="ico" style="background:hsla(38,92%,50%,0.12)">👥</div>
+              <div>
+                <h3>Onboard Villager</h3>
+                <p>Alert recipient, no login</p>
+                <div class="key">hathiMitra.onboard*</div>
+              </div>
+            </button>
+            <button class="home-tile" style="border-color:hsla(152,60%,46%,0.25)">
+              <div class="ico" style="background:hsla(152,60%,46%,0.12)">👤+</div>
+              <div>
+                <h3>Onboard Hathi Mitra</h3>
+                <p>App login for field helpers</p>
+                <div class="key">volunteer.onboard*</div>
+              </div>
+            </button>
+          </div>
+
+          <button class="home-row" style="border-color:hsla(38,92%,50%,0.25);min-height:auto;padding:1.35rem">
+            <div style="display:flex;gap:1rem;align-items:center">
+              <div class="ico" style="background:hsla(38,92%,50%,0.12);width:48px;height:48px">📋</div>
+              <div>
+                <h2 style="font-size:1.1rem">My Villagers</h2>
+                <p>People you registered — tap to update details</p>
+                <div class="key">hathiMitra.myListTitle · myListDesc</div>
+              </div>
+            </div>
+            <span class="text-muted">›</span>
+          </button>
+
+          <button class="home-row" style="border-color:hsla(152,60%,46%,0.25);min-height:auto;padding:1.35rem">
+            <div style="display:flex;gap:1rem;align-items:center">
+              <div class="ico" style="background:hsla(152,60%,46%,0.12);width:48px;height:48px">🤝</div>
+              <div>
+                <h2 style="font-size:1.1rem">My Hathi Mitra</h2>
+                <p>Hathi Mitra you registered. This list is view only.</p>
+                <div class="key">volunteer.myListTitle · myListDesc</div>
+              </div>
+            </div>
+            <span class="text-muted">›</span>
+          </button>
+
+          <button class="home-row" style="min-height:auto;padding:1.15rem">
+            <div style="display:flex;gap:0.85rem;align-items:center">
+              <div class="ico" style="background:hsla(38,92%,50%,0.12);width:40px;height:40px;font-size:1rem">🕘</div>
+              <div>
+                <h2 style="font-size:1rem">My Sightings</h2>
+                <p>Past reports</p>
+                <div class="key">dashboard.historyAction · historyDesc</div>
+              </div>
+            </div>
+            <span class="text-muted">›</span>
+          </button>
+
+          <button class="home-row" style="border:2px solid hsla(152,60%,46%,0.2);min-height:auto;padding:1.35rem;position:relative;overflow:hidden">
+            <div style="display:flex;gap:1rem;align-items:center;position:relative;z-index:1">
+              <div class="ico" style="background:var(--color-primary);color:#fff;width:56px;height:56px">🛡</div>
+              <div>
+                <h2>Command Center</h2>
+                <p>Access state-wide administration</p>
+                <div class="key">dashboard.commandCenter · commandDesc</div>
+              </div>
+            </div>
+            <span class="text-muted" style="position:relative;z-index:1">›</span>
+          </button>
+        </div>
+        <button class="fab-support" title="Report issue">💬</button>
+        <nav class="bottom-nav">
+          <a class="active" href="#"><span class="ico">⌂</span>Home</a>
+          <a href="map.html"><span class="ico">🗺</span>Map</a>
+          <a href="profile.html"><span class="ico">👤</span>Profile</a>
+          <a href="settings.html"><span class="ico">⚙</span>Settings</a>
+        </nav>
+      </div>
+    </div>
+    <p class="note">
+      Same homepage composition as production. Words match <code>translations.ts</code> EN;
+      HI/MR must continue to use the same keys via <code>t()</code> — do not rewrite labels.
+    </p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Nearby sightings — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Field · Nearby</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="field-top">
+          <button class="btn-icon">‹</button>
+          <div style="flex:1"><div style="font-weight:800">Nearby sightings</div></div>
+        </header>
+        <div class="field-scroll" style="padding-bottom:calc(var(--safe-bottom)+1rem)">
+          <div class="constraint">Locate · radius · expand · share/download</div>
+          <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem">
+            <button class="btn btn-primary" style="flex:1">◎ Locate me</button>
+          </div>
+          <div class="field"><label>Radius: 10 km</label><input type="range" min="0" max="100" value="10" /></div>
+          <div class="glass-card" style="overflow:hidden">
+            <details>
+              <summary class="list-card" style="list-style:none;cursor:pointer">
+                <div class="row-top">
+                  <div class="title">Direct · Amboli</div>
+                  <span class="badge badge-ok">2.1 km</span>
+                </div>
+                <div class="meta">04 Oct 06:42 · ♂2 ♀1</div>
+              </summary>
+              <div style="padding:0 1rem 1rem;display:flex;gap:0.4rem;flex-wrap:wrap">
+                <button class="btn btn-ghost" style="min-height:40px;font-size:0.75rem">Share</button>
+                <button class="btn btn-ghost" style="min-height:40px;font-size:0.75rem">Download</button>
+                <button class="btn btn-ghost" style="min-height:40px;font-size:0.75rem">Open maps</button>
+              </div>
+            </details>
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title">Indirect · Dodamarg</div>
+                <span class="badge badge-warn">4.8 km</span>
+              </div>
+              <div class="meta">03 Oct 21:15 · dung</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Auto-locate on open, radius reload, expand actions — unchanged.</p>
+  </div>
+</body>
+</html>

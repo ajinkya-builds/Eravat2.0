@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Report · Damage — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Report · 3 Damage</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="field-top">
+          <button class="btn-icon">✕</button>
+          <div style="flex:1"><div style="font-weight:800;font-size:1rem">Damage / loss</div></div>
+        </header>
+        <div class="field-scroll" style="padding-bottom:calc(5.5rem + var(--safe-bottom))">
+          <div class="step-bar"><div class="seg on"></div><div class="seg on"></div><div class="seg on"></div><div class="seg"></div><div class="seg"></div></div>
+          <p style="font-size:0.8rem;font-weight:700;margin:0 0 0.5rem">Category</p>
+          <div class="chip-row" style="margin-bottom:1rem">
+            <span class="chip active">Crop</span>
+            <span class="chip">Property</span>
+            <span class="chip">Grain</span>
+            <span class="chip">Human injury</span>
+            <span class="chip">Human death</span>
+            <span class="chip">Livestock</span>
+          </div>
+          <div class="field"><label>Description</label><textarea rows="3">Sugarcane trampled · ~0.5 acre</textarea></div>
+          <div class="field"><label>People affected (if injury/death)</label><input type="number" value="0" /></div>
+        </div>
+        <div class="wizard-footer">
+          <button class="btn btn-ghost">Back</button>
+          <button class="btn btn-primary">Continue</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">Only appears when damage toggle is on — same as production.</p>
+  </div>
+</body>
+</html>

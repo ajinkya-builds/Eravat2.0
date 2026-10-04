@@ -1,11 +1,11 @@
 {
-  "versionName": "2.1.17",
-  "versionCode": 20117,
+  "versionName": "2.1.18",
+  "versionCode": 20118,
   "channel": "staging",
-  "releasedAt": "2026-10-03",
+  "releasedAt": "2026-10-04",
   "changes": [
-    "Fix first-grant Location Accuracy race with report GPS",
-    "Longer offline GNSS budgets using Capacitor Network offline signal",
-    "Richer PostHog geo props for UAT diagnosis"
+    "Command Center phone cards/sheets (no horizontal scroll)",
+    "Shorter maps on phone; KPI snap strips",
+    "Feedback APK only — not published to staging update channel"
   ]
 }

@@ -181,7 +181,7 @@ export function AdminDataTable({
                                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground shrink-0 pt-0.5">
                                     {col.label}
                                 </span>
-                                <div className={`text-sm text-right min-w-0 ${col.className ?? ''}`}>
+                                <div className={`text-sm text-right min-w-0 break-words ${col.className ?? 'line-clamp-3'}`}>
                                     {row[col.key]}
                                 </div>
                             </div>

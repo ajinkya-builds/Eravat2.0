@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Users — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">Phase B · Baseline</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>Personnel</h1>
+          </div>
+        </header>
+        <div class="admin-scroll">
+          <button class="btn btn-primary" style="width:100%;margin-bottom:0.85rem">+ Add user</button>
+          <div class="glass-card" style="overflow:hidden">
+            <div class="list-card">
+              <div class="row-top">
+                <div>
+                  <div class="title">Priya Mehta</div>
+                  <div class="meta">DFO · Sindhudurg</div>
+                </div>
+                <span class="badge badge-ok">Active</span>
+              </div>
+              <div class="meta">+91 98xxx · last login 2h ago</div>
+              <div class="actions">
+                <button class="btn-icon">✎</button>
+                <button class="btn-icon" style="color:var(--color-destructive)">🗑</button>
+              </div>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div>
+                  <div class="title">Amit Kulkarni</div>
+                  <div class="meta">Range officer · Sawantwadi</div>
+                </div>
+                <span class="badge badge-ok">Active</span>
+              </div>
+              <div class="meta">+91 90xxx · last login yesterday</div>
+              <div class="actions">
+                <button class="btn-icon">✎</button>
+                <button class="btn-icon" style="color:var(--color-destructive)">🗑</button>
+              </div>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div>
+                  <div class="title">Sagar Naik</div>
+                  <div class="meta">Beat officer · Amboli</div>
+                </div>
+                <span class="badge badge-muted">Inactive</span>
+              </div>
+              <div class="meta">+91 88xxx · never logged in</div>
+              <div class="actions">
+                <button class="btn-icon">✎</button>
+                <button class="btn-icon" style="color:var(--color-destructive)">🗑</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      Baseline — already close to production Users cards.
+      Implementation later: move create/edit into bottom sheet for consistency.
+    </p>
+  </div>
+</body>
+</html>

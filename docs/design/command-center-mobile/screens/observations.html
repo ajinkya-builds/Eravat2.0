@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Observations — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">Phase A · Ops</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>Observations</h1>
+          </div>
+        </header>
+        <div class="admin-scroll">
+          <div style="display:flex;gap:0.5rem;margin-bottom:0.85rem">
+            <button class="btn btn-ghost" style="flex:1">↻ Refresh</button>
+            <button class="btn btn-ghost" style="flex:1">↓ CSV</button>
+          </div>
+
+          <div class="glass-card" style="overflow:hidden">
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title">04 Oct · 06:42</div>
+                <span class="badge badge-ok">Direct</span>
+              </div>
+              <div class="meta">Amboli Beat · Sawantwadi · Synced</div>
+              <div class="meta" style="margin-top:0.2rem">♂2 · ♀1 · calf 0</div>
+              <div class="actions">
+                <button class="btn-icon" title="Edit">✎</button>
+                <button class="btn-icon" title="Calls">☎</button>
+                <button class="btn-icon" title="Delete" style="color:var(--color-destructive)">🗑</button>
+              </div>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title">03 Oct · 21:15</div>
+                <span class="badge badge-warn">Indirect</span>
+              </div>
+              <div class="meta">Dodamarg Beat · Dodamarg · Synced</div>
+              <div class="meta" style="margin-top:0.2rem">Dung · footprints</div>
+              <div class="actions">
+                <button class="btn-icon">✎</button>
+                <button class="btn-icon">☎</button>
+                <button class="btn-icon" style="color:var(--color-destructive)">🗑</button>
+              </div>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title">03 Oct · 18:02</div>
+                <span class="badge badge-danger">Loss</span>
+              </div>
+              <div class="meta">Kudal Beat · Kudal · Synced</div>
+              <div class="meta" style="margin-top:0.2rem">Crop damage · est. ₹12,000</div>
+              <div class="actions">
+                <button class="btn-icon">✎</button>
+                <button class="btn-icon">☎</button>
+                <button class="btn-icon" style="color:var(--color-destructive)">🗑</button>
+              </div>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title">02 Oct · 05:50</div>
+                <span class="badge badge-ok">Direct</span>
+              </div>
+              <div class="meta">Tilari Beat · Chandgad · Pending</div>
+              <div class="meta" style="margin-top:0.2rem">♂1 · ♀0 · calf 1</div>
+              <div class="actions">
+                <button class="btn-icon">✎</button>
+                <button class="btn-icon">☎</button>
+                <button class="btn-icon" style="color:var(--color-destructive)">🗑</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;font-size:0.8rem" class="text-muted">
+            <button class="btn btn-ghost" style="min-height:40px;padding:0.4rem 0.8rem">‹ Prev</button>
+            <span>Page 1 of 12</span>
+            <button class="btn btn-ghost" style="min-height:40px;padding:0.4rem 0.8rem">Next ›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      Replaces the current 8-column <code>overflow-x-auto</code> table.
+      Actions stay visible (no hover). Tap ☎ opens Report calls sheet; ✎ opens edit sheet.
+    </p>
+  </div>
+</body>
+</html>

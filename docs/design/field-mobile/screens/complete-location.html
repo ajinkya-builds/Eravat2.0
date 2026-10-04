@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Complete location — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Auth gate</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <div class="admin-scroll" style="padding-top:calc(var(--safe-top)+1rem)">
+          <div class="constraint">Required before app · same gate</div>
+          <h1 style="margin:0 0 0.35rem;font-size:1.4rem">Set your location</h1>
+          <p class="text-muted" style="margin:0 0 1rem;font-size:0.88rem;line-height:1.45">
+            Profile GPS is required. Capture once, then continue to the dashboard.
+          </p>
+          <div class="glass-card" style="padding:1.1rem">
+            <button class="btn btn-primary" style="width:100%;margin-bottom:0.85rem">📍 Capture GPS</button>
+            <div class="field-row">
+              <div class="field"><label>Latitude</label><input value="15.9621" readonly /></div>
+              <div class="field"><label>Longitude</label><input value="74.0034" readonly /></div>
+            </div>
+            <p class="text-muted" style="font-size:0.75rem;margin:0 0 0.85rem">Accuracy ±12 m</p>
+            <button class="btn btn-primary" style="width:100%">Save &amp; continue</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Same LocationFields capture → save → `/`. No bottom nav (outside AppLayout).</p>
+  </div>
+</body>
+</html>

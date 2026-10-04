@@ -7,6 +7,13 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.18] — 2026-10-04 (versionCode 20118)
+
+- Command Center phone cards/sheets (no horizontal scroll)
+- Shorter maps on phone; KPI snap strips
+- Feedback APK only — not published to staging update channel
+
+---
 ## [2.1.17] — 2026-10-03 (versionCode 20117)
 
 - Fix first-grant Location Accuracy race with report GPS

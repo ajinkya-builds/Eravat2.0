@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Conflict — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">Phase B · Dashboard</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>Conflict</h1>
+          </div>
+        </header>
+        <div class="admin-scroll">
+          <p class="text-muted" style="font-size:0.78rem;margin:0 0 0.75rem">Swipe KPIs · snap strip (no 5-up squeeze)</p>
+          <div class="kpi-strip" style="margin-bottom:1rem">
+            <div class="glass-card kpi"><div class="val" style="color:var(--color-destructive)">22</div><div class="lbl">Incidents</div></div>
+            <div class="glass-card kpi"><div class="val">₹4.2L</div><div class="lbl">Est. loss</div></div>
+            <div class="glass-card kpi"><div class="val">9</div><div class="lbl">Crop</div></div>
+            <div class="glass-card kpi"><div class="val">5</div><div class="lbl">Property</div></div>
+            <div class="glass-card kpi"><div class="val" style="color:var(--color-destructive)">2</div><div class="lbl">Human</div></div>
+          </div>
+
+          <div class="glass-card chart-block">
+            <h3>Damage mix</h3>
+            <div class="fake-pie"></div>
+            <div class="legend">
+              <span class="l1">Crop</span>
+              <span class="l2">Property</span>
+              <span class="l3">Human</span>
+              <span class="l4">Livestock</span>
+            </div>
+            <p class="text-muted" style="font-size:0.7rem;margin:0.5rem 0 0">No slice labels on phone — legend + tap tooltip in prod.</p>
+          </div>
+
+          <div class="glass-card chart-block">
+            <h3>Conflict by week</h3>
+            <div class="fake-chart"></div>
+            <div class="legend">
+              <span class="l1">Crop</span>
+              <span class="l2">Property</span>
+              <span class="l3">Human</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      Horizontal snap strip replaces cramped 5-column KPI grid.
+      Pie labels omitted on phone; legends shortened.
+    </p>
+  </div>
+</body>
+</html>

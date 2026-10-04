@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Live — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">Phase B · Dashboard</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>Live</h1>
+          </div>
+        </header>
+        <div class="admin-scroll">
+          <div class="chip-row" style="margin-bottom:0.85rem">
+            <span class="chip active">6h</span>
+            <span class="chip">12h</span>
+            <span class="chip">24h</span>
+            <span class="chip">48h</span>
+            <span class="chip">7d</span>
+          </div>
+
+          <div class="kpi-grid" style="margin-bottom:0.85rem">
+            <div class="glass-card kpi"><div class="val">14</div><div class="lbl">Reports</div></div>
+            <div class="glass-card kpi"><div class="val" style="color:var(--color-warning)">3</div><div class="lbl">Conflict</div></div>
+            <div class="glass-card kpi"><div class="val">8</div><div class="lbl">Beats live</div></div>
+            <div class="glass-card kpi"><div class="val">5</div><div class="lbl">Staff on</div></div>
+          </div>
+
+          <div class="map-placeholder" style="margin-bottom:0.85rem">
+            <div class="pin" style="top:35%;left:40%"></div>
+            <div class="pin" style="top:48%;left:62%;background:var(--color-warning)"></div>
+            <div class="pin" style="top:58%;left:28%;background:var(--color-primary)"></div>
+            <div class="label">Live map · height min(50dvh, 360px)</div>
+          </div>
+
+          <div class="glass-card" style="overflow:hidden">
+            <div style="padding:0.85rem 1rem 0.25rem;font-weight:700;font-size:0.9rem">Recent</div>
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title" style="font-size:0.9rem">Direct · Amboli</div>
+                <span class="badge badge-ok">12m</span>
+              </div>
+              <div class="meta">♂2 ♀1 · Naik</div>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title" style="font-size:0.9rem">Loss · Kudal</div>
+                <span class="badge badge-danger">41m</span>
+              </div>
+              <div class="meta">Crop · ₹8,000</div>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title" style="font-size:0.9rem">Indirect · Dodamarg</div>
+                <span class="badge badge-warn">2h</span>
+              </div>
+              <div class="meta">Dung trail · west ridge</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      Window chips wrap; map shorter than today’s fixed 520px; recent rows are cards (via AdminDataTable pattern).
+    </p>
+  </div>
+</body>
+</html>

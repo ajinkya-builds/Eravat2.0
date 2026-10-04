@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Eravat mobile UI — Design gallery</title>
+  <link rel="stylesheet" href="tokens.css" />
+</head>
+<body>
+  <div class="gallery">
+    <h1>Eravat · Mobile UI design</h1>
+    <p class="lede">
+      Cohesive field + Command Center experience. <strong>CC gets the meaningful phone fixes</strong>
+      (no horizontal scroll). Field home and other field screens get <strong>light polish only</strong> —
+      same layout and flows. <strong>Copy stays on existing EN/HI/MR keys</strong> — do not rewrite words.
+      Spec: <a href="PATTERNS.md">PATTERNS.md</a>. Backend unchanged.
+    </p>
+
+    <div class="gallery-section">
+      <h2>Field · light polish (keep experience)</h2>
+      <div class="gallery-grid">
+        <a class="gallery-card" href="field-mobile/screens/dashboard.html">
+          <div class="tag">/ · i18n locked</div>
+          <h3>Homepage</h3>
+          <p>Same tile composition as today; exact dashboard.* / hathiMitra.* / volunteer.* copy.</p>
+        </a>
+        <a class="gallery-card" href="field-mobile/screens/report-photo.html">
+          <div class="tag">/report</div>
+          <h3>Report wizard</h3>
+          <p>Same step order; spacing/tap polish only.</p>
+        </a>
+        <a class="gallery-card" href="field-mobile/screens/map.html">
+          <div class="tag">/map</div>
+          <h3>Map</h3>
+          <p>Same filters; optional collapsed chrome for density.</p>
+        </a>
+        <a class="gallery-card" href="field-mobile/screens/villagers-list.html">
+          <div class="tag">Other field</div>
+          <h3>Lists / profile / settings</h3>
+          <p>Other screens under field-mobile/screens — light polish, existing strings.</p>
+        </a>
+      </div>
+    </div>
+
+    <div class="gallery-section">
+      <h2>Command Center · phone readability (primary work)</h2>
+      <p class="lede" style="margin-top:-0.35rem">
+        Full gallery: <a href="command-center-mobile/index.html">command-center-mobile/</a>
+      </p>
+      <div class="gallery-grid">
+        <a class="gallery-card" href="command-center-mobile/screens/observations.html"><div class="tag">Priority</div><h3>Observations</h3><p>Cards + visible actions.</p></a>
+        <a class="gallery-card" href="command-center-mobile/screens/observation-edit.html"><div class="tag">Priority</div><h3>Edit sheet</h3><p>Same form fields / admin.obs keys.</p></a>
+        <a class="gallery-card" href="command-center-mobile/screens/report-calls.html"><div class="tag">Priority</div><h3>Report calls</h3><p>Sheet list, existing call labels.</p></a>
+        <a class="gallery-card" href="command-center-mobile/screens/ed-intelligence.html"><div class="tag">Priority</div><h3>ED Intelligence</h3><p>Cards; ed_* keys unchanged.</p></a>
+        <a class="gallery-card" href="command-center-mobile/screens/overview.html"><div class="tag">/admin</div><h3>Overview</h3><p>Shared visual language with field.</p></a>
+        <a class="gallery-card" href="command-center-mobile/index.html"><div class="tag">All CC</div><h3>Full CC gallery →</h3><p>Every admin surface.</p></a>
+      </div>
+    </div>
+
+    <div class="gallery-section">
+      <h2>Copy rule</h2>
+      <p class="lede" style="margin:0">
+        All user-visible text must come from <code>eravat-app/src/i18n/translations.ts</code>
+        (<code>en</code> / <code>hi</code> / <code>mr</code>). Prototypes annotate keys under labels.
+        No new English marketing copy.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

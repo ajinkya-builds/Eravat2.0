@@ -689,7 +689,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const renderPins = visiblePins.slice(0, MAX_MARKERS);
 
     return (
-        <div className="glass-card rounded-2xl p-6 flex flex-col gap-4 col-span-1 lg:col-span-3">
+        <div className="glass-card rounded-2xl p-4 md:p-6 flex flex-col gap-4 col-span-1 lg:col-span-3">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -857,7 +857,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
             </div>
 
             {/* Map */}
-            <div ref={mapWrapperRef} className="relative w-full h-[520px] rounded-xl overflow-hidden border border-border z-0 bg-background">
+            <div ref={mapWrapperRef} className="relative w-full h-[min(50dvh,360px)] md:h-[520px] rounded-xl overflow-hidden border border-border z-0 bg-background">
                 {(loadingGeo) && (
                     <div className="absolute inset-0 bg-background/50 z-[1000] flex items-center justify-center backdrop-blur-sm">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />

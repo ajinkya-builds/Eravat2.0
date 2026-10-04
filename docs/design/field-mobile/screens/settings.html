@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Settings — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Field · Settings</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="field-top">
+          <div class="logo"><span class="mark">E</span> ERAVAT</div>
+          <div class="bell">🔔</div>
+        </header>
+        <div class="field-scroll">
+          <div class="constraint">Theme · language · map · proximity · update</div>
+          <h1 style="margin:0 0 0.85rem;font-size:1.25rem">Settings</h1>
+
+          <p style="font-size:0.75rem;font-weight:700;color:var(--color-muted-foreground);margin:0 0 0.4rem;text-transform:uppercase;letter-spacing:0.05em">Appearance</p>
+          <div class="glass-card" style="padding:0.85rem;margin-bottom:0.85rem">
+            <div class="segmented">
+              <button>Light</button>
+              <button class="on">Dark</button>
+              <button>System</button>
+            </div>
+          </div>
+
+          <p style="font-size:0.75rem;font-weight:700;color:var(--color-muted-foreground);margin:0 0 0.4rem;text-transform:uppercase;letter-spacing:0.05em">Language</p>
+          <div class="glass-card" style="padding:0.85rem;margin-bottom:0.85rem">
+            <select style="width:100%;border:1px solid var(--color-border);border-radius:0.75rem;padding:0.7rem;font:inherit;min-height:44px;background:var(--color-background)">
+              <option>English</option>
+              <option>हिन्दी</option>
+              <option selected>मराठी</option>
+            </select>
+          </div>
+
+          <p style="font-size:0.75rem;font-weight:700;color:var(--color-muted-foreground);margin:0 0 0.4rem;text-transform:uppercase;letter-spacing:0.05em">Map</p>
+          <div class="glass-card" style="padding:0.85rem;margin-bottom:0.85rem">
+            <div class="segmented">
+              <button class="on">Terrain</button>
+              <button>Satellite</button>
+            </div>
+          </div>
+
+          <p style="font-size:0.75rem;font-weight:700;color:var(--color-muted-foreground);margin:0 0 0.4rem;text-transform:uppercase;letter-spacing:0.05em">Proximity radius</p>
+          <div class="glass-card" style="padding:0.85rem;margin-bottom:0.85rem">
+            <div class="field"><label>5 km (role-gated)</label><input type="range" min="1" max="50" value="5" /></div>
+            <button class="btn btn-primary" style="width:100%">Save radius</button>
+          </div>
+
+          <p style="font-size:0.75rem;font-weight:700;color:var(--color-muted-foreground);margin:0 0 0.4rem;text-transform:uppercase;letter-spacing:0.05em">Android update</p>
+          <div class="glass-card" style="padding:0.85rem">
+            <div style="font-weight:700;margin-bottom:0.25rem">Current 2.1.x</div>
+            <div class="text-muted" style="font-size:0.78rem;margin-bottom:0.65rem">Check → download → install / migration steps unchanged</div>
+            <button class="btn btn-ghost" style="width:100%">Check for update</button>
+          </div>
+        </div>
+        <button class="fab-support">💬</button>
+        <nav class="bottom-nav">
+          <a href="dashboard.html"><span class="ico">⌂</span>Home</a>
+          <a href="map.html"><span class="ico">🗺</span>Map</a>
+          <a href="profile.html"><span class="ico">👤</span>Profile</a>
+          <a class="active" href="#"><span class="ico">⚙</span>Settings</a>
+        </nav>
+      </div>
+    </div>
+    <p class="note">All preference controls remain; clearer section grouping only.</p>
+  </div>
+</body>
+</html>

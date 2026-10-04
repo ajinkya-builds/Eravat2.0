@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Login · Phone — Eravat UI</title>
+  <link rel="stylesheet" href="../../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../../index.html">← Gallery</a>
+      <span class="title">Auth · Step 1</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <div class="admin-scroll" style="display:flex;flex-direction:column;justify-content:center;padding-top:calc(var(--safe-top)+1rem)">
+          <div class="constraint">Flow unchanged · phone → OTP</div>
+          <div style="text-align:center;margin-bottom:1.5rem">
+            <div class="mark" style="width:72px;height:72px;border-radius:1.35rem;margin:0 auto 0.85rem;background:linear-gradient(135deg,hsl(152,60%,46%),hsl(152,50%,28%));display:grid;place-items:center;color:#fff;font-size:2rem;font-weight:800">E</div>
+            <h1 style="margin:0;font-size:1.75rem;letter-spacing:-0.03em">ERAVAT</h1>
+            <p class="text-muted" style="margin:0.35rem 0 0;font-size:0.9rem">Sign in with your registered mobile</p>
+          </div>
+          <div class="glass-card" style="padding:1.15rem">
+            <div class="field">
+              <label>Mobile number</label>
+              <div style="display:flex;gap:0.45rem">
+                <div style="min-width:4rem;border:1px solid var(--color-border);border-radius:0.75rem;display:grid;place-items:center;font-weight:700;background:var(--color-muted)">+91</div>
+                <input type="tel" inputmode="numeric" placeholder="98765 43210" value="" style="flex:1" />
+              </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%">Send OTP →</button>
+            <p class="text-muted" style="font-size:0.75rem;margin:0.75rem 0 0;line-height:1.4;text-align:center">
+              Only registered staff can sign in. Offline login shows the existing offline error.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Same OTP login. Clearer brand hierarchy and tap targets; no new auth methods.</p>
+  </div>
+</body>
+</html>

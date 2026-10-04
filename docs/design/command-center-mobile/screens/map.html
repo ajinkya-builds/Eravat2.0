@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Map filters — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">Phase B · Map</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>Map</h1>
+          </div>
+        </header>
+        <div class="admin-scroll">
+          <details class="disclosure" open>
+            <summary>
+              <span>Map filters <span class="count-pill">4</span></span>
+              <span class="text-muted">▴</span>
+            </summary>
+            <div class="body">
+              <div class="field"><label>Division</label><select><option selected>Sindhudurg</option></select></div>
+              <div class="field"><label>Range</label><select><option>All ranges</option><option selected>Sawantwadi</option></select></div>
+              <div class="chip-row" style="margin-bottom:0.75rem">
+                <span class="chip active">Sightings</span>
+                <span class="chip active">Conflict</span>
+                <span class="chip">Villagers</span>
+                <span class="chip">Heatmap</span>
+              </div>
+              <div class="field-row">
+                <div class="field"><label>From</label><input type="date" value="2026-09-20" /></div>
+                <div class="field"><label>To</label><input type="date" value="2026-10-04" /></div>
+              </div>
+              <div class="field"><label>Radius (km)</label><input type="number" value="5" /></div>
+              <button class="btn btn-primary" style="width:100%">Apply filters</button>
+            </div>
+          </details>
+
+          <div class="map-placeholder" style="height: min(50dvh, 360px)">
+            <div class="pin" style="top:40%;left:45%"></div>
+            <div class="pin" style="top:55%;left:58%;background:var(--color-warning)"></div>
+            <div class="label">Collapsed filters keep map visible · no double page padding</div>
+          </div>
+
+          <p class="text-muted" style="font-size:0.75rem;margin:0.75rem 0 0;line-height:1.4">
+            Tip: close the Filters disclosure to maximize the map. Production should default collapsed when filters are already applied.
+          </p>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      Tall filter toolbar moves into a disclosure/sheet.
+      Map height capped; remove AdminMap’s extra outer padding in implementation.
+    </p>
+  </div>
+</body>
+</html>

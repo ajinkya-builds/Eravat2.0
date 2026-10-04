@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Overview — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">Phase B · Dashboard</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>Overview</h1>
+          </div>
+        </header>
+        <div class="admin-scroll">
+          <details class="disclosure">
+            <summary>
+              <span>Filters <span class="count-pill">2 active</span></span>
+              <span class="text-muted">▾</span>
+            </summary>
+            <div class="body">
+              <div class="field"><label>Division</label><select><option>All divisions</option><option selected>Sindhudurg</option></select></div>
+              <div class="field"><label>Start</label><input type="date" value="2026-09-01" /></div>
+              <div class="field"><label>End</label><input type="date" value="2026-10-04" /></div>
+              <button class="btn btn-primary" style="width:100%">Apply</button>
+            </div>
+          </details>
+
+          <div class="kpi-grid" style="margin-bottom:0.85rem">
+            <div class="glass-card kpi"><div class="val">148</div><div class="lbl">Reports</div></div>
+            <div class="glass-card kpi"><div class="val" style="color:var(--color-destructive)">22</div><div class="lbl">Conflict</div></div>
+            <div class="glass-card kpi"><div class="val">61</div><div class="lbl">Direct</div></div>
+            <div class="glass-card kpi"><div class="val">37</div><div class="lbl">Active beats</div></div>
+          </div>
+
+          <div class="glass-card chart-block">
+            <h3>Reports over time</h3>
+            <div class="fake-chart"></div>
+          </div>
+          <div class="glass-card chart-block">
+            <h3>By observation type</h3>
+            <div class="fake-pie"></div>
+            <div class="legend">
+              <span class="l1">Direct</span>
+              <span class="l2">Indirect</span>
+              <span class="l3">Loss</span>
+            </div>
+          </div>
+
+          <div class="glass-card" style="padding:1rem;margin-bottom:0.75rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem">
+              <h3 style="margin:0;font-size:0.95rem">ED Intelligence</h3>
+              <a href="ed-intelligence.html" style="font-size:0.75rem;font-weight:700;color:var(--color-primary);text-decoration:none">Open</a>
+            </div>
+            <div class="list-card" style="padding:0;border:none">
+              <div class="row-top">
+                <div class="title" style="font-size:0.9rem">Amboli</div>
+                <span class="badge badge-danger">Critical</span>
+              </div>
+              <div class="meta">12 events · Prioritize night patrols…</div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" style="width:100%;margin-bottom:0.75rem">Show live map</button>
+
+          <div class="glass-card" style="overflow:hidden">
+            <div style="padding:0.85rem 1rem 0.35rem;font-weight:700;font-size:0.9rem">Recent alerts</div>
+            <div class="list-card">
+              <div class="title" style="font-size:0.9rem">Crop loss · Kudal</div>
+              <div class="meta">2h ago · Loss report synced</div>
+            </div>
+            <div class="list-card">
+              <div class="title" style="font-size:0.9rem">Herd sighting · Amboli</div>
+              <div class="meta">5h ago · 3 elephants</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      Filters collapse when &gt;3 controls. Charts stack full-width. Map stays deferred on Overview.
+      ED teaser links to the card redesign.
+    </p>
+  </div>
+</body>
+</html>

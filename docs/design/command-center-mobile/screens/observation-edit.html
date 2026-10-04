@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Observation edit — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">Phase A · Sheet</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>Observations</h1>
+          </div>
+        </header>
+        <div class="admin-scroll" style="opacity:0.35;pointer-events:none">
+          <div class="glass-card">
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title">04 Oct · 06:42</div>
+                <span class="badge badge-ok">Direct</span>
+              </div>
+              <div class="meta">Amboli Beat · Sawantwadi</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sheet-backdrop">
+          <div class="sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+              <h2>Edit observation</h2>
+              <p>Amboli Beat · 04 Oct 06:42</p>
+            </div>
+            <div class="sheet-body">
+              <div class="field">
+                <label>Type</label>
+                <select>
+                  <option selected>Direct</option>
+                  <option>Indirect</option>
+                  <option>Loss</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Status</label>
+                <select>
+                  <option selected>Synced</option>
+                  <option>Pending</option>
+                </select>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label>Male</label>
+                  <input type="number" value="2" />
+                </div>
+                <div class="field">
+                  <label>Female</label>
+                  <input type="number" value="1" />
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label>Calf</label>
+                  <input type="number" value="0" />
+                </div>
+                <div class="field">
+                  <label>Unknown</label>
+                  <input type="number" value="0" />
+                </div>
+              </div>
+              <div class="field">
+                <label>Notes</label>
+                <textarea rows="3">Herd moving west toward cane fields.</textarea>
+              </div>
+            </div>
+            <div class="sheet-footer">
+              <button class="btn btn-ghost">Cancel</button>
+              <button class="btn btn-primary">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      Phone: bottom sheet (<code>max-h 90%</code>, sticky footer). Desktop keeps centered modal.
+      Form is single-column with paired numeric fields only.
+    </p>
+  </div>
+</body>
+</html>

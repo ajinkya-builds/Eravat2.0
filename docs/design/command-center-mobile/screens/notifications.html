@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Notifications — CC Mobile</title>
+  <link rel="stylesheet" href="../tokens.css" />
+</head>
+<body>
+  <div class="phone-page">
+    <div class="phone-meta">
+      <a href="../index.html">← Gallery</a>
+      <span class="title">Phase B · Density</span>
+    </div>
+    <div class="phone">
+      <div class="phone-screen bg-app">
+        <div class="phone-notch"></div>
+        <header class="admin-top">
+          <div class="burger">☰</div>
+          <div>
+            <div class="brand">Command Center</div>
+            <h1>Notifications</h1>
+          </div>
+        </header>
+        <div class="admin-scroll">
+          <div class="kpi-grid" style="margin-bottom:0.85rem">
+            <div class="glass-card kpi"><div class="val">86</div><div class="lbl">Sent</div></div>
+            <div class="glass-card kpi"><div class="val" style="color:var(--color-destructive)">4</div><div class="lbl">Failed</div></div>
+          </div>
+
+          <div class="glass-card" style="overflow:hidden">
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title" style="font-size:0.9rem">Villager alert · Amboli</div>
+                <span class="badge badge-ok">SMS</span>
+              </div>
+              <div class="meta">04 Oct 06:43 · 14 recipients</div>
+              <div class="meta clamp-2" style="margin-top:0.35rem" id="n1">
+                Elephant herd reported near Amboli cane fields. Stay alert and keep distance. Contact beat officer if animals approach the village.
+              </div>
+              <button class="btn btn-ghost" style="margin-top:0.45rem;min-height:36px;padding:0.3rem 0.65rem;font-size:0.75rem" onclick="toggleClamp('n1', this)">Expand</button>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title" style="font-size:0.9rem">Staff ping · Loss report</div>
+                <span class="badge badge-info">Push</span>
+              </div>
+              <div class="meta">03 Oct 18:05 · RO Kudal</div>
+              <div class="meta clamp-2" style="margin-top:0.35rem">
+                New conflict loss submitted in Kudal beat. Review estimated value and calls.
+              </div>
+            </div>
+            <div class="list-card">
+              <div class="row-top">
+                <div class="title" style="font-size:0.9rem">Delivery failed</div>
+                <span class="badge badge-danger">Failed</span>
+              </div>
+              <div class="meta">03 Oct 18:06 · +91 90000 11223</div>
+              <div class="meta clamp-2" style="margin-top:0.35rem">
+                Carrier rejected SMS — invalid number. Update villager contact.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      AdminDataTable already cards on phone; this trims density — title + time + clamped body,
+      not a full label/value dump of every column.
+    </p>
+  </div>
+  <script>
+    function toggleClamp(id, btn) {
+      const el = document.getElementById(id);
+      el.classList.toggle('clamp-2');
+      btn.textContent = el.classList.contains('clamp-2') ? 'Expand' : 'Collapse';
+    }
+  </script>
+</body>
+</html>
