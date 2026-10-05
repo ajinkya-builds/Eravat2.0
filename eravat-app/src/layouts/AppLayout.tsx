@@ -13,7 +13,7 @@ import { cn } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationBell } from '../components/shared/NotificationBell';
-import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
+import { BrandMark } from '../components/shared/BrandMark';
 
 
 
@@ -154,7 +154,7 @@ export function AppLayout() {
             </AnimatePresence>
 
             {locationOff && (
-                <div className="fixed top-[calc(4rem+env(safe-area-inset-top,0px))] left-0 right-0 z-40 px-4 pt-2">
+                <div className="fixed top-[calc(3.5rem+env(safe-area-inset-top,0px))] left-0 right-0 z-40 px-4 pt-2">
                     <div className="mx-auto max-w-lg flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/15 px-4 py-3 text-sm text-amber-900 dark:text-amber-100 shadow-sm">
                         <MapPin size={16} className="shrink-0" />
                         <p className="flex-1 font-medium">{t('location_off_banner')}</p>
@@ -201,21 +201,19 @@ export function AppLayout() {
                 </div>
             )}
 
-            {/* Global Header with Logo — padded below system status bar */}
-            <header className="fixed top-0 left-0 right-0 pt-safe bg-background/80 backdrop-blur-md border-b border-border z-40 shadow-sm">
-                <div className="h-16 flex items-center justify-between px-4 md:px-6">
-                    <Link to="/" className="flex items-center gap-2 active:scale-95 transition-transform">
-                        <div className="w-10 h-10 relative flex items-center justify-center overflow-visible">
-                            <img src={ELEPHANT_LOGO_URL} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
-                        </div>
-                        <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-primary to-emerald-500 text-transparent bg-clip-text">ERAVAT</span>
+            {/* Field top chrome — matches docs/design field-top */}
+            <header className="fixed top-0 left-0 right-0 pt-safe bg-background/92 backdrop-blur-md border-b border-border z-40">
+                <div className="h-14 flex items-center justify-between px-4 md:px-6">
+                    <Link to="/" className="flex items-center gap-2.5 active:scale-95 transition-transform">
+                        <BrandMark size="sm" />
+                        <span className="font-extrabold text-[0.95rem] tracking-[0.04em] text-foreground">ERAVAT</span>
                     </Link>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         <div className={cn(
-                            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all duration-300",
-                            isOnline 
-                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/15 dark:text-emerald-500" 
-                                : "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/15 dark:text-amber-500"
+                            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all duration-300",
+                            isOnline
+                                ? "bg-primary/15 text-emerald-800 dark:text-emerald-400"
+                                : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
                         )}>
                             <span className={cn(
                                 "w-1.5 h-1.5 rounded-full shrink-0",
@@ -223,13 +221,15 @@ export function AppLayout() {
                             )} />
                             <span>{getStatusLabel()}</span>
                         </div>
-                        <NotificationBell />
+                        <div className="min-h-10 min-w-10 rounded-xl border border-border bg-card grid place-items-center">
+                            <NotificationBell />
+                        </div>
                     </div>
                 </div>
             </header>
 
-            {/* Main Content Area — clear fixed header + status bar */}
-            <main className="flex-1 w-full pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-[calc(5rem+env(safe-area-inset-bottom,0px))] relative z-10">
+            {/* Main Content Area — clear fixed header + edge bottom nav */}
+            <main className="flex-1 w-full pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] relative z-10">
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={location.pathname}
@@ -245,53 +245,43 @@ export function AppLayout() {
                 </AnimatePresence>
             </main>
 
-            {/* Modern Glassmorphic Bottom Navigation */}
+            {/* Edge bottom nav — matches docs/design .bottom-nav */}
             {!hideBottomNav && (
-                <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe pt-2" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))' }}>
-                    <div className="mx-auto max-w-md">
-                        <div className="glass-card rounded-2xl p-2 px-4 flex items-center justify-between premium-shadow relative">
+                <nav
+                    className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/94 backdrop-blur-md"
+                    style={{ paddingBottom: 'max(0.35rem, env(safe-area-inset-bottom, 0px))' }}
+                >
+                    <div className="mx-auto max-w-lg grid grid-cols-4 gap-1 px-3 pt-2">
+                        {NAV_ITEMS.map((item) => {
+                            const isActive = location.pathname === item.path;
+                            const Icon = item.icon;
 
-                            {NAV_ITEMS.map((item) => {
-                                const isActive = location.pathname === item.path;
-                                const Icon = item.icon;
-
-                                return (
-                                    <button
-                                        key={item.id}
-                                        data-ph-action={`nav.${item.id}`}
-                                        data-ph-screen="app_shell"
-                                        onClick={() => navigate(item.path, { replace: true })}
-                                        className="relative p-2 flex flex-col items-center justify-center gap-1 min-w-[64px] transition-all"
-                                    >
-                                        {/* Active Indicator Bubble */}
-                                        {isActive && (
-                                            <motion.div
-                                                layoutId="active-nav-indicator"
-                                                className="absolute inset-0 bg-primary/10 rounded-xl"
-                                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                            />
+                            return (
+                                <button
+                                    key={item.id}
+                                    data-ph-action={`nav.${item.id}`}
+                                    data-ph-screen="app_shell"
+                                    onClick={() => navigate(item.path, { replace: true })}
+                                    className={cn(
+                                        'relative flex flex-col items-center justify-center gap-0.5 min-h-12 rounded-[0.85rem] px-1 py-1.5 transition-colors',
+                                        isActive
+                                            ? 'bg-primary/12 text-primary'
+                                            : 'text-muted-foreground',
+                                    )}
+                                >
+                                    <Icon
+                                        size={20}
+                                        className={cn(
+                                            'transition-colors',
+                                            isActive ? 'stroke-[2.5px]' : '',
                                         )}
-
-                                        <Icon
-                                            size={22}
-                                            className={cn(
-                                                "relative z-10 transition-colors duration-300",
-                                                isActive ? "text-primary stroke-[2.5px]" : "text-muted-foreground hover:text-foreground"
-                                            )}
-                                        />
-                                        <span
-                                            className={cn(
-                                                "text-[10px] font-medium relative z-10 transition-all duration-300",
-                                                isActive ? "text-primary opacity-100" : "text-muted-foreground opacity-70"
-                                            )}
-                                        >
-                                            {t(item.label)}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-
-                        </div>
+                                    />
+                                    <span className="text-[10px] font-semibold">
+                                        {t(item.label)}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </nav>
             )}

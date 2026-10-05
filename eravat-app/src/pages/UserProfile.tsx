@@ -81,17 +81,19 @@ export default function UserProfile() {
                 )}
             </motion.div>
 
-            {/* Menu items */}
+            {/* Menu items — design pack menu-row density */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                className="glass-card rounded-3xl overflow-hidden divide-y divide-border/50">
+                className="glass-card rounded-3xl overflow-hidden">
                 {menuItems.map((item) => (
                     <button key={item.id} onClick={item.onClick}
-                        className="w-full flex items-center gap-4 p-5 text-left hover:bg-muted/30 transition-colors">
-                        <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                            <item.icon size={20} />
-                        </div>
-                        <span className="flex-1 text-sm font-medium text-foreground">{item.label}</span>
-                        <ChevronRight size={16} className="text-muted-foreground" />
+                        className="ui-menu-row hover:bg-muted/30 transition-colors">
+                        <span className="flex items-center gap-3 min-w-0">
+                            <span className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                                <item.icon size={20} />
+                            </span>
+                            <span className="truncate">{item.label}</span>
+                        </span>
+                        <ChevronRight size={16} className="text-muted-foreground shrink-0" />
                     </button>
                 ))}
             </motion.div>

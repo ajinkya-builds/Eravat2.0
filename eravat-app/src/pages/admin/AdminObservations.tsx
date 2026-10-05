@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, Download, Trash2, Pencil, ChevronLeft, ChevronRight, Loader2, X, AlertTriangle, Phone } from 'lucide-react';
+import { RefreshCw, Download, Trash2, Pencil, ChevronLeft, ChevronRight, Loader2, AlertTriangle, Phone } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
     AdminReportCallsModal,
     type VillagerCallRow,
 } from '../../components/admin/AdminReportCallsModal';
+import { AdminBottomSheet } from '../../components/admin/AdminBottomSheet';
 
 type ObsType = 'direct' | 'indirect' | 'loss';
 
@@ -252,78 +253,164 @@ export default function AdminObservations() {
             <div className="glass-card rounded-2xl overflow-hidden">
                 {loading ? (
                     <div className="flex items-center justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" /></div>
+                ) : observations.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground text-sm">{t('admin.obs.noObs')}</div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm border-collapse">
-                            <thead>
-                                <tr className="border-b border-border bg-muted/30">
-                                    <th className="p-4 w-10">
-                                        <input type="checkbox"
-                                            onChange={e => setSelected(e.target.checked ? observations.map(o => o.id) : [])}
-                                            checked={selected.length === observations.length && observations.length > 0} />
-                                    </th>
-                                    {[t('admin.obs.timestamp'), t('admin.users.territory'), t('admin.obs.type'), t('admin.obs.count'), t('admin.obs.details'), t('admin.users.status'), t('admin.users.actions')].map(h => (
-                                        <th key={h} className="p-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {observations.length === 0 ? (
-                                    <tr><td colSpan={8} className="text-center py-12 text-muted-foreground">{t('admin.obs.noObs')}</td></tr>
-                                ) : observations.map((obs, i) => {
-                                    const o = obs.observations?.[0];
-                                    const d = obs.conflict_damages?.[0];
-                                    const total = o ? (o.male_count + o.female_count + o.calf_count + o.unknown_count) : 0;
-                                    const obsType = o?.type ?? (d ? 'loss' : null);
-                                    const territory = [
-                                        obs.geo_beats?.name,
-                                        obs.geo_beats?.geo_ranges?.name
-                                    ].filter(Boolean).join(' • ');
+                    <>
+                        {/* Phone: cards — no horizontal scroll; actions always visible */}
+                        <div className="md:hidden divide-y divide-border/50">
+                            <div className="px-4 py-3 flex items-center gap-2 border-b border-border/50 bg-muted/20">
+                                <input
+                                    type="checkbox"
+                                    onChange={e => setSelected(e.target.checked ? observations.map(o => o.id) : [])}
+                                    checked={selected.length === observations.length && observations.length > 0}
+                                    className="min-w-5 min-h-5"
+                                />
+                                <span className="text-xs text-muted-foreground font-medium">{t('admin.users.actions')}</span>
+                            </div>
+                            {observations.map((obs) => {
+                                const o = obs.observations?.[0];
+                                const d = obs.conflict_damages?.[0];
+                                const total = o ? (o.male_count + o.female_count + o.calf_count + o.unknown_count) : 0;
+                                const obsType = o?.type ?? (d ? 'loss' : null);
+                                const territory = [
+                                    obs.geo_beats?.name,
+                                    obs.geo_beats?.geo_ranges?.name,
+                                ].filter(Boolean).join(' • ');
+                                const details =
+                                    Array.isArray(o?.indirect_sign_details) && o.indirect_sign_details.length > 0
+                                        ? o.indirect_sign_details.join(', ')
+                                        : Array.isArray(o?.conflict_loss_details) && o.conflict_loss_details.length > 0
+                                            ? o.conflict_loss_details.join(', ')
+                                            : (obs.conflict_damages.map(cd => cd.description).join(', ') || '—');
 
-                                    return (
-                                        <motion.tr key={obs.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                                            transition={{ delay: i * 0.03 }}
-                                            className="border-b border-border/50 hover:bg-muted/10 group transition-colors">
-                                            <td className="p-4"><input type="checkbox" checked={selected.includes(obs.id)} onChange={() => toggleSelect(obs.id)} /></td>
-                                            <td className="p-4 font-medium text-xs whitespace-nowrap">{new Date(obs.device_timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                                            <td className="p-4 text-xs text-muted-foreground whitespace-nowrap">{territory || '—'}</td>
-                                            <td className="p-4 whitespace-nowrap">
-                                                {obsType ? (
-                                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${typeColors[obsType] || 'bg-muted text-muted-foreground'}`}>{typeLabels[obsType] || obsType}</span>
-                                                ) : <span className="text-muted-foreground text-xs">—</span>}
-                                            </td>
-                                            <td className="p-4 text-muted-foreground">{total || '—'}</td>
-                                            <td className="p-4 text-muted-foreground text-xs max-w-[200px] truncate" title={
-                                                Array.isArray(o?.indirect_sign_details) && o.indirect_sign_details.length > 0
-                                                    ? o.indirect_sign_details.join(', ')
-                                                    : Array.isArray(o?.conflict_loss_details) && o.conflict_loss_details.length > 0
-                                                        ? o.conflict_loss_details.join(', ')
-                                                        : (obs.conflict_damages.map(cd => cd.description).join(', ') || '')
-                                            }>
-                                                {Array.isArray(o?.indirect_sign_details) && o.indirect_sign_details.length > 0
-                                                    ? o.indirect_sign_details.join(', ')
-                                                    : Array.isArray(o?.conflict_loss_details) && o.conflict_loss_details.length > 0
-                                                        ? o.conflict_loss_details.join(', ')
-                                                        : (obs.conflict_damages.map(cd => cd.description).join(', ') || '—')}
-                                            </td>
-                                            <td className="p-4">
-                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${obs.status === 'flagged' ? 'bg-emerald-500/15 text-emerald-600' : obs.status === 'synced' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                                                    {obs.status === 'flagged' ? t('admin.obs.reviewed') : (obs.status || 'pending')}
-                                                </span>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex items-center gap-1">
-                                                    <button
-                                                        type="button"
-                                                        data-testid="admin-obs-view-calls"
-                                                        onClick={() => void openCallsForReport(obs)}
-                                                        title={t('admin.obs.viewCalls')}
-                                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border border-border hover:bg-muted text-muted-foreground"
-                                                    >
-                                                        <Phone size={12} />
-                                                        {t('admin.obs.viewCallsShort')}
-                                                    </button>
-                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                return (
+                                    <div key={obs.id} className="p-4 space-y-2.5">
+                                        <div className="flex items-start gap-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selected.includes(obs.id)}
+                                                onChange={() => toggleSelect(obs.id)}
+                                                className="mt-1 min-w-5 min-h-5"
+                                            />
+                                            <div className="min-w-0 flex-1 space-y-1">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <p className="font-semibold text-sm">
+                                                        {new Date(obs.device_timestamp).toLocaleString(undefined, {
+                                                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                                                        })}
+                                                    </p>
+                                                    {obsType ? (
+                                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase shrink-0 ${typeColors[obsType] || 'bg-muted text-muted-foreground'}`}>
+                                                            {typeLabels[obsType] || obsType}
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">{territory || '—'}</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {t('admin.obs.count')}: {total || '—'}
+                                                    {' · '}
+                                                    <span className={obs.status === 'flagged' ? 'text-emerald-600' : ''}>
+                                                        {obs.status === 'flagged' ? t('admin.obs.reviewed') : (obs.status || 'pending')}
+                                                    </span>
+                                                </p>
+                                                <p className="text-xs text-muted-foreground line-clamp-2">{details}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 pl-8">
+                                            <button
+                                                type="button"
+                                                data-testid="admin-obs-view-calls"
+                                                onClick={() => void openCallsForReport(obs)}
+                                                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold border border-border min-h-11"
+                                            >
+                                                <Phone size={14} />
+                                                {t('admin.obs.viewCallsShort')}
+                                            </button>
+                                            <button type="button" onClick={() => setEditTarget(obs)} className="p-2.5 rounded-xl border border-border min-h-11 min-w-11 inline-flex items-center justify-center" title={t('admin.obs.editReport')}>
+                                                <Pencil size={16} />
+                                            </button>
+                                            <button type="button" onClick={() => handleMarkReviewed(obs.id)} className="p-2.5 rounded-xl border border-border min-h-11 min-w-11 inline-flex items-center justify-center" title={t('admin.obs.reviewed')}>
+                                                <RefreshCw size={16} />
+                                            </button>
+                                            <button type="button" onClick={() => handleDelete(obs.id)} className="p-2.5 rounded-xl border border-destructive/30 text-destructive min-h-11 min-w-11 inline-flex items-center justify-center">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Desktop / tablet table */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-sm border-collapse">
+                                <thead>
+                                    <tr className="border-b border-border bg-muted/30">
+                                        <th className="p-4 w-10">
+                                            <input type="checkbox"
+                                                onChange={e => setSelected(e.target.checked ? observations.map(o => o.id) : [])}
+                                                checked={selected.length === observations.length && observations.length > 0} />
+                                        </th>
+                                        {[t('admin.obs.timestamp'), t('admin.users.territory'), t('admin.obs.type'), t('admin.obs.count'), t('admin.obs.details'), t('admin.users.status'), t('admin.users.actions')].map(h => (
+                                            <th key={h} className="p-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {observations.map((obs, i) => {
+                                        const o = obs.observations?.[0];
+                                        const d = obs.conflict_damages?.[0];
+                                        const total = o ? (o.male_count + o.female_count + o.calf_count + o.unknown_count) : 0;
+                                        const obsType = o?.type ?? (d ? 'loss' : null);
+                                        const territory = [
+                                            obs.geo_beats?.name,
+                                            obs.geo_beats?.geo_ranges?.name
+                                        ].filter(Boolean).join(' • ');
+
+                                        return (
+                                            <motion.tr key={obs.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                                transition={{ delay: i * 0.03 }}
+                                                className="border-b border-border/50 hover:bg-muted/10 transition-colors">
+                                                <td className="p-4"><input type="checkbox" checked={selected.includes(obs.id)} onChange={() => toggleSelect(obs.id)} /></td>
+                                                <td className="p-4 font-medium text-xs whitespace-nowrap">{new Date(obs.device_timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                                                <td className="p-4 text-xs text-muted-foreground whitespace-nowrap">{territory || '—'}</td>
+                                                <td className="p-4 whitespace-nowrap">
+                                                    {obsType ? (
+                                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${typeColors[obsType] || 'bg-muted text-muted-foreground'}`}>{typeLabels[obsType] || obsType}</span>
+                                                    ) : <span className="text-muted-foreground text-xs">—</span>}
+                                                </td>
+                                                <td className="p-4 text-muted-foreground">{total || '—'}</td>
+                                                <td className="p-4 text-muted-foreground text-xs max-w-[200px] truncate" title={
+                                                    Array.isArray(o?.indirect_sign_details) && o.indirect_sign_details.length > 0
+                                                        ? o.indirect_sign_details.join(', ')
+                                                        : Array.isArray(o?.conflict_loss_details) && o.conflict_loss_details.length > 0
+                                                            ? o.conflict_loss_details.join(', ')
+                                                            : (obs.conflict_damages.map(cd => cd.description).join(', ') || '')
+                                                }>
+                                                    {Array.isArray(o?.indirect_sign_details) && o.indirect_sign_details.length > 0
+                                                        ? o.indirect_sign_details.join(', ')
+                                                        : Array.isArray(o?.conflict_loss_details) && o.conflict_loss_details.length > 0
+                                                            ? o.conflict_loss_details.join(', ')
+                                                            : (obs.conflict_damages.map(cd => cd.description).join(', ') || '—')}
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${obs.status === 'flagged' ? 'bg-emerald-500/15 text-emerald-600' : obs.status === 'synced' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                                                        {obs.status === 'flagged' ? t('admin.obs.reviewed') : (obs.status || 'pending')}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            type="button"
+                                                            data-testid="admin-obs-view-calls"
+                                                            onClick={() => void openCallsForReport(obs)}
+                                                            title={t('admin.obs.viewCalls')}
+                                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border border-border hover:bg-muted text-muted-foreground"
+                                                        >
+                                                            <Phone size={12} />
+                                                            {t('admin.obs.viewCallsShort')}
+                                                        </button>
                                                         <button onClick={() => setEditTarget(obs)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"><Pencil size={14} /></button>
                                                         <button
                                                             onClick={() => handleMarkReviewed(obs.id)}
@@ -334,14 +421,14 @@ export default function AdminObservations() {
                                                         </button>
                                                         <button onClick={() => handleDelete(obs.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive"><Trash2 size={14} /></button>
                                                     </div>
-                                                </div>
-                                            </td>
-                                        </motion.tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                                                </td>
+                                            </motion.tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
             </div>
 
@@ -467,59 +554,57 @@ function EditReportModal({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-bold">{t('admin.obs.editReport')}</h2>
-                    <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-muted"><X size={18} /></button>
+        <AdminBottomSheet
+            open={!!report}
+            onClose={onClose}
+            title={t('admin.obs.editReport')}
+            footer={
+                <div className="flex gap-3">
+                    <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors min-h-11">{t('profile.cancel')}</button>
+                    <button type="submit" form="admin-obs-edit-form" className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity min-h-11">{t('admin.settings.saveChanges')}</button>
                 </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {localReport.observations?.[0] && ['direct', 'direct_sighting'].includes(localReport.observations[0].type) && localCounts && (
-                        <div className="space-y-2 p-3 bg-primary/5 rounded-xl border border-primary/10">
-                            <p className="text-xs font-semibold text-primary">{t('admin.obs.elephantCounts')}</p>
-                            <div className="grid grid-cols-2 gap-2">
-                                {(['male', 'female', 'calf', 'unknown'] as const).map(key => (
-                                    <div key={key}>
-                                        <label className="text-xs text-muted-foreground capitalize">{key}</label>
-                                        <input
-                                            type="number" min={0}
-                                            value={localCounts[key]}
-                                            onChange={e => setLocalCounts(prev => prev ? {
-                                                ...prev,
-                                                [key]: parseInt(e.target.value) || 0,
-                                            } : null)}
-                                            className="w-full mt-0.5 px-2 py-1.5 rounded-lg bg-muted/50 border border-border text-sm"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
+            }
+        >
+            <form id="admin-obs-edit-form" onSubmit={handleSubmit} className="space-y-4">
+                {localReport.observations?.[0] && ['direct', 'direct_sighting'].includes(localReport.observations[0].type) && localCounts && (
+                    <div className="space-y-2 p-3 bg-primary/5 rounded-xl border border-primary/10">
+                        <p className="text-xs font-semibold text-primary">{t('admin.obs.elephantCounts')}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                            {(['male', 'female', 'calf', 'unknown'] as const).map(key => (
+                                <div key={key}>
+                                    <label className="text-xs text-muted-foreground capitalize">{key}</label>
+                                    <input
+                                        type="number" min={0}
+                                        value={localCounts[key]}
+                                        onChange={e => setLocalCounts(prev => prev ? {
+                                            ...prev,
+                                            [key]: parseInt(e.target.value) || 0,
+                                        } : null)}
+                                        className="w-full mt-0.5 px-2 py-2.5 rounded-lg bg-muted/50 border border-border text-sm min-h-11"
+                                    />
+                                </div>
+                            ))}
                         </div>
-                    )}
+                    </div>
+                )}
 
-                    <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('report.notes')}</label>
-                        <textarea rows={3} value={localReport.notes ?? ''}
-                            onChange={e => setLocalReport({ ...localReport, notes: e.target.value })}
-                            className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
-                    </div>
-                    <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('admin.users.status')}</label>
-                        <select value={localReport.status}
-                            onChange={e => setLocalReport({ ...localReport, status: e.target.value })}
-                            className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                            <option value="pending">{t('admin.obs.pending')}</option>
-                            <option value="synced">{t('admin.obs.synced')}</option>
-                            <option value="flagged">{t('admin.obs.reviewed')}</option>
-                        </select>
-                    </div>
-                    <div className="flex gap-3 pt-2">
-                        <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">{t('profile.cancel')}</button>
-                        <button type="submit" className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">{t('admin.settings.saveChanges')}</button>
-                    </div>
-                </form>
-            </motion.div>
-        </div>
+                <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('report.notes')}</label>
+                    <textarea rows={3} value={localReport.notes ?? ''}
+                        onChange={e => setLocalReport({ ...localReport, notes: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                </div>
+                <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('admin.users.status')}</label>
+                    <select value={localReport.status}
+                        onChange={e => setLocalReport({ ...localReport, status: e.target.value })}
+                        className="w-full px-3 py-2.5 rounded-xl bg-muted/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-11">
+                        <option value="pending">{t('admin.obs.pending')}</option>
+                        <option value="synced">{t('admin.obs.synced')}</option>
+                        <option value="flagged">{t('admin.obs.reviewed')}</option>
+                    </select>
+                </div>
+            </form>
+        </AdminBottomSheet>
     );
 }

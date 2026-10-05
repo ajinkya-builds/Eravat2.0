@@ -46,6 +46,7 @@ const supabase = createClient(url, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+// Hard rule: this path is the install link. Always upsert it; never rename per version.
 const apkObject = 'staging/eravat-staging.apk';
 const manifestObject = 'staging/latest.json';
 const historyObject = `staging/history/${versionName}.json`;

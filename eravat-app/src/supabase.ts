@@ -1,6 +1,27 @@
 import { createClient } from '@supabase/supabase-js';
 
 /**
+ * Android WebView's Navigator LockManager often holds the auth-token lock until
+ * the 10s timeout, which PostHog records as an unhandled exception. Serialize
+ * auth work in this process instead. There is only one WebView, so a cross-tab
+ * lock is not required.
+ */
+let authLockQueue: Promise<unknown> = Promise.resolve();
+
+async function webViewAuthLock<R>(
+  _name: string,
+  _acquireTimeout: number,
+  fn: () => Promise<R>,
+): Promise<R> {
+  const run = authLockQueue.then(fn, fn);
+  authLockQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+/**
  * Browser client uses the **publishable** Supabase key (never the service_role key).
  * Dashboard → Project Settings → API → **Publishable** (`sb_publishable_...`).
  * `@supabase/supabase-js` sends it as `apikey` and as Bearer when unauthenticated; RLS still applies.
@@ -41,6 +62,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     persistSession: true,
     autoRefreshToken: !disableAutoRefresh,
     detectSessionInUrl: true,
+    lock: webViewAuthLock,
   },
   global: {
     fetch: (input, init = {}) => {

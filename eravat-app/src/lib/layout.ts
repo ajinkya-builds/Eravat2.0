@@ -1,6 +1,6 @@
-/** Offset under AppLayout's fixed header (`h-16` + safe-area). */
+/** Offset under AppLayout's fixed header (`h-14` + safe-area). */
 export const PAGE_STICKY_TOP =
-  'top-[calc(4rem+env(safe-area-inset-top,0px))]';
+  'top-[calc(3.5rem+env(safe-area-inset-top,0px))]';
 
 /** Standard in-page sticky toolbar under the global ERAVAT header. */
 export const PAGE_STICKY_HEADER =

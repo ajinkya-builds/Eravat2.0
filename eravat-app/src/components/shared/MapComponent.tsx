@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabase';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap, CircleMarker, Circle } from 'react-leaflet';
+import { SATELLITE_TILE_ATTRIBUTION, SATELLITE_TILE_URL, STREETS_TILE_ATTRIBUTION, STREETS_TILE_URL } from './mapTiles';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Layers, Eye, AlertTriangle, Footprints, Maximize2, Minimize2, LocateFixed, Satellite, Map as MapIcon } from 'lucide-react';
@@ -857,7 +858,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
             </div>
 
             {/* Map */}
-            <div ref={mapWrapperRef} className="relative w-full h-[520px] rounded-xl overflow-hidden border border-border z-0 bg-background">
+            <div ref={mapWrapperRef} className="relative w-full h-[min(50dvh,360px)] md:h-[520px] rounded-xl overflow-hidden border border-border z-0 bg-background">
                 {(loadingGeo) && (
                     <div className="absolute inset-0 bg-background/50 z-[1000] flex items-center justify-center backdrop-blur-sm">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -900,9 +901,8 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                 >
                     {baseLayer === 'satellite' ? (
                         <TileLayer
-                            // Clarity World Imagery — no ArcGIS API-key watermark (server.arcgisonline.com now stamps "API key required").
-                            attribution='Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
-                            url="https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                            attribution={SATELLITE_TILE_ATTRIBUTION}
+                            url={SATELLITE_TILE_URL}
                             maxZoom={19}
                             updateWhenZooming={false}
                             updateWhenIdle={true}
@@ -910,9 +910,9 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
                         />
                     ) : (
                         <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                            maxZoom={20}
+                            attribution={STREETS_TILE_ATTRIBUTION}
+                            url={STREETS_TILE_URL}
+                            maxZoom={19}
                             updateWhenZooming={false}
                             updateWhenIdle={true}
                             keepBuffer={2}

@@ -1,6 +1,7 @@
 import posthog from 'posthog-js';
 import { Capacitor } from '@capacitor/core';
 import { getAnalyticsConsent } from './analyticsConsent';
+import { isBenignAuthExceptionMessage } from './authErrors';
 
 /** Prefer wizard env name; keep VITE_POSTHOG_KEY as alias. */
 const KEY = (
@@ -31,6 +32,22 @@ export function getPlatform(): 'android' | 'ios' | 'web' {
   const p = Capacitor.getPlatform();
   if (p === 'android' || p === 'ios') return p;
   return 'web';
+}
+
+function isBenignAuthException(properties: Record<string, unknown> | undefined): boolean {
+  if (!properties) return false;
+  const parts: string[] = [];
+  const list = properties.$exception_list;
+  if (Array.isArray(list)) {
+    for (const item of list) {
+      if (item && typeof item === 'object') {
+        const row = item as { type?: unknown; value?: unknown };
+        parts.push(String(row.type ?? ''), String(row.value ?? ''));
+      }
+    }
+  }
+  parts.push(String(properties.$exception_message ?? ''), String(properties.$exception_type ?? ''));
+  return isBenignAuthExceptionMessage(parts.join(' '));
 }
 
 /**
@@ -71,6 +88,9 @@ export function initPostHog(): void {
     },
     before_send: (event) => {
       if (!event) return event;
+      if (event.event === '$exception' && isBenignAuthException(event.properties)) {
+        return null;
+      }
       const props = { ...event.properties };
       for (const k of Object.keys(props)) {
         // PostHog requires `token` (project key) on every event — never strip it.

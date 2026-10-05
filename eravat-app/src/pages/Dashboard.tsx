@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { ELEPHANT_LOGO_URL } from '../lib/publicAsset';
+import { BrandMark } from '../components/shared/BrandMark';
 import { Network } from '@capacitor/network';
 import { trackClick, trackFailed } from '../lib/analytics';
 import { supabase } from '../supabase';
@@ -138,16 +138,14 @@ export default function Dashboard() {
     }, [profile?.id]);
 
     return (
-        <div className="relative min-h-screen w-full bg-background overflow-hidden flex flex-col pt-6 px-6 pb-24">
+        <div className="relative min-h-screen w-full bg-background overflow-hidden flex flex-col pt-4 px-4 pb-8">
             <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[100px] pointer-events-none" />
             <div className="absolute bottom-[20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-500/10 blur-[100px] pointer-events-none" />
 
             <div className="max-w-2xl mx-auto w-full relative z-10 flex flex-col h-full">
-                <div className="flex flex-col items-center mb-8 mt-2 text-center">
-                    <div className="w-24 h-24 sm:w-28 sm:h-28 mb-4 relative flex items-center justify-center overflow-visible">
-                        <img src={ELEPHANT_LOGO_URL} alt="ERAVAT Logo" className="absolute w-[150%] h-[150%] max-w-none object-contain drop-shadow-md" />
-                    </div>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground z-10 relative">{t('app_name')}</h1>
+                <div className="flex flex-col items-center mb-5 mt-1 text-center">
+                    <BrandMark size="lg" className="mb-2" />
+                    <h1 className="text-[1.35rem] font-extrabold tracking-tight text-foreground z-10 relative">{t('app_name')}</h1>
                 </div>
 
                 {syncMessage && (
@@ -172,22 +170,22 @@ export default function Dashboard() {
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className="mb-8 z-10"
+                        className="mb-4 z-10"
                     >
-                        <div className="glass-card rounded-2xl p-4 flex items-center justify-between border border-warning/30 bg-warning/10">
-                            <div className="flex items-center gap-4">
-                                <div className="p-2.5 bg-warning/20 text-warning rounded-xl">
+                        <div className="glass-card rounded-3xl p-4 flex items-center justify-between border border-warning/35 bg-warning/10">
+                            <div className="flex items-center gap-3.5">
+                                <div className="w-10 h-10 grid place-items-center bg-warning/20 text-warning rounded-xl">
                                     <CloudOff size={20} />
                                 </div>
                                 <div>
-                                    <p className="font-bold text-foreground">{pendingCount} {t('dashboard.pendingStatus')}</p>
-                                    <p className="text-xs text-muted-foreground">{isOnline ? t('ready_to_sync') : t('dashboard.waitingSync')}</p>
+                                    <p className="font-extrabold text-[0.95rem] text-foreground">{pendingCount} {t('dashboard.pendingStatus')}</p>
+                                    <p className="text-[0.7rem] text-muted-foreground">{isOnline ? t('ready_to_sync') : t('dashboard.waitingSync')}</p>
                                 </div>
                             </div>
                             <button
                                 onClick={handleManualSync}
                                 disabled={isSyncing}
-                                className="bg-background/50 hover:bg-background border border-border p-2.5 rounded-xl transition-all"
+                                className="min-h-11 min-w-11 grid place-items-center bg-background/50 hover:bg-background border border-border rounded-xl transition-all"
                             >
                                 <RefreshCw size={18} className={cn("text-foreground", isSyncing && "animate-spin")} />
                             </button>
@@ -203,17 +201,14 @@ export default function Dashboard() {
                         data-ph-action="dashboard.add_sighting"
                         data-ph-screen="dashboard"
                         onClick={() => navigate('/report')}
-                        className="md:col-span-2 group relative overflow-hidden rounded-3xl p-6 text-left flex flex-col justify-between h-44 border border-primary/20 bg-gradient-to-br from-primary/10 to-emerald-500/5 hover:from-primary/20 hover:to-emerald-500/10 transition-colors shadow-lg shadow-primary/5"
+                        className="md:col-span-2 group relative overflow-hidden rounded-3xl p-5 text-left flex flex-col justify-between min-h-[11rem] border border-primary/20 bg-gradient-to-br from-primary/10 to-primary/[0.04] hover:from-primary/20 transition-colors"
                     >
-                        <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                            <Activity size={100} />
-                        </div>
-                        <div className="p-3 bg-primary text-primary-foreground rounded-2xl w-max shadow-md shadow-primary/30">
-                            <Activity size={24} />
+                        <div className="w-12 h-12 grid place-items-center bg-primary text-primary-foreground rounded-2xl shadow-md shadow-primary/30">
+                            <Activity size={22} />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-foreground mb-1">{t('dashboard.reportAction')}</h2>
-                            <p className="text-sm text-muted-foreground font-medium flex items-center gap-1 group-hover:text-primary transition-colors">
+                            <h2 className="text-[1.45rem] font-extrabold text-foreground mb-0.5">{t('dashboard.reportAction')}</h2>
+                            <p className="text-[0.85rem] text-muted-foreground font-medium flex items-center gap-1 group-hover:text-primary transition-colors">
                                 {t('dashboard.reportDesc')} <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                             </p>
                         </div>
@@ -226,7 +221,7 @@ export default function Dashboard() {
                         data-ph-action="dashboard.open_nearby"
                         data-ph-screen="dashboard"
                         onClick={() => navigate('/nearby')}
-                        className="md:col-span-2 group glass-card rounded-3xl p-6 flex items-center justify-between hover:bg-muted/40 transition-colors border border-blue-500/20 min-h-28"
+                        className="md:col-span-2 group glass-card rounded-3xl p-5 flex items-center justify-between hover:bg-muted/40 transition-colors border border-sky-500/25 min-h-28"
                     >
                         <div className="flex items-center gap-5">
                             <div className="p-4 bg-blue-500/10 text-blue-600 rounded-2xl">

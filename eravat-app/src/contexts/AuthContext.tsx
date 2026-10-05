@@ -9,6 +9,7 @@ import {
     shouldRegisterPushOnAuthEvent,
 } from '../lib/authPerf';
 import { track } from '../lib/analytics';
+import { isStaleAuthTokenError } from '../lib/authErrors';
 import { identifyUser, resetUser } from '../lib/posthogClient';
 import { logger } from '../lib/logger';
 import { clearCachedProfile, loadCachedProfile, saveCachedProfile } from '../lib/profileCache';
@@ -299,9 +300,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (timeoutId !== undefined) clearTimeout(timeoutId);
                 applyInitialSession(resolveSession(existing, 'get_session_null'));
             })
-            .catch((err) => {
+            .catch(async (err) => {
                 if (cancelled) return;
                 if (timeoutId !== undefined) clearTimeout(timeoutId);
+                if (isStaleAuthTokenError(err)) {
+                    track('auth.stale_session_cleared', { surface: 'get_session' });
+                    try {
+                        await supabase.auth.signOut({ scope: 'local' });
+                    } catch {
+                        /* local clear is best-effort; login still renders */
+                    }
+                    applyInitialSession(null);
+                    return;
+                }
                 logger.warn('AuthContext', 'getSession failed', {
                     message: err instanceof Error ? err.message : String(err),
                     persisted: hasPersistedSupabaseSession(),

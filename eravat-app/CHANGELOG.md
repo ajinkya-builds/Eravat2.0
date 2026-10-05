@@ -7,6 +7,13 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.20] — 2026-10-05 (versionCode 20120)
+
+- Street maps use OpenStreetMap so the API-key watermark is gone
+- Field and Command Center phone UI, keeping the elephant logo
+- Expired sessions and auth lock timeouts no longer become error reports
+
+---
 ## [2.1.19] — 2026-10-05 (versionCode 20119)
 
 - Report sync: retry stale beat_id; media-only retries without failing report

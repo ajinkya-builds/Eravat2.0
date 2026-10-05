@@ -34,10 +34,23 @@ export class CdpPage {
     }
   }
 
-  send(method, params = {}) {
+  send(method, params = {}, timeoutMs = 20000) {
     const id = ++this.#id;
     return new Promise((resolve, reject) => {
-      this.#pending.set(id, { resolve, reject });
+      const timer = setTimeout(() => {
+        this.#pending.delete(id);
+        reject(new Error(`CDP ${method} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+      this.#pending.set(id, {
+        resolve: (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      });
       this.#ws.send(JSON.stringify({ id, method, params }));
     });
   }

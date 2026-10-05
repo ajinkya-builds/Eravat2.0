@@ -63,12 +63,23 @@ export default function AdminConflictDashboard() {
             <AdminFilterBar divisions={divisions} filters={filters} onChange={setFilters} onApply={reload} loading={loading} />
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <AdminKpiCard title={t('admin.conflict.humanDeath')} value={damages.human_death} tone="danger" />
-                <AdminKpiCard title={t('admin.conflict.humanInjury')} value={damages.human_injury} tone="warning" />
-                <AdminKpiCard title={t('admin.conflict.cropDamage')} value={damages.crop} />
-                <AdminKpiCard title={t('admin.conflict.grainDamage')} value={damages.grain} />
-                <AdminKpiCard title={t('admin.conflict.houseDamage')} value={damages.property} />
+            {/* Phone: horizontal snap strip; md+: 5-col grid — same KPIs/labels */}
+            <div className="flex md:grid md:grid-cols-5 gap-3 overflow-x-auto md:overflow-visible snap-x snap-mandatory pb-1 md:pb-0 -mx-1 px-1">
+                <div className="min-w-[42%] md:min-w-0 snap-start shrink-0 md:shrink">
+                    <AdminKpiCard title={t('admin.conflict.humanDeath')} value={damages.human_death} tone="danger" />
+                </div>
+                <div className="min-w-[42%] md:min-w-0 snap-start shrink-0 md:shrink">
+                    <AdminKpiCard title={t('admin.conflict.humanInjury')} value={damages.human_injury} tone="warning" />
+                </div>
+                <div className="min-w-[42%] md:min-w-0 snap-start shrink-0 md:shrink">
+                    <AdminKpiCard title={t('admin.conflict.cropDamage')} value={damages.crop} />
+                </div>
+                <div className="min-w-[42%] md:min-w-0 snap-start shrink-0 md:shrink">
+                    <AdminKpiCard title={t('admin.conflict.grainDamage')} value={damages.grain} />
+                </div>
+                <div className="min-w-[42%] md:min-w-0 snap-start shrink-0 md:shrink">
+                    <AdminKpiCard title={t('admin.conflict.houseDamage')} value={damages.property} />
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -79,7 +90,7 @@ export default function AdminConflictDashboard() {
                     ) : (
                         <ResponsiveContainer width="100%" height={280}>
                             <PieChart>
-                                <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={3} label>
+                                <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={3} label={false}>
                                     {pieData.map((entry) => (
                                         <Cell key={entry.key} fill={DAMAGE_COLORS[entry.key] ?? 'hsl(215, 16%, 57%)'} />
                                     ))}

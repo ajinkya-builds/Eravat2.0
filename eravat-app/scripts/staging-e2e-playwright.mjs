@@ -231,7 +231,8 @@ await check('Admin observations', async () => {
 await check('Admin observations Calls modal', async () => {
   await adminPage.goto(`${BASE}/admin/observations`);
   await adminPage.waitForTimeout(4000);
-  const callsBtn = adminPage.getByTestId('admin-obs-view-calls').first();
+  // Phone cards and the desktop table both render this control; only one layout is visible.
+  const callsBtn = adminPage.locator('[data-testid="admin-obs-view-calls"]:visible').first();
   if ((await callsBtn.count()) === 0) {
     // Empty table is acceptable — still prove the page is interactive
     const body = await adminPage.content();

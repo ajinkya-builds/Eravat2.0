@@ -170,7 +170,7 @@ Use this when automation passes but you need human sign-off (especially APK on d
 
 - [ ] Map loads pins (direct / indirect / loss colors)
 - [ ] Map radius filter 1–500 km (map view only)
-- [ ] Terrain / satellite toggle
+- [ ] Terrain / satellite toggle (streets show roads and place names, not an “API key required” watermark)
 - [ ] Nearby: GPS, list, share/copy, maps link
 - [ ] History: territory vs radius badges, expand, share/download
 - [ ] RLS: user only sees permitted territory data

@@ -47,17 +47,15 @@ export function AdminFilterBar({
     loading?: boolean;
 }) {
     const { t } = useLanguage();
+    const activeCount =
+        (filters.divisionId ? 1 : 0) + 1 + 1; // division optional + always-present date range
 
-    return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="glass-card rounded-2xl p-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end"
-        >
+    const controls = (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
             <label className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">{t('admin.filters.division')}</span>
                 <select
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                    className="w-full min-h-11 rounded-xl border border-border bg-background px-3 py-2 text-sm"
                     value={filters.divisionId ?? ''}
                     data-ph-filter="admin.division"
                     data-ph-value-mode="presence"
@@ -74,7 +72,7 @@ export function AdminFilterBar({
                 <span className="text-xs font-medium text-muted-foreground">{t('admin.filters.startDate')}</span>
                 <input
                     type="date"
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                    className="w-full min-h-11 rounded-xl border border-border bg-background px-3 py-2 text-sm"
                     value={format(filters.startDate, 'yyyy-MM-dd')}
                     data-ph-filter="admin.start_date"
                     data-ph-screen="admin"
@@ -85,7 +83,7 @@ export function AdminFilterBar({
                 <span className="text-xs font-medium text-muted-foreground">{t('admin.filters.endDate')}</span>
                 <input
                     type="date"
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                    className="w-full min-h-11 rounded-xl border border-border bg-background px-3 py-2 text-sm"
                     value={format(filters.endDate, 'yyyy-MM-dd')}
                     data-ph-filter="admin.end_date"
                     data-ph-screen="admin"
@@ -98,10 +96,26 @@ export function AdminFilterBar({
                 data-ph-screen="admin"
                 onClick={onApply}
                 disabled={loading}
-                className="rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
+                className="min-h-11 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
             >
                 {loading ? t('admin.filters.applying') : t('admin.filters.apply')}
             </button>
+        </div>
+    );
+
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {/* Phone: collapsed disclosure; md+: always open (design pack) */}
+            <details className="ui-disclosure md:hidden">
+                <summary>
+                    <span>
+                        {t('admin.filters.division')} · {t('admin.filters.startDate')}
+                    </span>
+                    <span className="ui-count-pill">{activeCount}</span>
+                </summary>
+                <div className="ui-disclosure-body">{controls}</div>
+            </details>
+            <div className="hidden md:block glass-card rounded-2xl p-4">{controls}</div>
         </motion.div>
     );
 }
@@ -181,7 +195,7 @@ export function AdminDataTable({
                                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground shrink-0 pt-0.5">
                                     {col.label}
                                 </span>
-                                <div className={`text-sm text-right min-w-0 ${col.className ?? ''}`}>
+                                <div className={`text-sm text-right min-w-0 break-words ${col.className ?? 'line-clamp-3'}`}>
                                     {row[col.key]}
                                 </div>
                             </div>
