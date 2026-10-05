@@ -253,8 +253,8 @@ await check('Admin OTP login', async () => {
 
 await check('Admin dashboard', async () => {
   const t0 = Date.now();
-  await adminPage.goto(`${BASE}/admin`, { waitUntil: 'networkidle' });
-  await adminPage.waitForTimeout(3000);
+  await adminPage.goto(`${BASE}/admin`, { waitUntil: 'domcontentloaded' });
+  await adminPage.getByText(/Command Center|Conflict Intelligence|Personnel|Overview/i).first().waitFor({ timeout: 25000 });
   const body = (await adminPage.content()).toLowerCase();
   if (!body.includes('admin') && !body.includes('dashboard') && !body.includes('personnel') && !body.includes('observation')) {
     throw new Error('Admin dashboard not loaded');

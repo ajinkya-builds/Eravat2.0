@@ -7,6 +7,14 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 
 ---
 
+## [2.1.19] — 2026-10-05 (versionCode 20119)
+
+- Report sync: retry stale beat_id; media-only retries without failing report
+- Admin home: defer intelligence panel load
+- Playwright OTP from UAT manifest; admin onboarding test IDs
+- Maestro invalid-phone flow; staging onboarding E2E script
+
+---
 ## [2.1.18] — 2026-10-04 (versionCode 20118)
 
 - My Hathi Mitra list of people you added

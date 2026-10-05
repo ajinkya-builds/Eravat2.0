@@ -1,28 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { syncData, buildReportUpsertRow } from '../syncService';
+import { syncData, buildReportUpsertRow, upsertReportForSync } from '../syncService';
 import { db } from '../../db';
 import { supabase } from '../../supabase';
 
 // --- Hoisted mock state (declared before vi.mock hoisting) ---
 const mockUpsert = vi.hoisted(() => vi.fn().mockResolvedValue({ error: null }));
 const mockFrom = vi.hoisted(() => vi.fn(() => ({ upsert: mockUpsert })));
+const makeReportsWhere = vi.hoisted(() => () => ({
+  anyOf: vi.fn(() => ({
+    toArray: vi.fn().mockResolvedValue([]),
+  })),
+  equals: vi.fn(() => ({
+    toArray: vi.fn().mockResolvedValue([]),
+  })),
+}));
 
 // --- Mocks ---
 
 vi.mock('../../db', () => ({
   db: {
     reports: {
-      where: vi.fn(() => ({
-        anyOf: vi.fn(() => ({
-          toArray: vi.fn().mockResolvedValue([]),
-        })),
-      })),
+      where: vi.fn(() => makeReportsWhere()),
       update: vi.fn(),
     },
     report_media: {
       where: vi.fn(() => ({
         equals: vi.fn(() => ({
           toArray: vi.fn().mockResolvedValue([]),
+          filter: vi.fn(() => ({
+            count: vi.fn().mockResolvedValue(0),
+          })),
         })),
       })),
       update: vi.fn(),
@@ -52,6 +59,7 @@ describe('SyncService', () => {
     // Re-apply default return so clearAllMocks doesn't wipe out the implementation
     mockUpsert.mockResolvedValue({ error: null });
     mockFrom.mockImplementation(() => ({ upsert: mockUpsert }));
+    (db.reports.where as any).mockImplementation(() => makeReportsWhere());
   });
 
   it('returns success and count 0 if no pending reports exist', async () => {
@@ -310,6 +318,29 @@ describe('SyncService', () => {
       category: 'human_injury',
       affected_people: 2,
     });
+  });
+});
+
+describe('upsertReportForSync', () => {
+  it('retries without beat_id when FK rejects stale beat', async () => {
+    mockUpsert.mockClear();
+    mockUpsert
+      .mockResolvedValueOnce({ error: { code: '23503', message: 'beat_id fk' } })
+      .mockResolvedValueOnce({ error: null });
+
+    const report = {
+      id: 'report-beat-retry',
+      user_id: 'test-user-id',
+      beat_id: 'stale-beat',
+      device_timestamp: new Date().toISOString(),
+      latitude: 23.1,
+      longitude: 81.2,
+      notes: null,
+    };
+    const { error } = await upsertReportForSync(report, 'stale-beat');
+    expect(error).toBeNull();
+    expect(mockUpsert).toHaveBeenCalledTimes(2);
+    expect(mockUpsert.mock.calls[1][0]).not.toHaveProperty('beat_id');
   });
 });
 

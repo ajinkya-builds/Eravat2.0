@@ -10,12 +10,25 @@ import { track, trackFailed } from '../../lib/analytics';
 
 // ─── Toggle ──────────────────────────────────────────────────────────────────
 
-function Toggle({ enabled, onToggle, disabled }: { enabled: boolean; onToggle: () => void; disabled?: boolean }) {
+function Toggle({
+    enabled,
+    onToggle,
+    disabled,
+    testId,
+}: {
+    enabled: boolean;
+    onToggle: () => void;
+    disabled?: boolean;
+    testId?: string;
+}) {
     return (
         <button
             onClick={onToggle}
             type="button"
             disabled={disabled}
+            data-testid={testId}
+            aria-checked={enabled}
+            role="switch"
             className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${enabled ? 'bg-primary' : 'bg-muted border border-border'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
             <motion.div
@@ -134,6 +147,7 @@ export default function AdminSettings() {
                             <div className="flex items-center justify-between gap-3">
                                 <p className="text-xs text-muted-foreground">{t('admin.settings.canAddHathiMitra')}</p>
                                 <Toggle
+                                    testId={`onboarding-toggle-${row.role}-hathi`}
                                     enabled={row.can_add_hathi_mitra}
                                     disabled={!isAdmin || savingKey !== null}
                                     onToggle={() => updateOnboarding(row.role, 'can_add_hathi_mitra', !row.can_add_hathi_mitra)}
@@ -142,6 +156,7 @@ export default function AdminSettings() {
                             <div className="flex items-center justify-between gap-3">
                                 <p className="text-xs text-muted-foreground">{t('admin.settings.canAddVillager')}</p>
                                 <Toggle
+                                    testId={`onboarding-toggle-${row.role}-villager`}
                                     enabled={row.can_add_villager}
                                     disabled={!isAdmin || savingKey !== null}
                                     onToggle={() => updateOnboarding(row.role, 'can_add_villager', !row.can_add_villager)}

@@ -241,6 +241,52 @@ export async function resolveBeatForSync(report: Pick<LocalReport, 'latitude' | 
     return null;
 }
 
+function isRetryReportWithoutBeatError(error: { code?: string; message?: string; details?: string } | null): boolean {
+    if (!error) return false;
+    if (error.code === '23503') return true;
+    const blob = `${error.message ?? ''} ${error.details ?? ''}`.toLowerCase();
+    return blob.includes('beat_id') || blob.includes('geo_beats');
+}
+
+/** Upsert report row; drop stale beat_id when FK/geography rejects it so GPS trigger can assign. */
+export async function upsertReportForSync(
+    report: Pick<LocalReport, 'id' | 'user_id' | 'beat_id' | 'device_timestamp' | 'latitude' | 'longitude' | 'notes'>,
+    resolvedBeat: string | null,
+) {
+    const row = buildReportUpsertRow(report, resolvedBeat);
+    let result = await supabase.from('reports').upsert(row);
+    if (result.error && row.beat_id != null && isRetryReportWithoutBeatError(result.error)) {
+        const withoutBeat = { ...row };
+        delete withoutBeat.beat_id;
+        result = await supabase.from('reports').upsert(withoutBeat);
+    }
+    return result;
+}
+
+async function countUnsyncedMedia(reportId: string): Promise<number> {
+    return db.report_media
+        .where('report_id')
+        .equals(reportId)
+        .filter((m) => m.sync_status !== 'synced')
+        .count();
+}
+
+/** Pending/failed reports plus synced rows that still have local media to upload. */
+export async function collectReportsNeedingSync(): Promise<LocalReport[]> {
+    const primary = await db.reports.where('sync_status').anyOf(['pending', 'failed']).toArray();
+    const synced = await db.reports.where('sync_status').equals('synced').toArray();
+    const mediaRetry: LocalReport[] = [];
+    for (const report of synced) {
+        const pendingMedia = await countUnsyncedMedia(report.id);
+        if (pendingMedia > 0) mediaRetry.push(report);
+    }
+    const byId = new Map<string, LocalReport>();
+    for (const report of [...primary, ...mediaRetry]) {
+        byId.set(report.id, report);
+    }
+    return [...byId.values()];
+}
+
 export async function syncData() {
     // Mutex guard prevents concurrent syncs in this tab
     if (isSyncing) {
@@ -271,12 +317,7 @@ export async function syncData() {
             return { success: false, error: 'Not authenticated' };
         }
 
-        // Automatically include failed reports in sync for retry mechanism
-        const statuses: Array<'pending' | 'failed'> = ['pending', 'failed'];
-        const reportsToSync = await db.reports
-            .where('sync_status')
-            .anyOf(statuses)
-            .toArray();
+        const reportsToSync = await collectReportsNeedingSync();
 
         if (reportsToSync.length === 0) {
             return { success: true, count: 0, total: 0, message: 'Nothing to sync' };
@@ -285,6 +326,8 @@ export async function syncData() {
         track('sync.started', { pending_count: reportsToSync.length });
 
         for (const report of reportsToSync) {
+            const mediaOnlyRetry = report.sync_status === 'synced';
+            let coreSynced = mediaOnlyRetry;
             try {
                 // Validate user_id matches authenticated user
                 if (report.user_id !== user.id) {
@@ -300,23 +343,23 @@ export async function syncData() {
                     continue;
                 }
 
-                // 1. Upsert to `reports` table.
-                // Resolve beat from GPS first — stale profile DRB must not block server geography.
-                const resolvedBeat = await resolveBeatForSync(report);
-                const { error: reportError } = await supabase
-                    .from('reports')
-                    .upsert(buildReportUpsertRow(report, resolvedBeat));
+                if (!mediaOnlyRetry) {
+                    // 1. Upsert to `reports` table.
+                    const resolvedBeat = await resolveBeatForSync(report);
+                    const { error: reportError } = await upsertReportForSync(report, resolvedBeat);
 
-                if (reportError) {
-                    logger.error('SyncService', 'Report upsert error', reportError, { stage: 'report_upsert' });
-                    track('sync.failed', { error_code: 'report_upsert', stage: 'report_upsert' });
-                    await db.reports.update(report.id, { sync_status: 'failed' });
-                    failureCount++;
-                    continue;
+                    if (reportError) {
+                        logger.error('SyncService', 'Report upsert error', reportError, { stage: 'report_upsert' });
+                        track('sync.failed', { error_code: 'report_upsert', stage: 'report_upsert' });
+                        await db.reports.update(report.id, { sync_status: 'failed' });
+                        failureCount++;
+                        continue;
+                    }
+                    coreSynced = true;
                 }
 
                 // 2. Upsert to `observations` table
-                if (report.observation_type) {
+                if (!mediaOnlyRetry && report.observation_type) {
                     const typeMapping: Record<string, string> = {
                         'direct': 'direct_sighting',
                         'indirect': 'indirect_sign',
@@ -363,7 +406,7 @@ export async function syncData() {
                 }
 
                 // 3. Upsert to `conflict_damages` if applicable
-                if (report.loss_type && report.loss_type.length > 0) {
+                if (!mediaOnlyRetry && report.loss_type && report.loss_type.length > 0) {
                     const rows = report.loss_type.map((loss, idx) => ({
                         id: stableUuidFrom(`${report.id}:${idx}:${loss}`),
                         report_id: report.id,
@@ -463,8 +506,13 @@ export async function syncData() {
                 if (hasMediaError) {
                     logger.error('SyncService', 'media upload error', undefined, { stage: 'media_upload' });
                     track('sync.media_failed', { error_code: 'media_upload' });
-                    await db.reports.update(report.id, { sync_status: 'failed' });
-                    failureCount++;
+                    if (coreSynced) {
+                        await db.reports.update(report.id, { sync_status: 'synced' });
+                        successCount++;
+                    } else {
+                        await db.reports.update(report.id, { sync_status: 'failed' });
+                        failureCount++;
+                    }
                     continue;
                 }
 

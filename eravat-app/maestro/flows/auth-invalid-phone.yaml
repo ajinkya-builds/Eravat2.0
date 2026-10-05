@@ -1,0 +1,17 @@
+appId: com.forestdept.eravat
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Send OTP|Welcome Back"
+    timeout: 60000
+- tapOn:
+    text: "9876543210"
+    optional: true
+- inputText: "12345"
+- hideKeyboard
+- waitForAnimationToEnd
+- tapOn: "Send OTP"
+- extendedWaitUntil:
+    visible: ".*valid phone.*"
+    timeout: 15000

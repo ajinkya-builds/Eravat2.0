@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { motion } from 'framer-motion';
 import {
@@ -14,6 +13,7 @@ import {
 import { MapComponent } from '../components/shared/MapComponent';
 import { format, subDays, isToday, parseISO, startOfDay } from 'date-fns';
 import { NotificationBell } from '../components/shared/NotificationBell';
+import { useState, useEffect } from 'react';
 import { EdIntelligencePanel } from '../components/admin/EdIntelligencePanel';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -67,6 +67,7 @@ export default function AdminDashboard() {
     const [indirectTags, setIndirectTags] = useState<{ tag: string; count: number }[]>([]);
     const [roleKpis, setRoleKpis] = useState<RoleKpi[]>([]);
     const [showAdminMap, setShowAdminMap] = useState(false);
+    const [showIntelPanel, setShowIntelPanel] = useState(false);
 
     // Feed
     const [recentReports, setRecentReports] = useState<{
@@ -76,6 +77,26 @@ export default function AdminDashboard() {
 
     // ── Fetch ──────────────────────────────────────────────────────────────────
     useEffect(() => { fetchDashboardData(); }, []);
+
+    useEffect(() => {
+        if (loading) return;
+        let cancelled = false;
+        const show = () => {
+            if (!cancelled) setShowIntelPanel(true);
+        };
+        if (typeof requestIdleCallback === 'function') {
+            const idleId = requestIdleCallback(show);
+            return () => {
+                cancelled = true;
+                cancelIdleCallback(idleId);
+            };
+        }
+        const timeoutId = window.setTimeout(show, 300);
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timeoutId);
+        };
+    }, [loading]);
 
     const fetchDashboardData = async () => {
         setLoading(true);
@@ -105,7 +126,7 @@ export default function AdminDashboard() {
                 `)
                     .gte('device_timestamp', since30)
                     .order('device_timestamp', { ascending: false })
-                    .limit(150),
+                    .limit(100),
             ]);
             setTotalPersonnel(userCount ?? 0);
 
@@ -379,7 +400,7 @@ export default function AdminDashboard() {
                 ))}
             </div>
 
-            <EdIntelligencePanel />
+            {showIntelPanel ? <EdIntelligencePanel /> : null}
 
             {/* ── Map (deferred — Leaflet is expensive on admin home) ───── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-2">

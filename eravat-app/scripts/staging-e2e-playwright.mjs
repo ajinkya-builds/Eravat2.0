@@ -248,6 +248,18 @@ await check('Admin observations Calls modal', async () => {
   await adminPage.getByRole('button', { name: /Cancel|Close|रद्द/i }).first().click().catch(() => {});
 });
 
+await check('Admin settings onboarding toggles', async () => {
+  await adminPage.goto(`${BASE}/admin/settings`, { waitUntil: 'domcontentloaded' });
+  await adminPage.getByText(/Who can add people|add people/i).first().waitFor({ timeout: 20000 });
+  const beatHathi = adminPage.getByTestId('onboarding-toggle-beat_guard-hathi');
+  await beatHathi.waitFor({ timeout: 15000 });
+  const enabled = await beatHathi.getAttribute('aria-checked');
+  if (enabled !== 'true' && enabled !== 'false') {
+    throw new Error(`Beat guard Hathi toggle missing aria-checked (got ${enabled})`);
+  }
+  await shot(adminPage, '14d-admin-settings-onboarding');
+});
+
 await check('Admin map', async () => {
   await adminPage.goto(`${BASE}/admin/map`);
    await adminPage.locator('.leaflet-container').waitFor({ timeout: 25000 });
