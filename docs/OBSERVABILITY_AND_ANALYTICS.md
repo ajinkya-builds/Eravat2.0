@@ -319,6 +319,12 @@ Correlate a single attempt with **`acquire_id`** (filter PostHog by that id). Co
 | `sync.completed` | Sync finished | `uploaded`, `duration_ms` |
 | `sync.failed` | Sync error | `error_code`, `stage` |
 | `sync.media_failed` | Media upload fail | `error_code` |
+| `sign_out.unsynced_prompt_shown` | Sign out tapped while reports are still on the phone | `actor_user_id`, `pending_count`, `foreign_count`, `report_ids`, `owner_user_ids`, `sync_statuses`, `device_timestamps`, `media_ids` |
+| `sign_out.unsynced_choice` | Sync, remove, or cancel | `choice` (`sync`, `discard`, `cancel`) plus the queue fields above |
+| `sign_out.unsynced_sync_finished` | Sync-and-sign-out attempt ended | `outcome` (`signed_out`, `still_pending`, `skipped`, `error`), `uploaded`, `failed`, `remaining_count`, `error_code` |
+| `sign_out.unsynced_discarded` | Local unsynced reports removed after the delete commits | same queue fields; a warn is also written when the delete is requested |
+| `sign_out.unsynced_discard_failed` | Remove-and-sign-out threw; the person stayed signed in | `actor_user_id`, `error_code` |
+| `sign_out.unsynced_check_failed` | Queue could not be read; sign-out did not proceed | `actor_user_id`, `error_code` |
 | `network.went_offline` | Connectivity lost | |
 | `network.came_online` | Connectivity restored | `pending_count` |
 

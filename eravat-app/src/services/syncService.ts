@@ -2,6 +2,10 @@ import { db, type LocalReport } from '../db';
 import { supabase } from '../supabase';
 import { track } from '../lib/analytics';
 import { logger } from '../lib/logger';
+import {
+    signOutQueueTraceFields,
+    type SignOutQueueSnapshot,
+} from '../lib/signOutUnsynced';
 import { newUuid } from '../lib/uuid';
 import { lookupGeoFromPoint, readCachedGeoFromPoint } from '../lib/geoLookup';
 
@@ -285,6 +289,58 @@ export async function collectReportsNeedingSync(): Promise<LocalReport[]> {
         byId.set(report.id, report);
     }
     return [...byId.values()];
+}
+
+/** Reports the sign-out warning must account for, plus the local media tied to them. */
+export async function snapshotReportsNeedingSync(): Promise<SignOutQueueSnapshot> {
+    const reports = await collectReportsNeedingSync();
+    const media: SignOutQueueSnapshot['media'] = [];
+    for (const report of reports) {
+        const rows = await db.report_media.where('report_id').equals(report.id).toArray();
+        const relevant = report.sync_status === 'synced'
+            ? rows.filter((item) => item.sync_status !== 'synced')
+            : rows;
+        for (const item of relevant) {
+            media.push({ id: item.id, report_id: item.report_id, sync_status: item.sync_status });
+        }
+    }
+    return {
+        reports: reports.map((report) => ({
+            id: report.id,
+            user_id: report.user_id,
+            sync_status: report.sync_status,
+            device_timestamp: report.device_timestamp,
+            observation_type: report.observation_type,
+        })),
+        media,
+    };
+}
+
+/**
+ * Remove the local queue that would keep retrying after sign-out.
+ * A report already marked synced keeps its row; only its unsent media is removed.
+ */
+export async function discardReportsNeedingSync(actorUserId: string | null): Promise<SignOutQueueSnapshot> {
+    const snapshot = await snapshotReportsNeedingSync();
+    const trace = signOutQueueTraceFields(actorUserId, snapshot);
+    logger.warn('SignOut', 'Discard of unsynced reports requested', trace);
+
+    await db.transaction('rw', db.reports, db.report_media, async () => {
+        for (const report of snapshot.reports) {
+            if (report.sync_status === 'synced') {
+                for (const item of snapshot.media.filter((media) => media.report_id === report.id)) {
+                    await db.report_media.delete(item.id);
+                }
+                continue;
+            }
+            await db.report_media.where('report_id').equals(report.id).delete();
+            await db.reports.delete(report.id);
+        }
+    });
+
+    logger.warn('SignOut', 'Discarded unsynced reports before sign-out', trace);
+    track('sign_out.unsynced_discarded', trace);
+    return snapshot;
 }
 
 export async function syncData() {
