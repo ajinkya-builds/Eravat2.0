@@ -7,7 +7,7 @@ import { MapPin, Calendar, Clock, AlertTriangle, Eye, Loader2, ArrowLeft, Radio,
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
-import { shareOrCopy, downloadTextFile, mapsLink, buildSightingShareText, formatShareDate } from '../lib/reportShare';
+import { shareOrCopy, downloadTextFile, buildSightingShareText, sightingPhotoShareUrl, sightingShareLabels } from '../lib/reportShare';
 import { formatLatLngDms } from '../lib/geoFormat';
 import { db } from '../db';
 
@@ -79,9 +79,7 @@ export default function TerritoryHistory() {
     const [shareMsg, setShareMsg] = useState<string | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
-    const handleShare = async (item: HistoryItem, text: string, coords: { lat: number; lng: number } | null) => {
-        const url = coords ? mapsLink(coords.lat, coords.lng) : undefined;
-        let file: File | undefined;
+    const photoUrlFor = async (item: HistoryItem): Promise<string | null> => {
         // Fetch media lazily with select('*') so the History list never breaks if
         // the media path column differs across environments (file_path/storage_path/path).
         try {
@@ -93,26 +91,48 @@ export default function TerritoryHistory() {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const row: any = media?.[0];
             const path = row?.storage_path || row?.file_path || row?.path;
-            if (path) {
-                const { data } = await supabase.storage.from('report_media').createSignedUrl(path, 3600);
-                if (data?.signedUrl) {
-                    const resp = await fetch(data.signedUrl);
-                    if (resp.ok) {
-                        const blob = await resp.blob();
-                        file = new File([blob], `sighting-${item.id}.jpg`, { type: blob.type || 'image/jpeg' });
-                    }
-                }
-            }
-        } catch { /* share text only if photo cannot be fetched */ }
-        const res = await shareOrCopy({ title: t('share.reportTitle'), text, url, file });
+            return sightingPhotoShareUrl(path);
+        } catch {
+            return null;
+        }
+    };
+
+    const shareTextFor = async (item: HistoryItem): Promise<string> => {
+        const o = item.observations?.[0];
+        const coords = parseLoc(item.location);
+        const photoUrl = await photoUrlFor(item);
+        return buildSightingShareText({
+            observedAt: item.device_timestamp,
+            division: item.geo_beats?.geo_ranges?.geo_divisions?.name,
+            range: item.geo_beats?.geo_ranges?.name,
+            beat: item.geo_beats?.name,
+            male: o?.male_count ?? 0,
+            female: o?.female_count ?? 0,
+            calf: o?.calf_count ?? 0,
+            unknown: o?.unknown_count ?? 0,
+            lossDetails: o?.conflict_loss_details ?? [],
+            damageCategories: (item.conflict_damages ?? []).map((d) => d.category),
+            damageDescription: (item.conflict_damages ?? []).map((d) => d.description).filter(Boolean).join('\n') || null,
+            notes: item.notes ?? null,
+            lat: coords?.lat,
+            lng: coords?.lng,
+            dms: coords ? formatLatLngDms(coords.lat, coords.lng) : null,
+            photoUrl,
+            labels: sightingShareLabels(t),
+        });
+    };
+
+    const handleShare = async (item: HistoryItem) => {
+        const text = await shareTextFor(item);
+        const res = await shareOrCopy({ title: t('share.reportTitle'), text });
         if (res === 'copied') setShareMsg(t('share.copied'));
         else if (res === 'failed') setShareMsg(t('share.failed'));
         if (res === 'copied' || res === 'failed') setTimeout(() => setShareMsg(null), 2500);
     };
 
-    const handleDownload = (item: HistoryItem, text: string, coords: { lat: number; lng: number } | null) => {
-        const full = coords ? `${text}\n${t('share.map')}: ${mapsLink(coords.lat, coords.lng)}` : text;
-        downloadTextFile(`sighting-${item.id}.txt`, full);
+    const handleDownload = async (item: HistoryItem) => {
+        const text = await shareTextFor(item);
+        downloadTextFile(`sighting-${item.id}.txt`, text);
     };
 
     useEffect(() => {
@@ -311,40 +331,6 @@ export default function TerritoryHistory() {
                                 .join(', ');
 
                             const coords = parseLoc(item.location);
-                            const elephantTotal = (o?.male_count || 0) + (o?.female_count || 0) + (o?.calf_count || 0) + (o?.unknown_count || 0);
-                            const damageText = item.conflict_damages?.length
-                                ? item.conflict_damages.map(d => [d.category, d.description].filter(Boolean).join(' — ')).join(', ')
-                                : (Array.isArray(o?.conflict_loss_details) ? o.conflict_loss_details.join(', ') : null);
-                            const shareText = buildSightingShareText({
-                                typeLabel: title,
-                                dateLabel: formatShareDate(item.device_timestamp),
-                                division: item.geo_beats?.geo_ranges?.geo_divisions?.name,
-                                range: item.geo_beats?.geo_ranges?.name,
-                                beat: item.geo_beats?.name,
-                                elephantTotal,
-                                directionDeg: o?.compass_bearing ?? null,
-                                damage: damageText,
-                                notes: item.notes ?? null,
-                                lat: coords?.lat,
-                                lng: coords?.lng,
-                                dms: coords ? formatLatLngDms(coords.lat, coords.lng) : null,
-                                labels: {
-                                    title: t('share.reportTitle'),
-                                    type: t('share.sightingType'),
-                                    date: t('share.date'),
-                                    division: t('dtl_division'),
-                                    range: t('dtl_range'),
-                                    beat: t('dtl_beat'),
-                                    elephants: t('nearby.elephants'),
-                                    direction: t('share.direction'),
-                                    damage: t('share.damage'),
-                                    description: t('ot_description'),
-                                    gps: t('share.coordinates'),
-                                    dms: t('dtl_dms_location'),
-                                    map: t('share.map'),
-                                    photo: t('share.photo'),
-                                },
-                            });
 
                             const colorClass = oType ? typeColors[oType] : 'bg-muted text-muted-foreground border-border';
                             const Icon = ['loss', 'conflict_loss'].includes(oType || '') ? AlertTriangle : Eye;
@@ -425,14 +411,14 @@ export default function TerritoryHistory() {
                                     <div className="flex items-center gap-2 pt-1">
                                         <button
                                             type="button"
-                                            onClick={(e) => { e.stopPropagation(); handleShare(item, shareText, coords); }}
+                                            onClick={(e) => { e.stopPropagation(); void handleShare(item); }}
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background/50 text-xs font-semibold text-foreground hover:bg-muted/50 transition-colors"
                                         >
                                             <Share2 size={14} /> {t('share.share')}
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={(e) => { e.stopPropagation(); handleDownload(item, shareText, coords); }}
+                                            onClick={(e) => { e.stopPropagation(); void handleDownload(item); }}
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background/50 text-xs font-semibold text-foreground hover:bg-muted/50 transition-colors"
                                         >
                                             <Download size={14} /> {t('share.download')}

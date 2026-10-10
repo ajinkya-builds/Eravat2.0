@@ -386,7 +386,7 @@ try {
       'R3.6 share DD-MM + description + photo',
       'Review 3 §6',
       shareBtn > 0 ? 'PASS' : 'FAIL',
-      'Share control present; formatShareDate DD-MM-YYYY + description + photo URL covered by unit tests.',
+      'Share control present; Gaj Rakshak text layout, photo link, and Android share sheet covered by unit tests.',
     );
   } else {
     record(
@@ -400,7 +400,7 @@ try {
       'R3.6 share DD-MM + description + photo',
       'Review 3 §6',
       'PASS',
-      'Covered by unit tests (formatShareDate + buildSightingShareText).',
+      'Covered by unit tests (buildSightingShareText + shareOrCopy).',
     );
   }
 

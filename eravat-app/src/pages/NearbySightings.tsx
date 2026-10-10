@@ -12,7 +12,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { geoErrorTranslationKey } from '../lib/deviceLocation';
 import { track, trackClick, trackFailed, trackFilter } from '../lib/analytics';
 import { RadiusSlider } from '../components/shared/RadiusSlider';
-import { shareOrCopy, buildSightingShareText, downloadTextFile, mapsLink, formatShareDate } from '../lib/reportShare';
+import { shareOrCopy, buildSightingShareText, downloadTextFile, mapsLink, sightingPhotoShareUrl, sightingShareLabels } from '../lib/reportShare';
 import { formatLatLngDms } from '../lib/geoFormat';
 
 type NearbyItem = {
@@ -24,11 +24,18 @@ type NearbyItem = {
     rangeName: string;
     divisionName: string;
     total: number;
+    male: number;
+    female: number;
+    calf: number;
+    unknown: number;
     deviceTimestamp: string;
     distanceKm: number;
     compassBearing: number | null;
     indirectSigns: string[];
     damage: string | null;
+    lossDetails: string[];
+    damageCategories: string[];
+    damageDescription: string | null;
     notes: string | null;
     photoPath: string | null;
 };
@@ -69,21 +76,27 @@ export default function NearbySightings() {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [shareMsg, setShareMsg] = useState<string | null>(null);
 
-    const shareLabels = {
-        title: t('share.reportTitle'),
-        type: t('share.sightingType'),
-        date: t('share.date'),
-        division: t('dtl_division'),
-        range: t('dtl_range'),
-        beat: t('dtl_beat'),
-        elephants: t('nearby.elephants'),
-        direction: t('share.direction'),
-        damage: t('share.damage'),
-        description: t('ot_description'),
-        gps: t('share.coordinates'),
-        dms: t('dtl_dms_location'),
-        map: t('share.map'),
-        photo: t('share.photo'),
+    const composeShareText = async (item: NearbyItem) => {
+        const photoUrl = await sightingPhotoShareUrl(item.photoPath);
+        return buildSightingShareText({
+            observedAt: item.deviceTimestamp,
+            division: item.divisionName,
+            range: item.rangeName,
+            beat: item.beatName,
+            male: item.male,
+            female: item.female,
+            calf: item.calf,
+            unknown: item.unknown,
+            lossDetails: item.lossDetails,
+            damageCategories: item.damageCategories,
+            damageDescription: item.damageDescription,
+            notes: item.notes,
+            lat: item.lat,
+            lng: item.lng,
+            dms: formatLatLngDms(item.lat, item.lng),
+            photoUrl,
+            labels: sightingShareLabels(t),
+        });
     };
 
     const loadNearby = async (
@@ -137,6 +150,10 @@ export default function NearbySightings() {
                         beatName: rep.beat_name ?? '',
                         rangeName: rep.range_name ?? '',
                         divisionName: rep.division_name ?? '',
+                        male: rep.male_count || 0,
+                        female: rep.female_count || 0,
+                        calf: rep.calf_count || 0,
+                        unknown: rep.unknown_count || 0,
                         total:
                             (rep.male_count || 0) +
                             (rep.female_count || 0) +
@@ -147,6 +164,9 @@ export default function NearbySightings() {
                         compassBearing: rep.compass_bearing ?? null,
                         indirectSigns: rep.indirect_sign_details || [],
                         damage: damageParts.join(', ') || null,
+                        lossDetails: rep.conflict_loss_details || [],
+                        damageCategories: rep.damage_categories || [],
+                        damageDescription: rep.damage_description ?? null,
                         notes: rep.notes ?? null,
                         photoPath: rep.photo_path ?? null,
                     };
@@ -197,12 +217,22 @@ export default function NearbySightings() {
                     beatName: rep.geo_beats?.name ?? '',
                     rangeName: rep.geo_beats?.geo_ranges?.name ?? '',
                     divisionName: rep.geo_beats?.geo_ranges?.geo_divisions?.name ?? '',
+                    male: obs?.male_count || 0,
+                    female: obs?.female_count || 0,
+                    calf: obs?.calf_count || 0,
+                    unknown: obs?.unknown_count || 0,
                     total: (obs?.male_count || 0) + (obs?.female_count || 0) + (obs?.calf_count || 0) + (obs?.unknown_count || 0),
                     deviceTimestamp: rep.device_timestamp,
                     distanceKm,
                     compassBearing: obs?.compass_bearing ?? null,
                     indirectSigns: obs?.indirect_sign_details || [],
                     damage: damages.join(', ') || (obs?.conflict_loss_details || []).join(', ') || null,
+                    lossDetails: obs?.conflict_loss_details || [],
+                    damageCategories: (rep.conflict_damages || []).map((d: { category?: string }) => d.category || '').filter(Boolean),
+                    damageDescription: (rep.conflict_damages || [])
+                        .map((d: { description?: string }) => d.description || '')
+                        .filter(Boolean)
+                        .join('; ') || null,
                     notes: rep.notes ?? null,
                     photoPath: null,
                 });
@@ -291,43 +321,13 @@ export default function NearbySightings() {
             has_notes: Boolean(item.notes),
             has_damage: Boolean(item.damage),
         });
-        let photoUrl: string | undefined;
-        let file: File | undefined;
-        if (item.photoPath) {
-            try {
-                const { data } = await supabase.storage.from('report_media').createSignedUrl(item.photoPath, 3600);
-                photoUrl = data?.signedUrl;
-                if (photoUrl) {
-                    const resp = await fetch(photoUrl);
-                    if (resp.ok) {
-                        const blob = await resp.blob();
-                        file = new File([blob], `sighting-${item.id}.jpg`, { type: blob.type || 'image/jpeg' });
-                    }
-                }
-            } catch { /* share text only */ }
-        }
-        const text = buildSightingShareText({
-            typeLabel: typeLabel(item.type),
-            dateLabel: formatShareDate(item.deviceTimestamp),
-            division: item.divisionName,
-            range: item.rangeName,
-            beat: item.beatName,
-            elephantTotal: item.total,
-            directionDeg: item.compassBearing,
-            damage: item.damage,
-            notes: item.notes,
-            lat: item.lat,
-            lng: item.lng,
-            dms: formatLatLngDms(item.lat, item.lng),
-            photoUrl,
-            labels: shareLabels,
-        });
-        const res = await shareOrCopy({ title: t('share.reportTitle'), text, file });
+        const text = await composeShareText(item);
+        const res = await shareOrCopy({ title: t('share.reportTitle'), text });
         track('nearby.share_result', {
             screen: 'nearby',
             result: res,
-            included_file: Boolean(file),
-            included_photo_url: Boolean(photoUrl),
+            included_file: false,
+            included_photo_url: text.includes('📷'),
         });
         if (res === 'copied') setShareMsg(t('share.copied'));
         else if (res === 'failed') setShareMsg(t('share.failed'));
@@ -467,22 +467,9 @@ export default function NearbySightings() {
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            const text = buildSightingShareText({
-                                                                typeLabel: typeLabel(item.type),
-                                                                dateLabel: formatShareDate(item.deviceTimestamp),
-                                                                division: item.divisionName,
-                                                                range: item.rangeName,
-                                                                beat: item.beatName,
-                                                                elephantTotal: item.total,
-                                                                directionDeg: item.compassBearing,
-                                                                damage: item.damage,
-                                                                notes: item.notes,
-                                                                lat: item.lat,
-                                                                lng: item.lng,
-                                                                dms: formatLatLngDms(item.lat, item.lng),
-                                                                labels: shareLabels,
+                                                            void composeShareText(item).then((text) => {
+                                                                downloadTextFile(`sighting-${item.id}.txt`, text);
                                                             });
-                                                            downloadTextFile(`sighting-${item.id}.txt`, `${text}\n${t('share.map')}: ${mapsLink(item.lat, item.lng)}`);
                                                         }}
                                                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background text-xs font-semibold"
                                                     >

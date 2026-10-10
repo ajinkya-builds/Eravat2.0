@@ -288,7 +288,7 @@ Automation: `node scripts/review-feedback-e2e.mjs` (includes R3.* checks) + unit
 - [ ] **R3.3** Editing report lat/lng updates Division/Range/Beat online.
 - [ ] **R3.4** Offline report review shows selected DRB names (or “on sync”); share includes DRB when known.
 - [ ] **R3.5** Nearby lists sightings near device GPS (also visible on Map).
-- [ ] **R3.6** Share text uses DD-MM-YYYY, includes description, and photo when the platform supports file share.
+- [ ] **R3.6** Share opens the system share sheet (WhatsApp and other apps). The message uses the Gaj Rakshak layout: date, time, division, range, beat, elephant counts, crop/grain/house/human loss as yes/no, description, coordinates, a photo link in the text, and a map link. The photo is not attached as a separate file.
 - [ ] **R3.7** Villager / Hathi Mitra onboard DRB comes from GPS (not the guard’s assigned beat).
 - [ ] **R3.8** My Villagers shows only people the current user onboarded.
 - [ ] **R3.9** Report photo step: **Take Photo Now** primary, **Attach from Gallery** secondary.

@@ -6,8 +6,8 @@ const store = vi.hoisted(() => ({
     media: [] as LocalMedia[],
 }));
 
-function rowsBy<T extends Record<string, unknown>>(rows: T[], index: string, value: unknown) {
-    return rows.filter((row) => row[index] === value);
+function rowsBy<T extends object>(rows: T[], index: string, value: unknown) {
+    return rows.filter((row) => (row as Record<string, unknown>)[index] === value);
 }
 
 vi.mock('../../db', () => ({
