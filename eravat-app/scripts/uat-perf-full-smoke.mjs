@@ -1,8 +1,8 @@
 /**
- * Full staging smoke for performance hardening.
- * Prereq: VITE_BASE_PATH=/ npx vite build --mode staging
+ * Full uat smoke for performance hardening.
+ * Prereq: VITE_BASE_PATH=/ npx vite build --mode uat
  *         npx vite preview --port 4173 --strictPort
- * Run: node scripts/staging-perf-full-smoke.mjs
+ * Run: node scripts/uat-perf-full-smoke.mjs
  *
  * Auth model: OTP login; session persists until explicit logout (no PIN).
  */
@@ -11,7 +11,7 @@ import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import fs from 'fs';
 
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/e2e-perf-full');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/e2e-perf-full');
 const BASE = 'http://127.0.0.1:4173';
 const USERS = {
   beat_guard: { phone: '8889184712', pin: '1234' },
@@ -308,9 +308,9 @@ await check('Admin map (Leaflet)', async () => {
 await adminContext.close();
 await browser.close();
 
-// API concurrency probe (staging)
+// API concurrency probe (uat)
 const env = Object.fromEntries(
-  fs.readFileSync('.env.staging.local', 'utf8').split('\n').filter((l) => l && !l.startsWith('#')).map((l) => {
+  fs.readFileSync('.env.uat.local', 'utf8').split('\n').filter((l) => l && !l.startsWith('#')).map((l) => {
     const i = l.indexOf('=');
     return [l.slice(0, i), l.slice(i + 1)];
   }),
@@ -368,7 +368,7 @@ const summary = {
   baseUrl: BASE,
   notes: [
     'OTP session persists until explicit logout; no PIN or biometric gate.',
-    'Bundle targets staging ttjtyvxfiqhjdngkgdkf.',
+    'Bundle targets uat ttjtyvxfiqhjdngkgdkf.',
   ],
 };
 

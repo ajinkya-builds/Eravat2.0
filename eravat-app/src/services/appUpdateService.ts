@@ -36,7 +36,10 @@ export type MigrationPrepResult = {
 
 const APK_FILENAME = 'eravat-update.apk';
 
-/** Staging public manifest on Supabase Storage (overridable). */
+/**
+ * UAT update manifest on Supabase Storage (overridable).
+ * The object key stays `staging/latest.json` so apps already installed keep finding updates.
+ */
 export function defaultUpdateManifestUrl(): string {
   const fromEnv = (import.meta.env.VITE_UPDATE_MANIFEST_URL as string | undefined)?.trim();
   if (fromEnv) return fromEnv;

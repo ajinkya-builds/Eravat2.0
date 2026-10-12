@@ -2,7 +2,7 @@
 
 ## Product decision
 
-New staging keystore + Settings **guided uninstall** (no WhatsApp APK/link each release once devices are on a build that includes this UI).
+New UAT keystore + Settings **guided uninstall** (no WhatsApp APK/link each release once devices are on a build that includes this UI).
 
 ## App changes (2.1.7)
 

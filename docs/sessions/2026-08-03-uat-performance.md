@@ -1,12 +1,12 @@
-# Session: 2026-08-03 — Staging performance hardening
+# Session: 2026-08-03 — UAT performance hardening
 
 ## Goal
 
-Keep ≥50 concurrent foreground sessions smooth on core flows, and validate ~3,000 background logged-in devices do not create polling/Realtime/API storms. Staging Supabase only (`ttjtyvxfiqhjdngkgdkf`). Prod DB not touched.
+Keep ≥50 concurrent foreground sessions smooth on core flows, and validate ~3,000 background logged-in devices do not create polling/Realtime/API storms. UAT Supabase only (`ttjtyvxfiqhjdngkgdkf`). Prod DB not touched.
 
 ## Baseline (before)
 
-Measured via code audit + staging advisors + REST probes against publishable key:
+Measured via code audit + UAT advisors + REST probes against publishable key:
 
 | Area | Before |
 |------|--------|
@@ -18,7 +18,7 @@ Measured via code audit + staging advisors + REST probes against publishable key
 | Nearby | Download 500 reports + turf filter in JS |
 | Admin users | Full profiles + all assignments dump |
 | Admin home | Sequential KPI queries + Leaflet map always mounted |
-| Staging advisors | 43 `auth_rls_initplan`, 5 unindexed FKs, heavy overlapping report SELECT policies |
+| UAT advisors | 43 `auth_rls_initplan`, 5 unindexed FKs, heavy overlapping report SELECT policies |
 | REST (anon) reports `limit=8` | **HTTP 500 / statement timeout (~3.2s)** |
 | REST (anon) `reports_nearby` | **HTTP 500 / statement timeout (~3.2s)** |
 
@@ -37,7 +37,7 @@ Measured via code audit + staging advisors + REST probes against publishable key
 - AdminDashboard: parallel KPI fetch; map behind “Show live map”
 - Hathi Mitra: debounce 300ms; drop `t` from VillagersList fetch deps
 
-### Staging DB (applied remotely; **not** prod)
+### UAT DB (applied remotely; **not** prod)
 
 Migrations:
 
@@ -56,7 +56,7 @@ Indexes added:
 
 | Probe | After |
 |-------|-------|
-| Staging build | Code-split: `MapComponent` ~219 kB, `AdminDashboard` ~36 kB, `ReportActivityPage` ~51 kB separate chunks; main still ~983 kB |
+| UAT build | Code-split: `MapComponent` ~219 kB, `AdminDashboard` ~36 kB, `ReportActivityPage` ~51 kB separate chunks; main still ~983 kB |
 | Unit tests | **22/22 pass** (`authPerf` + existing) |
 | Typecheck | `tsc --noEmit` clean |
 | reports `limit=8` (anon) | **200** in ~1.9s (empty under RLS — no timeout) |
@@ -73,12 +73,12 @@ Indexes added:
 - Sync: reconnect only after offline, debounced, skipped when queue empty
 - AuthContext currently clears legacy `eravat_secure_session` and does **not** PIN-lock on resume (session via Supabase persistSession). Foreground restore = JWT refresh + cached profile; full OTP re-login not required while refresh token valid
 
-### Full staging smoke (2026-08-04 retest)
+### Full UAT smoke (2026-08-04 retest)
 
-Script: `eravat-app/scripts/staging-perf-full-smoke.mjs`  
-Artifacts: `Go live Prep - Staging/generated/e2e-perf-full/` (`results.json`, screenshots)
+Script: `eravat-app/scripts/uat-perf-full-smoke.mjs`  
+Artifacts: `Go live Prep - UAT/generated/e2e-perf-full/` (`results.json`, screenshots)
 
-**19/19 PASS** (unit 22/22 already green; `tsc` clean; staging bundle confirmed).
+**19/19 PASS** (unit 22/22 already green; `tsc` clean; UAT bundle confirmed).
 
 | Check | Result | Notes |
 |-------|--------|-------|
@@ -104,19 +104,19 @@ Preview must use `VITE_BASE_PATH=/` (same as APK build) or vite serves `/Eravat2
 ## APK
 
 ```
-Go live Prep - Staging/generated/Eravat-Staging-2.0.0-perf-20260803T171744Z.apk
+Go live Prep - UAT/generated/Eravat-Staging-2.0.0-perf-20260803T171744Z.apk
 ```
 
-- Build: `VITE_BASE_PATH=/ npx vite build --mode staging` → `npx cap sync android` → `./gradlew assembleDebug`
-- Points at staging (`ttjtyvxfiqhjdngkgdkf`) via `.env.staging.local`
-- Size ~10 MB debug; branch `staging` @ `38c7607` + local uncommitted perf changes in this session
+- Build: `VITE_BASE_PATH=/ npx vite build --mode uat` → `npx cap sync android` → `./gradlew assembleDebug`
+- Points at UAT (`ttjtyvxfiqhjdngkgdkf`) via `.env.uat.local`
+- Size ~10 MB debug; branch `uat` @ `38c7607` + local uncommitted perf changes in this session
 
 ## Residual risks
 
 - Overlapping permissive SELECT policies on `reports` remain (advisor noise); further consolidation would help authenticated latency further
 - Anon/unauthenticated reports list still ~1.5–2 s (empty) under multi-policy OR — authenticated users with beat scope should be faster via indexes; worth measuring with a real JWT next
 - Main JS chunk still large; further manualChunks possible
-- Prod not updated — promote indexes/RLS only after staging soak + explicit ask
+- Prod not updated — promote indexes/RLS only after UAT soak + explicit ask
 - Playwright smoke needs selector/PIN-expectation updates for current auth UX
 
 ## Success checklist
@@ -125,4 +125,4 @@ Go live Prep - Staging/generated/Eravat-Staging-2.0.0-perf-20260803T171744Z.apk
 - [x] Best-effort 20-parallel (proxy for 50) hot endpoints without systemic failures
 - [x] Background model validated (no polling; refresh/push/sync gated)
 - [x] Unit tests pass; smoke documented
-- [x] Staging APK produced and path documented
+- [x] UAT APK produced and path documented

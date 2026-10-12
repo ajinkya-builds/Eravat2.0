@@ -19,7 +19,7 @@ const meta = `/** AUTO-GENERATED from ../version.json — run \`npm run version:
 export const APP_VERSION_META = {
   versionName: ${JSON.stringify(version.versionName)},
   versionCode: ${Number(version.versionCode)},
-  channel: ${JSON.stringify(version.channel || 'staging')},
+  channel: ${JSON.stringify(version.channel || 'uat')},
   releasedAt: ${JSON.stringify(version.releasedAt || '')},
   changes: ${JSON.stringify(changes, null, 2).replace(/\n/g, '\n  ')},
 } as const;

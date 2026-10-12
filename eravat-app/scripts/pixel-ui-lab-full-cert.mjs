@@ -1,6 +1,6 @@
 /**
- * Full UI Lab APK certification on a physical Pixel against staging.
- * Package: com.forestdept.eravat (productized UI lab on the staging app).
+ * Full UI Lab APK certification on a physical Pixel against uat.
+ * Package: com.forestdept.eravat (productized UI lab on the uat app).
  *
  * Covers gaps beyond the smoke e2e: nearby/history/villagers/onboard,
  * full report submit→history, offline queue→online, notification UI.
@@ -16,7 +16,7 @@ import { CdpPage } from './cdp-page.mjs';
 const PKG = 'com.forestdept.eravat';
 const ACTIVITY = 'com.forestdept.eravat/.MainActivity';
 const APP_VERSION = JSON.parse(readFileSync(join(process.cwd(), 'version.json'), 'utf8'));
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/ui-feedback/pixel-full-cert');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/ui-feedback/pixel-full-cert');
 const SDK = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || `${process.env.HOME}/Library/Android/sdk`;
 const ADB_BIN = `${SDK}/platform-tools/adb`;
 const LAT = '23.857845625031';
@@ -51,7 +51,7 @@ function sleep(ms) {
 }
 
 const manifest = JSON.parse(
-  readFileSync(join(process.cwd(), '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
+  readFileSync(join(process.cwd(), '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
 );
 function pick(role) {
   const u = manifest.find((x) => x.role === role);
@@ -361,7 +361,7 @@ async function completeReportToSubmit({ offlineLabel = false } = {}) {
   const injected = await injectPhoto();
   if (!injected) {
     const hasBtn = await page.evaluate(() => !!document.querySelector('[data-testid="e2e-inject-photo"]'));
-    if (!hasBtn) throw new Error('e2e-inject-photo unavailable — rebuild staging APK');
+    if (!hasBtn) throw new Error('e2e-inject-photo unavailable — rebuild uat APK');
   }
   sleep(500);
   await clickContinue();
@@ -403,7 +403,7 @@ process.on('SIGINT', () => {
 launchApp();
 page = await CdpPage.connect(forwardDevtools());
 
-await check('Package is staging Eravat', async () => {
+await check('Package is uat Eravat', async () => {
   const dump = adb('shell', 'dumpsys', 'package', PKG);
   if (!dump.includes(`versionName=${APP_VERSION.versionName}`)) {
     throw new Error(`not ${APP_VERSION.versionName}`);
@@ -518,7 +518,7 @@ await check('Profile + Settings chrome', async () => {
   await shot('09-settings');
 });
 
-await check('Full report submit → saved (staging)', async () => {
+await check('Full report submit → saved (uat)', async () => {
   await completeReportToSubmit();
   const result = await page.evaluate(() => ({
     body: document.body.innerText,
@@ -537,7 +537,7 @@ await check('Full report submit → saved (staging)', async () => {
   await shot('11-history-after-submit');
 });
 
-await check('Villager onboard submit (staging write)', async () => {
+await check('Villager onboard submit (uat write)', async () => {
   await page.goto('https://localhost/villagers/onboard');
   sleep(2500);
   const uniqueMobile = `99${String(Date.now()).slice(-8)}`;
@@ -589,7 +589,7 @@ await check('Offline report queues locally then recovers', async () => {
     await page.goto('https://localhost/report');
     sleep(2500);
     const injected = await injectPhoto();
-    if (!injected) throw new Error('e2e-inject-photo unavailable — rebuild staging APK');
+    if (!injected) throw new Error('e2e-inject-photo unavailable — rebuild uat APK');
     sleep(500);
     await clickContinue();
     sleep(1200);
@@ -688,7 +688,7 @@ const summary = {
   versionName: APP_VERSION.versionName,
   versionCode: APP_VERSION.versionCode,
   channel: 'ui-feedback',
-  backend: 'staging (ttjtyvxfiqhjdngkgdkf)',
+  backend: 'uat (ttjtyvxfiqhjdngkgdkf)',
   note: 'Full UI Lab device certification — field deep paths + offline + CC notifications UI',
   passed,
   failed,

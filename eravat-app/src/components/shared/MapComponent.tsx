@@ -228,7 +228,7 @@ export function MapComponent({ reportPoints, showObservationPins = true }: MapCo
     const [showHeatmap, setShowHeatmap] = useState(false);
 
     // Date range filter (empty = all time). Default all-time so historical
-    // staging seed / UAT data is visible; testers can narrow with From/To.
+    // UAT seed data is visible; testers can narrow with From/To.
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 

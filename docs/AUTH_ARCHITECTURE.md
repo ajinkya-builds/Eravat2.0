@@ -413,7 +413,7 @@ Reconsider only if Supabase Auth is outgrown for unrelated reasons
 
 Assumes 500 active users, 100 SMS/day enrollment baseline, 14-day re-auth cycle.
 
-| Scenario                              |    SMS/month | Staging (Test OTP) |    MSG91 (DLT) |
+| Scenario                              |    SMS/month | UAT (Test OTP) |    MSG91 (DLT) |
 | ------------------------------------- | -----------: | -----------------: | -------------: |
 | Today (every login = OTP)             |     ~15,000 |              Free  | ~$22 (₹1,830) |
 | With PIN (enrollment + 14-day reauth) |     ~1,500 |              Free  | ~$2.20         |
@@ -508,7 +508,7 @@ friction and unblocks the no-network use case entirely. The cost win is a bonus.
 - [ ] **MSG91 DLT registration details.** Header name candidates? Suggest
       `ERAVAT`. Principal Entity = "Forest Department, Madhya Pradesh" — confirm.
 - [ ] **PIN length default.** 6 digits proposed. Acceptable, or 4 / 8?
-- [ ] **SMS Gateway post-migration.** Transition staging/production to DLT-compliant gateway when needed.
+- [ ] **SMS Gateway post-migration.** Transition UAT/production to DLT-compliant gateway when needed.
 - [ ] **Failed-attempt wipe threshold.** 15 failures proposed (full
       re-enrollment). Acceptable, or stricter (10) / looser (20)?
 

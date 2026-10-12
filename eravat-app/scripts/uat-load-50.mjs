@@ -1,5 +1,5 @@
 /**
- * 50 concurrent authenticated sessions against staging API + preview.
+ * 50 concurrent authenticated sessions against uat API + preview.
  * Uses the five tester OTP accounts, 10 workers each.
  */
 import { createClient } from '@supabase/supabase-js';
@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
 const env = Object.fromEntries(
-  readFileSync(new URL('../.env.staging.local', import.meta.url), 'utf8')
+  readFileSync(new URL('../.env.uat.local', import.meta.url), 'utf8')
     .split('\n')
     .filter((l) => l && !l.startsWith('#'))
     .map((l) => {
@@ -123,7 +123,7 @@ for (const k of Object.keys(byName)) {
 }
 
 const fails = settled.filter((r) => !r.ok || r.status >= 500);
-const outDir = join(process.cwd(), '../Go live Prep - Staging/generated/load-50');
+const outDir = join(process.cwd(), '../Go live Prep - UAT/generated/load-50');
 mkdirSync(outDir, { recursive: true });
 const summary = {
   sessions: tokens.length * WORKERS_PER_USER,

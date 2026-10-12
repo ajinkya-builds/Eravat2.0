@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 /**
- * Upload staging APK + latest.json to Supabase Storage bucket `app-updates`.
+ * Upload the UAT APK + latest.json to Supabase Storage bucket `app-updates`.
  *
  * Env:
- *   STAGE_SUPABASE_URL or VITE_SUPABASE_URL
- *   STAGE_SUPABASE_SERVICE_ROLE (required — service role key, never ship in the app)
+ *   UAT_SUPABASE_URL or STAGE_SUPABASE_URL or VITE_SUPABASE_URL
+ *   UAT_SUPABASE_SERVICE_ROLE or STAGE_SUPABASE_SERVICE_ROLE (service role; never ship in the app)
  *   APK_PATH (default: android debug APK path)
  *   VERSION_CODE, VERSION_NAME, RELEASE_NOTES (optional — defaults from version.json)
+ *
+ * Object keys stay under `staging/` so installed apps and the public share link keep working.
  */
 import { createClient } from '@supabase/supabase-js';
 import fs from 'node:fs';
@@ -17,20 +19,26 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const versionFile = JSON.parse(fs.readFileSync(path.join(root, 'version.json'), 'utf8'));
 
-const url = (process.env.STAGE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
-const serviceKey = process.env.STAGE_SUPABASE_SERVICE_ROLE || '';
+const url = (
+  process.env.UAT_SUPABASE_URL ||
+  process.env.STAGE_SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  ''
+).replace(/\/$/, '');
+const serviceKey =
+  process.env.UAT_SUPABASE_SERVICE_ROLE || process.env.STAGE_SUPABASE_SERVICE_ROLE || '';
 const versionCode = Number(process.env.VERSION_CODE || versionFile.versionCode || '0');
 const versionName = process.env.VERSION_NAME || versionFile.versionName || `2.0.${versionCode || '0'}`;
 const changes = Array.isArray(versionFile.changes) ? versionFile.changes : [];
 const notes =
   process.env.RELEASE_NOTES ||
-  (changes.length ? changes.map((c) => `• ${c}`).join('\n') : `Staging build ${versionName}`);
+  (changes.length ? changes.map((c) => `• ${c}`).join('\n') : `UAT build ${versionName}`);
 const apkPath =
   process.env.APK_PATH ||
   path.resolve(process.cwd(), 'android/app/build/outputs/apk/debug/app-debug.apk');
 
 if (!url || !serviceKey) {
-  console.error('Missing STAGE_SUPABASE_URL / VITE_SUPABASE_URL or STAGE_SUPABASE_SERVICE_ROLE');
+  console.error('Missing UAT_SUPABASE_URL / STAGE_SUPABASE_URL / VITE_SUPABASE_URL or a UAT service role key');
   process.exit(1);
 }
 if (!versionCode || !Number.isFinite(versionCode)) {
@@ -46,7 +54,7 @@ const supabase = createClient(url, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-// Hard rule: this path is the install link. Always upsert it; never rename per version.
+// Frozen install link. The `staging/` prefix is historical; do not rename it per version or for the UAT rename.
 const apkObject = 'staging/eravat-staging.apk';
 const manifestObject = 'staging/latest.json';
 const historyObject = `staging/history/${versionName}.json`;
@@ -68,7 +76,7 @@ const manifest = {
   versionName,
   apkUrl: pub.publicUrl,
   releasedAt: new Date().toISOString(),
-  channel: versionFile.channel || 'staging',
+  channel: versionFile.channel || 'uat',
   notes,
   changes,
   // Signing-reset / migration builds: Settings saves APK to Downloads then guides uninstall.
@@ -89,7 +97,7 @@ for (const objectPath of [manifestObject, historyObject]) {
 }
 
 const { data: manPub } = supabase.storage.from('app-updates').getPublicUrl(manifestObject);
-console.log('Published staging update:');
+console.log('Published UAT update:');
 console.log('  manifest:', manPub.publicUrl);
 console.log('  apk:', pub.publicUrl);
 console.log('  version:', versionName, `(${versionCode})`);

@@ -13,7 +13,7 @@ This is **not** the Android debug keystore and **not** Play App Signing.
 
 1. Local (or once): create `release.jks` + `eravat-app/android/keystore.properties`
 2. Upload to GitHub via `scripts/set-android-signing-secrets.sh` → secrets `ANDROID_KEYSTORE_*`
-3. CI `staging-build.yml` decodes the keystore, `assembleRelease`, publishes via `publish-staging-apk.mjs`
+3. CI `uat-build.yml` decodes the keystore, `assembleRelease`, publishes via `publish-uat-apk.mjs`
 
 ## Current gap
 

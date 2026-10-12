@@ -1,13 +1,13 @@
 /**
- * Production-readiness journeys against staging web (same bundle as APK).
- * Prereq: VITE_BASE_PATH=/ npx vite build --mode staging
+ * Production-readiness journeys against uat web (same bundle as APK).
+ * Prereq: VITE_BASE_PATH=/ npx vite build --mode uat
  *         VITE_BASE_PATH=/ npx vite preview --port 4173 --strictPort --host 127.0.0.1
  */
 import { chromium } from '@playwright/test';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/prod-readiness-e2e');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/prod-readiness-e2e');
 const BASE = process.env.E2E_BASE || 'http://127.0.0.1:4173';
 const OTP = '123456';
 

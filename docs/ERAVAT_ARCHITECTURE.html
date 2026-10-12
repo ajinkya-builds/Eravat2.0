@@ -341,7 +341,7 @@
         </p>
         <div class="meta">
           <span class="pill"><strong>Style</strong> Modular monolith + BaaS</span>
-          <span class="pill"><strong>App</strong> eravat-app @ 2.1.2 (staging channel)</span>
+          <span class="pill"><strong>App</strong> eravat-app @ 2.1.2 (UAT channel)</span>
           <span class="pill"><strong>Bundle</strong> com.forestdept.eravat</span>
           <span class="pill"><strong>Prod project</strong> mnytrlcmdpkfhrzrtesf</span>
           <span class="pill"><strong>Updated</strong> 2026-09-03 · CTO-complete</span>
@@ -367,7 +367,7 @@
           <h4>What you own as CTO</h4>
           <ul>
             <li>Architecture style: modular monolith + BaaS (locked)</li>
-            <li>Staging vs production promotion discipline</li>
+            <li>UAT vs production promotion discipline</li>
             <li>Security / key rotation / RLS debt</li>
             <li>Go-live gates (SMS, push, pilot accounts)</li>
             <li>$0 telemetry posture (PostHog free + billing caps)</li>
@@ -377,7 +377,7 @@
         <div class="card">
           <h4>What “done” looks like for a pilot</h4>
           <ul>
-            <li>Signed Android APK on staging/prod with correct env</li>
+            <li>Signed Android APK on UAT/prod with correct env</li>
             <li>Offline report + photo sync works after reconnect</li>
             <li>Chain-of-command / proximity alerts fire for scoped officers</li>
             <li>Only enrolled phones can auth (no ghost users)</li>
@@ -432,8 +432,8 @@
             <td>Ship Firebase config · or brief pilots explicitly</td>
           </tr>
           <tr>
-            <td>Promote staging migrations (notify recipients, perf indexes)</td>
-            <td>Staging ahead of prod on life-safety alert paths</td>
+            <td>Promote UAT migrations (notify recipients, perf indexes)</td>
+            <td>UAT ahead of prod on life-safety alert paths</td>
             <td>Explicit promote after soak — never silent</td>
           </tr>
         </tbody>
@@ -634,25 +634,25 @@ flowchart TB
         <thead><tr><th>Dimension</th><th>Current / target</th><th>Implication</th></tr></thead>
         <tbody>
           <tr><td>Geography</td><td>11 divisions · 80 ranges · 1,222 beats</td><td>PostGIS + assignment tables are core</td></tr>
-          <tr><td>Foreground concurrency</td><td>≥50 smooth sessions (staging goal)</td><td>Indexes, debounce, avoid N+1 / full scans</td></tr>
+          <tr><td>Foreground concurrency</td><td>≥50 smooth sessions (UAT goal)</td><td>Indexes, debounce, avoid N+1 / full scans</td></tr>
           <tr><td>Background logged-in</td><td>~3,000 devices model</td><td>No polling storms; careful Realtime / refresh</td></tr>
           <tr><td>Users (near-term)</td><td>Hundreds → low thousands staff</td><td>Not consumer scale; Kafka unnecessary</td></tr>
-          <tr><td>Hathi Mitra data</td><td>Staging ~6.7k villagers (order of)</td><td>Search must be limited/indexed</td></tr>
+          <tr><td>Hathi Mitra data</td><td>UAT ~6.7k villagers (order of)</td><td>Search must be limited/indexed</td></tr>
           <tr><td>Admin dashboard pull</td><td>30-day window, <code>limit(500)</code></td><td>Metrics can undercount busy divisions</td></tr>
         </tbody>
       </table>
 
-      <h3 id="hathi">Hathi Mitra (villagers) — staging-first feature</h3>
+      <h3 id="hathi">Hathi Mitra (villagers) — UAT-first feature</h3>
       <div class="callout warn">
         <strong>Environment skew</strong>
-        Villages / villagers schema and UI were advanced on <strong>staging</strong>.
+        Villages / villagers schema and UI were advanced on <strong>UAT</strong>.
         Confirm prod has equivalent tables before assuming production parity.
         Routes: <code>/villagers</code>, <code>/villagers/onboard</code>, <code>/villagers/:id</code>, admin <code>/admin/villagers</code>.
         Client helpers: <code>lib/villagerRegistry.ts</code>, <code>registrationSyncService.ts</code>.
       </div>
       <ul>
         <li>Onboarding can queue offline and sync via registration sync service.</li>
-        <li>Certification scripts cover villager onboard + SMS queue events on staging.</li>
+        <li>Certification scripts cover villager onboard + SMS queue events on UAT.</li>
         <li>Do not full-table-scan villagers on every keystroke — debounce + indexes.</li>
       </ul>
 
@@ -668,23 +668,23 @@ flowchart TB
             <td>Go-live pilot project; geography seeded; activity may be wiped/reseeded</td>
           </tr>
           <tr>
-            <td>Staging</td>
+            <td>UAT</td>
             <td><code>ttjtyvxfiqhjdngkgdkf</code></td>
-            <td><code>.env.staging.local</code></td>
-            <td>Primary eng branch <code>staging</code>; Hathi Mitra + perf work lands here first</td>
+            <td><code>.env.uat.local</code></td>
+            <td>Primary eng branch <code>uat</code>; Hathi Mitra + perf work lands here first</td>
           </tr>
           <tr>
             <td>Local / web preview</td>
-            <td>Usually staging or local</td>
+            <td>Usually UAT or local</td>
             <td><code>.env.local</code></td>
             <td>Empty PostHog key = no remote telemetry</td>
           </tr>
         </tbody>
       </table>
       <ul>
-        <li>GitHub Pages historically served web at <code>/Eravat2.0/</code>; staging web may use Netlify.</li>
+        <li>GitHub Pages historically served web at <code>/Eravat2.0/</code>; UAT web may use Netlify.</li>
         <li>Android builds use <code>VITE_BASE_PATH=/</code> (no Pages subpath).</li>
-        <li><strong>Never</strong> point a staging APK at prod DB by accident — verify URL in env before install.</li>
+        <li><strong>Never</strong> point a UAT APK at prod DB by accident — verify URL in env before install.</li>
         <li>Workspace rule: DB/Edge changes must be applied on the remote project, not only committed as migration files.</li>
       </ul>
 
@@ -694,7 +694,7 @@ flowchart TB
         <tbody>
           <tr><td><code>VITE_SUPABASE_URL</code> + publishable / anon</td><td>Client bundle</td><td>Public by design; protected by RLS</td></tr>
           <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code> / <code>sb_secret_...</code></td><td>Edge, CI, local scripts only</td><td><strong>Never</strong> <code>VITE_*</code>; bypasses RLS</td></tr>
-          <tr><td>PostHog project token</td><td>Client (opt-in)</td><td>Staging vs prod projects; tag <code>app_env</code></td></tr>
+          <tr><td>PostHog project token</td><td>Client (opt-in)</td><td>UAT vs prod projects; tag <code>app_env</code></td></tr>
           <tr><td>Android keystore</td><td>Local <code>backups/android-signing/</code> + CI secrets</td><td>Gitignored; required for release signing</td></tr>
           <tr><td>FCM / <code>google-services.json</code></td><td>Android app</td><td>Without it, push may not work</td></tr>
           <tr><td>RCLONE / Drive backup secrets</td><td>GitHub Actions</td><td>Nightly dumps to Eravat Google Drive</td></tr>
@@ -709,14 +709,14 @@ flowchart TB
       </div>
       <p>Canonical local template: <code>eravat-app/.env.example</code>.</p>
 
-      <h3 id="versioning">Staging versioning &amp; in-app updates</h3>
+      <h3 id="versioning">UAT versioning &amp; in-app updates</h3>
       <ul>
         <li>Source of truth: <code>eravat-app/version.json</code> (+ <code>CHANGELOG.md</code>); generated <code>src/version.meta.ts</code> via <code>npm run version:sync</code>.</li>
         <li>Scheme: <code>MAJOR.MINOR.PATCH</code> + always-increasing Android <code>versionCode</code>.</li>
-        <li>Day-to-day staging ship → <strong>patch</strong>; user says “stable” → <strong>minor</strong> (patch resets).</li>
+        <li>Day-to-day UAT ship → <strong>patch</strong>; user says “stable” → <strong>minor</strong> (patch resets).</li>
         <li><strong>Never</strong> bump or publish APK update without explicit user confirmation.</li>
         <li>In-app Settings → Update needs CI + <code>STAGE_SUPABASE_SERVICE_ROLE</code> (or equivalent) to publish <code>latest.json</code>.</li>
-        <li>Current staging line (as of doc update): <code>2.1.2</code> / versionCode <code>20102</code>.</li>
+        <li>Current UAT line (as of doc update): <code>2.1.2</code> / versionCode <code>20102</code>.</li>
       </ul>
 
       <!-- 4. CLIENT -->
@@ -809,7 +809,7 @@ flowchart LR
           <tr><td><code>services/PushNotificationService.ts</code></td><td>FCM token registration → <code>push_tokens</code></td></tr>
           <tr><td><code>services/adminAnalyticsService.ts</code></td><td>Admin KPI aggregation</td></tr>
           <tr><td><code>services/edIntelligence.ts</code></td><td>ED dashboard intelligence helpers</td></tr>
-          <tr><td><code>services/appUpdateService.ts</code></td><td>Staging APK / <code>latest.json</code> update channel</td></tr>
+          <tr><td><code>services/appUpdateService.ts</code></td><td>UAT APK / <code>latest.json</code> update channel</td></tr>
           <tr><td><code>hooks/useGeolocation.ts</code></td><td>Capacitor GPS</td></tr>
           <tr><td><code>hooks/useCamera.ts</code></td><td>Capacitor camera → base64</td></tr>
           <tr><td><code>hooks/useAppLifecycleSync.ts</code></td><td>Resume / network-driven sync</td></tr>
@@ -998,7 +998,7 @@ sequenceDiagram
           <tr><td>Beat Guard onboard volunteers</td><td>Yes</td><td>Yes — <code>/volunteers/onboard</code> + RBAC</td></tr>
           <tr><td>Volunteer territory</td><td>Beat-scoped</td><td>create-user requires beat; inherits from BG caller</td></tr>
           <tr><td>Profile GPS required</td><td>Yes</td><td>Columns + completion UI + centroid fallback</td></tr>
-          <tr><td>Report read scope</td><td>Division/range/beat/own</td><td>RLS <code>can_read_report</code> (and staging perf variants)</td></tr>
+          <tr><td>Report read scope</td><td>Division/range/beat/own</td><td>RLS <code>can_read_report</code> (and UAT perf variants)</td></tr>
         </tbody>
       </table>
 
@@ -1143,8 +1143,8 @@ flowchart TD
           <h4>Android</h4>
           <ul>
             <li><code>npm run build</code> → <code>cap sync</code> → Gradle APK</li>
-            <li>Staging: <code>version.json</code> + in-app Update</li>
-            <li><code>staging-build.yml</code> CI</li>
+            <li>UAT: <code>version.json</code> + in-app Update</li>
+            <li><code>uat-build.yml</code> CI</li>
           </ul>
         </div>
         <div class="card">
@@ -1160,7 +1160,7 @@ flowchart TD
       <h3 id="backups">Backups &amp; disaster recovery</h3>
       <ul>
         <li><strong>Nightly GitHub Action:</strong> <code>.github/workflows/nightly-db-backup.yml</code> (18:30 UTC / 00:00 IST) → Eravat Google Drive via <code>scripts/backup-db-to-gdrive.sh</code> + rclone.</li>
-        <li>Secrets: <code>RCLONE_CONFIG</code>, <code>SUPABASE_ACCESS_TOKEN</code>, DB passwords for prod + staging.</li>
+        <li>Secrets: <code>RCLONE_CONFIG</code>, <code>SUPABASE_ACCESS_TOKEN</code>, DB passwords for prod + UAT.</li>
         <li>Drive retention: dumps older than 30 days deleted.</li>
         <li><strong>Local full prod snapshot pointer:</strong> <code>backups/LATEST_FULL_STAMP.txt</code> → e.g. <code>full-20260727T052931Z</code> (gitignored). Includes schema+data, inventory, edge list.</li>
         <li>Pre-wipe dumps: <code>backups/prod-prewipe-*</code>. Do not commit <code>backups/</code>.</li>
@@ -1171,7 +1171,7 @@ flowchart TD
       <p>From <code>docs/GO_LIVE_OPS.md</code> + certification docs — treat as a checklist, not folklore:</p>
       <ul class="checklist">
         <li>Prod has pilot <code>auth.users</code> + <code>profiles</code> + territory assignments (not an empty wipe)</li>
-        <li>Promote staging life-safety migrations (e.g. chain notify recipients including beat_guard/rrt) only after explicit ask</li>
+        <li>Promote UAT life-safety migrations (e.g. chain notify recipients including beat_guard/rrt) only after explicit ask</li>
         <li>Real SMS/DLT enabled <em>or</em> written scope limited to Test OTP phones</li>
         <li>Release APK includes <code>google-services.json</code> if push is required; else brief “in-app only”</li>
         <li>Legacy JWT service_role keys revoked; modern publishable/secret in CI</li>
@@ -1204,7 +1204,7 @@ flowchart TD
             <li><code>logger.ts</code> → exceptions</li>
             <li><code>analytics.ts</code> journey events</li>
             <li>Screen views; auth/sync funnels</li>
-            <li>Tag <code>app_env</code>: development/staging/production</li>
+            <li>Tag <code>app_env</code>: development/UAT/production</li>
           </ul>
         </div>
         <div class="card">
@@ -1220,7 +1220,7 @@ flowchart TD
       <div class="callout info">
         <strong>Privacy non-negotiables</strong>
         No OTP/PIN/passwords/tokens in events. Prefer user UUID. Mask phones. Never send report photos or narrative text to PostHog.
-        Session replay off by default. Billing limits $0 on PostHog. Today: one Staging PostHog project may temporarily serve multiple <code>app_env</code> tags until a Production project exists.
+        Session replay off by default. Billing limits $0 on PostHog. Today: one UAT PostHog project may temporarily serve multiple <code>app_env</code> tags until a Production project exists.
       </div>
       <div class="callout warn">
         <strong>Secrets</strong>
@@ -1241,7 +1241,7 @@ flowchart TD
       <ul>
         <li><strong>Playwright E2E</strong> under <code>eravat-app/tests/</code> (auth, dashboard, admin, offline-sync, report, i18n, privacy, …).</li>
         <li><strong>Vitest</strong> unit tests co-located / under <code>lib/__tests__</code>, <code>services/__tests__</code>.</li>
-        <li><strong>Staging certification:</strong> <code>docs/testing/GO_LIVE_CERTIFICATION.md</code> — scripts like <code>test:staging:deep</code>, notification/SMS queue e2e.</li>
+        <li><strong>UAT certification:</strong> <code>docs/testing/GO_LIVE_CERTIFICATION.md</code> — scripts like <code>test:uat:deep</code>, notification/SMS queue e2e.</li>
         <li><strong>FCM device setup:</strong> <code>docs/testing/FCM_AND_DEVICE_SETUP.md</code>.</li>
         <li><strong>Manual smoke:</strong> <code>docs/SMOKE_TEST_PILOT.md</code>, <code>docs/testing/MANUAL_SMOKE_CHECKLIST.md</code>.</li>
       </ul>
@@ -1293,7 +1293,7 @@ flowchart TD
           <tr><td>No push</td><td><code>google-services.json</code>; <code>push_tokens</code>; <code>send-push</code> logs; FCM credentials</td></tr>
           <tr><td>Admin can’t create user</td><td>Edge RBAC; CORS on Capacitor; function deploy version; caller JWT role</td></tr>
           <tr><td>App crash in field</td><td>PostHog exceptions (if opted in); device console; AppErrorBoundary</td></tr>
-          <tr><td>Staging/prod skew</td><td>Compare migrations list; villagers tables; notify trigger definitions</td></tr>
+          <tr><td>UAT/prod skew</td><td>Compare migrations list; villagers tables; notify trigger definitions</td></tr>
         </tbody>
       </table>
 
@@ -1302,8 +1302,8 @@ flowchart TD
         <li>Know which Supabase project each installed APK points at</li>
         <li>Confirm nightly Drive backups succeeded this week</li>
         <li>No service_role in client or public git</li>
-        <li>Staging soak before promoting notify/RLS/index migrations</li>
-        <li>Version bump only with explicit “push update to staging apps”</li>
+        <li>UAT soak before promoting notify/RLS/index migrations</li>
+        <li>Version bump only with explicit “push update to UAT apps”</li>
         <li>Privacy Policy / analytics consent before broad PostHog on prod</li>
         <li>Pilot briefed on Test OTP limits and push availability</li>
         <li>Revisit Kafka/custom APIs only when scale triggers in §non-goals fire</li>
@@ -1315,7 +1315,7 @@ flowchart TD
 │   ├── src/                    # App, routes, contexts, services, lib
 │   ├── android/                # Native project
 │   ├── tests/                  # Playwright
-│   ├── version.json            # Staging versionName / versionCode
+│   ├── version.json            # UAT versionName / versionCode
 │   └── .env.example            # Env template
 ├── supabase/
 │   ├── migrations/             # Schema history (apply remotely!)
@@ -1326,8 +1326,8 @@ flowchart TD
 ├── scripts/                    # Backup, GIS processing, Drive auth
 ├── backups/                    # Local only — DB dumps, keystore (gitignored)
 ├── docs/                       # This handbook + runbooks
-├── Go live Prep - Staging/     # Pilot / review artifacts
-└── .github/workflows/          # deploy, staging-build, nightly-db-backup
+├── Go live Prep - UAT/     # Pilot / review artifacts
+└── .github/workflows/          # deploy, uat-build, nightly-db-backup
 </code></pre>
 
       <h3 id="further">Further reading</h3>
@@ -1340,9 +1340,9 @@ flowchart TD
         <li><code>docs/OBSERVABILITY_AND_ANALYTICS.md</code> — PostHog catalog &amp; privacy</li>
         <li><code>docs/SUPABASE_OPERATIONS.md</code> — remote apply / deploy</li>
         <li><code>docs/DASHBOARD_METRICS_REFERENCE.md</code> — KPI formulas</li>
-        <li><code>docs/testing/GO_LIVE_CERTIFICATION.md</code> — staging certification</li>
+        <li><code>docs/testing/GO_LIVE_CERTIFICATION.md</code> — UAT certification</li>
         <li><code>docs/schema.md</code> — schema quick reference</li>
-        <li>Workspace rules: staging version bumps; always apply Supabase remotely; prod backup pointer</li>
+        <li>Workspace rules: UAT version bumps; always apply Supabase remotely; prod backup pointer</li>
       </ul>
 
 

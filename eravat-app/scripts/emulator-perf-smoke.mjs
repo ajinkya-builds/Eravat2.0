@@ -1,6 +1,6 @@
 /**
  * Trimmed CDP perf smoke for older API AVDs (login → home → report open).
- * Prereq: emulator running with staging APK installed.
+ * Prereq: emulator running with uat APK installed.
  *
  * Run: node scripts/emulator-perf-smoke.mjs [--baseline path/to/baseline.json]
  *
@@ -15,7 +15,7 @@ const PKG = 'com.forestdept.eravat';
 const SDK = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || `${process.env.HOME}/Library/Android/sdk`;
 const ADB = `${SDK}/platform-tools/adb`;
 const EMULATOR = `${SDK}/emulator/emulator`;
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/emulator-perf-smoke');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/emulator-perf-smoke');
 const ABS_CAPS = { loginMs: 25000, reportOpenMs: 15000 };
 
 const args = process.argv.slice(2);
@@ -32,7 +32,7 @@ const skipBoot = args.includes('--skip-boot');
 mkdirSync(OUT, { recursive: true });
 
 const manifest = JSON.parse(
-  readFileSync(join(process.cwd(), '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
+  readFileSync(join(process.cwd(), '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
 );
 const bg =
   manifest.find((x) => x.role === 'beat_guard' && x.phone_app === '7415740750') ||

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke-test the staging APK on every Eravat_API* AVD (API 24+).
+# Smoke-test the uat APK on every Eravat_API* AVD (API 24+).
 # Records cold-start timings and writes results.json.
 set -euo pipefail
 
@@ -8,7 +8,7 @@ SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
 ADB="$SDK/platform-tools/adb"
 EMULATOR="$SDK/emulator/emulator"
 AVDMANAGER="$SDK/cmdline-tools/latest/bin/avdmanager"
-OUT="${ANDROID_COMPAT_OUT:-$ROOT/../Go live Prep - Staging/generated/android-compat}"
+OUT="${ANDROID_COMPAT_OUT:-$ROOT/../Go live Prep - UAT/generated/android-compat}"
 APK="${1:-$ROOT/android/app/build/outputs/apk/debug/app-debug.apk}"
 PKG="com.forestdept.eravat"
 RESULTS_JSON="$OUT/results.json"
@@ -19,7 +19,7 @@ mkdir -p "$OUT"
 
 if [[ ! -f "$APK" ]]; then
   echo "APK not found: $APK" >&2
-  echo "Build first: cd eravat-app && npm run build:android:staging && (cd android && ./gradlew assembleDebug)" >&2
+  echo "Build first: cd eravat-app && npm run build:android:uat && (cd android && ./gradlew assembleDebug)" >&2
   exit 1
 fi
 

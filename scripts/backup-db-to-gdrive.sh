@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Dump production + staging Postgres and upload gzipped SQL to the dedicated
+# Dump production + UAT Postgres and upload gzipped SQL to the dedicated
 # Eravat Google Drive via rclone. Nothing is committed or stored as a GitHub
 # Actions artifact.
 #
 # Required env (CI secrets or local rclone remote):
 #   SUPABASE_ACCESS_TOKEN
 #   SUPABASE_DB_PASSWORD              # production
-#   SUPABASE_STAGING_DB_PASSWORD      # staging
+#   SUPABASE_UAT_DB_PASSWORD          # UAT (SUPABASE_STAGING_DB_PASSWORD still accepted)
 #   RCLONE_CONFIG                     # full rclone.conf (Drive OAuth for Eravat account)
+#
+# New dumps go to Drive folder uat/. Dumps from before this rename stay in staging/.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,10 +17,11 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 KEEP_DAYS="${ERAVAT_BACKUP_KEEP_DAYS:-30}"
 REMOTE="${ERAVAT_GDRIVE_REMOTE:-eravat-gdrive}"
 PROD_PATH="${ERAVAT_GDRIVE_PROD_PATH:-production}"
-STAGING_PATH="${ERAVAT_GDRIVE_STAGING_PATH:-staging}"
+UAT_PATH="${ERAVAT_GDRIVE_UAT_PATH:-${ERAVAT_GDRIVE_STAGING_PATH:-uat}}"
 
 PROD_REF="${ERAVAT_PROD_PROJECT_REF:-mnytrlcmdpkfhrzrtesf}"
-STAGING_REF="${ERAVAT_STAGING_PROJECT_REF:-ttjtyvxfiqhjdngkgdkf}"
+UAT_REF="${ERAVAT_UAT_PROJECT_REF:-${ERAVAT_STAGING_PROJECT_REF:-ttjtyvxfiqhjdngkgdkf}}"
+UAT_DB_PASSWORD="${SUPABASE_UAT_DB_PASSWORD:-${SUPABASE_STAGING_DB_PASSWORD:-}}"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.nvm/versions/node/v22.16.0/bin:${PATH}"
 
@@ -65,7 +68,10 @@ upload_dir() {
 
 need SUPABASE_ACCESS_TOKEN
 need SUPABASE_DB_PASSWORD
-need SUPABASE_STAGING_DB_PASSWORD
+if [ -z "$UAT_DB_PASSWORD" ]; then
+  log "ERROR: missing SUPABASE_UAT_DB_PASSWORD (or SUPABASE_STAGING_DB_PASSWORD)"
+  exit 1
+fi
 
 if ! command -v supabase >/dev/null 2>&1; then
   log "ERROR: supabase CLI not on PATH"
@@ -95,7 +101,7 @@ trap cleanup EXIT
 dump_project "$PROD_REF" "prod" "$SUPABASE_DB_PASSWORD" "$TMP"
 upload_dir "prod" "$PROD_PATH" "$TMP"
 
-dump_project "$STAGING_REF" "staging" "$SUPABASE_STAGING_DB_PASSWORD" "$TMP"
-upload_dir "staging" "$STAGING_PATH" "$TMP"
+dump_project "$UAT_REF" "uat" "$UAT_DB_PASSWORD" "$TMP"
+upload_dir "uat" "$UAT_PATH" "$TMP"
 
-log "Uploaded ${STAMP} to Drive folders ${PROD_PATH}/ and ${STAGING_PATH}/ (kept ${KEEP_DAYS} days)."
+log "Uploaded ${STAMP} to Drive folders ${PROD_PATH}/ and ${UAT_PATH}/ (kept ${KEEP_DAYS} days)."

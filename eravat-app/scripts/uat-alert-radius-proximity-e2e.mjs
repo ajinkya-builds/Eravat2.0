@@ -1,8 +1,8 @@
 /**
- * Staging alert-radius proximity module tests.
+ * UAT alert-radius proximity module tests.
  * Covers in-radius / out-of-radius / boundary / bounds / self / no-GPS / geo-role isolation.
  *
- * Run: node scripts/staging-alert-radius-proximity-e2e.mjs
+ * Run: node scripts/uat-alert-radius-proximity-e2e.mjs
  *
  * Emulator UI companion (optional): node scripts/emulator-alert-radius-e2e.mjs
  */
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT = join(__dirname, '../../Go live Prep - Staging/generated/alert-radius-proximity-e2e');
+const OUT = join(__dirname, '../../Go live Prep - UAT/generated/alert-radius-proximity-e2e');
 
 function loadEnv(relativePath) {
   try {
@@ -32,13 +32,13 @@ function loadEnv(relativePath) {
 }
 
 function loadUat() {
-  const path = join(__dirname, '../../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json');
+  const path = join(__dirname, '../../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json');
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
-const staging = loadEnv('../.env.staging.local');
-const url = staging.VITE_SUPABASE_URL;
-const anonKey = staging.VITE_SUPABASE_PUBLISHABLE_KEY;
+const uat = loadEnv('../.env.uat.local');
+const url = uat.VITE_SUPABASE_URL;
+const anonKey = uat.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 const EARTH_KM = 6371;
 
@@ -99,9 +99,9 @@ async function sleep(ms) {
 
 async function main() {
   mkdirSync(OUT, { recursive: true });
-  console.log('Alert-radius proximity module — staging E2E\n');
+  console.log('Alert-radius proximity module — uat E2E\n');
 
-  if (!url || !anonKey) throw new Error('Missing .env.staging.local Supabase keys');
+  if (!url || !anonKey) throw new Error('Missing .env.uat.local Supabase keys');
 
   const uat = loadUat();
   const adminUat = uat.find((u) => u.role === 'admin');

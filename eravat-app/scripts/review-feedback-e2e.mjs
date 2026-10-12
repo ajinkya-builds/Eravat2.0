@@ -1,12 +1,12 @@
 /**
- * E2E against both field-review PDFs, using the staging web bundle (same as APK).
- * Prereq: dist built with --mode staging; `npx vite preview --port 4173 --strictPort`
+ * E2E against both field-review PDFs, using the uat web bundle (same as APK).
+ * Prereq: dist built with --mode uat; `npx vite preview --port 4173 --strictPort`
  */
 import { chromium } from '@playwright/test';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/review-feedback-e2e');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/review-feedback-e2e');
 const BASE = process.env.E2E_BASE || 'http://localhost:4173';
 const BEAT = { phone: '8889184712' };
 
@@ -358,7 +358,7 @@ try {
     'ERV-039 / ERV-040 nearby results',
     'Tracker',
     nearbyHasList ? 'PASS' : 'FAIL',
-    `cards=${nearbyCards}; emptyCopy=${nearbyEmpty}. Staging has 1800+ reports within 100km of mock GPS.`,
+    `cards=${nearbyCards}; emptyCopy=${nearbyEmpty}. UAT has 1800+ reports within 100km of mock GPS.`,
   );
   if (nearbyHasList) {
     await page.locator('button').filter({ has: page.locator('h3') }).first().click();
@@ -470,7 +470,7 @@ try {
       (await page.locator('button').filter({ has: page.locator('.lucide-satellite, .lucide-map') }).count()) > 0
       ? 'PASS'
       : 'PARTIAL',
-    'Leaflet + satellite toggle present. Pin data depends on staging seed + geo.',
+    'Leaflet + satellite toggle present. Pin data depends on uat seed + geo.',
   );
   record(
     'R2.4.2 shapefile labels',

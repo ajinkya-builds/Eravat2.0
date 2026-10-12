@@ -2,7 +2,7 @@
 export const APP_VERSION_META = {
   versionName: "2.1.21",
   versionCode: 20121,
-  channel: "staging",
+  channel: "uat",
   releasedAt: "2026-10-10",
   changes: [
     "Share a sighting into WhatsApp with the Gaj Rakshak message and photo link",

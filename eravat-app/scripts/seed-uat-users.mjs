@@ -1,9 +1,9 @@
 /**
- * Seed mapped staging users into a Supabase project (auth + profiles + assignments).
+ * Seed mapped uat users into a Supabase project (auth + profiles + assignments).
  *
  * Usage:
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
- *   node scripts/seed-staging-users.mjs path/to/staging-users.seed.json
+ *   node scripts/seed-uat-users.mjs path/to/uat-users.seed.json
  *
  * Idempotent: if phone already exists, updates profile + assignment.
  */
@@ -17,7 +17,7 @@ const limit = process.env.SEED_LIMIT ? Number(process.env.SEED_LIMIT) : null;
 
 if (!url || !key || !file) {
   console.error(
-    'Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-staging-users.mjs seed.json'
+    'Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-uat-users.mjs seed.json'
   );
   process.exit(1);
 }

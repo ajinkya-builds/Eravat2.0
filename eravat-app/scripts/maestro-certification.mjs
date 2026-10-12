@@ -1,6 +1,6 @@
 /**
  * Maestro APK certification — native UI automation on emulator/device.
- * Prereq: emulator running OR device connected, staging APK installed.
+ * Prereq: emulator running OR device connected, uat APK installed.
  * Run: node scripts/maestro-certification.mjs
  */
 import { execSync, spawnSync, spawn } from 'child_process';
@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
 const ROOT = join(import.meta.dirname, '..');
-const OUT = join(ROOT, '../Go live Prep - Staging/generated/maestro-certification');
+const OUT = join(ROOT, '../Go live Prep - UAT/generated/maestro-certification');
 const APK = join(ROOT, 'android/app/build/outputs/apk/debug/app-debug.apk');
 const PKG = 'com.forestdept.eravat';
 const SDK = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || `${process.env.HOME}/Library/Android/sdk`;
@@ -17,7 +17,7 @@ const EMULATOR = join(SDK, 'emulator/emulator');
 const MAESTRO = process.env.MAESTRO_BIN || `${process.env.HOME}/.maestro/bin/maestro`;
 
 const manifest = JSON.parse(
-  readFileSync(join(ROOT, '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
+  readFileSync(join(ROOT, '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
 );
 const ENROLLED_BEAT_GUARD_PHONE = '7415740750'; // Jamudi beat — has beat_id in UAT seed
 const bg =
@@ -194,7 +194,7 @@ function runMaestroWithRetry(serial, flow, env, attempts = 3) {
 mkdirSync(OUT, { recursive: true });
 
 if (!existsSync(APK)) {
-  console.error('APK missing — run: npm run build:android:staging && cd android && ./gradlew assembleDebug');
+  console.error('APK missing — run: npm run build:android:uat && cd android && ./gradlew assembleDebug');
   process.exit(1);
 }
 

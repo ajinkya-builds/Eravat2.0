@@ -1,5 +1,5 @@
 /**
- * End-to-end data pipeline on staging: volunteer files a sighting via REST
+ * End-to-end data pipeline on uat: volunteer files a sighting via REST
  * (same tables the app writes), then DFO/BG notifications + villager queue.
  */
 import { createClient } from '@supabase/supabase-js';
@@ -8,7 +8,7 @@ import { join } from 'path';
 import { randomUUID } from 'crypto';
 
 const env = Object.fromEntries(
-  readFileSync(new URL('../.env.staging.local', import.meta.url), 'utf8')
+  readFileSync(new URL('../.env.uat.local', import.meta.url), 'utf8')
     .split('\n')
     .filter((l) => l && !l.startsWith('#'))
     .map((l) => {
@@ -108,7 +108,7 @@ out.ok =
   (out.bgNotifications || []).some((n) => n.notification_type === 'chain_of_command') &&
   out.roChainCount === 0;
 
-const dir = join(process.cwd(), '../Go live Prep - Staging/generated/prod-readiness-e2e');
+const dir = join(process.cwd(), '../Go live Prep - UAT/generated/prod-readiness-e2e');
 mkdirSync(dir, { recursive: true });
 writeFileSync(join(dir, 'pipeline.json'), JSON.stringify(out, null, 2));
 console.log(JSON.stringify(out, null, 2));

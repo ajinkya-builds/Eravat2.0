@@ -1,12 +1,12 @@
 /**
- * Latency probe: sequential vs concurrent REST against staging.
+ * Latency probe: sequential vs concurrent REST against uat.
  * Distinguishes query cost from client/compute queueing.
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
 
 const env = Object.fromEntries(
-  readFileSync(new URL('../.env.staging.local', import.meta.url), 'utf8')
+  readFileSync(new URL('../.env.uat.local', import.meta.url), 'utf8')
     .split('\n')
     .filter((l) => l && !l.startsWith('#'))
     .map((l) => {

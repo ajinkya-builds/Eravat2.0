@@ -6,11 +6,11 @@ Restore Desktop MCP servers used by Eravat (from prior `cursor/mcp-supabase-gith
 
 ## Done on this machine
 
-- Wrote [`.cursor/mcp.json`](../../.cursor/mcp.json) with `supabase-prod`, `supabase-staging`, `github`, `posthog`.
+- Wrote [`.cursor/mcp.json`](../../.cursor/mcp.json) with `supabase-prod`, `supabase-uat`, `github`, `posthog`.
 - Mirrored servers in `~/.cursor/mcp.json` (GitHub Authorization header set locally from `gh auth token`; file mode `600`).
 - Restored / updated [`docs/MCP_SETUP.md`](../MCP_SETUP.md) and [`.cursor/rules/mcp-project-setup.mdc`](../../.cursor/rules/mcp-project-setup.mdc).
 - Installed Cursor marketplace plugins: **posthog**, **github**.
-- Authenticated: `user-supabase-prod`, `user-supabase-staging`, `user-posthog`, plus existing `plugin-supabase-supabase`.
+- Authenticated: `user-supabase-prod`, `user-supabase-uat`, `user-posthog`, plus existing `plugin-supabase-supabase`.
 - `gh` auth OK; `GITHUB_PAT` / `GITHUB_PERSONAL_ACCESS_TOKEN` in `~/.zshrc` + LaunchAgent `com.eravat.github-mcp-env`.
 - Supabase CLI: `/opt/homebrew/bin/supabase` v2.117.0.
 

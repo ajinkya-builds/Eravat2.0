@@ -1,5 +1,5 @@
 /**
- * Android emulator certification — boot AVD, install staging APK, run CDP E2E.
+ * Android emulator certification — boot AVD, install uat APK, run CDP E2E.
  * Run: node scripts/emulator-certification.mjs [--skip-build] [--avd Eravat_E2E]
  */
 import { spawn, execSync } from 'child_process';
@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 const ROOT = join(process.cwd());
-const OUT = join(ROOT, '../Go live Prep - Staging/generated/emulator-certification');
+const OUT = join(ROOT, '../Go live Prep - UAT/generated/emulator-certification');
 mkdirSync(OUT, { recursive: true });
 const SDK = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || `${process.env.HOME}/Library/Android/sdk`;
 const ADB = `${SDK}/platform-tools/adb`;
@@ -107,8 +107,8 @@ async function main() {
   }
 
   if (!skipBuild) {
-    console.log('Building staging web + Android debug APK…');
-    sh('VITE_BASE_PATH=/ npx vite build --mode staging', { cwd: ROOT });
+    console.log('Building uat web + Android debug APK…');
+    sh('VITE_BASE_PATH=/ npx vite build --mode uat', { cwd: ROOT });
     sh('npx cap sync android', { cwd: ROOT });
     sh('./gradlew assembleDebug', { cwd: join(ROOT, 'android') });
   }

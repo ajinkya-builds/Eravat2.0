@@ -1,14 +1,14 @@
 /**
  * Invoke send-push Edge Function after notification insert (FCM pipeline smoke).
  * Passes if edge function returns 200; full device delivery needs google-services.json + FCM secrets.
- * Run: node scripts/staging-push-pipeline-e2e.mjs
+ * Run: node scripts/uat-push-pipeline-e2e.mjs
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 
-const OUT = join(import.meta.dirname, '../../Go live Prep - Staging/generated/push-pipeline-e2e');
+const OUT = join(import.meta.dirname, '../../Go live Prep - UAT/generated/push-pipeline-e2e');
 
 function loadEnv(rel) {
   try {
@@ -26,12 +26,12 @@ function loadEnv(rel) {
   }
 }
 
-const staging = loadEnv('../.env.staging.local');
-const url = staging.VITE_SUPABASE_URL;
-const serviceKey = staging.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+const uat = loadEnv('../.env.uat.local');
+const url = uat.VITE_SUPABASE_URL;
+const serviceKey = uat.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!url || !serviceKey) {
-  console.error('Add SUPABASE_SERVICE_ROLE_KEY to eravat-app/.env.staging.local (staging project ttjtyvxfiqhjdngkgdkf only)');
+  console.error('Add SUPABASE_SERVICE_ROLE_KEY to eravat-app/.env.uat.local (uat project ttjtyvxfiqhjdngkgdkf only)');
   process.exit(2);
 }
 
@@ -53,9 +53,9 @@ const { data: user } = await admin
   .limit(1)
   .maybeSingle();
 
-record('beat_guard profile', !!user?.id, user?.id ? 'ok' : 'check staging service role key');
+record('beat_guard profile', !!user?.id, user?.id ? 'ok' : 'check uat service role key');
 if (!user?.id) {
-  writeFileSync(join(OUT, 'results.json'), JSON.stringify({ ok: false, error: 'staging service role or profile missing' }, null, 2));
+  writeFileSync(join(OUT, 'results.json'), JSON.stringify({ ok: false, error: 'uat service role or profile missing' }, null, 2));
   process.exit(1);
 }
 

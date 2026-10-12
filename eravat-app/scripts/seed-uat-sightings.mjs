@@ -1,11 +1,11 @@
 /**
- * Import mapped historical sightings into staging Supabase.
+ * Import mapped historical sightings into uat Supabase.
  *
  * Usage:
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
- *   node scripts/seed-staging-sightings.mjs \
- *     path/to/staging-sightings.seed.json \
- *     path/to/staging-users.seed.seed-results.json
+ *   node scripts/seed-uat-sightings.mjs \
+ *     path/to/uat-sightings.seed.json \
+ *     path/to/uat-users.seed.seed-results.json
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync, writeFileSync } from 'fs';
@@ -19,7 +19,7 @@ const limit = process.env.SEED_LIMIT ? Number(process.env.SEED_LIMIT) : null;
 
 if (!url || !key || !sightingsFile || !resultsFile) {
   console.error(
-    'Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-staging-sightings.mjs sightings.json user-seed-results.json'
+    'Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-uat-sightings.mjs sightings.json user-seed-results.json'
   );
   process.exit(1);
 }

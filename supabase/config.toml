@@ -201,8 +201,8 @@ max_frequency = "1s"
 "919876500002" = "123456"
 "919876500003" = "123456"
 "919876500004" = "123456"
-# Staging go-live test cohort
-"919999990001" = "123456" # Staging System (admin)
+# UAT go-live test cohort
+"919999990001" = "123456" # UAT System (admin)
 "919926445678" = "123456" # Anoop Kumar Mishra (admin)
 "919893686945" = "123456" # Bhura Gaykwad (dfo)
 "918319149748" = "123456" # Mukesh Kumar Ahirwar (range_officer)

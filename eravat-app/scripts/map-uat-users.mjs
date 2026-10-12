@@ -1,11 +1,11 @@
 /**
- * Map Staging Users.csv → Eravat seed JSON + validation report.
+ * Map UAT Users.csv → Eravat seed JSON + validation report.
  *
  * Usage:
- *   node scripts/map-staging-users.mjs \
- *     "../Go live Prep - Staging/Staging Users.csv" \
- *     "../Go live Prep - Staging/generated/geo-reference.json" \
- *     "../Go live Prep - Staging/generated"
+ *   node scripts/map-uat-users.mjs \
+ *     "../Go live Prep - UAT/UAT Users.csv" \
+ *     "../Go live Prep - UAT/generated/geo-reference.json" \
+ *     "../Go live Prep - UAT/generated"
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
@@ -14,14 +14,14 @@ import { fileURLToPath } from 'url';
 const [, , csvPath, geoPath, outDirArg] = process.argv;
 if (!csvPath || !geoPath) {
   console.error(
-    'Usage: node scripts/map-staging-users.mjs <users.csv> <geo-reference.json> [outDir]'
+    'Usage: node scripts/map-uat-users.mjs <users.csv> <geo-reference.json> [outDir]'
   );
   process.exit(1);
 }
 
 const outDir =
   outDirArg ||
-  join(dirname(fileURLToPath(import.meta.url)), '../../Go live Prep - Staging/generated');
+  join(dirname(fileURLToPath(import.meta.url)), '../../Go live Prep - UAT/generated');
 mkdirSync(outDir, { recursive: true });
 
 const ROLE_MAP = {
@@ -504,12 +504,12 @@ for (const r of csvRows) {
 
 for (const entry of byPhone.values()) mapped.push(entry);
 
-// Staging system account for historical sightings authorship fallback
+// UAT system account for historical sightings authorship fallback
 const systemAdmin = {
   csv_sr: 'SYSTEM',
   phone: '9999990001',
   role: 'admin',
-  first_name: 'Staging',
+  first_name: 'UAT',
   last_name: 'System',
   post_raw: 'System',
   otp: '123456',
@@ -543,10 +543,10 @@ report.notes = [
   'Duplicate phones: keep the row with the most specific territory match',
 ];
 
-writeFileSync(join(outDir, 'staging-users.seed.json'), JSON.stringify(mapped, null, 2));
-writeFileSync(join(outDir, 'staging-users.mapping-report.json'), JSON.stringify(report, null, 2));
+writeFileSync(join(outDir, 'uat-users.seed.json'), JSON.stringify(mapped, null, 2));
+writeFileSync(join(outDir, 'uat-users.mapping-report.json'), JSON.stringify(report, null, 2));
 
-const md = `# Staging users mapping report
+const md = `# UAT users mapping report
 
 - CSV rows: **${report.total_csv_rows}**
 - Seedable unique phones (+ system admin): **${report.seed_count}**
@@ -584,10 +584,10 @@ ${Object.entries(report.geo.unmatched_ranges)
 ${report.skipped.map((s) => `- #${s.sr} ${s.name}: ${s.reason} ${s.post || s.phone || ''}`).join('\n') || '_none_'}
 `;
 
-writeFileSync(join(outDir, 'staging-users.mapping-report.md'), md);
+writeFileSync(join(outDir, 'uat-users.mapping-report.md'), md);
 
-console.log(`Wrote ${mapped.length} seed users → ${join(outDir, 'staging-users.seed.json')}`);
-console.log(`Report → ${join(outDir, 'staging-users.mapping-report.md')}`);
+console.log(`Wrote ${mapped.length} seed users → ${join(outDir, 'uat-users.seed.json')}`);
+console.log(`Report → ${join(outDir, 'uat-users.mapping-report.md')}`);
 console.log(JSON.stringify({
   seed_count: report.seed_count,
   skipped: report.skipped.length,

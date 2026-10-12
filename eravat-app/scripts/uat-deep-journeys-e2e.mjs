@@ -1,17 +1,17 @@
 /**
- * Deep staging journeys — report submit, offline sync, villager onboard, damage wizard.
- * Same web bundle as APK. Prereq: staging preview on :4173.
- * Run: node scripts/staging-deep-journeys-e2e.mjs
+ * Deep uat journeys — report submit, offline sync, villager onboard, damage wizard.
+ * Same web bundle as APK. Prereq: uat preview on :4173.
+ * Run: node scripts/uat-deep-journeys-e2e.mjs
  */
 import { chromium } from '@playwright/test';
 import { mkdir, writeFile, readFile } from 'fs/promises';
 import { join } from 'path';
 
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/deep-journeys-e2e');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/deep-journeys-e2e');
 const BASE = process.env.E2E_BASE || 'http://127.0.0.1:4173';
 
 const manifest = JSON.parse(
-  await readFile(join(process.cwd(), '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
+  await readFile(join(process.cwd(), '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
 );
 
 function pick(role) {

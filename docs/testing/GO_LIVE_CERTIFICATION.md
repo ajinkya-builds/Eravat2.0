@@ -1,13 +1,13 @@
 # Go-Live Certification Suite
 
-Canonical pre-release validation for **Eravat 2.0** on **staging** (web + APK share the same bundle).
+Canonical pre-release validation for **Eravat 2.0** on **UAT** (web + APK share the same bundle).
 
 | Item | Value |
 |------|-------|
-| Staging web | https://eravat.netlify.app |
-| Staging Supabase | `ttjtyvxfiqhjdngkgdkf` |
-| UAT OTP manifest | `Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json` |
-| Certification report | `Go live Prep - Staging/generated/certification/report.json` |
+| UAT web | https://eravat.netlify.app |
+| UAT Supabase | `ttjtyvxfiqhjdngkgdkf` |
+| UAT OTP manifest | `Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json` |
+| Certification report | `Go live Prep - UAT/generated/certification/report.json` |
 
 ## One command (automation)
 
@@ -24,7 +24,7 @@ npm run test:certify
 npm run test:certify:emulator
 
 # Individual deep suites
-npm run test:staging:deep          # report submit, offline, villager onboard
+npm run test:uat:deep          # report submit, offline, villager onboard
 npm run test:android:certify       # emulator only
 ```
 
@@ -33,21 +33,21 @@ npm run test:android:certify       # emulator only
 | Suite | Script | What it proves |
 |-------|--------|----------------|
 | UAT OTP auth | `verify-uat-otp-login.mjs` | Core UAT roles can log in with test OTP |
-| Notification + SMS/call queue | `staging-notification-alerts-e2e.mjs` | Chain-of-command, 5 km villager `sms_queued` + `villager_call_events` queued, no-GPS skip, RPC |
-| Alert radius proximity | `staging-alert-radius-proximity-e2e.mjs` | Admin proximity in/out/boundary, bounds 1–1000 km, geo-role isolation |
+| Notification + SMS/call queue | `uat-notification-alerts-e2e.mjs` | Chain-of-command, 5 km villager `sms_queued` + `villager_call_events` queued, no-GPS skip, RPC |
+| Alert radius proximity | `uat-alert-radius-proximity-e2e.mjs` | Admin proximity in/out/boundary, bounds 1–1000 km, geo-role isolation |
 | Data pipeline | `prod-readiness-pipeline.mjs` | Volunteer report → DFO/BG notifications |
-| Core UI E2E | `staging-e2e-playwright.mjs` | Login, field routes, admin pages (incl. Observations **Calls** modal), session |
-| Role matrix | `staging-role-matrix-e2e.mjs` | admin, ccf, dfo, range_officer, beat_guard, volunteer, rrt, biologist, veterinarian × field/admin routes |
-| Deep journeys | `staging-deep-journeys-e2e.mjs` | Full report submit, offline queue, damage wizard, villager onboard |
+| Core UI E2E | `uat-e2e-playwright.mjs` | Login, field routes, admin pages (incl. Observations **Calls** modal), session |
+| Role matrix | `uat-role-matrix-e2e.mjs` | admin, ccf, dfo, range_officer, beat_guard, volunteer, rrt, biologist, veterinarian × field/admin routes |
+| Deep journeys | `uat-deep-journeys-e2e.mjs` | Full report submit, offline queue, damage wizard, villager onboard |
 | Android emulator | `emulator-certification.mjs` | APK install, CDP WebView E2E, offline via adb |
 | Emulator alert radius | `emulator-alert-radius-e2e.mjs` | WebView bell UI for proximity radius (with `--emulator`) |
 | Android offline/GPS | `emulator-offline-location.mjs` | Offline cold start timing, first-try GPS, location-off banner |
 | Review feedback | `review-feedback-e2e.mjs` | PDF review checklist items |
-| Performance | `staging-perf-full-smoke.mjs` | TTI, page loads (incl. `/admin/observations`, `/admin/support`), API latency |
-| Load | `staging-load-50.mjs` | 50 concurrent REST sessions |
-| Report trigger stress | `staging-report-trigger-stress.mjs` | Bounded parallel report inserts → trigger fan-out within budget |
+| Performance | `uat-perf-full-smoke.mjs` | TTI, page loads (incl. `/admin/observations`, `/admin/support`), API latency |
+| Load | `uat-load-50.mjs` | 50 concurrent REST sessions |
+| Report trigger stress | `uat-report-trigger-stress.mjs` | Bounded parallel report inserts → trigger fan-out within budget |
 
-Playwright specs (`npm run test:e2e`) run against dev server with password-seeded users — use for PR CI; staging certification uses OTP UAT manifest above.
+Playwright specs (`npm run test:e2e`) run against dev server with password-seeded users — use for PR CI; UAT certification uses OTP UAT manifest above.
 
 Extended roles (`ccf`, `rrt`, `biologist`, `veterinarian`) are exercised in the role matrix by temporarily reassigning spare UAT beat_guard phones (OTP already enrolled), then restoring profiles.
 
@@ -100,7 +100,7 @@ UAT sheet models include Vivo T3 / T4x / Y400 / V70 (FunTouch). **Skipped this r
 
 When a Vivo is available:
 
-- [ ] Install staging APK via USB (`adb install -r`)
+- [ ] Install UAT APK via USB (`adb install -r`)
 - [ ] Cold start to login / restored home feels acceptable (note ms if scrcpy timed)
 - [ ] OTP keyboard + Verify on FunTouch IME
 - [ ] Location / camera / notification permission prompts (OEM wording)
@@ -211,7 +211,7 @@ After a **real submitted report** in your beat:
 
 ### I. Dummy SMS / voice (Hathi Mitra)
 
-Live SMS/voice is **not** sent on staging. Verify **queue records only**:
+Live SMS/voice is **not** sent on UAT. Verify **queue records only**:
 
 - [ ] After report with GPS near opted-in villager (&lt; 5 km, same division): row in `villager_alert_events` with `channel = sms_queued`
 - [ ] Same report also creates `villager_call_events` with `call_status = queued` (MSG91 dialing not configured)
@@ -220,7 +220,7 @@ Live SMS/voice is **not** sent on staging. Verify **queue records only**:
 - [ ] Admin → Notifications log shows activity (compose remains disabled)
 - [ ] Voice / SMS credits UI shows locked/deferred state
 
-Run automation: `node scripts/staging-notification-alerts-e2e.mjs`
+Run automation: `node scripts/uat-notification-alerts-e2e.mjs`
 
 ### J. Command Center (admin / CCF / DFO)
 
@@ -250,12 +250,12 @@ Run automation: `node scripts/staging-notification-alerts-e2e.mjs`
 - [ ] Help: force sync, FAQ, privacy policy links
 - [ ] Admin App Settings: alert radius slider 1–1000 km (from `alert_radius_bounds`)
 
-### L. Performance & stress (staging)
+### L. Performance & stress (UAT)
 
-- [ ] `staging-perf-full-smoke.mjs` — all PASS
-- [ ] `staging-load-50.mjs` — no error spike
-- [ ] `staging-report-trigger-stress.mjs` — report insert → trigger fan-out within budget; cleanup OK
-- [ ] `staging-alert-radius-proximity-e2e.mjs` — proximity matrix PASS
+- [ ] `uat-perf-full-smoke.mjs` — all PASS
+- [ ] `uat-load-50.mjs` — no error spike
+- [ ] `uat-report-trigger-stress.mjs` — report insert → trigger fan-out within budget; cleanup OK
+- [ ] `uat-alert-radius-proximity-e2e.mjs` — proximity matrix PASS
 - [ ] APK cold start acceptable on target devices (T3/T4/A15 from UAT sheet)
 - [ ] `npm run test:android-compat` — Eravat_API* cold-start budgets PASS
 - [ ] `npm run test:android-perf` — API 27 + 31 login/report timings within caps (and ≤2× API 36 baseline)
@@ -265,7 +265,7 @@ Run automation: `node scripts/staging-notification-alerts-e2e.mjs`
 
 ### M. APK-specific (device)
 
-- [ ] Install latest staging APK
+- [ ] Install latest UAT APK
 - [ ] OTP login on cellular network
 - [ ] Camera capture in report wizard
 - [ ] App asks to **turn on location** at startup (system dialog), not only on the report form

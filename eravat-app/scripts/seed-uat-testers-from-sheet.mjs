@@ -1,5 +1,5 @@
 /**
- * Seed UAT testers from Go-live CSV → staging auth + profiles + assignments.
+ * Seed UAT testers from Go-live CSV → uat auth + profiles + assignments.
  * Generates unique Test OTP per phone: 48 + last 4 digits (e.g. 9752458789 → 488789).
  *
  * Usage:
@@ -15,9 +15,9 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CSV_PATH = resolve(
   __dirname,
-  '../../Go live Prep - Staging/Eravat 2.0 Testers_List and Details.xlsx - Sheet1.csv'
+  '../../Go live Prep - UAT/Eravat 2.0 Testers_List and Details.xlsx - Sheet1.csv'
 );
-const OUT_DIR = resolve(__dirname, '../../Go live Prep - Staging/generated/uat-testers');
+const OUT_DIR = resolve(__dirname, '../../Go live Prep - UAT/generated/uat-testers');
 
 const DIVISION = {
   Anuppur: '597dc966-70d7-450c-be64-6564fd766f55',
@@ -70,7 +70,7 @@ function toE164(phone10) {
   return `+91${d}`;
 }
 
-/** Territory presets aligned with existing staging assignments where known */
+/** Territory presets aligned with existing uat assignments where known */
 const TERRITORY_BY_PHONE = {
   '9752458789': { division_id: DIVISION.Anuppur, range_id: RANGE.Jaithari, beat_id: null },
   '7415740750': { division_id: DIVISION.Anuppur, range_id: RANGE.Anuppur, beat_id: BEAT.Jamudi },

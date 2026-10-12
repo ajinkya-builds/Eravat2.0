@@ -43,7 +43,7 @@ test.describe('Help & Support Module', () => {
     test('HELP-006: Field user can file a support note', async ({ page }) => {
         await page.getByTestId('help-report-issue').click();
         await expect(page.getByTestId('report-issue-form')).toBeVisible({ timeout: 5_000 });
-        await page.getByTestId('report-issue-notes').fill('E2E cert: OTP screen felt slow on staging run');
+        await page.getByTestId('report-issue-notes').fill('E2E cert: OTP screen felt slow on uat run');
         await page.getByTestId('report-issue-submit').click();
         await expect(
             page.getByText(/Thanks|received your note|queued|saved/i).first(),

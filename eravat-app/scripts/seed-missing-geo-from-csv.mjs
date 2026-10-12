@@ -5,7 +5,7 @@
  *
  * Usage:
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
- *   node scripts/seed-missing-geo-from-csv.mjs "../Go live Prep - Staging/Staging Users.csv"
+ *   node scripts/seed-missing-geo-from-csv.mjs "../Go live Prep - UAT/UAT Users.csv"
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync, writeFileSync } from 'fs';

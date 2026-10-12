@@ -15,7 +15,9 @@ export function PhotoStep() {
     const { t } = useLanguage();
     const isE2E =
         typeof navigator !== 'undefined' &&
-        (Boolean(navigator.webdriver) || import.meta.env.VITE_APP_ENV === 'staging');
+        (Boolean(navigator.webdriver) ||
+            import.meta.env.VITE_APP_ENV === 'uat' ||
+            import.meta.env.VITE_APP_ENV === 'staging');
 
     const handleCapture = async (source: 'camera' | 'gallery') => {
         const result = await (source === 'camera' ? takePhoto() : pickFromGallery());

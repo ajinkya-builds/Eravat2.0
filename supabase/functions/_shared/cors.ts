@@ -1,5 +1,5 @@
 /**
- * CORS for Edge Functions invoked from Vite, Capacitor Android/iOS, and staging/prod web.
+ * CORS for Edge Functions invoked from Vite, Capacitor Android/iOS, and uat/prod web.
  *
  * Capacitor Android uses `androidScheme: 'https'` → Origin `https://localhost`.
  * Omitting that origin makes OPTIONS succeed with a mismatched ACAO, so the

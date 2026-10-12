@@ -1,6 +1,6 @@
 # Eravat app changelog
 
-All notable staging/production app releases are tracked here.
+All notable UAT/production app releases are tracked here.
 Version source of truth: [`version.json`](./version.json).
 
 Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always increases).
@@ -25,7 +25,7 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 - Report sync: retry stale beat_id; media-only retries without failing report
 - Admin home: defer intelligence panel load
 - Playwright OTP from UAT manifest; admin onboarding test IDs
-- Maestro invalid-phone flow; staging onboarding E2E script
+- Maestro invalid-phone flow; UAT onboarding E2E script
 
 ---
 ## [2.1.18] — 2026-10-04 (versionCode 20118)
@@ -92,7 +92,7 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 - Require Android System WebView Chrome 69+ (clear update screen)
 - Older Android compat matrix and CDP perf smoke tooling
 - Maestro single-session certification suite
-- Expanded staging cert: alerts, roles, stress, Admin Calls
+- Expanded UAT cert: alerts, roles, stress, Admin Calls
 
 ---
 ## [2.1.8] — 2026-09-21 (versionCode 20108)
@@ -125,7 +125,7 @@ Format: **versionName** (`MAJOR.MINOR.PATCH`) + Android **versionCode** (always 
 ---
 ## [2.1.4] — 2026-09-03 (versionCode 20104)
 
-- Sign staging APKs with a stable keystore so in-app updates can install
+- Sign UAT APKs with a stable keystore so in-app updates can install
 - If Android says App not installed, uninstall Eravat once then install this build
 
 ---
@@ -150,7 +150,7 @@ First tracked release with in-app update support. Share this shell APK once; lat
 
 ### Added
 - Settings → Check for update / Download & install (full APK)
-- Staging publish of APK + `latest.json` to Supabase `app-updates` bucket
+- UAT publish of APK + `latest.json` to Supabase `app-updates` bucket
 - Version registry (`version.json`) and this changelog
 
 ### Fixed

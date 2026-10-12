@@ -1,7 +1,7 @@
 # Observability & Product Analytics — CTO Plan
 
 > **Audience:** Product + eng. Written so a non-technical PM can decide *what* we need; engineers get *how* to build it.  
-> **Constraint:** $0 for staging and production (free tiers only, with hard spend caps).  
+> **Constraint:** $0 for UAT and production (free tiers only, with hard spend caps).  
 > **Status:** Unified local instrumentation ready; PostHog org connected via MCP. Wizard branch must **not** be merged as-is — reconciled into current work. Waiting on live smoke test to confirm event delivery.  
 > **Date:** 2026-08-04
 
@@ -14,21 +14,21 @@
 | Item | Status |
 | ---- | ------ |
 | Organization | **Eravat 2.0** (US cloud) |
-| Projects | **Eravat Staging** only (free plan — second project blocked for now) |
+| Projects | **Eravat UAT** only (free plan — second project blocked for now) |
 | Dashboard | [Analytics basics (wizard)](https://us.posthog.com/project/542599/dashboard/1952666) — empty until first events |
-| App env keys | Written to local `.env.local` / `.env.staging.local` / `.env.production.local` (same Staging token until Prod project exists) |
-| Wizard GitHub branch | `origin/posthog/instrumentation-c5bed1` — **do not merge raw**; features folded into staging working tree |
+| App env keys | Written to local `.env.local` / `.env.uat.local` / `.env.production.local` (same UAT token until Prod project exists) |
+| Wizard GitHub branch | `origin/posthog/instrumentation-c5bed1` — **do not merge raw**; features folded into UAT working tree |
 
 ### Decision (2026-08-04)
 
-- Use **one** PostHog project (**Eravat Staging**) for local + staging now.
+- Use **one** PostHog project (**Eravat UAT**) for local + UAT now.
 - **Prod project deferred** — free plan cannot add another project yet. Tracked as open todo.
-- Until then, every event is tagged with `app_env` (`development` / `staging` / `production`) so we can filter if a prod build temporarily shares this project.
-- When a Production project is available: create it, put its `phc_` only in `.env.production.local` + CI, set billing limit $0, and stop using the Staging token on prod builds.
+- Until then, every event is tagged with `app_env` (`development` / `uat` / `production`) so we can filter if a prod build temporarily shares this project.
+- When a Production project is available: create it, put its `phc_` only in `.env.production.local` + CI, set billing limit $0, and stop using the UAT token on prod builds.
 
 ### Still do in PostHog UI
 
-1. ~~Rename Default project~~ → **Eravat Staging** (done).
+1. ~~Rename Default project~~ → **Eravat UAT** (done).
 2. **Organization → Billing** → set **billing limits to $0** on Product Analytics, Error Tracking, Session Replay, Logs (if not already).
 3. **Later:** create **Eravat Production** when the plan allows (see todo above).
 
@@ -75,7 +75,7 @@ What existed before:
 | Privacy → “Share Analytics” toggle | Was a UI stub — **now wired** to consent + PostHog opt-in/out. |
 | `audit_log` DB table | Schema exists; **app never writes to it**. |
 
-**Bottom line for PM:** After keys are added and a staging build is shipped, you will see crashes and funnels in PostHog without collecting phones from the field.
+**Bottom line for PM:** After keys are added and a UAT build is shipped, you will see crashes and funnels in PostHog without collecting phones from the field.
 
 ---
 
@@ -89,7 +89,7 @@ Answers:
 
 - What crashed?
 - Which screen / sync step failed?
-- Staging vs production?
+- UAT vs production?
 - App version / device / role?
 
 ### B. User-journey analytics (“how people use the app”)
@@ -101,7 +101,7 @@ Answers:
 - Which failures are frequent (OTP fail, sync fail, media upload fail)?
 - Do offline users recover successfully when they come online?
 
-**Recommendation:** One free platform for both → **PostHog Cloud** (separate projects for Staging and Production). Keep **Supabase logs** for backend. Do **not** buy Sentry + Mixpanel + Datadog.
+**Recommendation:** One free platform for both → **PostHog Cloud** (separate projects for UAT and Production). Keep **Supabase logs** for backend. Do **not** buy Sentry + Mixpanel + Datadog.
 
 ---
 
@@ -112,7 +112,7 @@ Answers:
 | Product analytics / funnels / paths | **1M events / month** | Field force is small vs consumer apps; 1M is ample. |
 | Error / exception tracking | **100K exceptions / month** | Covers crashes + caught failures. |
 | Session replay (optional later) | **5K recordings / month** | Useful for UI bugs; must be privacy-gated. |
-| Cost | $0 with **billing limits set to $0** | Meets “free for staging + prod”. |
+| Cost | $0 with **billing limits set to $0** | Meets “free for UAT + prod”. |
 | Capacitor / PWA | Official JS SDK | Works in browser PWA and Android WebView. |
 | Team seats | Unlimited | PM + eng can all view dashboards. |
 
@@ -147,7 +147,7 @@ Answers:
                             │
           ┌─────────────────┴─────────────────┐
           ▼                                   ▼
-   PostHog project: Staging          PostHog project: Production
+   PostHog project: UAT          PostHog project: Production
    (VITE_POSTHOG_KEY_STAGING)        (VITE_POSTHOG_KEY_PROD)
           │                                   │
           └────────── PM dashboards ──────────┘
@@ -156,7 +156,7 @@ Answers:
 Supabase (unchanged): Auth / DB / Storage / Edge Function platform logs
 ```
 
-**Environment rule:** Staging APK / staging web build → Staging PostHog project. Production build → Production PostHog project. Never mix.
+**Environment rule:** UAT APK / UAT web build → UAT PostHog project. Production build → Production PostHog project. Never mix.
 
 ---
 
@@ -168,7 +168,7 @@ Eravat is used by Forest Department field staff. Treat telemetry as **operationa
 2. **No secrets:** Never send OTP codes, PIN, passwords, access tokens, full phone numbers in clear text.
 3. **Identifiers:** Prefer opaque `user_id` (Supabase UUID). If phone is needed for support, hash/mask (last 4 only).
 4. **No report media in telemetry:** Never upload photos, GPS tracks as blobs, or report narrative text to PostHog.
-5. **Session replay:** Off by default. Enable later only on staging, with masking of all inputs and no media.
+5. **Session replay:** Off by default. Enable later only on UAT, with masking of all inputs and no media.
 6. **PII in properties:** Allowed properties are role, division/range/beat **IDs** (not village names if sensitive), app version, platform, online/offline, error codes.
 7. **Document in Privacy Policy** before production enablement.
 8. **Billing safety:** In both PostHog projects set **billing limits to $0** so overage cannot create a bill.
@@ -194,7 +194,7 @@ Replace ad-hoc `console.error` in critical paths first: Auth, ReportStepper, syn
 
 Every remote error should include:
 
-- `env`: `staging` | `production`
+- `env`: `uat` | `production`
 - `app_version` / build id
 - `platform`: `web` | `android`
 - `online`: boolean
@@ -375,7 +375,7 @@ Identify users only by UUID + role + territory IDs for support triage — never 
 
 ### Phase 0 — Accounts & policy (½ day, PM + eng)
 
-1. Create PostHog org; two projects: `Eravat Staging`, `Eravat Production`.
+1. Create PostHog org; two projects: `Eravat UAT`, `Eravat Production`.
 2. Set **billing limit $0** on every product in both projects.
 3. Add API keys to CI / `.env` as `VITE_POSTHOG_KEY` + `VITE_POSTHOG_HOST` (defaults to `https://us.i.posthog.com` or EU host if preferred for data residency).
 4. Update Privacy Policy copy for operational analytics.
@@ -388,7 +388,7 @@ Identify users only by UUID + role + territory IDs for support triage — never 
 3. Create `src/lib/logger.ts`.
 4. Hook `AppErrorBoundary`.
 5. Instrument Auth + syncService + ReportStepper error paths.
-6. Verify exceptions appear in Staging project from staging APK / web.
+6. Verify exceptions appear in UAT project from UAT APK / web.
 
 ### Phase 2 — Journey events + funnels (2–3 days eng)
 
@@ -409,19 +409,19 @@ Identify users only by UUID + role + territory IDs for support triage — never 
 
 ### Phase 4 — Optional later
 
-- Session replay on **staging only**, fully masked.
+- Session replay on **UAT only**, fully masked.
 - Feature flags via PostHog for gradual rollouts.
 - Edge Function → PostHog exception bridge.
 - Crashlytics only if native Android crashes outside WebView become a real problem.
 
 ---
 
-## 9. Staging vs Production checklist
+## 9. UAT vs Production checklist
 
-| Item | Staging | Production |
+| Item | UAT | Production |
 | ---- | ------- | ---------- |
-| PostHog project | `Eravat Staging` | `Eravat Production` |
-| Build flavor / env | Staging Supabase + staging key | Prod Supabase + prod key |
+| PostHog project | `Eravat UAT` | `Eravat Production` |
+| Build flavor / env | UAT Supabase + UAT key | Prod Supabase + prod key |
 | Billing limit | $0 | $0 |
 | Session replay | Optional, masked | Off until explicitly approved |
 | Autocapture | Off | Off |
@@ -431,7 +431,7 @@ Identify users only by UUID + role + territory IDs for support triage — never 
 
 ## 10. How the PM uses this (no engineering required)
 
-1. Open PostHog → choose **Production** (or Staging when testing builds).
+1. Open PostHog → choose **Production** (or UAT when testing builds).
 2. **Funnels** → Activation / Daily report / Offline / Unlock — watch conversion %.
 3. **Insights** → filter events ending in `_failed` last 7 days — sort by count.
 4. **Error tracking** → open top issues; share link with eng (includes stack + context).
@@ -467,7 +467,7 @@ When reporting a bug to eng, include: date/time, approximate user role, screen, 
 | Decision | Choice |
 | -------- | ------ |
 | Primary product + error platform | PostHog Cloud |
-| Staging/prod isolation | Two PostHog projects |
+| UAT/prod isolation | Two PostHog projects |
 | Cost posture | Free tier + $0 billing caps |
 | Backend logs | Supabase platform logs |
 | Autocapture | Disabled; curated event catalog |

@@ -1,6 +1,6 @@
 /**
- * Role-matrix E2E against staging web bundle (same as APK).
- * Prereq: VITE_BASE_PATH=/ npx vite build --mode staging
+ * Role-matrix E2E against uat web bundle (same as APK).
+ * Prereq: VITE_BASE_PATH=/ npx vite build --mode uat
  *         npx vite preview --port 4173 --strictPort
  *
  * Extended roles (ccf / rrt / biologist / veterinarian) are not on the UAT sheet.
@@ -12,12 +12,12 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { createClient } from '@supabase/supabase-js';
 
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/e2e-role-matrix');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/e2e-role-matrix');
 const BASE = process.env.E2E_BASE || 'http://localhost:4173';
 
 const manifest = JSON.parse(
   await readFile(
-    join(process.cwd(), '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'),
+    join(process.cwd(), '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'),
     'utf8',
   ),
 );
@@ -38,10 +38,10 @@ function loadEnv(path) {
   }
 }
 
-const staging = loadEnv(join(process.cwd(), '.env.staging.local'));
+const uat = loadEnv(join(process.cwd(), '.env.uat.local'));
 const serviceSb =
-  staging.VITE_SUPABASE_URL && staging.SUPABASE_SERVICE_ROLE_KEY
-    ? createClient(staging.VITE_SUPABASE_URL, staging.SUPABASE_SERVICE_ROLE_KEY, {
+  uat.VITE_SUPABASE_URL && uat.SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(uat.VITE_SUPABASE_URL, uat.SUPABASE_SERVICE_ROLE_KEY, {
         auth: { persistSession: false },
       })
     : null;

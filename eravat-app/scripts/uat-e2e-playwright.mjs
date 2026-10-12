@@ -1,18 +1,18 @@
 /**
- * Staging E2E via Playwright (same web bundle as Android APK).
+ * UAT E2E via Playwright (same web bundle as Android APK).
  * Prereq: VITE_BASE_PATH=/ npx vite preview --port 4173 --strictPort
- * Run: node scripts/staging-e2e-playwright.mjs
+ * Run: node scripts/uat-e2e-playwright.mjs
  */
 import { chromium } from '@playwright/test';
 import { mkdir, writeFile, readFile } from 'fs/promises';
 import { join } from 'path';
 
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/e2e-playwright');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/e2e-playwright');
 const BASE = process.env.E2E_BASE || 'http://localhost:4173';
 
 const manifest = JSON.parse(
   await readFile(
-    join(process.cwd(), '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'),
+    join(process.cwd(), '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'),
     'utf8'
   )
 );

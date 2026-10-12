@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Staging web + Capacitor sync using version.json for VITE_APP_VERSION*.
+ * UAT web + Capacitor sync using version.json for VITE_APP_VERSION*.
  * APK assemble is separate (`./gradlew assembleDebug -PversionCode=...`).
  */
 import fs from 'node:fs';
@@ -15,7 +15,7 @@ const env = {
   ...process.env,
   VITE_BASE_PATH: '/',
   VITE_DISABLE_PWA: 'true',
-  VITE_APP_ENV: process.env.VITE_APP_ENV || 'staging',
+  VITE_APP_ENV: process.env.VITE_APP_ENV || 'uat',
   VITE_APP_VERSION: String(version.versionName),
   VITE_APP_VERSION_CODE: String(version.versionCode),
   VITE_UPDATE_MANIFEST_URL:
@@ -28,8 +28,8 @@ function run(cmd, args) {
   if (res.status !== 0) process.exit(res.status ?? 1);
 }
 
-console.log(`Building staging web ${version.versionName} (${version.versionCode})…`);
-run('npx', ['vite', 'build', '--mode', 'staging']);
+console.log(`Building uat web ${version.versionName} (${version.versionCode})…`);
+run('npx', ['vite', 'build', '--mode', 'uat']);
 run('npx', ['cap', 'sync', 'android']);
 console.log('Done. Assemble APK with:');
 console.log(

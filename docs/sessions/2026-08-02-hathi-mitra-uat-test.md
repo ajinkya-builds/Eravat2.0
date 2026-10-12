@@ -1,8 +1,8 @@
-# Phase 3 — Hathi Mitra / Villagers staging test plan & results
+# Phase 3 — Hathi Mitra / Villagers UAT test plan & results
 
 **Date:** 2026-08-02  
-**Environment:** Staging only (`ttjtyvxfiqhjdngkgdkf`)  
-**Seed source:** `Go live Prep - Staging/villagers (3).csv` (6,771 rows)
+**Environment:** UAT only (`ttjtyvxfiqhjdngkgdkf`)  
+**Seed source:** `Go live Prep - UAT/villagers (3).csv` (6,771 rows)
 
 ## Checklist & results
 
@@ -13,18 +13,18 @@
 | 3 | Spot-check CSV row | Gyanendra Patel / Kushmaha present | **PASS** — `Gyanendra Patel` `+918120977096` |
 | 4 | Division mapping | CSV labels map to `geo_divisions` | **PASS** — Anuppur 2249, Bandhavgarh NP 2071, North Shahdol 1610, South Shahdol 637, Sanjay NP 95, Umaria 89, South Balaghat 12, null 1 |
 | 5 | Missing GPS allowed | CSV had 2 bad coords | **PASS** — 2 rows with null lat/lng |
-| 6 | No auth user for villager | Seed does not create `auth.users` | **PASS** by design (insert into `villagers` only). Note: **47** mobiles also appear on existing `auth.users` (coincidental overlap with staff/volunteers on staging); Hathi Mitra rows still have no role/profile of their own. |
+| 6 | No auth user for villager | Seed does not create `auth.users` | **PASS** by design (insert into `villagers` only). Note: **47** mobiles also appear on existing `auth.users` (coincidental overlap with staff/volunteers on UAT); Hathi Mitra rows still have no role/profile of their own. |
 | 7 | `ensure_village` reuse | Same name returns same id | **PASS** (admin JWT simulation) |
-| 8 | Onboard sets `created_by` | Optional; set when logged-in | **PASS** in SQL sim with Staging admin id; app sets `profile.id` |
+| 8 | Onboard sets `created_by` | Optional; set when logged-in | **PASS** in SQL sim with UAT admin id; app sets `profile.id` |
 | 9 | New village metadata | New name insertable + reusable | **PASS** via `ensure_village` |
 | 10 | Volunteer cannot read/write villagers | RLS deny | **PASS** — `can_manage_villagers`/`can_read_villagers` false; `ensure_village` raises 42501; SELECT count = 0 under volunteer JWT claims |
 | 11 | Volunteer onboard path unchanged | `/volunteers/onboard` + `create-user` | **PASS** — code path untouched except i18n labels (Volunteer wording) |
 | 12 | Prod untouched | No `villages`/`villagers` on prod | **PASS** — `to_regclass` null on prod |
-| 13 | App smoke (manual) | Home tile → form → list/search | **PENDING user** — use staging web/APK with `.env.staging.local`; Staging admin `+919999990001` |
+| 13 | App smoke (manual) | Home tile → form → list/search | **PENDING user** — use UAT web/APK with `.env.uat.local`; UAT admin `+919999990001` |
 
 ## Manual UI smoke (for Ajinkya)
 
-1. Build/run app against staging (`eravat-app/.env.staging.local`).
+1. Build/run app against UAT (`eravat-app/.env.uat.local`).
 2. Sign in as field role that can onboard (admin / dfo / RO / beat_guard).
 3. Home → **Onboard Villager / Hathi Mitra** → fill name, phone, village autocomplete, GPS → submit.
 4. Confirm success; open list via header list icon; search by name/mobile.

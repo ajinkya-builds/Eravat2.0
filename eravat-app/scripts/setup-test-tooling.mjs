@@ -31,7 +31,7 @@ function ensureDir(p) {
   mkdirSync(p, { recursive: true });
 }
 
-function stagingServiceRoleFromCli() {
+function uatServiceRoleFromCli() {
   const out = run('supabase projects api-keys --project-ref ttjtyvxfiqhjdngkgdkf');
   if (!out) return null;
   const line = out.split('\n').find((l) => /service_role/.test(l));
@@ -50,9 +50,9 @@ function upsertEnvKey(file, key, value) {
 
 // Output dirs used by certification scripts
 for (const d of [
-  '../Go live Prep - Staging/generated/maestro-certification',
-  '../Go live Prep - Staging/generated/certification',
-  '../Go live Prep - Staging/generated/setup-test-tooling.json',
+  '../Go live Prep - UAT/generated/maestro-certification',
+  '../Go live Prep - UAT/generated/certification',
+  '../Go live Prep - UAT/generated/setup-test-tooling.json',
 ].slice(0, 2)) {
   ensureDir(join(ROOT, d));
 }
@@ -91,35 +91,39 @@ record('Maestro', !!maestro, maestro || 'missing', 'node scripts/setup-test-tool
 // Supabase CLI
 record('Supabase CLI', !!run('supabase --version'), run('supabase --version') || 'optional');
 
-// Staging env
-const stagingEnv = join(ROOT, '.env.staging.local');
-const example = join(ROOT, '.env.staging.local.example');
-if (!existsSync(stagingEnv) && existsSync(example)) {
-  copyFileSync(example, stagingEnv);
-  record('.env.staging.local', false, 'created from example — fill in keys', 'Edit eravat-app/.env.staging.local');
+// UAT env
+const uatEnv = join(ROOT, '.env.uat.local');
+const legacyEnv = join(ROOT, '.env.staging.local');
+const example = join(ROOT, '.env.uat.local.example');
+if (!existsSync(uatEnv) && existsSync(legacyEnv)) {
+  copyFileSync(legacyEnv, uatEnv);
+}
+if (!existsSync(uatEnv) && existsSync(example)) {
+  copyFileSync(example, uatEnv);
+  record('.env.uat.local', false, 'created from example — fill in keys', 'Edit eravat-app/.env.uat.local');
 } else {
-  const hasUrl = existsSync(stagingEnv) && readFileSync(stagingEnv, 'utf8').includes('ttjtyvxfiqhjdngkgdkf');
-  record('.env.staging.local', hasUrl, hasUrl ? 'staging URL present' : 'missing or incomplete');
+  const hasUrl = existsSync(uatEnv) && readFileSync(uatEnv, 'utf8').includes('ttjtyvxfiqhjdngkgdkf');
+  record('.env.uat.local', hasUrl, hasUrl ? 'UAT URL present' : 'missing or incomplete');
 }
 
 // Service role — auto-fetch from Supabase CLI when installing
-let hasStagingSvc = false;
-if (existsSync(stagingEnv)) {
-  const txt = readFileSync(stagingEnv, 'utf8');
-  hasStagingSvc = /SUPABASE_SERVICE_ROLE_KEY=sb_/.test(txt) || /SUPABASE_SERVICE_ROLE_KEY=eyJ/.test(txt);
+let hasUatSvc = false;
+if (existsSync(uatEnv)) {
+  const txt = readFileSync(uatEnv, 'utf8');
+  hasUatSvc = /SUPABASE_SERVICE_ROLE_KEY=sb_/.test(txt) || /SUPABASE_SERVICE_ROLE_KEY=eyJ/.test(txt);
 }
-if (!hasStagingSvc && INSTALL) {
-  const key = stagingServiceRoleFromCli();
+if (!hasUatSvc && INSTALL) {
+  const key = uatServiceRoleFromCli();
   if (key) {
-    upsertEnvKey(stagingEnv, 'SUPABASE_SERVICE_ROLE_KEY', key);
-    hasStagingSvc = true;
-    console.log('✓ Staging service role key — fetched via Supabase CLI → .env.staging.local');
+    upsertEnvKey(uatEnv, 'SUPABASE_SERVICE_ROLE_KEY', key);
+    hasUatSvc = true;
+    console.log('✓ UAT service role key — fetched via Supabase CLI → .env.uat.local');
   }
 }
 record(
-  'Staging service role key',
-  hasStagingSvc,
-  hasStagingSvc ? 'in .env.staging.local' : 'missing from .env.staging.local',
+  'UAT service role key',
+  hasUatSvc,
+  hasUatSvc ? 'in .env.uat.local' : 'missing from .env.uat.local',
   'node scripts/setup-test-tooling.mjs --install  (or Supabase Dashboard → ttjtyvxfiqhjdngkgdkf → API)',
 );
 
@@ -134,10 +138,10 @@ record(
 
 // APK
 const apk = join(ROOT, 'android/app/build/outputs/apk/debug/app-debug.apk');
-record('Staging debug APK', existsSync(apk), existsSync(apk) ? 'built' : 'not built', 'npm run build:android:staging && cd android && ./gradlew assembleDebug');
+record('UAT debug APK', existsSync(apk), existsSync(apk) ? 'built' : 'not built', 'npm run build:android:uat && cd android && ./gradlew assembleDebug');
 
 // UAT manifest
-const manifest = join(ROOT, '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json');
+const manifest = join(ROOT, '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json');
 record('UAT OTP manifest', existsSync(manifest), existsSync(manifest) ? 'ok' : 'run seed-uat-testers-from-sheet.mjs');
 
 // Maestro flows
@@ -177,7 +181,7 @@ record(
 );
 
 const ok = checks.filter((c) => c.ok).length;
-const out = join(ROOT, '../Go live Prep - Staging/generated/setup-test-tooling.json');
+const out = join(ROOT, '../Go live Prep - UAT/generated/setup-test-tooling.json');
 writeFileSync(out, JSON.stringify({ checkedAt: new Date().toISOString(), installMode: INSTALL, ok: ok === checks.length, checks }, null, 2));
 console.log(`\n${ok}/${checks.length} tooling checks passed`);
 console.log(`Report → ${out}`);

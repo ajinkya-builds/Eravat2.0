@@ -381,7 +381,7 @@ User enters phone number
 ```
 
 **OTP Login (native passwordless):**
-- Uses Supabase local sandbox / test OTP bypass for staging and development
+- Uses Supabase local sandbox / test OTP bypass for UAT and development
 - PIN/Biometrics setup on the app allows offline daily unlock, bypassing regular OTP delivery
 
 **MFA (Admin only):**

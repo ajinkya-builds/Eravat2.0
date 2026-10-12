@@ -20,7 +20,7 @@ import { CdpPage } from './cdp-page.mjs';
 const ROOT = process.cwd();
 const PKG = 'com.forestdept.eravat';
 const APK = join(ROOT, 'android/app/build/outputs/apk/debug/app-debug.apk');
-const OUT = join(ROOT, '../Go live Prep - Staging/generated/emulator-gps-accuracy');
+const OUT = join(ROOT, '../Go live Prep - UAT/generated/emulator-gps-accuracy');
 const GEO_LNG = '80.988653';
 const GEO_LAT = '23.181467';
 
@@ -37,7 +37,7 @@ const skipSlowCell = args.has('--skip-slow-cell');
 
 const manifest = JSON.parse(
   readFileSync(
-    join(ROOT, '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'),
+    join(ROOT, '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'),
     'utf8',
   ),
 );
@@ -273,8 +273,8 @@ async function main() {
 mkdirSync(OUT, { recursive: true });
 
 if (!skipBuild) {
-  console.log('Building staging web + Android debug APK…');
-  sh('node scripts/build-android-staging.mjs', { cwd: ROOT });
+  console.log('Building uat web + Android debug APK…');
+  sh('node scripts/build-android-uat.mjs', { cwd: ROOT });
   sh('./gradlew assembleDebug', { cwd: join(ROOT, 'android') });
 }
 
@@ -345,7 +345,7 @@ await check('Location step has coordinates without refresh', async () => {
     btn.click();
     return true;
   });
-  if (!injected) throw new Error('Staging test photo button missing');
+  if (!injected) throw new Error('UAT test photo button missing');
   await clickButton('Continue');
   await page.sleep(1000);
 

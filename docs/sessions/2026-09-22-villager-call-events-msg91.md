@@ -1,7 +1,7 @@
 # Session: Villager call-alert infra (MSG91-ready)
 
 **Date:** 2026-09-22  
-**Target:** Staging (`ttjtyvxfiqhjdngkgdkf`) — additive so 2.1.8 APK keeps working  
+**Target:** UAT (`ttjtyvxfiqhjdngkgdkf`) — additive so 2.1.8 APK keeps working  
 **Live dialing:** Not enabled (no MSG91_AUTHKEY)
 
 ## What shipped
@@ -47,5 +47,5 @@ Refs: [Voice Call Logs - Status Explanation](https://msg91.com/help/voice/voice-
 `supabase/migrations/20260922160000_villager_call_events_msg91.sql`
 
 **Applied remotely (2026-09-22):**
-- Staging `ttjtyvxfiqhjdngkgdkf` — table + RPCs + trigger dual-write; **3052** backfilled `queued` rows; edge functions `msg91-voice-webhook` / `msg91-voice-dispatch` ACTIVE (`verify_jwt=false`)
+- UAT `ttjtyvxfiqhjdngkgdkf` — table + RPCs + trigger dual-write; **3052** backfilled `queued` rows; edge functions `msg91-voice-webhook` / `msg91-voice-dispatch` ACTIVE (`verify_jwt=false`)
 - Prod `mnytrlcmdpkfhrzrtesf` — same schema/functions; 0 call rows (no prior alert backfill); edge functions ACTIVE

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Reload public.village_centroids from ed/data/centroids.csv.
- * Staging only. Requires SUPABASE_URL pointing at ttjtyvxfiqhjdngkgdkf
+ * UAT only. Requires SUPABASE_URL pointing at ttjtyvxfiqhjdngkgdkf
  * and SUPABASE_SERVICE_ROLE_KEY. Do not point at production.
  */
 import { createClient } from '@supabase/supabase-js';
@@ -11,7 +11,7 @@ import { resolve } from 'path';
 const url = process.env.SUPABASE_URL || '';
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 if (!url.includes('ttjtyvxfiqhjdngkgdkf') || !key) {
-  console.error('Refusing to run: set SUPABASE_URL to staging (ttjtyvxfiqhjdngkgdkf) and SUPABASE_SERVICE_ROLE_KEY.');
+  console.error('Refusing to run: set SUPABASE_URL to uat (ttjtyvxfiqhjdngkgdkf) and SUPABASE_SERVICE_ROLE_KEY.');
   process.exit(1);
 }
 

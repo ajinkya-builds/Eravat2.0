@@ -50,8 +50,8 @@ app-debug.apk
 *.apk
 
 # Go-live prep generated test-run artifacts and APKs
-Go live Prep - Staging/generated/
-Go live Prep - Staging/*.apk
-Go live Prep - Staging/*.log
+Go live Prep - UAT/generated/
+Go live Prep - UAT/*.apk
+Go live Prep - UAT/*.log
 
 backups/

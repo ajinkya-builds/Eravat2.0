@@ -12,7 +12,7 @@ function loadManifest(): ManifestUser[] {
     if (cachedManifest) return cachedManifest;
     const candidates = [
         process.env.E2E_OTP_MANIFEST,
-        join(fixtureDir, '../../../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'),
+        join(fixtureDir, '../../../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'),
     ].filter((p): p is string => Boolean(p));
     for (const path of candidates) {
         if (existsSync(path)) {

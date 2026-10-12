@@ -1,4 +1,4 @@
-# Session: 2026-09-19 — Staging signing reset (lost keystore)
+# Session: 2026-09-19 — UAT signing reset (lost keystore)
 
 ## Constraint
 
@@ -6,7 +6,7 @@ Original release private key is gone. You **cannot** publish Settings → Update
 
 ## Solution (one-time signature reset)
 
-1. Generated a **new** stable staging keystore (same DN label, **new** SHA-256).
+1. Generated a **new** stable UAT keystore (same DN label, **new** SHA-256).
 2. Stored locally (gitignored):
    - `backups/android-signing/release.jks` + `README.txt`
    - `eravat-app/android/release.jks`
@@ -24,4 +24,4 @@ For every device still on the old 2.1.6 signature:
 
 ## Next step (needs product confirm)
 
-Bump staging (e.g. **2.1.7**) with a clear note like “Signing reset — uninstall once if update fails”, push `staging`, let CI publish. Do **not** bump until Ajinkya confirms field messaging.
+Bump UAT (e.g. **2.1.7**) with a clear note like “Signing reset — uninstall once if update fails”, push `uat`, let CI publish. Do **not** bump until Ajinkya confirms field messaging.

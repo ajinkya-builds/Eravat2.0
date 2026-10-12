@@ -1,6 +1,6 @@
 /**
- * Staging notification + dummy SMS/voice queue certification (OTP auth + service role for fixture villagers).
- * Run: node scripts/staging-notification-alerts-e2e.mjs
+ * UAT notification + dummy SMS/voice queue certification (OTP auth + service role for fixture villagers).
+ * Run: node scripts/uat-notification-alerts-e2e.mjs
  *
  * Covers: chain-of-command, 5 km villager SMS+call dual-queue, no-GPS skip, inside/outside boundary, RPC.
  */
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT = join(__dirname, '../../Go live Prep - Staging/generated/notification-alerts-e2e');
+const OUT = join(__dirname, '../../Go live Prep - UAT/generated/notification-alerts-e2e');
 
 function loadEnv(relativePath) {
   try {
@@ -29,10 +29,10 @@ function loadEnv(relativePath) {
   }
 }
 
-const staging = loadEnv('../.env.staging.local');
-const url = staging.VITE_SUPABASE_URL;
-const anonKey = staging.VITE_SUPABASE_PUBLISHABLE_KEY;
-const serviceKey = staging.SUPABASE_SERVICE_ROLE_KEY;
+const uat = loadEnv('../.env.uat.local');
+const url = uat.VITE_SUPABASE_URL;
+const anonKey = uat.VITE_SUPABASE_PUBLISHABLE_KEY;
+const serviceKey = uat.SUPABASE_SERVICE_ROLE_KEY;
 
 const EARTH_KM = 6371;
 
@@ -54,7 +54,7 @@ function destination(lat, lng, distanceKm, bearingDeg = 45) {
   };
 }
 
-/** Aligned staging test chain (same as prod-readiness-pipeline.mjs) */
+/** Aligned uat test chain (same as prod-readiness-pipeline.mjs) */
 const PIPELINE = {
   reporter: { phone: '7400503240', otp: '123456' },
   dfo: { phone: '9893686945', otp: '123456' },
@@ -89,9 +89,9 @@ function record(name, ok, detail = '') {
 
 async function main() {
   mkdirSync(OUT, { recursive: true });
-  console.log('Notification + dummy SMS/call queue certification (staging)\n');
+  console.log('Notification + dummy SMS/call queue certification (uat)\n');
 
-  if (!url || !anonKey) throw new Error('Missing .env.staging.local keys');
+  if (!url || !anonKey) throw new Error('Missing .env.uat.local keys');
   if (!serviceKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY required for 5 km villager fixtures');
 
   const serviceSb = createClient(url, serviceKey, { auth: { persistSession: false } });

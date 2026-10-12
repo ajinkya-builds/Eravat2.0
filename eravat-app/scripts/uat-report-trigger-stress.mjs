@@ -1,8 +1,8 @@
 /**
- * Staging write-path stress: bounded parallel report inserts → trigger fan-out.
+ * UAT write-path stress: bounded parallel report inserts → trigger fan-out.
  * Asserts notifications + villager queues complete within budget; cleans up after.
  *
- * Run: node scripts/staging-report-trigger-stress.mjs
+ * Run: node scripts/uat-report-trigger-stress.mjs
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT = join(__dirname, '../../Go live Prep - Staging/generated/report-trigger-stress');
+const OUT = join(__dirname, '../../Go live Prep - UAT/generated/report-trigger-stress');
 
 function loadEnv(relativePath) {
   try {
@@ -29,10 +29,10 @@ function loadEnv(relativePath) {
   }
 }
 
-const staging = loadEnv('../.env.staging.local');
-const url = staging.VITE_SUPABASE_URL;
-const anonKey = staging.VITE_SUPABASE_PUBLISHABLE_KEY;
-const serviceKey = staging.SUPABASE_SERVICE_ROLE_KEY;
+const uat = loadEnv('../.env.uat.local');
+const url = uat.VITE_SUPABASE_URL;
+const anonKey = uat.VITE_SUPABASE_PUBLISHABLE_KEY;
+const serviceKey = uat.SUPABASE_SERVICE_ROLE_KEY;
 
 const REPORT_COUNT = Number(process.env.STRESS_REPORTS || 12);
 const CONCURRENCY = Number(process.env.STRESS_CONCURRENCY || 3);
@@ -83,7 +83,7 @@ async function main() {
   mkdirSync(OUT, { recursive: true });
   console.log(`Report trigger stress — ${REPORT_COUNT} reports, concurrency ${CONCURRENCY}\n`);
 
-  if (!url || !anonKey || !serviceKey) throw new Error('Missing staging env keys');
+  if (!url || !anonKey || !serviceKey) throw new Error('Missing uat env keys');
 
   const serviceSb = createClient(url, serviceKey, { auth: { persistSession: false } });
   const volSb = await session(PIPELINE.reporter.phone, PIPELINE.reporter.otp);

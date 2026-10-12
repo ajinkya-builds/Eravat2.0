@@ -2,11 +2,11 @@
  * Map Historical Sightings.csv → Eravat reports/observations/conflict_damages seed JSON.
  *
  * Usage:
- *   node scripts/map-staging-sightings.mjs \
- *     "../Go live Prep - Staging/Historical Sightings.csv" \
- *     "../Go live Prep - Staging/generated/geo-reference.json" \
- *     "../Go live Prep - Staging/generated/staging-users.seed.json" \
- *     "../Go live Prep - Staging/generated"
+ *   node scripts/map-uat-sightings.mjs \
+ *     "../Go live Prep - UAT/Historical Sightings.csv" \
+ *     "../Go live Prep - UAT/generated/geo-reference.json" \
+ *     "../Go live Prep - UAT/generated/uat-users.seed.json" \
+ *     "../Go live Prep - UAT/generated"
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
@@ -16,14 +16,14 @@ import { randomUUID } from 'crypto';
 const [, , csvPath, geoPath, usersPath, outDirArg] = process.argv;
 if (!csvPath || !geoPath || !usersPath) {
   console.error(
-    'Usage: node scripts/map-staging-sightings.mjs <sightings.csv> <geo-reference.json> <users.seed.json> [outDir]'
+    'Usage: node scripts/map-uat-sightings.mjs <sightings.csv> <geo-reference.json> <users.seed.json> [outDir]'
   );
   process.exit(1);
 }
 
 const outDir =
   outDirArg ||
-  join(dirname(fileURLToPath(import.meta.url)), '../../Go live Prep - Staging/generated');
+  join(dirname(fileURLToPath(import.meta.url)), '../../Go live Prep - UAT/generated');
 mkdirSync(outDir, { recursive: true });
 
 const DETAIL_TO_INDIRECT = {
@@ -473,10 +473,10 @@ for (const r of csvRows) {
   });
 }
 
-writeFileSync(join(outDir, 'staging-sightings.seed.json'), JSON.stringify(mapped, null, 2));
-writeFileSync(join(outDir, 'staging-sightings.mapping-report.json'), JSON.stringify(report, null, 2));
+writeFileSync(join(outDir, 'uat-sightings.seed.json'), JSON.stringify(mapped, null, 2));
+writeFileSync(join(outDir, 'uat-sightings.mapping-report.json'), JSON.stringify(report, null, 2));
 
-const md = `# Staging sightings mapping report
+const md = `# UAT sightings mapping report
 
 - CSV rows: **${report.total}**
 - Mapped: **${mapped.length}**
@@ -487,7 +487,7 @@ const md = `# Staging sightings mapping report
 - Rows with damages: ${report.damages}
 - Observation types: ${JSON.stringify(report.obs_types)}
 `;
-writeFileSync(join(outDir, 'staging-sightings.mapping-report.md'), md);
+writeFileSync(join(outDir, 'uat-sightings.mapping-report.md'), md);
 
 console.log(JSON.stringify({ mapped: mapped.length, ...report }, null, 2));
-console.log(`Wrote ${join(outDir, 'staging-sightings.seed.json')}`);
+console.log(`Wrote ${join(outDir, 'uat-sightings.seed.json')}`);

@@ -1,6 +1,6 @@
 /**
  * Map a Gajrakshak / ED-style CSV row onto Eravat report fields.
- * Does not write to the database. Use with a service-role ingest only on staging.
+ * Does not write to the database. Use with a service-role ingest only on uat.
  *
  * Expected headers (flexible): Date, Hour, Latitude, Longitude, Division, Range, Beat,
  * Male Count, Female Count, Calf Count, Unknown Count, Total Count,
@@ -55,5 +55,5 @@ export function mapGajrakshakRow(row) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log('Gajrakshak mapper. Import mapGajrakshakRow() from a staging ingest; do not run against prod.');
+  console.log('Gajrakshak mapper. Import mapGajrakshakRow() from a uat ingest; do not run against prod.');
 }

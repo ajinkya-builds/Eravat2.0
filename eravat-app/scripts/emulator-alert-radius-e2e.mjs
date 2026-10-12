@@ -1,6 +1,6 @@
 /**
  * Emulator UI + end-to-end check for admin alert-radius.
- * Prereq: emulator running, staging APK installed (with radius UI).
+ * Prereq: emulator running, uat APK installed (with radius UI).
  *
  * Flow:
  *  1) Login as admin → Settings shows radius slider (1–1000)
@@ -19,7 +19,7 @@ import { CdpPage } from './cdp-page.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG = 'com.forestdept.eravat';
-const OUT = join(__dirname, '../../Go live Prep - Staging/generated/emulator-alert-radius-e2e');
+const OUT = join(__dirname, '../../Go live Prep - UAT/generated/emulator-alert-radius-e2e');
 const APK = join(__dirname, '../android/app/build/outputs/apk/debug/app-debug.apk');
 
 function loadEnv(relativePath) {
@@ -41,15 +41,15 @@ function loadEnv(relativePath) {
 function loadUat() {
   return JSON.parse(
     readFileSync(
-      join(__dirname, '../../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'),
+      join(__dirname, '../../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'),
       'utf8',
     ),
   );
 }
 
-const staging = loadEnv('../.env.staging.local');
-const url = staging.VITE_SUPABASE_URL;
-const anonKey = staging.VITE_SUPABASE_PUBLISHABLE_KEY;
+const uat = loadEnv('../.env.uat.local');
+const url = uat.VITE_SUPABASE_URL;
+const anonKey = uat.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 const EARTH_KM = 6371;
 function destination(lat, lng, distanceKm, bearingDeg = 45) {

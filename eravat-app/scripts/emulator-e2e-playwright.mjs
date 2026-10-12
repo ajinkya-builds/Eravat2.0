@@ -1,6 +1,6 @@
 /**
- * Staging APK E2E on Android emulator via WebView CDP.
- * Prereq: emulator running, staging APK installed.
+ * UAT APK E2E on Android emulator via WebView CDP.
+ * Prereq: emulator running, uat APK installed.
  * Run: node scripts/emulator-e2e-playwright.mjs
  */
 import { execSync } from 'child_process';
@@ -10,10 +10,10 @@ import { join } from 'path';
 import { CdpPage } from './cdp-page.mjs';
 
 const PKG = 'com.forestdept.eravat';
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/e2e-emulator-playwright');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/e2e-emulator-playwright');
 
 const manifest = JSON.parse(
-  readFileSync(join(process.cwd(), '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
+  readFileSync(join(process.cwd(), '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
 );
 function pick(role, phonePrefer) {
   const u =
@@ -309,7 +309,7 @@ await check('Report wizard opens', async () => {
   await shot('05-report');
 });
 
-await check('Report submit with staging test photo', async () => {
+await check('Report submit with uat test photo', async () => {
   await page.goto('https://localhost/report');
   await page.sleep(2000);
   const injected = await page.evaluate(() => {
@@ -320,7 +320,7 @@ await check('Report submit with staging test photo', async () => {
     }
     return false;
   });
-  if (!injected) throw new Error('Staging test photo button missing in APK');
+  if (!injected) throw new Error('UAT test photo button missing in APK');
   await clickButton('Continue');
   await page.sleep(800);
   await page.evaluate(() => {

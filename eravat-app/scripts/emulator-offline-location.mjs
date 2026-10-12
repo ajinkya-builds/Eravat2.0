@@ -16,7 +16,7 @@ import { CdpPage } from './cdp-page.mjs';
 const ROOT = process.cwd();
 const PKG = 'com.forestdept.eravat';
 const APK = join(ROOT, 'android/app/build/outputs/apk/debug/app-debug.apk');
-const OUT = join(ROOT, '../Go live Prep - Staging/generated/emulator-offline-location');
+const OUT = join(ROOT, '../Go live Prep - UAT/generated/emulator-offline-location');
 const GEO_LNG = '80.988653';
 const GEO_LAT = '23.181467';
 
@@ -26,7 +26,7 @@ const skipInstall = args.has('--skip-install');
 
 const manifest = JSON.parse(
   readFileSync(
-    join(ROOT, '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'),
+    join(ROOT, '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'),
     'utf8',
   ),
 );
@@ -243,7 +243,7 @@ async function goToLocationStep() {
     btn.click();
     return true;
   });
-  if (!injected) throw new Error('Staging test photo button missing');
+  if (!injected) throw new Error('UAT test photo button missing');
   await clickButton('Continue');
   await page.sleep(600);
   await page.evaluate(() => {
@@ -262,8 +262,8 @@ async function goToLocationStep() {
 mkdirSync(OUT, { recursive: true });
 
 if (!skipBuild) {
-  console.log('Building staging web + Android debug APK…');
-  sh('node scripts/build-android-staging.mjs', { cwd: ROOT });
+  console.log('Building uat web + Android debug APK…');
+  sh('node scripts/build-android-uat.mjs', { cwd: ROOT });
   sh('./gradlew assembleDebug', { cwd: join(ROOT, 'android') });
 }
 

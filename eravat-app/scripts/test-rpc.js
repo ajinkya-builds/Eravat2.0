@@ -1,8 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-const stagingUrl = process.env.STAGE_SUPABASE_URL || process.env.STAGE_VITE_SUPABASE_URL;
-const stagingKey =
-  process.env.STAGE_SUPABASE_PUBLISHABLE_KEY || process.env.STAGE_VITE_SUPABASE_PUBLISHABLE_KEY;
+const uatUrl =
+  process.env.UAT_SUPABASE_URL ||
+  process.env.UAT_VITE_SUPABASE_URL ||
+  process.env.STAGE_SUPABASE_URL ||
+  process.env.STAGE_VITE_SUPABASE_URL;
+const uatKey =
+  process.env.UAT_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.UAT_VITE_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.STAGE_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.STAGE_VITE_SUPABASE_PUBLISHABLE_KEY;
 
 const prodUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const prodKey =
@@ -31,7 +38,7 @@ async function checkDb(name, url, key) {
 }
 
 async function main() {
-  await checkDb('Staging', stagingUrl, stagingKey);
+  await checkDb('UAT', uatUrl, uatKey);
   await checkDb('Production', prodUrl, prodKey);
 }
 

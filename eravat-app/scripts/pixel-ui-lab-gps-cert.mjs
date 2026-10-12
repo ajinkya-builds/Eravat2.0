@@ -22,7 +22,7 @@ import { CdpPage } from './cdp-page.mjs';
 const PKG = 'com.forestdept.eravat';
 const ACTIVITY = 'com.forestdept.eravat/.MainActivity';
 const APP_VERSION = JSON.parse(readFileSync(join(process.cwd(), 'version.json'), 'utf8'));
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/ui-feedback/pixel-gps-cert');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/ui-feedback/pixel-gps-cert');
 const SDK = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || `${process.env.HOME}/Library/Android/sdk`;
 const ADB_BIN = `${SDK}/platform-tools/adb`;
 const LAST_GPS_KEY = 'eravat_last_gps_fix_v1';
@@ -67,7 +67,7 @@ function sleep(ms) {
 }
 
 const manifest = JSON.parse(
-  readFileSync(join(process.cwd(), '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
+  readFileSync(join(process.cwd(), '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
 );
 const BG = manifest.find((x) => x.role === 'beat_guard');
 if (!BG?.phone_app || !BG?.otp) throw new Error('No beat_guard in UAT OTP manifest');
@@ -329,7 +329,7 @@ async function waitGpsReadyOnPhoto(budgetMs = 90000) {
 
 async function advanceToLocationStep() {
   const injected = await injectPhoto();
-  if (!injected) throw new Error('e2e-inject-photo missing — rebuild staging UI Lab APK');
+  if (!injected) throw new Error('e2e-inject-photo missing — rebuild uat UI Lab APK');
   sleep(400);
   await clickContinue();
   sleep(1200);
@@ -373,7 +373,7 @@ setLocationEnabled(true);
 launchApp();
 page = await CdpPage.connect(forwardDevtools());
 
-await check('Package is staging Eravat', async () => {
+await check('Package is uat Eravat', async () => {
   const dump = adb('shell', 'dumpsys', 'package', PKG);
   if (!dump.includes(`versionName=${APP_VERSION.versionName}`)) {
     throw new Error(`not ${APP_VERSION.versionName}`);

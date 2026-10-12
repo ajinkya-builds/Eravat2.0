@@ -14,7 +14,7 @@ A production **legacy JWT `service_role` key** was committed to the public repo
    `sb_secret_...` keys from env.
 3. Confirm GitHub Actions secrets still use publishable keys (not the revoked JWT).
 4. Optionally make the GitHub repo **private**. Free GitHub Pages will stop serving;
-   Android sideload does not need Pages. Staging web already uses Netlify.
+   Android sideload does not need Pages. UAT web already uses Netlify.
 5. **Auth → Attack Protection:** enable **Leaked password protection** (Have I Been Pwned).
 
 Tracked scripts no longer embed secrets — they read `SUPABASE_SERVICE_ROLE_KEY`
@@ -60,7 +60,7 @@ Local keystore lives under `backups/android-signing/` (gitignored). For CI, set 
 Nightly DB backups run in GitHub Actions and land only on the **dedicated Eravat Google Drive** (not git, not Actions artifacts, not this Mac).
 
 - Workflow: `.github/workflows/nightly-db-backup.yml` — 18:30 UTC / 00:00 IST
-- Script: `scripts/backup-db-to-gdrive.sh` (`rclone` → `production/` and `staging/`)
+- Script: `scripts/backup-db-to-gdrive.sh` (`rclone` → `production/` and `uat/`)
 - One-time auth (sign in as the Eravat Google account): `scripts/setup-gdrive-backup-auth.sh`
 - GitHub secrets: `RCLONE_CONFIG`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_STAGING_DB_PASSWORD`
 - Dumps older than 30 days are deleted on Drive.
@@ -89,7 +89,7 @@ beyond Test OTP numbers.
 **Do not ship a production APK until all of the following are true:**
 
 1. Prod project `mnytrlcmdpkfhrzrtesf` has pilot `auth.users` + `profiles` + territory assignments (currently **0** users after wipe).
-2. Staging Aug migrations that matter for life-safety alerts are promoted — especially chain notify recipients (`beat_guard` / `rrt`) from `geo_notify_staff_and_villagers` (present on staging, **absent** on prod).
+2. UAT Aug migrations that matter for life-safety alerts are promoted — especially chain notify recipients (`beat_guard` / `rrt`) from `geo_notify_staff_and_villagers` (present on UAT, **absent** on prod).
 3. Real SMS / DLT provider enabled **or** explicitly limited to Dashboard Test OTP phones with written pilot scope.
 4. Release APK includes `google-services.json` if push is required for RRT response; otherwise brief pilots that alerts are in-app only.
 5. Legacy JWT `service_role` keys revoked (see top of this doc).

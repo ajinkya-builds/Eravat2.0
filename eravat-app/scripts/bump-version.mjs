@@ -70,7 +70,7 @@ if (versionCode <= Number(current.versionCode)) {
 const next = {
   versionName,
   versionCode,
-  channel: current.channel || 'staging',
+  channel: current.channel || 'uat',
   releasedAt,
   changes,
 };

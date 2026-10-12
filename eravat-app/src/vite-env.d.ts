@@ -6,7 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_POSTHOG_PROJECT_TOKEN?: string;
   readonly VITE_POSTHOG_KEY?: string;
   readonly VITE_POSTHOG_HOST?: string;
-  /** staging | production | development */
+  /** uat | production | development. `staging` is accepted as a legacy alias. */
   readonly VITE_APP_ENV?: string;
   readonly VITE_APP_VERSION?: string;
   readonly VITE_APP_VERSION_CODE?: string;

@@ -3,12 +3,12 @@
 > **Superseded by** [`GO_LIVE_CERTIFICATION.md`](./GO_LIVE_CERTIFICATION.md) for go-live validation.
 > Run automation: `cd eravat-app && npm run test:certify:quick`
 
-Base URL (staging): https://eravat.netlify.app  
+Base URL (UAT): https://eravat.netlify.app  
 Base URL (local): `http://localhost:5173/Eravat2.0/`
 
 ## Credentials (UAT OTP)
 
-Use `Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json` — OTP pattern `48` + last 4 digits of phone.
+Use `Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json` — OTP pattern `48` + last 4 digits of phone.
 
 | Role | Example phone | OTP |
 |------|---------------|-----|

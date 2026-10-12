@@ -1,6 +1,6 @@
 /**
  * Fires every curated PostHog event name once (plus ui.* helpers) via the live app.
- * Prereq: staging Vite on 127.0.0.1:5173 with PostHog configured.
+ * Prereq: uat Vite on 127.0.0.1:5173 with PostHog configured.
  *
  * Usage: node scripts/posthog-event-catalog-smoke.mjs
  */
@@ -70,7 +70,7 @@ async function main() {
   await page.goto(`${BASE}/login`, { waitUntil: 'networkidle', timeout: 60000 });
   await page.waitForTimeout(1500);
 
-  // Best-effort login (staging test OTP)
+  // Best-effort login (uat test OTP)
   try {
     const phone = page.locator('input[type="tel"], input[inputmode="tel"], input[name*="phone" i]').first();
     if (await phone.count()) {

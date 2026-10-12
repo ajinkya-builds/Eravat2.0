@@ -3,7 +3,7 @@
     "supabase-prod": {
       "url": "https://mcp.supabase.com/mcp?project_ref=mnytrlcmdpkfhrzrtesf&features=docs,database,debugging,development,functions"
     },
-    "supabase-staging": {
+    "supabase-uat": {
       "url": "https://mcp.supabase.com/mcp?project_ref=ttjtyvxfiqhjdngkgdkf&features=docs,database,debugging,development,functions"
     },
     "github": {

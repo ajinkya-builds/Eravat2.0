@@ -1,20 +1,24 @@
 /**
- * Staging E2E: admin onboarding permission toggles + beat guard home CTAs.
- * Prereq: preview on :4173, STAGE_SUPABASE_SERVICE_ROLE in env for flag restore.
- * Run: node scripts/staging-onboarding-permissions-e2e.mjs
+ * UAT E2E: admin onboarding permission toggles + beat guard home CTAs.
+ * Prereq: preview on :4173, UAT service role in env for flag restore.
+ * Run: node scripts/uat-onboarding-permissions-e2e.mjs
  */
 import { chromium } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { mkdir, writeFile, readFile } from 'fs/promises';
 import { join } from 'path';
 
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/onboarding-permissions-e2e');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/onboarding-permissions-e2e');
 const BASE = process.env.E2E_BASE || 'http://127.0.0.1:4173';
-const STAGE_URL = process.env.VITE_SUPABASE_URL || process.env.STAGE_SUPABASE_URL;
-const STAGE_KEY = process.env.STAGE_SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY;
+const UAT_URL =
+  process.env.VITE_SUPABASE_URL || process.env.UAT_SUPABASE_URL || process.env.STAGE_SUPABASE_URL;
+const UAT_KEY =
+  process.env.UAT_SUPABASE_SERVICE_ROLE ||
+  process.env.STAGE_SUPABASE_SERVICE_ROLE ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const manifest = JSON.parse(
-  await readFile(join(process.cwd(), '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
+  await readFile(join(process.cwd(), '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
 );
 
 function pick(role) {
@@ -43,8 +47,8 @@ async function loginOTP(page, phone, otp) {
   await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 30000 });
 }
 
-const admin = STAGE_URL && STAGE_KEY
-  ? createClient(STAGE_URL, STAGE_KEY, { auth: { persistSession: false } })
+const admin = UAT_URL && UAT_KEY
+  ? createClient(UAT_URL, UAT_KEY, { auth: { persistSession: false } })
   : null;
 
 async function readBeatGuardFlags() {
@@ -59,7 +63,7 @@ async function readBeatGuardFlags() {
 }
 
 async function setBeatGuardFlags(hathi, villager) {
-  if (!admin) throw new Error('STAGE_SUPABASE_SERVICE_ROLE required');
+  if (!admin) throw new Error('UAT_SUPABASE_SERVICE_ROLE or SUPABASE_SERVICE_ROLE_KEY required');
   const { error } = await admin
     .from('role_onboarding_config')
     .update({ can_add_hathi_mitra: hathi, can_add_villager: villager })

@@ -26,7 +26,8 @@ rclone config delete "$REMOTE" 2>/dev/null || true
 rclone config create "$REMOTE" drive scope drive config_is_local false
 
 rclone mkdir "${REMOTE}:production" 2>/dev/null || true
-rclone mkdir "${REMOTE}:staging" 2>/dev/null || true
+rclone mkdir "${REMOTE}:uat" 2>/dev/null || true
+# Dumps from before the UAT rename remain in the Drive folder `staging/`.
 echo "Drive folders:"
 rclone lsd "${REMOTE}:"
 

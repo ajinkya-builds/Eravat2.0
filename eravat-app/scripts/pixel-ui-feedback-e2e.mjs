@@ -1,6 +1,6 @@
 /**
  * Private UI-feedback APK checks on a physical Android device (Pixel).
- * Does NOT publish staging updates. Same staging backend + UAT OTP.
+ * Does NOT publish uat updates. Same uat backend + UAT OTP.
  *
  * Run: node scripts/pixel-ui-feedback-e2e.mjs [--serial 41221JEHN00156]
  */
@@ -13,7 +13,7 @@ import { CdpPage } from './cdp-page.mjs';
 const PKG = 'com.forestdept.eravat';
 const ACTIVITY = 'com.forestdept.eravat/.MainActivity';
 const APP_VERSION = JSON.parse(readFileSync(join(process.cwd(), 'version.json'), 'utf8'));
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/ui-feedback/pixel-e2e');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/ui-feedback/pixel-e2e');
 const SDK = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || `${process.env.HOME}/Library/Android/sdk`;
 const ADB_BIN = `${SDK}/platform-tools/adb`;
 
@@ -46,7 +46,7 @@ function sleep(ms) {
 }
 
 const manifest = JSON.parse(
-  readFileSync(join(process.cwd(), '../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
+  readFileSync(join(process.cwd(), '../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'), 'utf8'),
 );
 function pick(role) {
   const u = manifest.find((x) => x.role === role);
@@ -518,7 +518,7 @@ const summary = {
   versionName: APP_VERSION.versionName,
   versionCode: APP_VERSION.versionCode,
   channel: 'ui-feedback',
-  note: 'Private experience-test APK — not a staging ship',
+  note: 'Private experience-test APK — not a uat ship',
   passed,
   failed,
   results,

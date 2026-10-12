@@ -6,7 +6,7 @@ Arm Desktop Cursor and Cloud Agents with shared Supabase + GitHub MCP for Eravat
 
 ## Changes
 
-- [`.cursor/mcp.json`](../../.cursor/mcp.json): `supabase-prod` (`mnytrlcmdpkfhrzrtesf`), `supabase-staging` (`ttjtyvxfiqhjdngkgdkf`), `github` (`${env:GITHUB_PAT}`).
+- [`.cursor/mcp.json`](../../.cursor/mcp.json): `supabase-prod` (`mnytrlcmdpkfhrzrtesf`), `supabase-uat` (`ttjtyvxfiqhjdngkgdkf`), `github` (`${env:GITHUB_PAT}`).
 - [`docs/MCP_SETUP.md`](../MCP_SETUP.md): copy-paste Cloud Agents + Desktop auth steps.
 - Cursor rule + doc links.
 

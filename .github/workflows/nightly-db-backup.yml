@@ -36,6 +36,8 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          # UAT database. SUPABASE_STAGING_DB_PASSWORD is the existing secret name.
+          SUPABASE_UAT_DB_PASSWORD: ${{ secrets.SUPABASE_UAT_DB_PASSWORD || secrets.SUPABASE_STAGING_DB_PASSWORD }}
           SUPABASE_STAGING_DB_PASSWORD: ${{ secrets.SUPABASE_STAGING_DB_PASSWORD }}
           RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
         run: |

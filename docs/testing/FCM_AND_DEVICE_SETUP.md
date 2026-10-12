@@ -13,13 +13,13 @@ Rebuild APK:
 
 ```bash
 cd eravat-app
-npm run build:android:staging
+npm run build:android:uat
 cd android && ./gradlew assembleDebug
 ```
 
 Vite will set `VITE_DISABLE_PUSH_NOTIFICATIONS=false` automatically when the file exists (`vite.config.ts`).
 
-## 2. Supabase Edge Function secrets (staging)
+## 2. Supabase Edge Function secrets (UAT)
 
 In Supabase Dashboard → Edge Functions → `send-push` → Secrets:
 
@@ -33,8 +33,8 @@ Verify:
 
 ```bash
 cd eravat-app
-# Requires SUPABASE_SERVICE_ROLE_KEY in .env.staging.local
-node scripts/staging-push-pipeline-e2e.mjs
+# Requires SUPABASE_SERVICE_ROLE_KEY in .env.uat.local
+node scripts/uat-push-pipeline-e2e.mjs
 ```
 
 This confirms the edge function responds; invalid FCM tokens return expected errors, not 500s.
@@ -55,7 +55,7 @@ npm run test:android-compat
 ### Emulator camera
 
 Android Emulator → **Extended controls → Camera** → upload a JPEG for virtual scene.  
-Alternatively use **Use test photo** on staging builds (no camera hardware needed).
+Alternatively use **Use test photo** on UAT builds (no camera hardware needed).
 
 ### Emulator GPS
 
@@ -70,9 +70,9 @@ Or grant location permission when Maestro/CDP prompts.
 | Capability | Tool |
 |------------|------|
 | In-app notification bell | Playwright + Maestro |
-| DB chain-of-command | `staging-notification-alerts-e2e.mjs` |
+| DB chain-of-command | `uat-notification-alerts-e2e.mjs` |
 | Dummy SMS queue | Same + Supabase MCP |
-| `send-push` HTTP smoke | `staging-push-pipeline-e2e.mjs` |
+| `send-push` HTTP smoke | `uat-push-pipeline-e2e.mjs` |
 | Report / offline / villager on APK | Maestro flows |
 
 ## What still needs a physical device
@@ -82,4 +82,4 @@ Or grant location permission when Maestro/CDP prompts.
 - Cellular OTP (prod Twilio)
 - Battery / background sync under real network
 
-Use UAT devices from `Go live Prep - Staging/Eravat 2.0 Testers_List and Details.xlsx` for final sign-off.
+Use UAT devices from `Go live Prep - UAT/Eravat 2.0 Testers_List and Details.xlsx` for final sign-off.

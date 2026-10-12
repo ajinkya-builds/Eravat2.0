@@ -17,23 +17,23 @@ When you add, change, or fix **any user-facing behavior**, update the certificat
 ## Required updates
 
 1. **Automation** — Add or extend coverage in the closest script:
-   - UI journeys → `eravat-app/tests/*.spec.ts` (Playwright) and/or `scripts/staging-*-e2e.mjs`
-   - Deep flows (report submit, offline, villager) → `scripts/staging-deep-journeys-e2e.mjs`
+   - UI journeys → `eravat-app/tests/*.spec.ts` (Playwright) and/or `scripts/uat-*-e2e.mjs`
+   - Deep flows (report submit, offline, villager) → `scripts/uat-deep-journeys-e2e.mjs`
    - Android APK → `scripts/emulator-certification.mjs` + `emulator-e2e-playwright.mjs`
-   - Notifications / SMS queue / RLS → `scripts/staging-notification-alerts-e2e.mjs`
+   - Notifications / SMS queue / RLS → `scripts/uat-notification-alerts-e2e.mjs`
    - Data pipeline → `scripts/prod-readiness-pipeline.mjs`
-   - Role access → `scripts/staging-role-matrix-e2e.mjs`
-   - Performance → `scripts/staging-perf-full-smoke.mjs`, `staging-load-50.mjs`
+   - Role access → `scripts/uat-role-matrix-e2e.mjs`
+   - Performance → `scripts/uat-perf-full-smoke.mjs`, `uat-load-50.mjs`
 
 2. **Manual checklist** — Update `docs/testing/GO_LIVE_CERTIFICATION.md` § Manual with new steps if not fully automatable.
 
-3. **Run before marking done** (staging):
+3. **Run before marking done** (UAT):
    ```bash
    cd eravat-app && node scripts/go-live-certification.mjs --quick
    ```
    Full pre-release: `node scripts/go-live-certification.mjs`
 
-4. **Results** land in `Go live Prep - Staging/generated/certification/report.json` — do not commit generated artifacts unless the user asks.
+4. **Results** land in `Go live Prep - UAT/generated/certification/report.json` — do not commit generated artifacts unless the user asks.
 
 ## Triggers (always add tests)
 
@@ -48,4 +48,4 @@ When you add, change, or fix **any user-facing behavior**, update the certificat
 ## Do not
 
 - Leave `MANUAL_SMOKE_CHECKLIST.md` password-based (OTP + UAT manifest is canonical).
-- Treat migration-only work as complete without `staging-notification-alerts-e2e.mjs` if triggers/RLS changed.
+- Treat migration-only work as complete without `uat-notification-alerts-e2e.mjs` if triggers/RLS changed.

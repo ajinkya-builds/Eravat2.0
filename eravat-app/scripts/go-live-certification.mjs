@@ -1,12 +1,12 @@
 /**
- * Go-live certification orchestrator — runs the full staging validation suite.
+ * Go-live certification orchestrator — runs the full uat validation suite.
  *
  * Usage:
  *   node scripts/go-live-certification.mjs              # full run (build + preview + all suites)
  *   node scripts/go-live-certification.mjs --skip-build   # preview must already be on :4173
  *   node scripts/go-live-certification.mjs --quick        # auth + notifications + core e2e only
  *
- * Results: Go live Prep - Staging/generated/certification/report.json
+ * Results: Go live Prep - UAT/generated/certification/report.json
  */
 import { spawn, execSync } from 'child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
@@ -16,7 +16,7 @@ import http from 'http';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
-const OUT = join(__dirname, '../../Go live Prep - Staging/generated/certification');
+const OUT = join(__dirname, '../../Go live Prep - UAT/generated/certification');
 const PREVIEW_PORT = 4173;
 const PREVIEW_URL = `http://127.0.0.1:${PREVIEW_PORT}`;
 
@@ -27,17 +27,17 @@ const withEmulator = args.has('--emulator');
 
 const SUITES_FULL = [
   { id: 'verify-uat-otp', script: 'verify-uat-otp-login.mjs', needsPreview: false },
-  { id: 'notification-alerts', script: 'staging-notification-alerts-e2e.mjs', needsPreview: false },
-  { id: 'alert-radius-proximity', script: 'staging-alert-radius-proximity-e2e.mjs', needsPreview: false },
+  { id: 'notification-alerts', script: 'uat-notification-alerts-e2e.mjs', needsPreview: false },
+  { id: 'alert-radius-proximity', script: 'uat-alert-radius-proximity-e2e.mjs', needsPreview: false },
   { id: 'prod-readiness-pipeline', script: 'prod-readiness-pipeline.mjs', needsPreview: false },
-  { id: 'staging-e2e', script: 'staging-e2e-playwright.mjs', needsPreview: true },
-  { id: 'role-matrix', script: 'staging-role-matrix-e2e.mjs', needsPreview: true },
-  { id: 'deep-journeys', script: 'staging-deep-journeys-e2e.mjs', needsPreview: true },
+  { id: 'uat-e2e', script: 'uat-e2e-playwright.mjs', needsPreview: true },
+  { id: 'role-matrix', script: 'uat-role-matrix-e2e.mjs', needsPreview: true },
+  { id: 'deep-journeys', script: 'uat-deep-journeys-e2e.mjs', needsPreview: true },
   { id: 'prod-readiness-ui', script: 'prod-readiness-e2e.mjs', needsPreview: true },
   { id: 'review-feedback', script: 'review-feedback-e2e.mjs', needsPreview: true },
-  { id: 'perf-smoke', script: 'staging-perf-full-smoke.mjs', needsPreview: true },
-  { id: 'load-50', script: 'staging-load-50.mjs', needsPreview: false },
-  { id: 'report-trigger-stress', script: 'staging-report-trigger-stress.mjs', needsPreview: false },
+  { id: 'perf-smoke', script: 'uat-perf-full-smoke.mjs', needsPreview: true },
+  { id: 'load-50', script: 'uat-load-50.mjs', needsPreview: false },
+  { id: 'report-trigger-stress', script: 'uat-report-trigger-stress.mjs', needsPreview: false },
 ];
 
 const SUITES_QUICK = SUITES_FULL.filter((s) =>
@@ -46,7 +46,7 @@ const SUITES_QUICK = SUITES_FULL.filter((s) =>
     'notification-alerts',
     'alert-radius-proximity',
     'prod-readiness-pipeline',
-    'staging-e2e',
+    'uat-e2e',
     'role-matrix',
   ].includes(s.id),
 );
@@ -100,7 +100,7 @@ function readSuiteResults(id) {
     'notification-alerts': join(OUT, '../notification-alerts-e2e/results.json'),
     'alert-radius-proximity': join(OUT, '../alert-radius-proximity-e2e/results.json'),
     'prod-readiness-pipeline': join(OUT, '../prod-readiness-e2e/pipeline.json'),
-    'staging-e2e': join(OUT, '../e2e-playwright/results.json'),
+    'uat-e2e': join(OUT, '../e2e-playwright/results.json'),
     'role-matrix': join(OUT, '../e2e-role-matrix/results.json'),
     'deep-journeys': join(OUT, '../deep-journeys-e2e/results.json'),
     'prod-readiness-ui': join(OUT, '../prod-readiness-e2e/results.json'),
@@ -129,8 +129,8 @@ async function main() {
   console.log(`\n=== Eravat Go-Live Certification (${quick ? 'quick' : 'full'}) ===\n`);
 
   if (!skipBuild) {
-    console.log('Building staging bundle…');
-    execSync('VITE_BASE_PATH=/ npx vite build --mode staging', { cwd: ROOT, stdio: 'inherit' });
+    console.log('Building uat bundle…');
+    execSync('VITE_BASE_PATH=/ npx vite build --mode uat', { cwd: ROOT, stdio: 'inherit' });
   }
 
   const needsPreview = suites.some((s) => s.needsPreview);
@@ -250,7 +250,7 @@ async function main() {
   const report = {
     startedAt,
     finishedAt: new Date().toISOString(),
-    environment: 'staging',
+    environment: 'uat',
     previewUrl: PREVIEW_URL,
     stagingWeb: 'https://eravat.netlify.app',
     stagingSupabase: 'ttjtyvxfiqhjdngkgdkf',
@@ -270,7 +270,7 @@ async function main() {
     [
       `# Go-Live Certification — ${report.finishedAt.slice(0, 10)}`,
       '',
-      `**Environment:** Staging (${report.stagingWeb})`,
+      `**Environment:** UAT (${report.stagingWeb})`,
       `**Mode:** ${report.mode}`,
       `**Result:** ${report.summary.certified ? '✅ CERTIFIED' : '❌ NOT CERTIFIED'} (${passed}/${suiteResults.length} suites)`,
       '',

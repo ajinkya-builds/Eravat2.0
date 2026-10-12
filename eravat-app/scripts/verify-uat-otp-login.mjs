@@ -1,5 +1,5 @@
 /**
- * Verify UAT Test OTP login against staging for one user per role.
+ * Verify UAT Test OTP login against uat for one user per role.
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
@@ -24,19 +24,19 @@ function loadEnv(relativePath) {
   }
 }
 
-const stagingEnv = loadEnv('../.env.staging.local');
+const stagingEnv = loadEnv('../.env.uat.local');
 
 const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || stagingEnv.VITE_SUPABASE_URL;
 const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || stagingEnv.VITE_SUPABASE_PUBLISHABLE_KEY;
 const manifest = JSON.parse(
   readFileSync(
-    resolve(__dirname, '../../Go live Prep - Staging/generated/uat-testers/uat-testers-otp-manifest.json'),
+    resolve(__dirname, '../../Go live Prep - UAT/generated/uat-testers/uat-testers-otp-manifest.json'),
     'utf8'
   )
 );
 
 if (!url || !key) {
-  console.error('Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (or use .env.staging.local)');
+  console.error('Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (or use .env.uat.local)');
   process.exit(1);
 }
 

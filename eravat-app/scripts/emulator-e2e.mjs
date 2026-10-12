@@ -8,7 +8,7 @@ import { join } from 'path';
 import { parseStringPromise } from 'xml2js';
 
 const PKG = 'com.forestdept.eravat';
-const OUT = join(process.cwd(), '../Go live Prep - Staging/generated/e2e-emulator');
+const OUT = join(process.cwd(), '../Go live Prep - UAT/generated/e2e-emulator');
 mkdirSync(OUT, { recursive: true });
 
 const USERS = {

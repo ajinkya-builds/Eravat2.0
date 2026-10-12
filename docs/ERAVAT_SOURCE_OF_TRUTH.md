@@ -99,7 +99,7 @@ The application uses a "Shadow Database" pattern.
 
 ### 3.3 Authentication & Phone OTP Architecture (Added: 2026-03-15)
 
-Eravat 2.0 uses **Supabase Phone Authentication** (with native test/sandbox OTP bypass for local/staging development, and passwordless OTP + local PIN lock). To prevent the creation of "ghost users" during login attempts, the following strict architectural constraints are enforced:
+Eravat 2.0 uses **Supabase Phone Authentication** (with native test/sandbox OTP bypass for local/UAT development, and passwordless OTP + local PIN lock). To prevent the creation of "ghost users" during login attempts, the following strict architectural constraints are enforced:
 
 1.  **Existing Users Only**: The system explicitly forbids OTP from creating new accounts. New users must be provisioned via the admin dashboard.
 2.  **RPC Verification Pre-Check**: Before sending an OTP, the client *must* query the `get_email_by_phone` SECURITY DEFINER RPC. This safely bypasses Row Level Security on the `profiles` table to confirm the last 10-digits of the user's phone exist in the database.
