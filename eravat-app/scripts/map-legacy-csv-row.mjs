@@ -1,5 +1,5 @@
 /**
- * Map a Gajrakshak / ED-style CSV row onto Eravat report fields.
+ * Map a historical ED-style CSV row onto Eravat report fields.
  * Does not write to the database. Use with a service-role ingest only on uat.
  *
  * Expected headers (flexible): Date, Hour, Latitude, Longitude, Division, Range, Beat,
@@ -20,7 +20,7 @@ export function num(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function mapGajrakshakRow(row) {
+export function mapLegacyCsvRow(row) {
   const deaths =
     num(row['Male Death Count']) +
     num(row['Female Death Count']) +
@@ -40,7 +40,7 @@ export function mapGajrakshakRow(row) {
 
   const observation_type = loss_type.length ? 'loss' : 'direct';
   return {
-    source: 'gajrakshak',
+    source: 'legacy_csv',
     observation_type,
     latitude: num(row.Latitude) || null,
     longitude: num(row.Longitude) || null,
@@ -55,5 +55,5 @@ export function mapGajrakshakRow(row) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log('Gajrakshak mapper. Import mapGajrakshakRow() from a uat ingest; do not run against prod.');
+  console.log('Legacy CSV mapper. Import mapLegacyCsvRow() from a uat ingest; do not run against prod.');
 }

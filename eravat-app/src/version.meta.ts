@@ -1,11 +1,10 @@
 /** AUTO-GENERATED from ../version.json — run `npm run version:bump` or `npm run version:sync`. Do not edit by hand. */
 export const APP_VERSION_META = {
-  versionName: "2.1.21",
-  versionCode: 20121,
+  versionName: "2.1.22",
+  versionCode: 20122,
   channel: "uat",
-  releasedAt: "2026-10-10",
+  releasedAt: "2026-10-31",
   changes: [
-    "Share a sighting into WhatsApp with the Gaj Rakshak message and photo link",
-    "Sign out asks before leaving reports that have not synced"
+    "Share sheet title is now the Eravat Alert Card"
   ],
 } as const;
