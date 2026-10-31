@@ -50,7 +50,7 @@ const hi: SightingShareLabels = {
   dms: 'GPS स्थान (DMS)',
 };
 
-describe('Gaj Rakshak share payload', () => {
+describe('Alert Card share payload', () => {
   it('formats India date and 12-hour time', () => {
     expect(formatShareDateParts('2026-10-10T12:31:00+05:30')).toEqual({
       date: 'Oct 10, 26',
@@ -100,7 +100,7 @@ describe('Gaj Rakshak share payload', () => {
         '📍 - https://www.google.com/maps?q=23.912617,81.1009',
       ].join('\n'),
     );
-    expect(text).not.toContain('एरावत साइटिंग');
+    expect(text).not.toContain('एरावत अलर्ट कार्ड');
     expect(text).not.toContain('साइटिंग का प्रकार');
   });
 
@@ -192,13 +192,13 @@ describe('share sheet', () => {
     const writeText = vi.fn();
     Object.assign(navigator, { clipboard: { writeText } });
 
-    const result = await shareOrCopy({ title: 'एरावत साइटिंग', text: 'दिनांक - Oct 10, 26' });
+    const result = await shareOrCopy({ title: 'एरावत अलर्ट कार्ड', text: 'दिनांक - Oct 10, 26' });
 
     expect(result).toBe('shared');
     expect(shareMock).toHaveBeenCalledWith({
-      title: 'एरावत साइटिंग',
+      title: 'एरावत अलर्ट कार्ड',
       text: 'दिनांक - Oct 10, 26',
-      dialogTitle: 'एरावत साइटिंग',
+      dialogTitle: 'एरावत अलर्ट कार्ड',
     });
     expect(shareMock.mock.calls[0][0]).not.toHaveProperty('files');
     expect(shareMock.mock.calls[0][0]).not.toHaveProperty('url');

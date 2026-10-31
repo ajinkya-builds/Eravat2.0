@@ -386,7 +386,7 @@ try {
       'R3.6 share DD-MM + description + photo',
       'Review 3 §6',
       shareBtn > 0 ? 'PASS' : 'FAIL',
-      'Share control present; Gaj Rakshak text layout, photo link, and Android share sheet covered by unit tests.',
+      'Share control present; Alert Card text layout, photo link, and Android share sheet covered by unit tests.',
     );
   } else {
     record(

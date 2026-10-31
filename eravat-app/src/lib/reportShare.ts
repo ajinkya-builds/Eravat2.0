@@ -1,5 +1,5 @@
 /**
- * Share a sighting the way field staff already forward Gaj Rakshak messages:
+ * Share a sighting as an Eravat Alert Card:
  * one text body (place, counts, damage, photo link, map link) sent through
  * the system share sheet so WhatsApp and the other apps open directly.
  */
@@ -91,7 +91,7 @@ export async function sightingPhotoShareUrl(path: string | null | undefined): Pr
     }
 }
 
-/** Date and time in the Gaj Rakshak style, always in India time. */
+/** Date and time for the alert card, always in India time. */
 export function formatShareDateParts(isoOrTimestamp: string): { date: string; time: string } | null {
     const d = new Date(isoOrTimestamp);
     if (isNaN(d.getTime())) return null;

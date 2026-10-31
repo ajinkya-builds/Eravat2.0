@@ -5,7 +5,7 @@ export const APP_VERSION_META = {
   channel: "uat",
   releasedAt: "2026-10-10",
   changes: [
-    "Share a sighting into WhatsApp with the Gaj Rakshak message and photo link",
+    "Share a sighting into WhatsApp with the Eravat Alert Card and photo link",
     "Sign out asks before leaving reports that have not synced"
   ],
 } as const;
