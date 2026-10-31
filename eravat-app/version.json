@@ -1,10 +1,9 @@
 {
-  "versionName": "2.1.21",
-  "versionCode": 20121,
+  "versionName": "2.1.22",
+  "versionCode": 20122,
   "channel": "uat",
-  "releasedAt": "2026-10-10",
+  "releasedAt": "2026-10-31",
   "changes": [
-    "Share a sighting into WhatsApp with the Eravat Alert Card and photo link",
-    "Sign out asks before leaving reports that have not synced"
+    "Share sheet title is now the Eravat Alert Card"
   ]
 }
